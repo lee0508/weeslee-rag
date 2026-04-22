@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import health, collections, documents
+from app.api import health, collections, documents, ocr
 
 
 @asynccontextmanager
@@ -51,6 +51,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["Health"])
 app.include_router(collections.router, prefix="/api/admin", tags=["Collections"])
 app.include_router(documents.router, prefix="/api/admin", tags=["Documents"])
+app.include_router(ocr.router, prefix="/api", tags=["OCR"])
 
 
 @app.get("/")
