@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     max_upload_size: int = 52428800  # 50MB
 
+    # Knowledge Sources (Network Drive)
+    # Use mapped drive letter (W:) or UNC path
+    knowledge_source_root: str = "W:\\"
+    knowledge_source_unc: str = "\\\\diskstation\\W2_프로젝트폴더"
+
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
