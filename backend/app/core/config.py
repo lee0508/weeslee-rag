@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file="../.env",  # Read from project root
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "llama3:8b"
     ollama_embed_model: str = "nomic-embed-text"
+    ollama_api_key: Optional[str] = None
+
+    # OpenAI API
+    openai_api_key: Optional[str] = None
+
+    # Google Gemini API
+    gemini_api_key: Optional[str] = None
 
     # ChromaDB
     chroma_host: str = "localhost"
