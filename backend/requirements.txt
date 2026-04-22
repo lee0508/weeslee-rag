@@ -1,0 +1,46 @@
+# FastAPI & Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+python-dotenv>=1.0.0
+
+# Database
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+alembic>=1.13.0
+
+# ChromaDB (use latest for Python 3.13 support)
+chromadb>=0.5.0
+
+# Document Processing
+python-pptx>=0.6.23
+python-docx>=1.1.0
+pdfplumber>=0.10.0
+openpyxl>=3.1.2
+
+# Note: pyhwpx may need special handling on Windows
+# pyhwpx>=0.5.0
+
+# LangChain (optional, for advanced RAG)
+# langchain>=0.1.0
+# langchain-community>=0.0.19
+
+# HTTP Client
+httpx>=0.26.0
+aiohttp>=3.9.0
+
+# Task Queue (optional)
+# celery>=5.3.0
+# redis>=5.0.0
+
+# Utilities
+pydantic>=2.6.0
+pydantic-settings>=2.1.0
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.23.0
+
+# Development
+black>=24.0.0
+isort>=5.13.0

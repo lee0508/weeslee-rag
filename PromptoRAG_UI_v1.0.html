@@ -1,0 +1,2670 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptoRAG — 업무형 AI 프롬프트 자산 관리 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ===== CSS VARIABLES — 3색 시스템 ===== */
+:root {
+  --navy:    #1B3A6B;
+  --navy-d:  #0F2347;
+  --navy-m:  #2A4F8F;
+  --navy-l:  #EBF0FA;
+  --amber:   #E8971F;
+  --amber-d: #C47A10;
+  --amber-l: #FEF3DC;
+  --white:   #FFFFFF;
+  --gray-50: #F7F9FC;
+  --gray-100:#EEF2F8;
+  --gray-200:#D9E2F0;
+  --gray-400:#8FA3C8;
+  --gray-600:#4A6A9A;
+  --gray-800:#1E2D4A;
+  --text:    #1B2A4A;
+  --text-s:  #4A6080;
+  --radius:  10px;
+  --shadow:  0 2px 12px rgba(27,58,107,.10);
+  --shadow-m:0 6px 28px rgba(27,58,107,.16);
+  --font:    'Noto Sans KR', sans-serif;
+  --mono:    'JetBrains Mono', monospace;
+  --sidebar: 270px;
+  --right:   320px;
+  --top:     56px;
+}
+
+/* ===== RESET ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--text); font-size: 15px; line-height: 1.6; overflow-x: hidden; }
+button { cursor: pointer; font-family: var(--font); }
+input, textarea, select { font-family: var(--font); }
+a { text-decoration: none; color: inherit; }
+
+/* ===== TOP NAV ===== */
+.topnav {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 100;
+  background: var(--navy-d); display: flex; align-items: center; padding: 0 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25); gap: 16px;
+}
+.topnav-logo {
+  font-size: 20px; font-weight: 900; color: var(--white); letter-spacing: -0.5px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+}
+.topnav-logo .logo-text { display: flex; align-items: center; gap: 8px; }
+.topnav-logo .logo-text span { color: var(--amber); }
+.topnav-logo .logo-badge {
+  font-size: 10px; font-weight: 600; color: var(--gray-400);
+  letter-spacing: 0.5px; margin-top: 1px;
+}
+.topnav-tabs { display: flex; gap: 4px; margin-left: 20px; flex: 1; }
+.topnav-tab {
+  padding: 6px 16px; border-radius: 6px; color: var(--gray-400);
+  font-size: 14px; font-weight: 500; border: none; background: none;
+  transition: all .2s; cursor: pointer;
+}
+.topnav-tab:hover { color: var(--white); background: rgba(255,255,255,.08); }
+.topnav-tab.active { color: var(--white); background: var(--navy-m); }
+.topnav-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.topnav-user {
+  display: flex; align-items: center; gap: 8px; color: var(--gray-400);
+  font-size: 14px;
+}
+.topnav-logout {
+  padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500;
+  color: var(--gray-400); background: none; border: 1px solid var(--gray-600);
+  cursor: pointer; transition: all .2s; margin-left: 4px;
+}
+.topnav-logout:hover { color: var(--white); border-color: var(--white); }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--amber); color: var(--navy-d); font-weight: 700;
+  font-size: 13px; display: flex; align-items: center; justify-content: center;
+}
+.topnav-badge {
+  background: var(--amber); color: var(--navy-d); font-size: 11px;
+  font-weight: 700; padding: 2px 8px; border-radius: 12px;
+}
+
+/* ===== LAYOUT ===== */
+.app-body {
+  display: flex; margin-top: var(--top); height: calc(100vh - var(--top));
+  overflow: hidden;
+}
+
+/* ===== LEFT SIDEBAR ===== */
+.sidebar {
+  width: var(--sidebar); flex-shrink: 0; background: var(--navy);
+  overflow-y: auto; display: flex; flex-direction: column;
+  border-right: 2px solid var(--navy-m);
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--navy-m); border-radius: 2px; }
+
+.sidebar-section { padding: 16px 16px 8px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 700; color: var(--gray-400);
+  text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.sidebar-search {
+  position: relative; margin-bottom: 12px;
+}
+.sidebar-search input {
+  width: 100%; padding: 8px 32px 8px 12px; border-radius: 8px;
+  background: var(--navy-m); border: 1px solid rgba(255,255,255,.1);
+  color: var(--white); font-size: 14px; outline: none;
+  transition: border-color .2s;
+}
+.sidebar-search input::placeholder { color: var(--gray-400); }
+.sidebar-search input:focus { border-color: var(--amber); }
+.sidebar-search-icon {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--gray-400); font-size: 14px;
+}
+.filter-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip {
+  padding: 3px 10px; border-radius: 14px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--navy-m); color: var(--gray-400);
+  background: none; cursor: pointer; transition: all .2s;
+}
+.chip:hover, .chip.active {
+  background: var(--amber); border-color: var(--amber);
+  color: var(--navy-d); font-weight: 700;
+}
+
+.nav-group { padding: 0 8px 8px; }
+.nav-group-title {
+  font-size: 12px; font-weight: 700; color: var(--amber);
+  padding: 10px 8px 4px; letter-spacing: .5px; text-transform: uppercase;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 8px; cursor: pointer;
+  color: var(--gray-400); font-size: 14px; font-weight: 500;
+  transition: all .2s; border: none; background: none; width: 100%; text-align: left;
+}
+.nav-item:hover { background: var(--navy-m); color: var(--white); }
+.nav-item.active { background: rgba(232,151,31,.15); color: var(--amber); border-left: 3px solid var(--amber); }
+.nav-item-icon { font-size: 16px; flex-shrink: 0; }
+.nav-item-badge {
+  margin-left: auto; background: var(--amber); color: var(--navy-d);
+  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+}
+.nav-divider { height: 1px; background: var(--navy-m); margin: 8px 16px; }
+
+/* ===== MAIN CENTER ===== */
+.main {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+  background: var(--gray-50);
+}
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
+
+/* ===== SECTION CARDS ===== */
+.card {
+  background: var(--white); border-radius: var(--radius);
+  border: 1px solid var(--gray-200); box-shadow: var(--shadow);
+  margin: 0;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--gray-100);
+  background: var(--white); border-radius: var(--radius) var(--radius) 0 0;
+}
+.card-title {
+  font-size: 15px; font-weight: 700; color: var(--navy);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-body { padding: 20px; }
+
+.main-content { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ===== TEMPLATE HEADER CARD ===== */
+.tpl-header {
+  background: linear-gradient(135deg, var(--navy-d) 0%, var(--navy) 100%);
+  border-radius: var(--radius); padding: 20px 24px;
+  color: var(--white); position: relative; overflow: hidden;
+  border: none;
+}
+.tpl-header::before {
+  content: ''; position: absolute; right: -30px; top: -30px;
+  width: 160px; height: 160px; border-radius: 50%;
+  background: rgba(232,151,31,.1);
+}
+.tpl-name { font-size: 20px; font-weight: 900; margin-bottom: 6px; }
+.tpl-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.tpl-tag {
+  padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;
+  border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.85);
+}
+.tpl-tag.amber { background: var(--amber); border-color: var(--amber); color: var(--navy-d); }
+.tpl-desc { font-size: 14px; color: rgba(255,255,255,.75); line-height: 1.7; }
+.tpl-info-row {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 16px;
+}
+.tpl-info-item { background: rgba(255,255,255,.08); border-radius: 8px; padding: 10px 14px; }
+.tpl-info-label { font-size: 11px; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .8px; }
+.tpl-info-val { font-size: 14px; font-weight: 600; color: var(--white); margin-top: 2px; }
+
+/* ===== FORM ELEMENTS ===== */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-label {
+  font-size: 13px; font-weight: 600; color: var(--navy);
+  display: flex; align-items: center; gap: 6px;
+}
+.form-label .req { color: var(--amber); font-weight: 700; }
+.form-input, .form-select, .form-textarea {
+  padding: 10px 14px; border-radius: 8px; font-size: 14px;
+  border: 1.5px solid var(--gray-200); background: var(--white);
+  color: var(--text); outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--navy); box-shadow: 0 0 0 3px rgba(27,58,107,.1);
+}
+.form-textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+.form-hint { font-size: 12px; color: var(--text-s); }
+.form-row { display: flex; gap: 10px; align-items: flex-start; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  border: none; cursor: pointer; transition: all .2s; display: inline-flex;
+  align-items: center; gap: 6px; white-space: nowrap;
+}
+.btn-primary { background: var(--navy); color: var(--white); }
+.btn-primary:hover { background: var(--navy-d); transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn-amber { background: var(--amber); color: var(--navy-d); }
+.btn-amber:hover { background: var(--amber-d); transform: translateY(-1px); }
+.btn-outline {
+  background: var(--white); color: var(--navy);
+  border: 1.5px solid var(--gray-200);
+}
+.btn-outline:hover { border-color: var(--navy); background: var(--navy-l); }
+.btn-ghost { background: none; color: var(--text-s); border: none; padding: 6px 12px; }
+.btn-ghost:hover { background: var(--gray-100); color: var(--navy); }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-lg { padding: 13px 28px; font-size: 16px; }
+.btn-icon {
+  width: 34px; height: 34px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: var(--gray-100);
+  color: var(--text-s); border: 1px solid var(--gray-200);
+  font-size: 15px;
+}
+.btn-icon:hover { background: var(--navy-l); color: var(--navy); border-color: var(--navy); }
+
+/* ===== RESULT OUTPUT ===== */
+.result-box {
+  background: var(--gray-50); border-radius: 8px; border: 1.5px solid var(--gray-200);
+  min-height: 200px; padding: 16px; font-size: 14px; line-height: 1.8;
+  color: var(--text); position: relative;
+}
+.result-box.generating {
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { border-color: var(--gray-200); }
+  50% { border-color: var(--amber); }
+}
+.result-placeholder {
+  color: var(--gray-400); font-size: 14px; text-align: center;
+  padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.result-placeholder-icon { font-size: 36px; }
+.result-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+/* ===== STATUS BADGES ===== */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;
+}
+.badge-draft { background: var(--gray-100); color: var(--text-s); }
+.badge-review { background: #FEF3DC; color: #B26A00; }
+.badge-approved { background: #DCFCE7; color: #166534; }
+.badge-deprecated { background: #FEE2E2; color: #991B1B; }
+
+/* ===== RIGHT PANEL ===== */
+.right-panel {
+  width: var(--right); flex-shrink: 0;
+  background: var(--white); border-left: 2px solid var(--gray-200);
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.right-panel::-webkit-scrollbar { width: 4px; }
+.right-panel::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+
+.rpanel-section { border-bottom: 1px solid var(--gray-100); }
+.rpanel-header {
+  padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none;
+}
+.rpanel-title {
+  font-size: 14px; font-weight: 700; color: var(--navy);
+  display: flex; align-items: center; gap: 8px;
+}
+.rpanel-body { padding: 0 16px 16px; }
+
+/* ===== KNOWLEDGE SOURCE LIST ===== */
+.ks-list { display: flex; flex-direction: column; gap: 8px; }
+.ks-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  border: 1.5px solid var(--gray-200); cursor: pointer;
+  transition: all .2s; background: var(--gray-50);
+}
+.ks-item:hover { border-color: var(--navy); background: var(--navy-l); }
+.ks-item.selected { border-color: var(--amber); background: var(--amber-l); }
+.ks-icon { font-size: 20px; }
+.ks-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.ks-count { font-size: 12px; color: var(--text-s); }
+.ks-check { margin-left: auto; color: var(--amber); font-size: 16px; display: none; }
+.ks-item.selected .ks-check { display: block; }
+
+/* ===== REFERENCE DOCS ===== */
+.ref-list { display: flex; flex-direction: column; gap: 8px; }
+.ref-item {
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+}
+.ref-title {
+  font-size: 13px; font-weight: 600; color: var(--navy);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.ref-score {
+  font-size: 11px; padding: 2px 7px; border-radius: 10px;
+  background: var(--amber); color: var(--navy-d); font-weight: 700;
+}
+.ref-loc { font-size: 12px; color: var(--text-s); margin: 3px 0; }
+.ref-excerpt {
+  font-size: 12px; color: var(--text); line-height: 1.5;
+  border-left: 3px solid var(--amber); padding-left: 8px; margin-top: 6px;
+}
+
+/* ===== WARNINGS ===== */
+.warn-list { display: flex; flex-direction: column; gap: 6px; }
+.warn-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 12px; border-radius: 7px; font-size: 13px;
+}
+.warn-item.info { background: #EFF6FF; color: #1D4ED8; }
+.warn-item.warn { background: #FFFBEB; color: #92400E; }
+.warn-item.error { background: #FEF2F2; color: #991B1B; }
+.warn-icon { font-size: 15px; margin-top: 1px; flex-shrink: 0; }
+
+/* ===== SEARCH RANGE SLIDER ===== */
+.slider-row { display: flex; flex-direction: column; gap: 8px; }
+.slider-label { display: flex; justify-content: space-between; font-size: 13px; }
+input[type=range] {
+  width: 100%; -webkit-appearance: none; height: 4px;
+  border-radius: 2px; background: var(--gray-200); outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--navy); cursor: pointer; border: 2px solid var(--white);
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+
+/* ===== STEP WIZARD ===== */
+.wizard-bar {
+  display: flex; align-items: center; gap: 0;
+  background: var(--white); border-radius: var(--radius);
+  border: 1px solid var(--gray-200); overflow: hidden;
+  margin-bottom: 4px; box-shadow: var(--shadow);
+}
+.wizard-step {
+  flex: 1; padding: 11px 10px; text-align: center;
+  font-size: 13px; font-weight: 600; color: var(--text-s);
+  border-right: 1px solid var(--gray-200); cursor: pointer;
+  transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.wizard-step:last-child { border-right: none; }
+.wizard-step.done { background: var(--navy-l); color: var(--navy); }
+.wizard-step.active { background: var(--navy); color: var(--white); }
+.wizard-step-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.2); flex-shrink: 0;
+}
+.wizard-step.done .wizard-step-num { background: var(--amber); color: var(--navy-d); }
+
+/* ===== PROMPT PREVIEW ===== */
+.prompt-preview {
+  background: var(--navy-d); border-radius: 8px; padding: 16px;
+  font-family: var(--mono); font-size: 12px; color: #A8C8FF;
+  line-height: 1.7; max-height: 180px; overflow-y: auto; position: relative;
+}
+.prompt-preview .var-highlight { color: var(--amber); font-weight: 600; }
+.prompt-preview .sys-part { color: #90EE90; }
+.prompt-preview .comment { color: #6A7F9A; }
+
+/* ===== EXECUTION HISTORY ===== */
+.hist-list { display: flex; flex-direction: column; gap: 8px; }
+.hist-item {
+  padding: 12px 14px; border-radius: 8px;
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  cursor: pointer; transition: all .2s;
+}
+.hist-item:hover { border-color: var(--navy); background: var(--navy-l); }
+.hist-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.hist-meta { font-size: 12px; color: var(--text-s); margin-top: 4px; display: flex; gap: 12px; }
+.hist-rating { color: var(--amber); }
+
+/* ===== MODAL / POPUP ===== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(15,35,71,.55); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--white); border-radius: 14px; width: 620px; max-width: 95vw;
+  max-height: 88vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(15,35,71,.25);
+  transform: scale(.95) translateY(10px); transition: transform .25s;
+}
+.modal-overlay.open .modal { transform: scale(1) translateY(0); }
+.modal-head {
+  padding: 20px 24px 16px; border-bottom: 1px solid var(--gray-100);
+  display: flex; align-items: flex-start; justify-content: space-between;
+}
+.modal-icon { font-size: 28px; margin-right: 12px; }
+.modal-title-wrap { flex: 1; }
+.modal-title { font-size: 17px; font-weight: 800; color: var(--navy); }
+.modal-subtitle { font-size: 13px; color: var(--text-s); margin-top: 3px; }
+.modal-close {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--gray-100);
+  border: none; font-size: 16px; cursor: pointer; color: var(--text-s);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s; flex-shrink: 0; margin-left: 12px;
+}
+.modal-close:hover { background: var(--gray-200); color: var(--navy); }
+.modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--gray-200); }
+.modal-foot {
+  padding: 14px 24px; border-top: 1px solid var(--gray-100);
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+
+/* Modal content styles */
+.modal-desc { font-size: 14px; color: var(--text); line-height: 1.75; margin-bottom: 16px; }
+.modal-section { margin-bottom: 18px; }
+.modal-section-title {
+  font-size: 13px; font-weight: 700; color: var(--navy);
+  text-transform: uppercase; letter-spacing: .6px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--amber); display: inline-block;
+}
+.example-box {
+  background: var(--gray-50); border-radius: 8px; border-left: 4px solid var(--amber);
+  padding: 12px 14px; font-size: 13px; color: var(--text); line-height: 1.7;
+}
+.example-box strong { color: var(--navy); }
+.code-block {
+  background: var(--navy-d); border-radius: 8px; padding: 14px 16px;
+  font-family: var(--mono); font-size: 12px; color: #A8C8FF;
+  line-height: 1.7; overflow-x: auto; margin-top: 8px;
+}
+.code-block .kw { color: #FFB86C; }
+.code-block .str { color: #50FA7B; }
+.code-block .cm { color: #6A7F9A; font-style: italic; }
+.db-note {
+  background: var(--amber-l); border: 1px solid #F5D08A; border-radius: 8px;
+  padding: 12px 14px; font-size: 13px; color: #7A4A00; margin-top: 12px;
+}
+.db-note strong { color: var(--amber-d); }
+.modal-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.modal-list li {
+  display: flex; gap: 10px; font-size: 14px; line-height: 1.6;
+  padding: 8px 12px; background: var(--gray-50); border-radius: 7px;
+}
+.modal-list li::before { content: '✦'; color: var(--amber); flex-shrink: 0; font-size: 12px; margin-top: 2px; }
+
+/* ===== RUN BUTTON AREA ===== */
+.run-bar {
+  background: var(--white); border-top: 2px solid var(--gray-200);
+  padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  position: sticky; bottom: 0; z-index: 10;
+}
+.run-status { font-size: 13px; color: var(--text-s); flex: 1; }
+.token-counter { font-size: 12px; color: var(--gray-400); font-family: var(--mono); }
+
+/* ===== PROGRESS ===== */
+.progress-bar-wrap {
+  background: var(--gray-100); border-radius: 4px; height: 6px; overflow: hidden;
+}
+.progress-bar {
+  height: 100%; background: linear-gradient(90deg, var(--navy), var(--amber));
+  width: 0%; transition: width .3s; border-radius: 4px;
+}
+
+/* ===== UTIL ===== */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.text-sm { font-size: 13px; }
+.text-xs { font-size: 12px; }
+.text-muted { color: var(--text-s); }
+.fw-700 { font-weight: 700; }
+.divider { height: 1px; background: var(--gray-100); margin: 12px 0; }
+
+/* ===== HELP BUTTON ===== */
+.help-btn {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--navy-l); color: var(--navy);
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--gray-200); flex-shrink: 0;
+  transition: all .2s;
+}
+.help-btn:hover { background: var(--amber); border-color: var(--amber); color: var(--navy-d); }
+
+/* ===== RATING STARS ===== */
+.stars { color: var(--gray-200); font-size: 18px; cursor: pointer; }
+.stars span { transition: color .1s; }
+.stars span:hover, .stars span.filled { color: var(--amber); }
+
+/* ===== TEMPLATE CARD LIST ===== */
+.tpl-card-list { display: flex; flex-direction: column; gap: 6px; padding: 0 8px 8px; }
+.tpl-card {
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid transparent; background: rgba(255,255,255,.05);
+  transition: all .2s; position: relative;
+}
+.tpl-card:hover { background: var(--navy-m); border-color: var(--navy-m); }
+.tpl-card.active { background: rgba(232,151,31,.12); border-color: var(--amber); }
+.tpl-card-name { font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 3px; }
+.tpl-card.active .tpl-card-name { color: var(--amber); }
+.tpl-card-meta { font-size: 11px; color: var(--gray-400); display: flex; gap: 8px; }
+.tpl-card-tag {
+  font-size: 10px; font-weight: 600; padding: 1px 6px;
+  border-radius: 8px; background: rgba(255,255,255,.1); color: var(--gray-400);
+}
+
+/* ===== ACCORDION ===== */
+.accordion-arrow { transition: transform .2s; }
+.accordion-arrow.open { transform: rotate(180deg); }
+.accordion-content { display: none; }
+.accordion-content.open { display: block; }
+
+/* ===== TOAST ===== */
+.toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--navy-d); color: var(--white); padding: 12px 18px;
+  border-radius: 10px; font-size: 14px; box-shadow: var(--shadow-m);
+  display: flex; align-items: center; gap: 10px;
+  transform: translateX(120%); transition: transform .3s; border-left: 4px solid var(--amber);
+}
+.toast.show { transform: translateX(0); }
+
+/* ===== TABS ===== */
+.tab-group { display: flex; gap: 0; border-bottom: 2px solid var(--gray-200); margin-bottom: 16px; }
+.tab-btn {
+  padding: 10px 18px; font-size: 14px; font-weight: 600; border: none;
+  background: none; color: var(--text-s); cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all .2s;
+}
+.tab-btn:hover { color: var(--navy); }
+.tab-btn.active { color: var(--navy); border-bottom-color: var(--navy); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ===== STAT MINI ===== */
+.stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.stat-mini {
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  border-radius: 8px; padding: 10px 12px;
+}
+.stat-mini-val { font-size: 22px; font-weight: 900; color: var(--navy); }
+.stat-mini-label { font-size: 12px; color: var(--text-s); margin-top: 2px; }
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn .3s ease forwards; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+</style>
+</head>
+<body>
+
+<!-- ===== TOP NAVIGATION ===== -->
+<nav class="topnav">
+  <div class="topnav-logo">
+    <div class="logo-text">⬡ <span>Prompto</span>RAG</div>
+    <div class="logo-badge">Beta v1.0</div>
+  </div>
+  <div class="topnav-tabs">
+    <button class="topnav-tab active" onclick="switchTopTab(this, 'main-view')">🏠 홈</button>
+    <button class="topnav-tab" onclick="switchTopTab(this, 'main-view')">📚 프롬프트 라이브러리</button>
+    <button class="topnav-tab" onclick="switchTopTab(this, 'main-view')">▶ 새 작업 실행</button>
+    <button class="topnav-tab" onclick="switchTopTab(this, 'main-view'); scrollToHistory();">📋 실행 이력</button>
+    <button class="topnav-tab" onclick="openModal('modal-admin')">⚙ 관리자</button>
+  </div>
+  <div class="topnav-right">
+    <div class="topnav-user">
+      <div class="avatar">김</div>
+      <span style="color:var(--gray-400);font-size:13px">김위즐 | 컨설팅팀</span>
+      <button class="topnav-logout" onclick="handleLogout()">로그아웃</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== APP BODY ===== -->
+<div class="app-body">
+
+  <!-- ===== LEFT SIDEBAR ===== -->
+  <aside class="sidebar">
+    <!-- Search -->
+    <div class="sidebar-section">
+      <div class="sidebar-search">
+        <input type="text" placeholder="프롬프트 검색..." id="sidebar-search-input" oninput="filterTemplates(this.value)">
+        <span class="sidebar-search-icon">🔍</span>
+      </div>
+      <!-- Filter chips -->
+      <div class="filter-chips">
+        <button class="chip active" onclick="toggleChip(this,'all')">전체</button>
+        <button class="chip" onclick="toggleChip(this,'report')">보고서</button>
+        <button class="chip" onclick="toggleChip(this,'qa')">질의응답</button>
+        <button class="chip" onclick="toggleChip(this,'summary')">요약</button>
+        <button class="chip" onclick="toggleChip(this,'analysis')">분석</button>
+      </div>
+    </div>
+
+    <!-- Favorites -->
+    <div class="nav-group">
+      <div class="nav-group-title">⭐ 즐겨찾기</div>
+      <div class="tpl-card-list">
+        <div class="tpl-card active" onclick="selectTemplate(this, 0)">
+          <div class="tpl-card-name">ISP 사업계획서 초안 생성</div>
+          <div class="tpl-card-meta">
+            <span>보고서</span>
+            <span class="tpl-card-tag approved-tag">표준승인</span>
+          </div>
+        </div>
+        <div class="tpl-card" onclick="selectTemplate(this, 1)">
+          <div class="tpl-card-name">행정문서 요약 (3단)</div>
+          <div class="tpl-card-meta">
+            <span>요약</span>
+            <span class="tpl-card-tag">검토중</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-divider"></div>
+
+    <!-- Organization Standard -->
+    <div class="nav-group">
+      <div class="nav-group-title">🏛 조직 표준 템플릿</div>
+      <div class="tpl-card-list" id="tpl-list-org">
+        <div class="tpl-card" onclick="selectTemplate(this, 2)">
+          <div class="tpl-card-name">ODA 제안서 작성</div>
+          <div class="tpl-card-meta"><span>제안서</span><span class="tpl-card-tag">표준승인</span></div>
+        </div>
+        <div class="tpl-card" onclick="selectTemplate(this, 3)">
+          <div class="tpl-card-name">정책 비교분석 보고서</div>
+          <div class="tpl-card-meta"><span>분석</span><span class="tpl-card-tag">표준승인</span></div>
+        </div>
+        <div class="tpl-card" onclick="selectTemplate(this, 4)">
+          <div class="tpl-card-name">법령 조항 질의응답</div>
+          <div class="tpl-card-meta"><span>질의응답</span><span class="tpl-card-tag">표준승인</span></div>
+        </div>
+        <div class="tpl-card" onclick="selectTemplate(this, 5)">
+          <div class="tpl-card-name">회의록 자동 작성</div>
+          <div class="tpl-card-meta"><span>문서화</span><span class="tpl-card-tag">표준승인</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-divider"></div>
+
+    <!-- Personal -->
+    <div class="nav-group">
+      <div class="nav-group-title">👤 개인 저장</div>
+      <div class="tpl-card-list">
+        <div class="tpl-card" onclick="selectTemplate(this, 6)">
+          <div class="tpl-card-name">KC인증 모니터링 리포트</div>
+          <div class="tpl-card-meta"><span>모니터링</span><span class="tpl-card-tag">개인안</span></div>
+        </div>
+        <div class="tpl-card" onclick="selectTemplate(this, 7)">
+          <div class="tpl-card-name">AX 전략방향 보고서</div>
+          <div class="tpl-card-meta"><span>전략</span><span class="tpl-card-tag">검토중</span></div>
+        </div>
+      </div>
+      <div style="padding:8px 12px;">
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="openModal('modal-new-prompt')">
+          ＋ 새 템플릿 만들기
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-divider"></div>
+
+    <!-- Recent -->
+    <div class="nav-group" style="padding-bottom:16px">
+      <div class="nav-group-title">🕐 최근 사용</div>
+      <div class="nav-item" onclick="openModal('modal-history')">
+        <span class="nav-item-icon">📄</span>
+        <span>나의 실행 이력</span>
+        <span class="nav-item-badge">12</span>
+      </div>
+      <div class="nav-item" onclick="openModal('modal-saved')">
+        <span class="nav-item-icon">🗄</span>
+        <span>결과 보관함</span>
+        <span class="nav-item-badge">5</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== CENTER MAIN ===== -->
+  <main class="main" id="main-view">
+
+    <!-- Step Wizard -->
+    <div style="padding:16px 20px 0; position:sticky; top:0; z-index:20; background:var(--gray-50);">
+      <div class="wizard-bar">
+        <div class="wizard-step done" onclick="setStep(1)">
+          <div class="wizard-step-num">✓</div>업무선택
+        </div>
+        <div class="wizard-step done" onclick="setStep(2)">
+          <div class="wizard-step-num">✓</div>프롬프트선택
+        </div>
+        <div class="wizard-step active" onclick="setStep(3)">
+          <div class="wizard-step-num">3</div>입력값 설정
+        </div>
+        <div class="wizard-step" onclick="setStep(4)">
+          <div class="wizard-step-num">4</div>지식원 선택
+        </div>
+        <div class="wizard-step" onclick="setStep(5)">
+          <div class="wizard-step-num">5</div>결과 검토
+        </div>
+      </div>
+    </div>
+
+    <div class="main-content">
+
+      <!-- ① Template Header Card -->
+      <div class="tpl-header fade-in">
+        <div class="tpl-meta">
+          <span class="tpl-tag amber">📑 보고서 작성</span>
+          <span class="tpl-tag">v2.3</span>
+          <span class="tpl-tag" style="background:rgba(80,250,122,.15);border-color:rgba(80,250,122,.4);color:#50FA7B">✓ 표준승인</span>
+        </div>
+        <div class="tpl-name">ISP 사업계획서 초안 생성 프롬프트</div>
+        <div class="tpl-desc">정보화전략계획(ISP) 수립을 위한 사업계획서 초안을 자동 생성합니다. 기관명, 사업명, 목적, 대상 시스템을 입력하면 표준 형식의 초안을 작성합니다.</div>
+        <div class="tpl-info-row">
+          <div class="tpl-info-item">
+            <div class="tpl-info-label">작성자</div>
+            <div class="tpl-info-val">이기획 책임</div>
+          </div>
+          <div class="tpl-info-item">
+            <div class="tpl-info-label">최종 수정</div>
+            <div class="tpl-info-val">2025.06.12</div>
+          </div>
+          <div class="tpl-info-item">
+            <div class="tpl-info-label">사용 횟수</div>
+            <div class="tpl-info-val">148회</div>
+          </div>
+          <div class="tpl-info-item">
+            <div class="tpl-info-label">평균 만족도</div>
+            <div class="tpl-info-val">⭐ 4.3 / 5</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-amber btn-sm" onclick="openModal('modal-template-detail')">📋 템플릿 전체보기</button>
+          <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:var(--white)" onclick="openModal('modal-version')">🕒 버전이력</button>
+          <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:var(--white)" onclick="openModal('modal-approve')">📊 활용통계</button>
+        </div>
+      </div>
+
+      <!-- ② Variable Input Section -->
+      <div class="card fade-in">
+        <div class="card-header">
+          <div class="card-title">
+            📝 입력 파라미터
+            <button class="help-btn" onclick="openModal('modal-params')">?</button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="openModal('modal-preview')">👁 프롬프트 미리보기</button>
+            <button class="btn btn-outline btn-sm" onclick="clearInputs()">🗑 초기화</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">
+                기관명 <span class="req">*</span>
+                <button class="help-btn" onclick="openModal('modal-field-agency')">?</button>
+              </label>
+              <input class="form-input" type="text" placeholder="예) 과학기술정보통신부" id="field-agency" oninput="updatePreview()">
+              <span class="form-hint">발주 기관의 공식 명칭을 입력하세요</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                사업명 <span class="req">*</span>
+                <button class="help-btn" onclick="openModal('modal-field-project')">?</button>
+              </label>
+              <input class="form-input" type="text" placeholder="예) 행정업무 AX 정보화전략계획 수립" id="field-project" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">작성 목적 <span class="req">*</span></label>
+              <select class="form-select" id="field-purpose" onchange="updatePreview()">
+                <option value="">목적 선택...</option>
+                <option value="ISP 수립">ISP 수립</option>
+                <option value="ISMP 수립">ISMP 수립</option>
+                <option value="제안서 작성">제안서 작성</option>
+                <option value="RFP 작성">RFP 작성</option>
+                <option value="정책 연구">정책 연구</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">독자 수준</label>
+              <select class="form-select" id="field-audience">
+                <option value="임원보고">임원 보고용 (핵심 위주)</option>
+                <option value="실무보고">실무 보고용 (상세)</option>
+                <option value="공공보고서">공공 보고서형</option>
+                <option value="학술">학술/연구 보고서</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">출력 형식</label>
+              <select class="form-select" id="field-format">
+                <option value="서술형">서술형 보고서</option>
+                <option value="표+서술">표 + 서술 혼합</option>
+                <option value="개조식">개조식 (불릿)</option>
+                <option value="PT용">PT용 요약</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">분량 설정</label>
+              <select class="form-select" id="field-length">
+                <option value="3p">3페이지 분량</option>
+                <option value="5p">5페이지 분량</option>
+                <option value="10p">10페이지 분량</option>
+                <option value="auto">AI 자동 설정</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">핵심 키워드</label>
+              <input class="form-input" type="text" placeholder="예) AX, BPR, Quick Win, 클라우드" id="field-keywords">
+            </div>
+            <div class="form-group">
+              <label class="form-label">제외 조건</label>
+              <input class="form-input" type="text" placeholder="예) 예산 세부내역 제외, 개인정보 미포함" id="field-exclude">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">대상 시스템 / 정책명</label>
+              <input class="form-input" type="text" placeholder="예) 온나라시스템, 두레이, 전자결재, ERP" id="field-system">
+            </div>
+          </div>
+
+          <!-- Live preview bar -->
+          <div style="margin-top:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span class="text-sm fw-700" style="color:var(--navy)">📌 현재 입력 반영 프롬프트 미리보기</span>
+              <button class="btn btn-ghost btn-sm" onclick="openModal('modal-preview')">전체보기 →</button>
+            </div>
+            <div class="prompt-preview" id="prompt-preview-mini">
+              <span class="sys-part">[시스템 지시]</span> 당신은 대한민국 공공 ICT 사업 전문 컨설턴트입니다.<br>
+              <span class="cm">-- 다음 변수를 기반으로 ISP 사업계획서 초안을 작성하세요 --</span><br>
+              🏛 기관명: <span class="var-highlight" id="prev-agency">【기관명 입력 필요】</span><br>
+              📋 사업명: <span class="var-highlight" id="prev-project">【사업명 입력 필요】</span><br>
+              🎯 작성목적: <span class="var-highlight" id="prev-purpose">【목적 선택 필요】</span><br>
+              📄 출력형식: 서술형 보고서 | 분량: 3페이지
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ Additional Request -->
+      <div class="card fade-in">
+        <div class="card-header">
+          <div class="card-title">
+            ✏️ 추가 요청 입력
+            <button class="help-btn" onclick="openModal('modal-extra')">?</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="addQuickReq('ODA 제안서 문체로 작성')">ODA 문체</button>
+            <button class="btn btn-outline btn-sm" onclick="addQuickReq('위험요인을 강조하여 작성')">위험 강조</button>
+            <button class="btn btn-outline btn-sm" onclick="addQuickReq('표 형식으로 핵심 내용 정리')">표 형식</button>
+            <button class="btn btn-outline btn-sm" onclick="addQuickReq('임원 보고용 3줄 요약 추가')">임원 요약</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <textarea class="form-textarea" id="extra-request" placeholder="이번 건에만 필요한 추가 지시사항을 입력하세요.&#10;예) ODA 제안서 문체로 작성, 위험요인을 강조, 3페이지 분량..." style="min-height:80px"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+            <span class="text-xs text-muted">💡 빠른 선택 버튼으로 자주 쓰는 요청을 바로 추가할 수 있습니다</span>
+            <span class="text-xs text-muted" id="extra-count">0 / 500자</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ④ Result Output -->
+      <div class="card fade-in">
+        <div class="card-header">
+          <div class="card-title">
+            🤖 AI 생성 결과
+            <button class="help-btn" onclick="openModal('modal-result')">?</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge badge-draft" id="result-model">claude-sonnet</span>
+            <button class="btn-icon" onclick="openModal('modal-rate')">⭐</button>
+            <button class="btn-icon" onclick="copyResult()">📋</button>
+            <button class="btn-icon" onclick="openModal('modal-export')">⬇</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="progress-wrap" style="display:none;margin-bottom:12px">
+            <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+            <span class="text-xs text-muted" style="margin-top:4px;display:block" id="progress-text">지식원 검색 중...</span>
+          </div>
+          <div class="result-box" id="result-output">
+            <div class="result-placeholder">
+              <div class="result-placeholder-icon">✦</div>
+              <div style="font-size:16px;font-weight:700;color:var(--navy)">결과가 여기에 표시됩니다</div>
+              <div class="text-muted text-sm">입력값을 설정하고 실행 버튼을 누르세요</div>
+            </div>
+          </div>
+          <div class="result-actions" id="result-actions" style="display:none">
+            <button class="btn btn-outline btn-sm" onclick="openModal('modal-regen')">🔄 다시 생성</button>
+            <button class="btn btn-outline btn-sm" onclick="openModal('modal-partial')">✏️ 부분 수정 요청</button>
+            <button class="btn btn-outline btn-sm" onclick="convertToTable()">📊 표로 변환</button>
+            <button class="btn btn-outline btn-sm" onclick="openModal('modal-export')">📤 내보내기</button>
+            <button class="btn btn-outline btn-sm" onclick="openModal('modal-save-result')">💾 결과 저장</button>
+            <button class="btn btn-outline btn-sm" onclick="openModal('modal-upgrade')">⬆ 템플릿 개선 요청</button>
+          </div>
+
+          <!-- Evaluation after result -->
+          <div id="eval-section" style="display:none;margin-top:14px">
+            <div class="divider"></div>
+            <div style="display:flex;align-items:center;gap:14px">
+              <span class="text-sm fw-700" style="color:var(--navy)">이 결과가 도움이 되었나요?</span>
+              <div class="stars" id="star-rating">
+                <span onclick="rate(1)">★</span><span onclick="rate(2)">★</span>
+                <span onclick="rate(3)">★</span><span onclick="rate(4)">★</span><span onclick="rate(5)">★</span>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="openModal('modal-feedback')">📝 상세 피드백</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution History Mini -->
+      <div class="card fade-in" id="card-exec-history">
+        <div class="card-header">
+          <div class="card-title">🕐 최근 실행 이력
+            <button class="help-btn" onclick="openModal('modal-hist-info')">?</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('modal-history')">전체보기 →</button>
+        </div>
+        <div class="card-body" style="padding:14px 20px">
+          <div class="hist-list">
+            <div class="hist-item" onclick="openModal('modal-history')">
+              <div class="hist-title">ISP 사업계획서 초안 생성</div>
+              <div class="hist-meta">
+                <span>2025.06.15 14:32</span>
+                <span>지식원: RRA 문서</span>
+                <span class="hist-rating">★★★★☆ 4.0</span>
+              </div>
+            </div>
+            <div class="hist-item" onclick="openModal('modal-history')">
+              <div class="hist-title">행정문서 요약 (3단)</div>
+              <div class="hist-meta">
+                <span>2025.06.14 09:18</span>
+                <span>지식원: 법령 문서</span>
+                <span class="hist-rating">★★★★★ 5.0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+
+    <!-- Run Bar -->
+    <div class="run-bar">
+      <div class="run-status">
+        <span id="run-status-text">⚡ 입력값 설정 후 실행 가능합니다</span>
+      </div>
+      <span class="token-counter">예상 토큰: ~1,240</span>
+      <button class="btn btn-outline btn-sm" onclick="openModal('modal-settings')">⚙ 모델 설정</button>
+      <button class="btn btn-amber btn-lg" id="run-btn" onclick="runGenerate()">
+        ▶ AI 생성 실행
+      </button>
+    </div>
+
+  </main><!-- /main -->
+
+  <!-- ===== RIGHT PANEL ===== -->
+  <aside class="right-panel">
+
+    <!-- ① Knowledge Source Selection -->
+    <div class="rpanel-section">
+      <div class="rpanel-header" onclick="toggleAccordion('ks-body')">
+        <div class="rpanel-title">
+          📚 지식원 선택
+          <button class="help-btn" onclick="openModal('modal-ks');event.stopPropagation()">?</button>
+        </div>
+        <span class="accordion-arrow open" id="ks-arrow">▼</span>
+      </div>
+      <div class="rpanel-body accordion-content open" id="ks-body">
+        <div class="ks-list">
+          <div class="ks-item selected" onclick="toggleKS(this)">
+            <span class="ks-icon">📁</span>
+            <div>
+              <div class="ks-name">전체 문서 저장소</div>
+              <div class="ks-count">문서 2,847개</div>
+            </div>
+            <span class="ks-check">✓</span>
+          </div>
+          <div class="ks-item" onclick="toggleKS(this)">
+            <span class="ks-icon">🏗</span>
+            <div>
+              <div class="ks-name">과기정통부 사업 문서</div>
+              <div class="ks-count">문서 412개</div>
+            </div>
+            <span class="ks-check">✓</span>
+          </div>
+          <div class="ks-item" onclick="toggleKS(this)">
+            <span class="ks-icon">⚖️</span>
+            <div>
+              <div class="ks-name">정책/법령 문서</div>
+              <div class="ks-count">문서 1,203개</div>
+            </div>
+            <span class="ks-check">✓</span>
+          </div>
+          <div class="ks-item" onclick="toggleKS(this)">
+            <span class="ks-icon">📂</span>
+            <div>
+              <div class="ks-name">부서 공유 문서</div>
+              <div class="ks-count">문서 89개</div>
+            </div>
+            <span class="ks-check">✓</span>
+          </div>
+          <div class="ks-item" onclick="toggleKS(this)">
+            <span class="ks-icon">👤</span>
+            <div>
+              <div class="ks-name">개인 업로드 문서</div>
+              <div class="ks-count">문서 14개</div>
+            </div>
+            <span class="ks-check">✓</span>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%;margin-top:10px" onclick="openModal('modal-upload')">
+          ＋ 문서 업로드
+        </button>
+      </div>
+    </div>
+
+    <!-- ② Search Options -->
+    <div class="rpanel-section">
+      <div class="rpanel-header" onclick="toggleAccordion('so-body')">
+        <div class="rpanel-title">
+          🔧 검색 조건 설정
+          <button class="help-btn" onclick="openModal('modal-search-opt');event.stopPropagation()">?</button>
+        </div>
+        <span class="accordion-arrow open" id="so-arrow">▼</span>
+      </div>
+      <div class="rpanel-body accordion-content open" id="so-body">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="slider-row">
+            <div class="slider-label">
+              <span class="text-sm fw-700" style="color:var(--navy)">Top-K 검색 수</span>
+              <span class="text-sm fw-700 text-muted" id="topk-val">5</span>
+            </div>
+            <input type="range" min="1" max="20" value="5" oninput="document.getElementById('topk-val').textContent=this.value">
+          </div>
+          <div class="form-group">
+            <label class="form-label text-sm">정렬 기준</label>
+            <select class="form-select" style="font-size:13px">
+              <option>관련도 높은순</option>
+              <option>최신 문서 우선</option>
+              <option>관련도 + 최신 혼합</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label text-sm">기간 필터</label>
+            <select class="form-select" style="font-size:13px">
+              <option>전체 기간</option>
+              <option>최근 1년</option>
+              <option>최근 3년</option>
+              <option>기간 직접 설정</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label text-sm">보안 등급</label>
+            <select class="form-select" style="font-size:13px">
+              <option>일반 문서만</option>
+              <option>내부 문서 포함</option>
+              <option>기밀 제외 전체</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label text-sm">문서 유형</label>
+            <div class="filter-chips" style="margin-bottom:0">
+              <button class="chip active" style="font-size:11px">전체</button>
+              <button class="chip" style="font-size:11px">PDF</button>
+              <button class="chip" style="font-size:11px">HWP</button>
+              <button class="chip" style="font-size:11px">XLSX</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ Reference Documents -->
+    <div class="rpanel-section">
+      <div class="rpanel-header" onclick="toggleAccordion('ref-body')">
+        <div class="rpanel-title">
+          📌 근거 문서
+          <button class="help-btn" onclick="openModal('modal-ref');event.stopPropagation()">?</button>
+        </div>
+        <span class="accordion-arrow open" id="ref-arrow">▼</span>
+      </div>
+      <div class="rpanel-body accordion-content open" id="ref-body">
+        <div class="ref-list" id="ref-list">
+          <div style="color:var(--gray-400);font-size:13px;text-align:center;padding:20px 0">
+            실행 후 근거 문서가 표시됩니다
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ Warnings -->
+    <div class="rpanel-section">
+      <div class="rpanel-header" onclick="toggleAccordion('warn-body')">
+        <div class="rpanel-title">
+          ⚠️ 주의 알림
+          <button class="help-btn" onclick="openModal('modal-warn');event.stopPropagation()">?</button>
+        </div>
+        <span class="accordion-arrow open" id="warn-arrow">▼</span>
+      </div>
+      <div class="rpanel-body accordion-content open" id="warn-body">
+        <div class="warn-list">
+          <div class="warn-item info">
+            <span class="warn-icon">ℹ️</span>
+            <span>일부 문서는 2023년 이전 자료입니다. 최신 정책과 다를 수 있습니다.</span>
+          </div>
+          <div class="warn-item warn">
+            <span class="warn-icon">⚠️</span>
+            <span>개인 업로드 문서 2건은 OCR 처리 중입니다.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="padding:14px 16px;">
+      <div class="stat-row">
+        <div class="stat-mini">
+          <div class="stat-mini-val">5</div>
+          <div class="stat-mini-label">선택 지식원</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-val">4.5k</div>
+          <div class="stat-mini-label">총 문서수</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-val">5</div>
+          <div class="stat-mini-label">Top-K</div>
+        </div>
+      </div>
+    </div>
+
+  </aside><!-- /right-panel -->
+
+</div><!-- /app-body -->
+
+<!-- ===== TOAST ===== -->
+<div class="toast-wrap">
+  <div class="toast" id="toast">✅ 작업이 완료되었습니다</div>
+</div>
+
+<!-- =================== MODALS =================== -->
+
+<!-- [MODAL] Parameter Help -->
+<div class="modal-overlay" id="modal-params">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">📝</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">입력 파라미터 — 변수형 템플릿 구조</div>
+        <div class="modal-subtitle">프롬프트를 매번 직접 수정하지 않고, 변수만 입력해 재사용합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-params')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">이 시스템의 핵심은 <strong>프롬프트를 "고정 문장"이 아니라 "변수형 템플릿"으로 관리</strong>하는 것입니다. 사용자는 변수 값만 입력하고, 나머지는 템플릿이 자동으로 구성합니다.</p>
+      <div class="modal-section">
+        <div class="modal-section-title">📌 예시</div>
+        <div class="example-box">
+          <strong>기관명</strong> = 과학기술정보통신부<br>
+          <strong>사업명</strong> = 행정업무 AX 정보화전략계획 수립<br>
+          <strong>작성목적</strong> = ISP 수립<br>
+          <strong>출력형식</strong> = 표 + 서술 혼합<br><br>
+          → AI가 이 변수들을 조합해 완성된 프롬프트를 자동 구성한 후 LLM에 전송합니다.
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 DB 구현 코드 (변수 정의 테이블)</div>
+        <div class="code-block">
+<span class="cm">-- 프롬프트 변수 정의 테이블</span>
+<span class="kw">CREATE TABLE</span> prompt_variables (
+  id          <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span> AUTO_INCREMENT,
+  prompt_id   <span class="kw">INT</span> <span class="kw">NOT NULL</span>,       <span class="cm">-- 연결된 프롬프트 ID</span>
+  var_name    <span class="kw">VARCHAR</span>(50),            <span class="cm">-- 변수명: field_agency</span>
+  label       <span class="kw">VARCHAR</span>(100),           <span class="cm">-- 표시명: 기관명</span>
+  input_type  <span class="kw">ENUM</span>(<span class="str">'text'</span>,<span class="str">'select'</span>,<span class="str">'number'</span>,<span class="str">'date'</span>),
+  is_required <span class="kw">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">TRUE</span>,
+  default_val <span class="kw">TEXT</span>,                  <span class="cm">-- 기본값</span>
+  example_val <span class="kw">TEXT</span>,                  <span class="cm">-- 예시값</span>
+  options     <span class="kw">JSON</span>,                  <span class="cm">-- select일 때 선택지</span>
+  sort_order  <span class="kw">INT</span> <span class="kw">DEFAULT</span> 0,
+  <span class="kw">FOREIGN KEY</span> (prompt_id) <span class="kw">REFERENCES</span> prompts(id)
+);
+        </div>
+        <div class="db-note">💡 <strong>API 예시:</strong> GET /api/prompts/{id}/variables → 변수 목록 반환 → 프론트에서 동적 폼 렌더링</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-params')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Extra Request Help -->
+<div class="modal-overlay" id="modal-extra">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">✏️</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">추가 요청 입력</div>
+        <div class="modal-subtitle">이번 실행에만 적용되는 임시 지시사항</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-extra')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">템플릿 변수 외에, <strong>이번 실행에만 필요한 특수한 요청</strong>을 자유 형식으로 입력하는 공간입니다.</p>
+      <div class="modal-section">
+        <div class="modal-section-title">📌 활용 예시</div>
+        <ul class="modal-list">
+          <li>"ODA 제안서 문체로 작성해 주세요"</li>
+          <li>"위험요인을 별도 박스로 강조해 주세요"</li>
+          <li>"3페이지 분량으로 맞춰 주세요"</li>
+          <li>"이해관계자 분석을 표로 정리해 주세요"</li>
+          <li>"임원보고용 3줄 요약을 문서 맨 앞에 추가해 주세요"</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 DB 구현 (실행 이력에 함께 저장)</div>
+        <div class="code-block">
+<span class="cm">-- 실행 이력 테이블에 extra_request 컬럼 포함</span>
+<span class="kw">CREATE TABLE</span> execution_logs (
+  id              <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span> AUTO_INCREMENT,
+  user_id         <span class="kw">INT</span> <span class="kw">NOT NULL</span>,
+  prompt_id       <span class="kw">INT</span> <span class="kw">NOT NULL</span>,
+  prompt_version  <span class="kw">VARCHAR</span>(10),
+  input_vars      <span class="kw">JSON</span>,          <span class="cm">-- 변수 입력값 전체</span>
+  extra_request   <span class="kw">TEXT</span>,          <span class="cm">-- 추가 요청 내용</span>
+  ks_ids          <span class="kw">JSON</span>,          <span class="cm">-- 선택된 지식원 ID 목록</span>
+  model_used      <span class="kw">VARCHAR</span>(50),
+  result_text     <span class="kw">LONGTEXT</span>,      <span class="cm">-- 생성 결과</span>
+  rating          <span class="kw">TINYINT</span>,       <span class="cm">-- 1-5점 만족도</span>
+  tokens_used     <span class="kw">INT</span>,
+  created_at      <span class="kw">DATETIME</span> <span class="kw">DEFAULT</span> <span class="kw">CURRENT_TIMESTAMP</span>
+);
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-extra')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Result Help -->
+<div class="modal-overlay" id="modal-result">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">🤖</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">AI 생성 결과 — 후처리 기능</div>
+        <div class="modal-subtitle">결과를 단순 복사로 끝내지 않고, 자산으로 축적합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-result')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title">후처리 기능 목록</div>
+        <ul class="modal-list">
+          <li><strong>다시 생성:</strong> 동일 입력으로 결과를 재생성합니다</li>
+          <li><strong>부분 수정 요청:</strong> 특정 문단만 선택하여 수정을 요청합니다</li>
+          <li><strong>표로 변환:</strong> 서술형 내용을 구조화된 표로 변환합니다</li>
+          <li><strong>내보내기:</strong> Word/HWP/PDF/메일 형식으로 출력합니다</li>
+          <li><strong>결과 저장:</strong> 결과 보관함에 저장하여 재활용합니다</li>
+          <li><strong>템플릿 개선 요청:</strong> 관리자에게 템플릿 개선을 요청합니다</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 DB 구현 (결과 보관함)</div>
+        <div class="code-block">
+<span class="cm">-- 결과 보관함 테이블</span>
+<span class="kw">CREATE TABLE</span> result_archive (
+  id            <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span> AUTO_INCREMENT,
+  exec_log_id   <span class="kw">INT</span>,           <span class="cm">-- 연결된 실행 이력 ID</span>
+  user_id       <span class="kw">INT</span>,
+  title         <span class="kw">VARCHAR</span>(200),  <span class="cm">-- 사용자가 지정한 제목</span>
+  content       <span class="kw">LONGTEXT</span>,     <span class="cm">-- 저장된 결과 본문</span>
+  format        <span class="kw">VARCHAR</span>(20),   <span class="cm">-- 'html', 'markdown', 'plain'</span>
+  tags          <span class="kw">JSON</span>,          <span class="cm">-- 태그 목록</span>
+  is_shared     <span class="kw">BOOLEAN</span>,      <span class="cm">-- 부서 공유 여부</span>
+  created_at    <span class="kw">DATETIME</span>,
+  updated_at    <span class="kw">DATETIME</span>
+);
+        </div>
+        <div class="db-note">💡 내보내기 구현: POST /api/export → {format: 'docx'|'hwpx'|'pdf'} → 서버에서 변환 후 다운로드 URL 반환</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-result')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Knowledge Source Help -->
+<div class="modal-overlay" id="modal-ks">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">📚</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">지식원 선택 — RAG 데이터 범위 설정</div>
+        <div class="modal-subtitle">어떤 문서를 근거로 답변을 생성할지 선택합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-ks')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">지식원은 LLM이 답변을 생성할 때 참조하는 <strong>문서 저장소</strong>입니다. 선택한 지식원에서만 근거를 찾아 답변하므로, 목적에 맞는 문서를 선택하는 것이 중요합니다.</p>
+      <div class="modal-section">
+        <div class="modal-section-title">📌 지식원 유형별 활용 예시</div>
+        <div class="example-box">
+          <strong>ISP 계획서 작성</strong> → 과기정통부 사업 문서 + 정책/법령 문서 선택<br>
+          <strong>법령 질의응답</strong> → 정책/법령 문서만 선택<br>
+          <strong>내부 회의 정리</strong> → 부서 공유 문서 + 개인 업로드 선택<br>
+          <strong>ODA 제안서</strong> → 전체 문서 저장소 선택
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 DB 구현 (지식원 관리)</div>
+        <div class="code-block">
+<span class="cm">-- 지식원(Knowledge Source) 관리 테이블</span>
+<span class="kw">CREATE TABLE</span> knowledge_sources (
+  id            <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span> AUTO_INCREMENT,
+  name          <span class="kw">VARCHAR</span>(100),
+  ks_type       <span class="kw">ENUM</span>(<span class="str">'global'</span>,<span class="str">'dept'</span>,<span class="str">'project'</span>,<span class="str">'personal'</span>,<span class="str">'policy'</span>),
+  vector_index  <span class="kw">VARCHAR</span>(100),  <span class="cm">-- FAISS / Chroma 인덱스 경로</span>
+  doc_count     <span class="kw">INT</span>,
+  access_level  <span class="kw">TINYINT</span>,       <span class="cm">-- 1=공개 2=부서 3=임원 4=기밀</span>
+  owner_id      <span class="kw">INT</span>,           <span class="cm">-- 개인 지식원의 소유자</span>
+  dept_id       <span class="kw">INT</span>,           <span class="cm">-- 부서 지식원 소속 부서</span>
+  updated_at    <span class="kw">DATETIME</span>
+);
+<span class="cm">-- 문서-지식원 매핑</span>
+<span class="kw">CREATE TABLE</span> ks_documents (
+  ks_id    <span class="kw">INT</span>, doc_id <span class="kw">INT</span>,
+  chunk_id <span class="kw">INT</span>,            <span class="cm">-- 청크 분할 단위 ID</span>
+  embedding <span class="kw">BLOB</span>,          <span class="cm">-- 임베딩 벡터 (또는 외부 VectorDB 참조)</span>
+  <span class="kw">PRIMARY KEY</span> (ks_id, doc_id, chunk_id)
+);
+        </div>
+        <div class="db-note">💡 <strong>RAG 구현 스택:</strong> LangChain / LlamaIndex + FAISS / ChromaDB + HuggingFace Embeddings (또는 OpenAI/Claude Embedding)</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-ks')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Search Options Help -->
+<div class="modal-overlay" id="modal-search-opt">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">🔧</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">검색 조건 설정 — RAG 검색 파라미터</div>
+        <div class="modal-subtitle">검색 정확도와 범위를 제어합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-search-opt')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title">파라미터 설명</div>
+        <ul class="modal-list">
+          <li><strong>Top-K:</strong> 검색 결과 중 LLM에 전달할 문서 청크 수. 높을수록 풍부한 근거, 낮을수록 핵심 집중</li>
+          <li><strong>관련도 높은순:</strong> 질문과 유사도가 높은 청크 우선 반환 (코사인 유사도)</li>
+          <li><strong>최신 문서 우선:</strong> 최신 업로드/수정 문서를 우선 반환</li>
+          <li><strong>기간 필터:</strong> 특정 기간 이내 문서만 검색 범위에 포함</li>
+          <li><strong>보안 등급:</strong> 사용자 권한 내의 문서만 검색 (자동 필터)</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 DB 구현 (검색 설정 저장)</div>
+        <div class="code-block">
+<span class="cm">-- 사용자별 검색 기본 설정 저장</span>
+<span class="kw">CREATE TABLE</span> user_search_prefs (
+  user_id      <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span>,
+  top_k        <span class="kw">INT</span> <span class="kw">DEFAULT</span> 5,
+  sort_mode    <span class="kw">ENUM</span>(<span class="str">'relevance'</span>,<span class="str">'recency'</span>,<span class="str">'hybrid'</span>),
+  period_filter <span class="kw">INT</span>,        <span class="cm">-- 개월 수 (NULL=전체)</span>
+  doc_types    <span class="kw">JSON</span>,         <span class="cm">-- ['pdf','hwp','xlsx']</span>
+  updated_at   <span class="kw">DATETIME</span>
+);
+<span class="cm">-- RAG 검색 실행 API 예시 (Python FastAPI)</span>
+<span class="cm">-- POST /api/rag/search</span>
+<span class="cm">-- { query, ks_ids, top_k, sort, period, security_level }</span>
+<span class="cm">-- → { chunks: [{doc_id, chunk, score, doc_title, page}] }</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-search-opt')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Reference Docs Help -->
+<div class="modal-overlay" id="modal-ref">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">📌</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">근거 문서 패널</div>
+        <div class="modal-subtitle">RAG 검색 결과로 찾은 실제 참조 문서를 확인합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-ref')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">이 패널이 <strong>일반 챗봇과 업무형 RAG UI를 구분하는 가장 핵심적인 요소</strong>입니다. 결과보다 근거를 먼저 확인하세요.</p>
+      <div class="modal-section">
+        <div class="modal-section-title">📌 표시 정보</div>
+        <ul class="modal-list">
+          <li><strong>참조 문서명:</strong> 근거가 된 원본 문서 제목</li>
+          <li><strong>문서 위치:</strong> 페이지 번호, 조항 번호, 문단 위치</li>
+          <li><strong>발췌 내용:</strong> 실제 참조된 텍스트 청크</li>
+          <li><strong>신뢰도/관련도:</strong> 벡터 유사도 점수 (0.0~1.0)</li>
+          <li><strong>원문 보기:</strong> 원본 문서를 새 창으로 열기</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 DB 구현 (근거 이력 저장)</div>
+        <div class="code-block">
+<span class="cm">-- 근거 이력 테이블 (실행 이력과 연결)</span>
+<span class="kw">CREATE TABLE</span> reference_logs (
+  id          <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span> AUTO_INCREMENT,
+  exec_log_id <span class="kw">INT</span> <span class="kw">NOT NULL</span>,   <span class="cm">-- 실행 이력 ID</span>
+  doc_id      <span class="kw">INT</span>,            <span class="cm">-- 원본 문서 ID</span>
+  chunk_id    <span class="kw">INT</span>,            <span class="cm">-- 청크 ID</span>
+  chunk_text  <span class="kw">TEXT</span>,           <span class="cm">-- 실제 발췌 내용</span>
+  score       <span class="kw">FLOAT</span>,          <span class="cm">-- 유사도 점수 (0.0-1.0)</span>
+  page_num    <span class="kw">INT</span>,
+  para_num    <span class="kw">INT</span>,
+  is_applied  <span class="kw">BOOLEAN</span>,        <span class="cm">-- 최종 결과에 반영 여부</span>
+  <span class="kw">FOREIGN KEY</span> (exec_log_id) <span class="kw">REFERENCES</span> execution_logs(id)
+);
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-ref')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Warning Help -->
+<div class="modal-overlay" id="modal-warn">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">⚠️</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">주의 알림 패널</div>
+        <div class="modal-subtitle">검색 품질과 문서 상태에 대한 자동 경고</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-warn')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title">경고 유형</div>
+        <ul class="modal-list">
+          <li><strong>근거 부족:</strong> 검색된 관련 문서 수가 너무 적을 때</li>
+          <li><strong>문서 노후화:</strong> 참조 문서가 1년 이상 미갱신 상태일 때</li>
+          <li><strong>상충 문서:</strong> 서로 내용이 충돌하는 문서가 검색될 때</li>
+          <li><strong>권한 제외:</strong> 더 관련성 높은 문서가 있으나 접근 권한 없을 때</li>
+          <li><strong>OCR 처리 중:</strong> 업로드 문서가 아직 인덱싱되지 않을 때</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 DB 구현 (경고 로그)</div>
+        <div class="code-block">
+<span class="cm">-- 검색 품질 경고 테이블</span>
+<span class="kw">CREATE TABLE</span> search_warnings (
+  id          <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span>,
+  exec_log_id <span class="kw">INT</span>,
+  warn_type   <span class="kw">ENUM</span>(<span class="str">'low_score'</span>,<span class="str">'outdated'</span>,<span class="str">'conflict'</span>,<span class="str">'permission'</span>,<span class="str">'ocr_pending'</span>),
+  warn_level  <span class="kw">ENUM</span>(<span class="str">'info'</span>,<span class="str">'warning'</span>,<span class="str">'error'</span>),
+  message     <span class="kw">TEXT</span>,
+  created_at  <span class="kw">DATETIME</span>
+);
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-warn')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Template Detail -->
+<div class="modal-overlay" id="modal-template-detail">
+  <div class="modal" style="width:700px">
+    <div class="modal-head">
+      <span class="modal-icon">📋</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">ISP 사업계획서 초안 생성 — 템플릿 상세</div>
+        <div class="modal-subtitle">전체 프롬프트 구조 및 설계 원칙</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-template-detail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-group">
+        <button class="tab-btn active" onclick="switchTab(this,'tab-prompt')">📄 프롬프트 본문</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-meta')">ℹ 메타데이터</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-output')">📤 출력 형식</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-db')">🗄 DB 구조</button>
+      </div>
+      <div class="tab-content active" id="tab-prompt">
+        <div class="prompt-preview" style="max-height:320px;font-size:13px">
+<span class="sys-part">[SYSTEM]</span><br>
+당신은 대한민국 공공 ICT 사업 전문 컨설턴트입니다.<br>
+아래 지시에 따라 ISP/ISMP 사업계획서 초안을 작성하세요.<br>
+작성 기준: 행정안전부 정보화사업 추진지침, ISP/ISMP 표준 방법론<br>
+<br>
+<span class="sys-part">[USER]</span><br>
+발주기관: <span class="var-highlight">{기관명}</span><br>
+사업명: <span class="var-highlight">{사업명}</span><br>
+작성목적: <span class="var-highlight">{작성목적}</span><br>
+독자수준: <span class="var-highlight">{독자수준}</span><br>
+출력형식: <span class="var-highlight">{출력형식}</span><br>
+분량: <span class="var-highlight">{분량}</span><br>
+핵심키워드: <span class="var-highlight">{핵심키워드}</span><br>
+제외조건: <span class="var-highlight">{제외조건}</span><br>
+대상시스템: <span class="var-highlight">{대상시스템}</span><br>
+<br>
+추가요청: <span class="var-highlight">{추가요청}</span><br>
+<br>
+<span class="cm">/* RAG 컨텍스트 자동 삽입 위치 */</span><br>
+참조근거: <span class="var-highlight">{RAG_CONTEXT}</span><br>
+<br>
+<span class="sys-part">[OUTPUT RULES]</span><br>
+- 표준 ISP 목차 구조 준수<br>
+- 변수 미입력 시 [미입력] 표기 후 진행<br>
+- 불확실 내용은 검토 필요 표시<br>
+- RAG 근거 없는 내용은 ※ 표시
+        </div>
+      </div>
+      <div class="tab-content" id="tab-meta">
+        <div class="form-grid">
+          <div><div class="form-label">템플릿 ID</div><div class="text-sm text-muted">TPL-2024-0031</div></div>
+          <div><div class="form-label">카테고리</div><div class="text-sm">보고서 작성 / ISP</div></div>
+          <div><div class="form-label">권장 사용자</div><div class="text-sm">IT기획팀, 컨설팅팀</div></div>
+          <div><div class="form-label">권장 지식원</div><div class="text-sm">정책법령, 과기정통부</div></div>
+          <div><div class="form-label">권장 모델</div><div class="text-sm">claude-sonnet-4</div></div>
+          <div><div class="form-label">권장 Top-K</div><div class="text-sm">5~10</div></div>
+          <div><div class="form-label">평균 토큰</div><div class="text-sm">~2,400 tokens</div></div>
+          <div><div class="form-label">승인자</div><div class="text-sm">박부장 (IT기획팀장)</div></div>
+        </div>
+        <div class="divider"></div>
+        <div><span class="form-label">태그</span></div>
+        <div class="filter-chips" style="margin-top:6px">
+          <span class="chip active">ISP</span><span class="chip active">보고서</span>
+          <span class="chip active">공공IT</span><span class="chip active">AX</span><span class="chip active">기획</span>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-output">
+        <div class="example-box">
+          <strong>표준 ISP 사업계획서 목차 (출력 예시)</strong><br><br>
+          1. 사업 개요<br>
+          &nbsp;&nbsp;1.1 사업 배경 및 필요성<br>
+          &nbsp;&nbsp;1.2 사업 목적 및 목표<br>
+          &nbsp;&nbsp;1.3 사업 범위<br>
+          2. 현황 분석<br>
+          &nbsp;&nbsp;2.1 대내외 환경 분석<br>
+          &nbsp;&nbsp;2.2 현행 시스템 현황<br>
+          3. 추진 전략<br>
+          &nbsp;&nbsp;3.1 전략 방향<br>
+          &nbsp;&nbsp;3.2 단계별 추진계획<br>
+          4. 기대효과
+        </div>
+      </div>
+      <div class="tab-content" id="tab-db">
+        <div class="code-block">
+<span class="cm">-- 프롬프트 마스터 테이블</span>
+<span class="kw">CREATE TABLE</span> prompts (
+  id              <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span> AUTO_INCREMENT,
+  tpl_code        <span class="kw">VARCHAR</span>(30) <span class="kw">UNIQUE</span>,  <span class="cm">-- TPL-2024-0031</span>
+  name            <span class="kw">VARCHAR</span>(200),
+  category_id     <span class="kw">INT</span>,
+  description     <span class="kw">TEXT</span>,
+  system_prompt   <span class="kw">LONGTEXT</span>,         <span class="cm">-- 시스템 지시문</span>
+  user_prompt_tpl <span class="kw">LONGTEXT</span>,         <span class="cm">-- 변수 포함 템플릿</span>
+  output_format   <span class="kw">TEXT</span>,
+  forbidden_rules <span class="kw">TEXT</span>,
+  rag_enabled     <span class="kw">BOOLEAN</span>,
+  rec_ks_ids      <span class="kw">JSON</span>,             <span class="cm">-- 권장 지식원 ID 목록</span>
+  rec_model       <span class="kw">VARCHAR</span>(50),
+  rec_top_k       <span class="kw">TINYINT</span>,
+  creator_id      <span class="kw">INT</span>,
+  dept_id         <span class="kw">INT</span>,
+  status          <span class="kw">ENUM</span>(<span class="str">'draft'</span>,<span class="str">'review'</span>,<span class="str">'approved'</span>,<span class="str">'deprecated'</span>),
+  version         <span class="kw">VARCHAR</span>(10),       <span class="cm">-- 2.3</span>
+  created_at      <span class="kw">DATETIME</span>,
+  updated_at      <span class="kw">DATETIME</span>
+);
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-template-detail')">닫기</button>
+      <button class="btn btn-amber" onclick="closeModal('modal-template-detail');showToast('즐겨찾기에 추가되었습니다 ⭐')">⭐ 즐겨찾기 추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Version History -->
+<div class="modal-overlay" id="modal-version">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">🕒</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">버전 이력 관리</div>
+        <div class="modal-subtitle">프롬프트 변경 이력 및 버전 복원</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-version')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="hist-list">
+        <div class="hist-item" style="border-color:var(--amber)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="hist-title">v2.3 — 현재 버전</div>
+            <span class="badge badge-approved">현재</span>
+          </div>
+          <div class="hist-meta"><span>2025.06.12</span><span>이기획</span></div>
+          <div class="text-sm text-muted" style="margin-top:4px">변경사유: RAG 컨텍스트 삽입 위치 최적화, 출력 규칙 보강</div>
+        </div>
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="hist-title">v2.2</div>
+            <button class="btn btn-outline btn-sm" onclick="showToast('v2.2로 복원되었습니다')">복원</button>
+          </div>
+          <div class="hist-meta"><span>2025.05.20</span><span>이기획</span></div>
+          <div class="text-sm text-muted" style="margin-top:4px">변경사유: 분량 제어 변수 추가</div>
+        </div>
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="hist-title">v2.0</div>
+            <button class="btn btn-outline btn-sm" onclick="showToast('v2.0으로 복원되었습니다')">복원</button>
+          </div>
+          <div class="hist-meta"><span>2025.03.08</span><span>박부장</span></div>
+          <div class="text-sm text-muted" style="margin-top:4px">변경사유: 조직 표준 승인 후 구조 전면 개편</div>
+        </div>
+      </div>
+      <div class="modal-section" style="margin-top:14px">
+        <div class="modal-section-title">🗄 DB 구현 (버전 이력)</div>
+        <div class="code-block">
+<span class="kw">CREATE TABLE</span> prompt_versions (
+  id              <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span> AUTO_INCREMENT,
+  prompt_id       <span class="kw">INT</span> <span class="kw">NOT NULL</span>,
+  version         <span class="kw">VARCHAR</span>(10),
+  system_prompt   <span class="kw">LONGTEXT</span>,
+  user_prompt_tpl <span class="kw">LONGTEXT</span>,
+  change_reason   <span class="kw">TEXT</span>,
+  changed_by      <span class="kw">INT</span>,
+  approved_by     <span class="kw">INT</span>,
+  created_at      <span class="kw">DATETIME</span>
+);
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-version')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Prompt Preview -->
+<div class="modal-overlay" id="modal-preview">
+  <div class="modal" style="width:680px">
+    <div class="modal-head">
+      <span class="modal-icon">👁</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">최종 프롬프트 전체 미리보기</div>
+        <div class="modal-subtitle">현재 입력값이 반영된 실제 LLM 전송 프롬프트</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-preview')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="prompt-preview" style="max-height:400px;font-size:13px" id="full-preview">
+        <!-- dynamically updated -->
+      </div>
+      <div class="db-note" style="margin-top:12px">
+        💡 실제 구현 시 이 프롬프트가 /api/run API로 전송됩니다. RAG_CONTEXT는 서버에서 자동으로 검색 결과 청크를 삽입합니다.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-preview')">닫기</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-preview');copyPrompt()">📋 프롬프트 복사</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Export -->
+<div class="modal-overlay" id="modal-export">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">⬇️</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">결과 내보내기</div>
+        <div class="modal-subtitle">원하는 형식으로 결과물을 출력합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-export')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <button class="btn btn-outline" style="padding:20px;flex-direction:column;gap:8px;display:flex;align-items:center" onclick="exportResult('docx')">
+          <span style="font-size:28px">📝</span>
+          <strong>Word (.docx)</strong>
+          <span class="text-xs text-muted">한글 폰트, 목차 포함</span>
+        </button>
+        <button class="btn btn-outline" style="padding:20px;flex-direction:column;gap:8px;display:flex;align-items:center" onclick="exportResult('hwpx')">
+          <span style="font-size:28px">🇰🇷</span>
+          <strong>한글 (.hwpx)</strong>
+          <span class="text-xs text-muted">공공서식 기본 적용</span>
+        </button>
+        <button class="btn btn-outline" style="padding:20px;flex-direction:column;gap:8px;display:flex;align-items:center" onclick="exportResult('pdf')">
+          <span style="font-size:28px">📄</span>
+          <strong>PDF</strong>
+          <span class="text-xs text-muted">인쇄용 최적화</span>
+        </button>
+        <button class="btn btn-outline" style="padding:20px;flex-direction:column;gap:8px;display:flex;align-items:center" onclick="exportResult('txt')">
+          <span style="font-size:28px">📋</span>
+          <strong>텍스트 복사</strong>
+          <span class="text-xs text-muted">클립보드로 바로 복사</span>
+        </button>
+      </div>
+      <div class="db-note" style="margin-top:16px">
+        <strong>구현 방법:</strong><br>
+        • docx: python-docx 또는 PanDoc 변환 API<br>
+        • hwpx: LibreOffice headless 변환 또는 hwpx 직접 생성<br>
+        • PDF: wkhtmltopdf / Puppeteer HTML → PDF<br>
+        • API: POST /api/export/{format} → { content } → 파일 스트림 반환
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-export')">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] History -->
+<div class="modal-overlay" id="modal-history">
+  <div class="modal" style="width:680px">
+    <div class="modal-head">
+      <span class="modal-icon">🕐</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">나의 실행 이력</div>
+        <div class="modal-subtitle">언제, 어떤 템플릿으로, 어떤 결과를 생성했는지 조회</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-history')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <input class="form-input" placeholder="실행 이력 검색..." style="flex:1">
+        <select class="form-select" style="width:140px">
+          <option>전체 기간</option><option>오늘</option><option>이번 주</option><option>이번 달</option>
+        </select>
+      </div>
+      <div class="hist-list">
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between">
+            <div class="hist-title">ISP 사업계획서 초안 생성 (v2.3)</div>
+            <button class="btn btn-outline btn-sm" onclick="showToast('결과를 불러왔습니다')">재활용</button>
+          </div>
+          <div class="hist-meta">
+            <span>2025.06.15 14:32</span><span>지식원: RRA 문서, 정책법령</span>
+            <span class="hist-rating">★★★★☆</span>
+          </div>
+          <div class="text-sm text-muted" style="margin-top:4px">과기정통부 / 행정업무 AX ISP 수립 / 표+서술 / 5p</div>
+        </div>
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between">
+            <div class="hist-title">행정문서 요약 (3단) (v1.1)</div>
+            <button class="btn btn-outline btn-sm" onclick="showToast('결과를 불러왔습니다')">재활용</button>
+          </div>
+          <div class="hist-meta">
+            <span>2025.06.14 09:18</span><span>지식원: 법령 문서</span>
+            <span class="hist-rating">★★★★★</span>
+          </div>
+        </div>
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between">
+            <div class="hist-title">ODA 제안서 작성 (v3.0)</div>
+            <button class="btn btn-outline btn-sm" onclick="showToast('결과를 불러왔습니다')">재활용</button>
+          </div>
+          <div class="hist-meta">
+            <span>2025.06.12 16:44</span><span>지식원: 전체 저장소</span>
+            <span class="hist-rating">★★★☆☆</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-section" style="margin-top:14px">
+        <div class="modal-section-title">🗄 실행 이력 조회 API</div>
+        <div class="code-block">
+<span class="cm">-- GET /api/execution-logs?user_id=&page=&limit=&search=</span>
+<span class="cm">-- 응답: { logs: [{id, prompt_name, created_at, rating, input_vars}] }</span>
+<span class="cm">-- 재활용: GET /api/execution-logs/{id} → 입력값+결과 전체 복원</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-history')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] New Prompt -->
+<div class="modal-overlay" id="modal-new-prompt">
+  <div class="modal" style="width:680px">
+    <div class="modal-head">
+      <span class="modal-icon">✨</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">새 프롬프트 템플릿 만들기</div>
+        <div class="modal-subtitle">개인 템플릿으로 저장 후 표준 승격 요청이 가능합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-new-prompt')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">템플릿명 <span class="req">*</span></label>
+          <input class="form-input" placeholder="예) ISMP 현황분석 초안 작성">
+        </div>
+        <div class="form-group">
+          <label class="form-label">카테고리</label>
+          <select class="form-select">
+            <option>보고서 작성</option><option>질의응답</option>
+            <option>요약</option><option>비교분석</option><option>초안 생성</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">목적 설명</label>
+          <textarea class="form-textarea" placeholder="이 템플릿이 어떤 상황에서 사용되는지 설명해주세요" style="min-height:70px"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">시스템 지시문</label>
+          <textarea class="form-textarea" placeholder="[SYSTEM] 당신은..." style="min-height:80px;font-family:var(--mono);font-size:13px"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">사용자 지시문 (변수 포함)</label>
+          <textarea class="form-textarea" placeholder="예) 발주기관: {기관명}&#10;사업명: {사업명}&#10;..." style="min-height:100px;font-family:var(--mono);font-size:13px"></textarea>
+          <span class="form-hint">💡 중괄호 {변수명} 형식으로 변수를 표시하면 자동으로 입력 폼이 생성됩니다</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">RAG 사용 여부</label>
+          <select class="form-select"><option>사용함</option><option>사용 안 함</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">권장 Top-K</label>
+          <input class="form-input" type="number" value="5" min="1" max="20">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-new-prompt')">취소</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-new-prompt');showToast('개인 템플릿으로 저장되었습니다 ✅')">💾 개인 템플릿으로 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Admin Panel -->
+<div class="modal-overlay" id="modal-admin">
+  <div class="modal" style="width:700px">
+    <div class="modal-head">
+      <span class="modal-icon">⚙️</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">관리자 대시보드</div>
+        <div class="modal-subtitle">프롬프트·지식원·모델·품질 통합 관리</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-admin')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="hist-item" onclick="openModal('modal-prompt-mgmt');closeModal('modal-admin')">
+          <div class="hist-title">📋 프롬프트 관리</div>
+          <div class="text-sm text-muted mt-8">등록 / 수정 / 폐기 / 버전관리</div>
+        </div>
+        <div class="hist-item" onclick="openModal('modal-approve-mgmt');closeModal('modal-admin')">
+          <div class="hist-title">✅ 승인 관리</div>
+          <div class="text-sm text-muted mt-8">개인→조직 표준 승격 프로세스</div>
+          <div style="margin-top:6px"><span class="badge badge-review">대기중 3건</span></div>
+        </div>
+        <div class="hist-item" onclick="showToast('지식원 관리 화면')">
+          <div class="hist-title">📚 지식원 관리</div>
+          <div class="text-sm text-muted mt-8">문서 수집, 색인, 권한 설정</div>
+        </div>
+        <div class="hist-item" onclick="showToast('모델 정책 화면')">
+          <div class="hist-title">🤖 모델 정책 관리</div>
+          <div class="text-sm text-muted mt-8">LLM 선택, 토큰/출력 제한</div>
+        </div>
+        <div class="hist-item" onclick="showToast('품질관리 화면')">
+          <div class="hist-title">📊 품질 관리</div>
+          <div class="text-sm text-muted mt-8">사용자 평가, 성공률, 활용도</div>
+        </div>
+        <div class="hist-item" onclick="showToast('감사 로그 화면')">
+          <div class="hist-title">🔍 감사 로그</div>
+          <div class="text-sm text-muted mt-8">사용자별 접근·실행 이력 추적</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-row">
+        <div class="stat-mini"><div class="stat-mini-val">72</div><div class="stat-mini-label">전체 템플릿</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">23</div><div class="stat-mini-label">표준 승인</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">4.2</div><div class="stat-mini-label">평균 만족도</div></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-admin')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Approval -->
+<div class="modal-overlay" id="modal-approve-mgmt">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">✅</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">승인 대기 목록</div>
+        <div class="modal-subtitle">개인 템플릿의 조직 표준 승격 검토</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-approve-mgmt')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="hist-list">
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="hist-title">KC인증 모니터링 리포트</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-sm" onclick="showToast('표준 승인 완료 ✅')">승인</button>
+              <button class="btn btn-outline btn-sm" onclick="showToast('반려 처리됨')">반려</button>
+            </div>
+          </div>
+          <div class="hist-meta"><span>신청자: 김위즐</span><span>2025.06.13</span><span class="badge badge-review">검토중</span></div>
+        </div>
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="hist-title">AX 전략방향 보고서</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-sm" onclick="showToast('표준 승인 완료 ✅')">승인</button>
+              <button class="btn btn-outline btn-sm" onclick="showToast('반려 처리됨')">반려</button>
+            </div>
+          </div>
+          <div class="hist-meta"><span>신청자: 박컨설팅</span><span>2025.06.11</span><span class="badge badge-review">검토중</span></div>
+        </div>
+      </div>
+      <div class="modal-section" style="margin-top:14px">
+        <div class="modal-section-title">🗄 승인 프로세스 DB</div>
+        <div class="code-block">
+<span class="kw">CREATE TABLE</span> approval_requests (
+  id          <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span>,
+  prompt_id   <span class="kw">INT</span>,
+  requester   <span class="kw">INT</span>,
+  approver    <span class="kw">INT</span>,
+  status      <span class="kw">ENUM</span>(<span class="str">'pending'</span>,<span class="str">'approved'</span>,<span class="str">'rejected'</span>),
+  reason      <span class="kw">TEXT</span>,         <span class="cm">-- 반려 사유</span>
+  created_at  <span class="kw">DATETIME</span>,
+  decided_at  <span class="kw">DATETIME</span>
+);
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-approve-mgmt')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Model Settings -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">⚙️</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">모델 설정</div>
+        <div class="modal-subtitle">LLM 파라미터 직접 제어</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">사용 모델</label>
+          <select class="form-select">
+            <option>claude-sonnet-4-20250514 (권장)</option>
+            <option>claude-opus-4-20250514 (고성능)</option>
+            <option>claude-haiku-4-5 (빠른 응답)</option>
+            <option>gpt-4o (OpenAI)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Temperature</label>
+          <input class="form-input" type="number" value="0.3" min="0" max="1" step="0.1">
+          <span class="form-hint">낮을수록 일관성 높음 (보고서: 0.2~0.4)</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Tokens</label>
+          <input class="form-input" type="number" value="4096" min="512" max="16384">
+        </div>
+      </div>
+      <div class="db-note" style="margin-top:14px">
+        <strong>구현 방법:</strong> POST /api/run 요청 시 model, temperature, max_tokens를 함께 전송<br>
+        관리자 화면에서 기본값 및 허용 범위를 설정하면 사용자가 변경 가능한 범위를 제한할 수 있습니다.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-settings')">취소</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-settings');showToast('모델 설정이 저장되었습니다')">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Rate / Feedback -->
+<div class="modal-overlay" id="modal-rate">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">⭐</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">결과 평가</div>
+        <div class="modal-subtitle">평가 결과는 템플릿 품질 개선에 활용됩니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-rate')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;padding:10px 0 20px">
+        <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:14px">전반적인 만족도</div>
+        <div style="font-size:36px;color:var(--gray-200)" id="modal-stars">
+          <span onclick="modalRate(1)">★</span><span onclick="modalRate(2)">★</span>
+          <span onclick="modalRate(3)">★</span><span onclick="modalRate(4)">★</span><span onclick="modalRate(5)">★</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">개선 제안 (선택)</label>
+        <textarea class="form-textarea" placeholder="어떤 부분이 부족했나요? 더 좋은 결과를 위한 제안이 있다면..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">실패 유형 (해당하는 경우)</label>
+        <div class="filter-chips">
+          <button class="chip">근거 부족</button>
+          <button class="chip">형식 불일치</button>
+          <button class="chip">내용 오류</button>
+          <button class="chip">분량 문제</button>
+          <button class="chip">문체 부적절</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-rate')">건너뛰기</button>
+      <button class="btn btn-amber" onclick="closeModal('modal-rate');showToast('평가가 제출되었습니다. 감사합니다! ⭐')">평가 제출</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Usage Stats -->
+<div class="modal-overlay" id="modal-approve">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">📊</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">템플릿 활용 통계</div>
+        <div class="modal-subtitle">ISP 사업계획서 초안 생성 — 품질 현황</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-approve')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-mini"><div class="stat-mini-val">148</div><div class="stat-mini-label">총 사용횟수</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">4.3</div><div class="stat-mini-label">평균 만족도</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">12%</div><div class="stat-mini-label">재수정 빈도</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">8%</div><div class="stat-mini-label">근거 부족률</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="modal-section">
+        <div class="modal-section-title">자주 발생하는 피드백</div>
+        <ul class="modal-list">
+          <li>분량이 지정보다 적게 생성됨 (23건)</li>
+          <li>표 형식 변환 시 정렬 오류 (11건)</li>
+          <li>ODA 문체 적용이 일관하지 않음 (8건)</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">🗄 품질 분석 쿼리 예시</div>
+        <div class="code-block">
+<span class="kw">SELECT</span> 
+  fail_type, <span class="kw">COUNT</span>(*) <span class="kw">AS</span> cnt,
+  <span class="kw">AVG</span>(rating) <span class="kw">AS</span> avg_rating
+<span class="kw">FROM</span> execution_logs el
+<span class="kw">JOIN</span> user_feedbacks uf <span class="kw">ON</span> el.id = uf.exec_id
+<span class="kw">WHERE</span> el.prompt_id = 31
+  <span class="kw">AND</span> el.created_at >= <span class="str">'2025-01-01'</span>
+<span class="kw">GROUP BY</span> fail_type
+<span class="kw">ORDER BY</span> cnt <span class="kw">DESC</span>;
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-approve')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Save Result -->
+<div class="modal-overlay" id="modal-save-result">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">💾</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">결과 보관함에 저장</div>
+        <div class="modal-subtitle">나중에 재활용할 수 있도록 저장합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-save-result')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">저장 제목 <span class="req">*</span></label>
+          <input class="form-input" value="과기정통부 AX ISP 사업계획서 초안 (2025.06)">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">태그</label>
+          <input class="form-input" placeholder="예) ISP, AX, 2025, 초안">
+        </div>
+        <div class="form-group">
+          <label class="form-label">저장 위치</label>
+          <select class="form-select">
+            <option>개인 보관함 (비공개)</option>
+            <option>부서 공유 보관함</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">보존 기간</label>
+          <select class="form-select">
+            <option>1년</option><option>3년</option><option>영구 보존</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-save-result')">취소</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-save-result');showToast('결과 보관함에 저장되었습니다 💾')">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Execution History Info -->
+<div class="modal-overlay" id="modal-hist-info">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">🕐</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">실행 이력 — 재사용 체계</div>
+        <div class="modal-subtitle">과거 실행 결과를 자산으로 활용합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-hist-info')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">실행 이력은 단순 로그가 아니라 <strong>재사용 가능한 자산</strong>입니다. 과거에 잘 만들어진 결과물의 입력값을 그대로 불러와 다시 실행하거나, 결과를 직접 재활용할 수 있습니다.</p>
+      <div class="modal-section">
+        <div class="modal-section-title">활용 방법</div>
+        <ul class="modal-list">
+          <li><strong>입력값 재사용:</strong> 과거 실행의 변수 설정을 그대로 불러옵니다</li>
+          <li><strong>결과 재활용:</strong> 저장된 결과를 편집하여 사용합니다</li>
+          <li><strong>비교 검토:</strong> 동일 입력의 다른 버전 결과를 비교합니다</li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-hist-info')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Field: Agency -->
+<div class="modal-overlay" id="modal-field-agency">
+  <div class="modal" style="width:460px">
+    <div class="modal-head">
+      <span class="modal-icon">🏛️</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">기관명 입력 가이드</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-field-agency')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="example-box">
+        <strong>입력 예시:</strong><br>
+        • 과학기술정보통신부<br>
+        • 행정안전부<br>
+        • 국립전파연구원<br>
+        • 한국지능정보사회진흥원 (NIA)<br>
+        • 우주항공청<br><br>
+        <strong>💡 팁:</strong> 기관 공식 명칭을 입력하면 AI가 해당 기관의 맥락에 맞는 문체와 표현을 자동 적용합니다.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-field-agency')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Field: Project -->
+<div class="modal-overlay" id="modal-field-project">
+  <div class="modal" style="width:460px">
+    <div class="modal-head">
+      <span class="modal-icon">📋</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">사업명 입력 가이드</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-field-project')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="example-box">
+        <strong>입력 예시:</strong><br>
+        • 행정업무 AX(인공지능전환) 정보화전략계획 수립<br>
+        • KC인증 모니터링 시스템 구축 ISP<br>
+        • 차세대 AX 업무시스템 ISMP 수립<br>
+        • 농업디지털화 ODA 역량강화 사업<br><br>
+        <strong>💡 팁:</strong> 사업 공고문 또는 RFP의 사업명을 그대로 입력하면 정확도가 높아집니다.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-field-project')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Upload -->
+<div class="modal-overlay" id="modal-upload">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">📤</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">문서 업로드</div>
+        <div class="modal-subtitle">개인 지식원에 문서를 추가합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-upload')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="border: 2px dashed var(--gray-200);border-radius:10px;padding:30px;text-align:center;background:var(--gray-50);cursor:pointer" onclick="showToast('파일 선택 창 열림 (실제 구현 시)')">
+        <div style="font-size:36px;margin-bottom:8px">📁</div>
+        <div style="font-weight:700;color:var(--navy)">클릭 또는 드래그로 파일 추가</div>
+        <div class="text-sm text-muted" style="margin-top:4px">PDF, HWP, HWPX, DOCX, XLSX, TXT 지원 | 최대 50MB</div>
+      </div>
+      <div class="db-note" style="margin-top:12px">
+        <strong>업로드 처리 흐름:</strong><br>
+        1. 파일 업로드 → S3 / 로컬 저장소 저장<br>
+        2. 텍스트 추출 (PDF: pdfplumber, HWP: hwp5/pypdf, DOCX: python-docx)<br>
+        3. 청크 분할 (RecursiveCharacterTextSplitter, chunk_size=500)<br>
+        4. 임베딩 생성 (HuggingFace KoSimCSE 또는 OpenAI text-embedding-3)<br>
+        5. VectorDB 저장 (FAISS / Chroma)<br>
+        6. documents 테이블 및 ks_documents 테이블 업데이트
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-upload')">취소</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-upload');showToast('문서 업로드 및 인덱싱 시작됨 📤')">업로드 시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- [MODAL] Prompt Library (placeholder) -->
+<div class="modal-overlay" id="modal-prompt-mgmt">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-icon">📋</span>
+      <div class="modal-title-wrap">
+        <div class="modal-title">프롬프트 관리 — 관리자</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-prompt-mgmt')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <input class="form-input" placeholder="템플릿명 검색..." style="flex:1">
+        <select class="form-select" style="width:120px"><option>전체 상태</option><option>개인안</option><option>검토중</option><option>표준승인</option><option>폐기</option></select>
+        <button class="btn btn-amber btn-sm" onclick="openModal('modal-new-prompt');closeModal('modal-prompt-mgmt')">＋ 신규 등록</button>
+      </div>
+      <div class="hist-list">
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between">
+            <div class="hist-title">ISP 사업계획서 초안 생성</div>
+            <div style="display:flex;gap:6px">
+              <span class="badge badge-approved">표준승인</span>
+              <button class="btn btn-outline btn-sm" onclick="showToast('편집 화면')">편집</button>
+              <button class="btn btn-outline btn-sm" onclick="showToast('폐기 처리됨')">폐기</button>
+            </div>
+          </div>
+          <div class="hist-meta"><span>v2.3</span><span>이기획</span><span>사용: 148회</span></div>
+        </div>
+        <div class="hist-item">
+          <div style="display:flex;justify-content:space-between">
+            <div class="hist-title">KC인증 모니터링 리포트</div>
+            <div style="display:flex;gap:6px">
+              <span class="badge badge-review">검토중</span>
+              <button class="btn btn-outline btn-sm" onclick="showToast('편집 화면')">편집</button>
+            </div>
+          </div>
+          <div class="hist-meta"><span>v1.0</span><span>김위즐</span><span>사용: 3회</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeModal('modal-prompt-mgmt')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== JAVASCRIPT =================== -->
+<script>
+// ===== MODAL CONTROL =====
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('open'); updatePreviewModal(); }
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+  }
+});
+
+// ===== TABS =====
+function switchTab(btn, tabId) {
+  const container = btn.closest('.modal-body');
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const tab = document.getElementById(tabId);
+  if (tab) tab.classList.add('active');
+}
+function switchTopTab(btn, viewId) {
+  document.querySelectorAll('.topnav-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ===== LOGOUT =====
+function handleLogout() {
+  if (confirm('로그아웃 하시겠습니까?')) {
+    showToast('로그아웃 되었습니다');
+    // 실제 구현 시 로그아웃 API 호출 및 로그인 페이지 이동
+    // window.location.href = '/login';
+  }
+}
+
+// ===== SCROLL TO HISTORY =====
+function scrollToHistory() {
+  const historyCard = document.getElementById('card-exec-history');
+  if (historyCard) {
+    setTimeout(() => {
+      historyCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // 하이라이트 효과
+      historyCard.style.boxShadow = '0 0 0 3px var(--amber)';
+      setTimeout(() => {
+        historyCard.style.boxShadow = '';
+      }, 1500);
+    }, 100);
+  }
+}
+
+// ===== ACCORDION =====
+function toggleAccordion(bodyId) {
+  const body = document.getElementById(bodyId);
+  const arrowId = bodyId.replace('-body', '-arrow');
+  const arrow = document.getElementById(arrowId);
+  body.classList.toggle('open');
+  if (arrow) arrow.classList.toggle('open');
+}
+
+// ===== TEMPLATE SELECTION =====
+function selectTemplate(el, idx) {
+  document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  showToast('템플릿이 선택되었습니다');
+}
+
+// ===== KNOWLEDGE SOURCE TOGGLE =====
+function toggleKS(el) { el.classList.toggle('selected'); updateStats(); }
+function updateStats() {
+  const count = document.querySelectorAll('.ks-item.selected').length;
+  const statEl = document.querySelector('.stat-mini-val');
+  if (statEl) statEl.textContent = count;
+}
+
+// ===== CHIPS =====
+function toggleChip(el, type) {
+  document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ===== PREVIEW UPDATE =====
+function updatePreview() {
+  const agency = document.getElementById('field-agency')?.value || '';
+  const project = document.getElementById('field-project')?.value || '';
+  const purpose = document.getElementById('field-purpose')?.value || '';
+  const prevAgency = document.getElementById('prev-agency');
+  const prevProject = document.getElementById('prev-project');
+  const prevPurpose = document.getElementById('prev-purpose');
+  if (prevAgency) prevAgency.textContent = agency || '【기관명 입력 필요】';
+  if (prevProject) prevProject.textContent = project || '【사업명 입력 필요】';
+  if (prevPurpose) prevPurpose.textContent = purpose || '【목적 선택 필요】';
+}
+
+function updatePreviewModal() {
+  const fp = document.getElementById('full-preview');
+  if (!fp) return;
+  const agency = document.getElementById('field-agency')?.value || '【기관명】';
+  const project = document.getElementById('field-project')?.value || '【사업명】';
+  const purpose = document.getElementById('field-purpose')?.value || '【목적】';
+  fp.innerHTML = `<span style="color:#90EE90">[SYSTEM]</span><br>
+당신은 대한민국 공공 ICT 사업 전문 컨설턴트입니다.<br>
+ISP/ISMP 사업계획서 초안을 작성하세요.<br>
+작성 기준: 행정안전부 정보화사업 추진지침<br>
+<br>
+<span style="color:#90EE90">[USER]</span><br>
+발주기관: <span style="color:var(--amber)">${agency}</span><br>
+사업명: <span style="color:var(--amber)">${project}</span><br>
+작성목적: <span style="color:var(--amber)">${purpose}</span><br>
+독자수준: 임원보고 | 출력형식: 서술형 보고서 | 분량: 3페이지<br>
+<br>
+<span style="color:#6A7F9A">/* RAG 컨텍스트 자동 삽입 (서버에서 처리) */</span><br>
+참조근거: <span style="color:var(--amber)">[검색된 청크 자동 삽입]</span><br>
+<br>
+<span style="color:#90EE90">[OUTPUT RULES]</span><br>
+- ISP 표준 목차 구조 준수<br>
+- 미입력 변수: [미입력] 표기 후 진행<br>
+- 불확실 내용: ※ 표시<br>
+- RAG 근거 없는 내용: ※출처없음 표시`;
+}
+
+// ===== EXTRA REQUEST =====
+function addQuickReq(text) {
+  const ta = document.getElementById('extra-request');
+  if (!ta) return;
+  ta.value = ta.value ? ta.value + '\n' + text : text;
+  updateCount();
+}
+document.getElementById('extra-request')?.addEventListener('input', updateCount);
+function updateCount() {
+  const ta = document.getElementById('extra-request');
+  const counter = document.getElementById('extra-count');
+  if (ta && counter) counter.textContent = `${ta.value.length} / 500자`;
+}
+
+// ===== CLEAR INPUTS =====
+function clearInputs() {
+  ['field-agency','field-project','field-purpose','field-audience','field-format',
+   'field-length','field-keywords','field-exclude','field-system','extra-request'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.tagName === 'SELECT' ? el.selectedIndex = 0 : el.value = ''; }
+  });
+  updatePreview();
+  showToast('입력값이 초기화되었습니다');
+}
+
+// ===== RUN GENERATE =====
+let running = false;
+function runGenerate() {
+  if (running) return;
+  running = true;
+  const btn = document.getElementById('run-btn');
+  btn.innerHTML = '<span class="spin">⟳</span> 생성 중...';
+  btn.disabled = true;
+  document.getElementById('run-status-text').textContent = '⟳ AI가 결과를 생성하고 있습니다...';
+
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressBar = document.getElementById('progress-bar');
+  const progressText = document.getElementById('progress-text');
+  progressWrap.style.display = 'block';
+
+  const resultOutput = document.getElementById('result-output');
+  resultOutput.classList.add('generating');
+  resultOutput.innerHTML = `<div class="result-placeholder"><div class="spin" style="font-size:28px">⟳</div><div style="font-size:15px;font-weight:700;color:var(--navy)">AI가 결과를 생성하고 있습니다...</div></div>`;
+
+  const steps = [
+    [30, '지식원 검색 중...'],
+    [55, 'Top-5 청크 추출 중...'],
+    [70, '프롬프트 구성 중...'],
+    [90, 'LLM 응답 생성 중...'],
+    [100, '결과 처리 완료']
+  ];
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i >= steps.length) {
+      clearInterval(interval);
+      finishGenerate();
+      return;
+    }
+    progressBar.style.width = steps[i][0] + '%';
+    progressText.textContent = steps[i][1];
+    i++;
+  }, 600);
+
+  // Show reference docs during generation
+  setTimeout(showRefs, 1800);
+}
+
+function showRefs() {
+  document.getElementById('ref-list').innerHTML = `
+    <div class="ref-item">
+      <div class="ref-title">행정안전부 ISP/ISMP 표준 방법론 v4.0<span class="ref-score">0.94</span></div>
+      <div class="ref-loc">📄 p.23, 3.1절 사업 추진 절차</div>
+      <div class="ref-excerpt">ISP/ISMP 사업의 추진 절차는 착수, 현황 분석, 목표 수립, 이행 계획 수립의 4단계로 구성된다...</div>
+    </div>
+    <div class="ref-item">
+      <div class="ref-title">AX 기반 디지털 정부 혁신 전략 보고서<span class="ref-score">0.87</span></div>
+      <div class="ref-loc">📄 p.8, 2.3절 AX 추진 방향</div>
+      <div class="ref-excerpt">공공 행정의 AX(AI Transformation)는 단순 자동화를 넘어 업무 재설계와 의사결정 지원을 포함한다...</div>
+    </div>
+    <div class="ref-item">
+      <div class="ref-title">과기정통부 2024 정보화사업 가이드라인<span class="ref-score">0.82</span></div>
+      <div class="ref-loc">📄 p.41, 부록 A</div>
+      <div class="ref-excerpt">정보화전략계획 수립 시 현황 진단, 개선 방향, 이행 로드맵을 포함한 3단 구조를 권장한다...</div>
+    </div>`;
+}
+
+function finishGenerate() {
+  running = false;
+  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('progress-bar').style.width = '0%';
+
+  const resultOutput = document.getElementById('result-output');
+  resultOutput.classList.remove('generating');
+  resultOutput.innerHTML = `
+<div style="line-height:1.9;font-size:14px">
+<p style="color:var(--navy);font-size:16px;font-weight:800;margin-bottom:12px">행정업무 AX 정보화전략계획 수립 사업계획서 (초안)</p>
+
+<p><strong style="color:var(--navy)">1. 사업 개요</strong></p>
+<p style="margin:8px 0">과학기술정보통신부는 행정 전반의 인공지능 전환(AX, AI Transformation)을 통해 공무원 업무 효율성을 제고하고 국민 서비스 품질을 향상시키기 위해 본 ISP 사업을 추진합니다.</p>
+
+<p style="margin-top:12px"><strong style="color:var(--navy)">1.1 사업 배경 및 필요성</strong></p>
+<p style="margin:8px 0">디지털 정부 혁신의 핵심 과제로 AX가 부상함에 따라, 기존 행정정보시스템(온나라, 두레이, ERP 등)의 AI 연계 체계 마련이 시급합니다. <span style="background:var(--amber-l);padding:1px 4px;border-radius:3px;font-size:12px">※ 출처: 과기정통부 2024 정보화사업 가이드라인</span></p>
+
+<p style="margin-top:12px"><strong style="color:var(--navy)">1.2 사업 목적 및 목표</strong></p>
+<ul style="margin:8px 0 8px 20px;line-height:2">
+  <li>행정 업무 프로세스의 AI 기반 자동화 및 지능화 체계 수립</li>
+  <li>Quick Win 과제 도출 및 PoC 검증을 통한 단계적 AX 이행 계획 수립</li>
+  <li>전사 AX 거버넌스 및 데이터 기반 의사결정 체계 구축</li>
+</ul>
+
+<p style="margin-top:12px"><strong style="color:var(--navy)">2. 추진 전략</strong></p>
+<p style="margin:8px 0">3단계 이행 로드맵: ① 현황 진단 및 Quick Win 발굴(1단계) → ② PoC 기반 AI 기능 검증(2단계) → ③ 전사 AX 확산 및 고도화(3단계) <span style="background:var(--amber-l);padding:1px 4px;border-radius:3px;font-size:12px">※ 출처: 행안부 ISP 표준 방법론</span></p>
+
+<p style="color:var(--text-s);font-size:12px;margin-top:16px;border-top:1px solid var(--gray-100);padding-top:10px">
+  ⚡ claude-sonnet-4 · 토큰: 1,847 · 생성시간: 3.2초 · 참조근거: 3건
+</p>
+</div>`;
+
+  document.getElementById('result-actions').style.display = 'flex';
+  document.getElementById('eval-section').style.display = 'block';
+  document.getElementById('run-btn').innerHTML = '▶ AI 생성 실행';
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-status-text').textContent = '✅ 생성이 완료되었습니다';
+  showToast('✅ AI 결과 생성 완료! 근거 문서 3건 확인');
+}
+
+// ===== COPY RESULT =====
+function copyResult() {
+  const result = document.getElementById('result-output').innerText;
+  if (result && !result.includes('결과가 여기에')) {
+    navigator.clipboard?.writeText(result).catch(() => {});
+    showToast('📋 결과가 클립보드에 복사되었습니다');
+  } else {
+    showToast('생성된 결과가 없습니다');
+  }
+}
+function copyPrompt() { showToast('📋 프롬프트가 복사되었습니다'); }
+
+// ===== EXPORT =====
+function exportResult(fmt) {
+  closeModal('modal-export');
+  showToast(`${fmt.toUpperCase()} 형식으로 변환 중... (실제 구현 시 파일 다운로드)`);
+}
+
+// ===== CONVERT TO TABLE =====
+function convertToTable() { showToast('📊 표 변환 요청 전송 중...'); }
+
+// ===== RATING =====
+function rate(n) {
+  const stars = document.querySelectorAll('#star-rating span');
+  stars.forEach((s, i) => s.classList.toggle('filled', i < n));
+  showToast(`⭐ ${n}점 평가 완료`);
+}
+function modalRate(n) {
+  const stars = document.querySelectorAll('#modal-stars span');
+  stars.forEach((s, i) => { s.style.color = i < n ? 'var(--amber)' : 'var(--gray-200)'; });
+}
+
+// ===== STEP WIZARD =====
+function setStep(n) {
+  const steps = document.querySelectorAll('.wizard-step');
+  steps.forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if (i + 1 < n) s.classList.add('done');
+    else if (i + 1 === n) s.classList.add('active');
+  });
+  const labels = ['업무선택','프롬프트선택','입력값 설정','지식원 선택','결과 검토'];
+  showToast(`Step ${n}: ${labels[n-1]}`);
+}
+
+// ===== SEARCH FILTER =====
+function filterTemplates(q) {
+  document.querySelectorAll('.tpl-card').forEach(card => {
+    const name = card.querySelector('.tpl-card-name')?.textContent || '';
+    card.style.display = q === '' || name.includes(q) ? '' : 'none';
+  });
+}
+
+// ===== TOAST =====
+function showToast(msg, duration = 2500) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', function() {
+  updatePreview();
+  document.getElementById('field-agency')?.addEventListener('input', updatePreview);
+  document.getElementById('field-project')?.addEventListener('input', updatePreview);
+  document.getElementById('field-purpose')?.addEventListener('change', updatePreview);
+});
+</script>
+</body>
+</html>
