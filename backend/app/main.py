@@ -23,9 +23,13 @@ async def lifespan(app: FastAPI):
     print(f"Environment: {settings.app_env}")
     print(f"Debug: {settings.debug}")
 
-    # Initialize database tables
-    init_db()
-    print("Database initialized")
+    # Initialize database tables when credentials are available.
+    # The RAG query UI can still start without DB-backed admin features.
+    try:
+        init_db()
+        print("Database initialized")
+    except Exception as exc:
+        print(f"Database initialization skipped: {exc}")
 
     yield
 
