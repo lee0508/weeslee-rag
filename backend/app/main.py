@@ -1,8 +1,11 @@
 """
 PromptoRAG FastAPI Application
 """
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
@@ -13,6 +16,10 @@ from app.api.documents import router as documents_router
 from app.api.ocr import router as ocr_router
 from app.api.knowledge_sources import router as knowledge_sources_router
 from app.api.rag import router as rag_router
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
 
 @asynccontextmanager
@@ -63,6 +70,25 @@ app.include_router(documents_router, prefix="/api/admin", tags=["Documents"])
 app.include_router(ocr_router, prefix="/api", tags=["OCR"])
 app.include_router(knowledge_sources_router, prefix="/api", tags=["Knowledge Sources"])
 app.include_router(rag_router, prefix="/api", tags=["RAG"])
+
+# Serve the assistant UI under the requested path pattern:
+# /weeslee-rag/frontend/rag-assistant.html
+if FRONTEND_DIR.exists():
+    app.mount(
+        "/weeslee-rag/frontend",
+        StaticFiles(directory=str(FRONTEND_DIR), html=True),
+        name="weeslee-rag-frontend",
+    )
+
+
+@app.get("/weeslee-rag")
+async def weeslee_rag_root():
+    return RedirectResponse(url="/weeslee-rag/frontend/rag-assistant.html")
+
+
+@app.get("/weeslee-rag/")
+async def weeslee_rag_root_slash():
+    return RedirectResponse(url="/weeslee-rag/frontend/rag-assistant.html")
 
 
 @app.get("/")
