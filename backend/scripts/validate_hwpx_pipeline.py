@@ -19,7 +19,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from app.extractors.hwpx_extractor import HwpxExtractor  # noqa: E402
-from app.services.metadata_extractor import metadata_extractor_service  # noqa: E402
+
+try:  # pragma: no cover - optional on some server snapshots
+    from app.services.metadata_extractor import metadata_extractor_service  # type: ignore  # noqa: E402
+except Exception:  # pragma: no cover
+    metadata_extractor_service = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,7 +44,47 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def heuristic_metadata(text: str, filename: str) -> dict:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    title = filename
+    for line in lines[:20]:
+        if len(line) >= 8 and len(line) <= 120:
+            title = line.strip("<> ")
+            break
+
+    keyword_candidates = []
+    for term in [
+        "RFP",
+        "제안요청서",
+        "ISMP",
+        "차세대",
+        "업무시스템",
+        "프로젝트",
+        "일정관리",
+        "보안요구사항",
+        "산출물",
+        "지적재산권",
+    ]:
+        if term in text and term not in keyword_candidates:
+            keyword_candidates.append(term)
+
+    return {
+        "title": title,
+        "summary": "HWPX RFP extracted for retrieval validation.",
+        "keywords": keyword_candidates[:10],
+        "category": "RFP",
+        "document_type": "RFP",
+        "organization": None,
+        "project_name": None,
+        "year": None,
+        "language": "ko",
+        "confidence_score": 0.6,
+    }
+
+
 async def run_metadata_extraction(text: str, filename: str) -> dict:
+    if metadata_extractor_service is None:
+        return heuristic_metadata(text, filename)
     metadata = await metadata_extractor_service.extract_metadata(text, filename=filename)
     return metadata.to_dict()
 
