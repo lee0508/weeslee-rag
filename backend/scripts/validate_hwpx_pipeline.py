@@ -90,8 +90,8 @@ async def run_metadata_extraction(text: str, filename: str) -> dict:
 
 
 def run_rag_assembly(args: argparse.Namespace, query: str, output_dir: Path) -> dict:
-    output_json = output_dir / "hwpx_validation_rag.json"
-    output_md = output_dir / "hwpx_validation_rag.md"
+    output_json = output_dir / f"hwpx_validation_rag_{os.getpid()}.json"
+    output_md = output_dir / f"hwpx_validation_rag_{os.getpid()}.md"
     cmd = [
         sys.executable,
         str(PROJECT_ROOT / "backend" / "scripts" / "assemble_rag_response.py"),

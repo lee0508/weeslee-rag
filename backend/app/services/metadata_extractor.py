@@ -147,6 +147,96 @@ class MetadataExtractorService:
 
         return response.strip()
 
+    def _apply_document_hints(self, metadata: DocumentMetadata, content: str, filename: Optional[str]) -> DocumentMetadata:
+        """Apply deterministic overrides for HWPX RFP-style documents."""
+        lines = [line.strip().strip("<>") for line in content.splitlines() if line.strip()]
+
+        title_hint = None
+        for line in lines[:30]:
+            candidate = re.sub(r"\s+", " ", line).strip()
+            if len(candidate) < 8 or len(candidate) > 120:
+                continue
+            if "제안요청서" in candidate or "RFP" in candidate or "ISMP" in candidate:
+                title_hint = candidate
+                break
+        if title_hint:
+            metadata.title = title_hint
+
+        lowered = content.lower()
+        if "제안요청서" in content or "rfp" in lowered:
+            metadata.category = "RFP"
+            metadata.document_type = "RFP"
+        elif "제안서" in content or "proposal" in lowered:
+            metadata.document_type = "제안서"
+
+        extra_terms = [
+            "RFP",
+            "제안요청서",
+            "ISMP",
+            "차세대",
+            "업무시스템",
+            "프로젝트",
+            "일정관리",
+            "보안요구사항",
+            "산출물",
+            "지적재산권",
+        ]
+        for term in extra_terms:
+            if term in content and term not in metadata.keywords:
+                metadata.keywords.append(term)
+        metadata.keywords = metadata.keywords[:10]
+
+        if metadata.confidence_score < 0.6:
+            metadata.confidence_score = 0.6
+        return metadata
+
+    def _extract_title_hint(self, content: str, filename: Optional[str] = None) -> Optional[str]:
+        """Extract a reliable title hint from document text."""
+        lines = [line.strip().strip("<>") for line in content.splitlines() if line.strip()]
+        for line in lines[:30]:
+            candidate = re.sub(r"\s+", " ", line).strip()
+            if len(candidate) < 8 or len(candidate) > 120:
+                continue
+            if "제안요청서" in candidate or "RFP" in candidate or "ISMP" in candidate:
+                return candidate
+        if filename:
+            return filename.rsplit(".", 1)[0]
+        return None
+
+    def _apply_rules(self, metadata: DocumentMetadata, content: str, filename: Optional[str]) -> DocumentMetadata:
+        """Apply deterministic overrides for strong RFP/proposal signals."""
+        title_hint = self._extract_title_hint(content, filename)
+        if title_hint and ("제안요청서" in title_hint or "RFP" in title_hint or "ISMP" in title_hint):
+            metadata.title = title_hint
+
+        text = content.lower()
+        if "제안요청서" in content or "rfp" in text:
+            metadata.category = "RFP"
+            metadata.document_type = "RFP"
+        elif "제안서" in content or "proposal" in text:
+            metadata.document_type = "제안서"
+
+        extra_terms = [
+            "RFP",
+            "제안요청서",
+            "ISMP",
+            "차세대",
+            "업무시스템",
+            "프로젝트",
+            "일정관리",
+            "보안요구사항",
+            "산출물",
+            "지적재산권",
+        ]
+        for term in extra_terms:
+            if term in content and term not in metadata.keywords:
+                metadata.keywords.append(term)
+        metadata.keywords = metadata.keywords[:10]
+
+        if metadata.confidence_score < 0.6 and (metadata.title != (filename or "")):
+            metadata.confidence_score = 0.6
+        return metadata
+
     async def extract_metadata(
         self,
         content: str,
@@ -194,6 +284,8 @@ class MetadataExtractorService:
                 confidence_score=min(1.0, max(0.0, float(data.get('confidence_score', 0.5)))),
                 extracted_at=datetime.utcnow().isoformat()
             )
+
+            metadata = self._apply_rules(metadata, truncated_content, filename)
 
             # Validate category
             if metadata.category not in self.CATEGORIES:
