@@ -18,7 +18,7 @@ from app.api.knowledge_sources import router as knowledge_sources_router
 from app.api.rag import router as rag_router
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
 
