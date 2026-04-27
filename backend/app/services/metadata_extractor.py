@@ -285,14 +285,14 @@ class MetadataExtractorService:
                 extracted_at=datetime.utcnow().isoformat()
             )
 
-            metadata = self._apply_rules(metadata, truncated_content, filename)
+            metadata = self._apply_document_hints(metadata, truncated_content, filename)
 
             # Validate category
-            if metadata.category not in self.CATEGORIES:
+            if metadata.category not in self.CATEGORIES and metadata.category != "RFP":
                 metadata.category = '기타'
 
             # Validate document type
-            if metadata.document_type not in self.DOCUMENT_TYPES:
+            if metadata.document_type not in self.DOCUMENT_TYPES and metadata.document_type != "RFP":
                 metadata.document_type = '기타'
 
             return metadata
