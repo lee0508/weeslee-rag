@@ -63,6 +63,22 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def resolve_input_path(row: dict[str, str]) -> Path:
+    snapshot_path = (row.get("snapshot_path") or "").strip()
+    if snapshot_path:
+        snapshot_candidate = Path(snapshot_path)
+        if not snapshot_candidate.is_absolute():
+            snapshot_candidate = PROJECT_ROOT / snapshot_candidate
+        if snapshot_candidate.exists():
+            return snapshot_candidate
+
+    source_path = (row.get("source_path") or "").strip()
+    if source_path:
+        return Path(source_path)
+
+    return Path("")
+
+
 def build_output_paths(text_dir: Path, metadata_dir: Path, document_id: str) -> tuple[Path, Path]:
     return text_dir / f"{document_id}.txt", metadata_dir / f"{document_id}.json"
 
@@ -88,8 +104,9 @@ async def run_batch(args: argparse.Namespace) -> int:
         reader = csv.DictReader(handle)
         for row in reader:
             document_id = row["document_id"]
+            input_path = resolve_input_path(row)
             source_path = Path(row["source_path"])
-            extension = source_path.suffix.lower()
+            extension = input_path.suffix.lower() or source_path.suffix.lower()
             category = row.get("category", "")
             text_path, metadata_path = build_output_paths(text_dir, metadata_dir, document_id)
 
@@ -125,7 +142,7 @@ async def run_batch(args: argparse.Namespace) -> int:
                 )
                 continue
 
-            result = await extractor.extract(str(source_path))
+            result = await extractor.extract(str(input_path))
 
             if result.get("success"):
                 content = result.get("content", "")
@@ -133,6 +150,8 @@ async def run_batch(args: argparse.Namespace) -> int:
                     "document_id": document_id,
                     "category": category,
                     "source_path": str(source_path),
+                    "input_path": str(input_path),
+                    "snapshot_path": row.get("snapshot_path", ""),
                     "extension": extension,
                     "extracted_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                     "result": result,
@@ -146,7 +165,7 @@ async def run_batch(args: argparse.Namespace) -> int:
                     ExtractionRow(
                         document_id=document_id,
                         category=category,
-                        source_path=str(source_path),
+                        source_path=str(input_path),
                         extension=extension,
                         extraction_status="success",
                         extraction_method=result.get("method", ""),
@@ -160,7 +179,7 @@ async def run_batch(args: argparse.Namespace) -> int:
                     ExtractionRow(
                         document_id=document_id,
                         category=category,
-                        source_path=str(source_path),
+                        source_path=str(input_path),
                         extension=extension,
                         extraction_status="failed",
                         extraction_method=result.get("method", ""),
