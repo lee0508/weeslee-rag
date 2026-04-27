@@ -68,7 +68,14 @@ class Settings(BaseSettings):
     knowledge_source_unc: str = "\\\\diskstation\\W2_프로젝트폴더"
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
 
 
 @lru_cache()

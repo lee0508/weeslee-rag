@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -45,7 +46,7 @@ async def query_rag(request: RagQueryRequest):
         output_json = Path(temp_dir) / "rag_response.json"
         output_md = Path(temp_dir) / "rag_response.md"
         cmd = [
-            "python",
+            sys.executable,
             str(ASSEMBLE_SCRIPT),
             "--index-path",
             index_path,
