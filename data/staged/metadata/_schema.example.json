@@ -1,0 +1,63 @@
+{
+  "document_id": "DOC-20260427-000123",
+  "title": "A기관 2023 ISP 제안서",
+  "original_filename": "final.pptx",
+  "normalized_filename": "a_agency_2023_isp_proposal_v1.pptx",
+  "extension": ".pptx",
+  "source_path": "W:\\01. 국내사업폴더\\A기관\\2023\\제안서\\final.pptx",
+  "snapshot_path": "/data/weeslee/weeslee-rag/data/raw/snapshot_2026-04-27/domestic_business/A기관/2023/제안서/final.pptx",
+  "document_type": {
+    "value": "proposal",
+    "provenance": "EXTRACTED",
+    "confidence": 0.98
+  },
+  "project_name": {
+    "value": "A기관 2023 ISP",
+    "provenance": "INFERRED",
+    "confidence": 0.72
+  },
+  "organization_client": {
+    "value": "A기관",
+    "provenance": "EXTRACTED",
+    "confidence": 0.95
+  },
+  "organization_vendor": {
+    "value": "위즐리앤컴퍼니",
+    "provenance": "HUMAN_REVIEWED",
+    "confidence": 1.0
+  },
+  "year": 2023,
+  "domain": "ISP",
+  "stage": "proposal",
+  "version_label": "v1",
+  "language": "ko",
+  "ocr_required": false,
+  "ocr_confidence": null,
+  "text_extraction_status": "success",
+  "security_level": "internal",
+  "duplicate_group": null,
+  "related_project_ids": [],
+  "keywords": [
+    "ISP",
+    "정보화전략계획",
+    "제안서"
+  ],
+  "deliverables": [
+    "착수보고서",
+    "중간보고서",
+    "최종보고서"
+  ],
+  "table_of_contents": [
+    "사업이해",
+    "추진전략",
+    "수행방법론",
+    "수행일정"
+  ],
+  "summary_short": "A기관 ISP 사업 제안 문서",
+  "summary_long": "기관 현황 분석과 ISP 추진전략, 수행방법론, 산출물 체계를 포함한 제안서.",
+  "provenance_tags": [
+    "EXTRACTED",
+    "INFERRED",
+    "HUMAN_REVIEWED"
+  ]
+}

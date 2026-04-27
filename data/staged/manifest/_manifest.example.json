@@ -1,0 +1,15 @@
+{
+  "document_id": "DOC-20260427-000123",
+  "source_root": "W:\\01. 국내사업폴더",
+  "source_path": "W:\\01. 국내사업폴더\\A기관\\2023\\제안서\\final.pptx",
+  "relative_path": "A기관/2023/제안서/final.pptx",
+  "snapshot_name": "snapshot_2026-04-27",
+  "snapshot_path": "/data/weeslee/weeslee-rag/data/raw/snapshot_2026-04-27/domestic_business/A기관/2023/제안서/final.pptx",
+  "sha256": "abc123def456",
+  "size_bytes": 1234567,
+  "modified_at": "2024-11-02T13:20:00+09:00",
+  "copied_at": "2026-04-27T11:40:00+09:00",
+  "copy_batch": "batch-001",
+  "copy_status": "copied",
+  "extension": ".pptx"
+}

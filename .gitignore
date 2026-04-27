@@ -138,3 +138,17 @@ htmlcov/
 *.pem
 *.key
 credentials.json
+
+# Weeslee RAG data pipeline
+data/raw/
+data/indexes/
+data/staged/ocr/
+data/staged/thumbnails/
+data/staged/text/
+data/staged/chunks/
+data/staged/markdown/
+data/staged/manifest/*.jsonl
+data/staged/manifest/*.csv
+data/staged/manifest/*.parquet
+data/wiki/generated/
+*.faiss
