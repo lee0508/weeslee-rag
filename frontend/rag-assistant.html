@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weeslee RAG Assistant</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: #0f1b2e;
+      --panel-2: #13233c;
+      --line: rgba(255,255,255,0.08);
+      --text: #eef3fb;
+      --muted: #9fb0cc;
+      --accent: #f0a33b;
+      --accent-2: #62c6ff;
+      --good: #44d19d;
+      --bad: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(98,198,255,.18), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(240,163,59,.14), transparent 35%),
+        var(--bg);
+      color: var(--text);
+    }
+    .shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.3fr .7fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.28);
+      backdrop-filter: blur(14px);
+    }
+    .intro {
+      padding: 26px;
+      min-height: 220px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(98,198,255,.12);
+      color: #bde6ff;
+      font-size: 12px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(30px, 5vw, 56px);
+      line-height: 1.05;
+    }
+    .lede {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    .stats {
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+    .stat {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .stat .label { color: var(--muted); font-size: 12px; }
+    .stat .value { margin-top: 6px; font-size: 20px; font-weight: 700; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .section {
+      padding: 18px;
+    }
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+    textarea, input, select, button {
+      font: inherit;
+    }
+    textarea, input, select {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 14px;
+      outline: none;
+    }
+    textarea { min-height: 150px; resize: vertical; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .primary { background: linear-gradient(135deg, var(--accent), #ffca6d); color: #1b1406; }
+    .ghost { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--line); }
+    .results { display: grid; gap: 12px; }
+    .doc {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .doc-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+    .doc-title { font-weight: 800; }
+    .badge {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(98,198,255,.12);
+      color: #bde6ff;
+      white-space: nowrap;
+    }
+    .meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #d9e6ff;
+    }
+    .answer {
+      white-space: pre-wrap;
+      line-height: 1.8;
+      color: #e9effc;
+    }
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .ok { color: var(--good); }
+    .warn { color: var(--accent); }
+    @media (max-width: 960px) {
+      .hero, .grid, .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div class="card intro">
+        <div class="eyebrow">Weeslee Document RAG</div>
+        <h1>RFP 분석과 제안서 초안 생성을 한 화면에서</h1>
+        <div class="lede">
+          실제 RFP 질의를 입력하면 과거 제안서, 발표자료, 착수계, 최종보고서를 문서 단위로 묶어서 보여줍니다.
+          이 화면은 개발 1차 검증용이며, 추천 근거와 생성 응답을 같이 확인하는 데 초점을 둡니다.
+        </div>
+      </div>
+      <div class="card stats" id="healthCard">
+        <div class="stat"><div class="label">API</div><div class="value" id="apiStatus">Checking</div></div>
+        <div class="stat"><div class="label">VectorDB</div><div class="value" id="vectorStatus">-</div></div>
+        <div class="stat"><div class="label">Ollama</div><div class="value" id="ollamaStatus">-</div></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card section">
+        <h2>Query</h2>
+        <textarea id="query" placeholder="예: AX 기반의 차세대 업무시스템 구축을 위한 ISMP 제안요청서...">AX 기반의 차세대 업무시스템 구축을 위한 ISMP 제안요청서 소프트웨어 과업 변경 요청</textarea>
+        <div class="row">
+          <div><label>Top K</label><input id="topK" type="number" min="5" max="50" value="20"></div>
+          <div><label>Top Docs</label><input id="topDocs" type="number" min="3" max="10" value="5"></div>
+          <div><label>Model</label><input id="answerModel" value="gemma4:latest"></div>
+        </div>
+        <div class="actions">
+          <button class="primary" onclick="runQuery()">Run RAG</button>
+          <button class="ghost" onclick="loadHealth()">Refresh Health</button>
+        </div>
+        <div class="status" id="queryStatus">Ready.</div>
+      </div>
+
+      <div class="card section">
+        <h2>Draft Answer</h2>
+        <div class="answer" id="draftAnswer">No answer yet.</div>
+      </div>
+    </div>
+
+    <div class="card section" style="margin-top:18px;">
+      <h2>Recommended Documents</h2>
+      <div class="results" id="results"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:8080/api';
+
+    async function loadHealth() {
+      try {
+        const response = await fetch(`${API_BASE}/health/all`);
+        const data = await response.json();
+        document.getElementById('apiStatus').textContent = data.status || 'unknown';
+        document.getElementById('apiStatus').className = data.status === 'healthy' ? 'value ok' : 'value warn';
+        document.getElementById('vectorStatus').textContent = data.components?.vectordb?.status || '-';
+        document.getElementById('ollamaStatus').textContent = data.components?.ollama?.status || '-';
+      } catch (error) {
+        document.getElementById('apiStatus').textContent = 'offline';
+        document.getElementById('queryStatus').textContent = `Health check failed: ${error.message}`;
+      }
+    }
+
+    async function runQuery() {
+      const query = document.getElementById('query').value.trim();
+      const topK = parseInt(document.getElementById('topK').value || '20', 10);
+      const topDocs = parseInt(document.getElementById('topDocs').value || '5', 10);
+      const answerModel = document.getElementById('answerModel').value.trim() || 'gemma4:latest';
+      const status = document.getElementById('queryStatus');
+
+      if (!query) {
+        status.textContent = 'Enter a query first.';
+        return;
+      }
+
+      status.textContent = 'Running retrieval...';
+      document.getElementById('draftAnswer').textContent = 'Generating...';
+      document.getElementById('results').innerHTML = '';
+
+      const response = await fetch(`${API_BASE}/rag/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          top_k: topK,
+          top_docs: topDocs,
+          answer_provider: 'ollama',
+          answer_model: answerModel
+        })
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        status.textContent = `Failed: ${data.error || 'unknown error'}`;
+        return;
+      }
+
+      status.textContent = `Done. Top ${data.documents?.length || 0} documents ranked.`;
+      document.getElementById('draftAnswer').textContent = data.draft_answer || '(no draft answer)';
+      renderResults(data.documents || []);
+    }
+
+    function renderResults(documents) {
+      const results = document.getElementById('results');
+      if (!documents.length) {
+        results.innerHTML = '<div class="doc">No documents returned.</div>';
+        return;
+      }
+
+      results.innerHTML = documents.map(doc => `
+        <div class="doc">
+          <div class="doc-head">
+            <div>
+              <div class="doc-title">#${doc.rank} ${doc.document_id}</div>
+              <div class="meta">
+                <span>${doc.category}</span>
+                <span>best: ${Number(doc.best_score).toFixed(4)}</span>
+                <span>rank: ${Number(doc.ranking_score).toFixed(4)}</span>
+                <span>hits: ${doc.hit_count}</span>
+              </div>
+            </div>
+            <div class="badge">${doc.category}</div>
+          </div>
+          <div class="meta">${doc.source_path}</div>
+          <div>${(doc.reasons || []).map(r => `• ${escapeHtml(r)}`).join('<br>')}</div>
+          <div class="chips">
+            ${(doc.evidence_snippets || []).map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    loadHealth();
+  </script>
+</body>
+</html>

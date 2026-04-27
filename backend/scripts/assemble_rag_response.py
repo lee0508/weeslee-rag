@@ -160,6 +160,22 @@ def detect_category_intents(query: str) -> set[str]:
     return intents
 
 
+def detect_category_intents(query: str) -> set[str]:  # override broken earlier mapping
+    lowered = query.lower()
+    intents: set[str] = set()
+    mapping = {
+        "proposal": ["proposal", "제안서", "입찰", "제안"],
+        "rfp": ["rfp", "제안요청서", "과업지시서", "입찰공고"],
+        "kickoff": ["kickoff", "착수", "착수계"],
+        "final_report": ["final", "final_report", "최종", "종료", "최종보고"],
+        "presentation": ["presentation", "발표", "pt"],
+    }
+    for category, keywords in mapping.items():
+        if any(keyword in lowered for keyword in keywords):
+            intents.add(category)
+    return intents
+
+
 def lexical_match_score(query: str, terms: list[str], texts: list[str]) -> float:
     corpus = " ".join(texts).lower()
     score = 0.0
@@ -171,6 +187,24 @@ def lexical_match_score(query: str, terms: list[str], texts: list[str]) -> float
     if compact_query and compact_query in compact_corpus:
         score += 2.5
     return score
+
+
+def category_priority_score(category: str, intents: set[str]) -> float:
+    priorities = {
+        "proposal": 2.5,
+        "rfp": 2.0,
+        "kickoff": 1.0,
+        "presentation": 0.5,
+        "final_report": -1.5,
+    }
+    bonus = priorities.get(category, 0.0)
+    if "proposal" in intents and category == "proposal":
+        bonus += 1.5
+    if "rfp" in intents and category == "rfp":
+        bonus += 2.0
+    if "final_report" in intents and category == "final_report":
+        bonus += 2.0
+    return bonus
 
 
 def build_hits(index_path: Path, metadata_path: Path, chunks_path: Path, args: argparse.Namespace) -> list[SearchHit]:
@@ -270,7 +304,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
         category_bonus = 2.0 if group["category_intent_match"] else 0.0
         path_bonus = 2.5 if group["source_path_match"] else 0.0
         hit_bonus = min(group["hit_count"], 5) * 0.15
-        group["ranking_score"] = (group["best_score"] * 5.0) + lexical + category_bonus + path_bonus + hit_bonus
+        type_bonus = category_priority_score(group["category"], intents)
+        group["ranking_score"] = (group["best_score"] * 5.0) + lexical + category_bonus + path_bonus + hit_bonus + type_bonus
 
     ranked = sorted(
         grouped.values(),

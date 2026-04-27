@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import health, collections, documents, ocr, knowledge_sources
+from app.api import health, collections, documents, ocr, knowledge_sources, admin, rag
 
 
 @asynccontextmanager
@@ -53,6 +53,8 @@ app.include_router(collections.router, prefix="/api/admin", tags=["Collections"]
 app.include_router(documents.router, prefix="/api/admin", tags=["Documents"])
 app.include_router(ocr.router, prefix="/api", tags=["OCR"])
 app.include_router(knowledge_sources.router, prefix="/api", tags=["Knowledge Sources"])
+app.include_router(admin.router, prefix="/api", tags=["Admin"])
+app.include_router(rag.router, prefix="/api", tags=["RAG"])
 
 
 @app.get("/")
