@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-manifest", default="")
     parser.add_argument("--embedding-provider", choices=["hashing", "ollama"], default="hashing")
     parser.add_argument("--embedding-dim", type=int, default=768)
+    parser.add_argument("--max-embed-chars", type=int, default=1800)
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434/api/embeddings")
     parser.add_argument("--ollama-model", default="nomic-embed-text")
     return parser.parse_args()
@@ -52,6 +53,14 @@ def normalize_vector(vector: np.ndarray) -> np.ndarray:
     if norm == 0.0:
         return vector
     return vector / norm
+
+
+def truncate_for_embedding(text: str, max_chars: int) -> str:
+    if max_chars <= 0 or len(text) <= max_chars:
+        return text
+    head = max_chars // 2
+    tail = max_chars - head
+    return f"{text[:head]}\n...\n{text[-tail:]}"
 
 
 def hashing_embedding(text: str, dim: int) -> np.ndarray:
@@ -117,10 +126,11 @@ def main() -> int:
 
     for row in rows:
         text = row.get("text", "")
+        embedding_text = truncate_for_embedding(text, args.max_embed_chars)
         if args.embedding_provider == "ollama":
-            vector = ollama_embedding(text, args.ollama_model, args.ollama_url)
+            vector = ollama_embedding(embedding_text, args.ollama_model, args.ollama_url)
         else:
-            vector = hashing_embedding(text, args.embedding_dim)
+            vector = hashing_embedding(embedding_text, args.embedding_dim)
         embeddings.append(vector.astype(np.float32))
         metadata_rows.append(
             {
@@ -131,6 +141,8 @@ def main() -> int:
                 "char_count": row.get("char_count"),
                 "source_path": row.get("source_path"),
                 "input_path": row.get("input_path"),
+                "embedding_text_length": len(embedding_text),
+                "original_text_length": len(text),
                 "metadata": row.get("metadata", {}),
             }
         )
@@ -156,6 +168,7 @@ def main() -> int:
         "output_metadata": str(output_metadata),
         "embedding_provider": args.embedding_provider,
         "embedding_dim": dim,
+        "max_embed_chars": args.max_embed_chars,
         "vector_count": int(index.ntotal),
         "document_count": len(by_document),
         "counts_by_document": by_document,
