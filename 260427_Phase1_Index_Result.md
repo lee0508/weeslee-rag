@@ -89,6 +89,30 @@
 - `hashing`은 검색 품질 검증용이 아니라 배치 흐름 검증용이다.
 - 실제 RAG 품질 검증은 `nomic-embed-text` 또는 동급 embedding 모델로 재인덱싱해야 한다.
 
+## 6.1 실제 embedding 재인덱싱 결과
+
+추가 조치:
+
+1. 서버 `ollama`에 `nomic-embed-text` 설치
+2. 일부 chunk에서 `input length exceeds the context length` 오류 확인
+3. `build_faiss_index.py`에 `max_embed_chars=1800` 제한 추가
+
+실행 결과:
+
+- 인덱스:
+  `data/indexes/faiss/snapshot_2026-04-27_batch-001-top5-v2_ollama.index`
+- 메타데이터:
+  `data/indexes/faiss/snapshot_2026-04-27_batch-001-top5-v2_ollama_metadata.jsonl`
+- manifest:
+  `data/indexes/faiss/snapshot_2026-04-27_batch-001-top5-v2_ollama_manifest.json`
+
+상태:
+
+- `embedding_provider`: `ollama`
+- `ollama_model`: `nomic-embed-text`
+- `vector_count`: `1,598`
+- 실제 embedding 기반 FAISS 재생성 성공
+
 ## 7. 검색 테스트 결과
 
 실행 스크립트:
@@ -105,6 +129,20 @@
 2. 즉, 1차 기준 검색 파이프라인 연결은 확인되었다.
 3. 다만 현재는 hashing 기반이라 점수 품질은 의미 있게 해석하면 안 된다.
 
+## 7.1 실제 embedding 검색 확인
+
+추가 검색:
+
+- 질의: `차세대업무시스템`
+- 인덱스: `snapshot_2026-04-27_batch-001-top5-v2_ollama.index`
+
+해석:
+
+1. 실제 embedding 인덱스에서도 질의 응답 경로는 정상 동작했다.
+2. 다만 매우 짧은 질의에서는 상위 점수가 과도하게 비슷하게 나타났다.
+3. 이는 현재 chunk 과분할과 문서 단위 집계 부재 영향이 크다.
+4. 다음 단계에서는 `질의 확장`, `document-level reranking`, `chunk 파라미터 조정`이 필요하다.
+
 ## 8. 현재 판단
 
 1차 목표에서 중요한 것은 이미 달성되었다.
@@ -118,7 +156,7 @@
 ## 9. 다음 단계
 
 1. `nomic-embed-text` 설치 여부 검토
-2. 실제 embedding 기반 재인덱싱
-3. chunk 수 과다 문서에 대한 청킹 파라미터 조정
-4. 문서 단위 집계와 추천 이유 생성
+2. chunk 수 과다 문서에 대한 청킹 파라미터 조정
+3. 문서 단위 집계와 추천 이유 생성
+4. 질의 확장 및 reranking
 5. 이후 RAG 응답 조립
