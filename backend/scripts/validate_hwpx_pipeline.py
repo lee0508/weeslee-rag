@@ -124,12 +124,14 @@ def run_rag_assembly(args: argparse.Namespace, query: str, output_dir: Path) -> 
         "--output-md",
         str(output_md),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
     return {
+        "returncode": proc.returncode,
         "stdout": proc.stdout,
         "stderr": proc.stderr,
         "output_json": str(output_json),
         "output_md": str(output_md),
+        "command": cmd,
     }
 
 
@@ -154,6 +156,19 @@ def main() -> int:
         query = " ".join([title] + list(keywords[:6]))
 
     rag_result = run_rag_assembly(args, query, output_dir)
+
+    if rag_result.get("returncode", 0) != 0:
+        summary = {
+            "file": str(file_path),
+            "extract_success": extracted.get("success"),
+            "extract_method": extracted.get("method"),
+            "extract_length": len(content),
+            "metadata": metadata,
+            "query": query,
+            "rag_result": rag_result,
+        }
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 2
 
     summary = {
         "file": str(file_path),
