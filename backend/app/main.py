@@ -12,7 +12,6 @@ from app.api.collections import router as collections_router
 from app.api.documents import router as documents_router
 from app.api.ocr import router as ocr_router
 from app.api.knowledge_sources import router as knowledge_sources_router
-from app.api.admin import router as admin_router
 from app.api.rag import router as rag_router
 
 
@@ -59,7 +58,6 @@ app.include_router(collections_router, prefix="/api/admin", tags=["Collections"]
 app.include_router(documents_router, prefix="/api/admin", tags=["Documents"])
 app.include_router(ocr_router, prefix="/api", tags=["OCR"])
 app.include_router(knowledge_sources_router, prefix="/api", tags=["Knowledge Sources"])
-app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(rag_router, prefix="/api", tags=["RAG"])
 
 
