@@ -38,6 +38,7 @@ It should penalize unrelated `final_report` results when the query is clearly RF
 - Inspect reasons and evidence snippets
 - Read the draft answer from the LLM
 - Check API / Ollama / VectorDB health
+- Use the live backend directly at `http://192.168.0.207:8080/api`
 
 ## 4. Why This Is the Right Next Step
 
@@ -50,3 +51,5 @@ The project is not just a pipeline. It needs an analyst-facing interface that ca
 ## 5. Next Step
 
 Deploy the backend route and the new assistant page, then run one real query from the HWPX RFP to verify that the ordering is more proposal-oriented than before.
+
+For the fast path, keep the assistant page fixed to the live backend on port `8080` and validate without adding a new nginx route yet.
