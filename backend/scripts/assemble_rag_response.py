@@ -1,12 +1,13 @@
 """
-Assemble document-level recommendations and an optional Gemma/Ollama answer
+Assemble document-level recommendations and an optional generated answer
 from a FAISS chunk index.
 
 Phase 1 scope:
 - Search top-k chunks
 - Aggregate hits by document
+- Apply lightweight reranking
 - Produce document-level recommendation reasons
-- Optionally ask an Ollama generation model to draft a concise answer
+- Optionally call Ollama/OpenAI/Gemini/OpenRouter for a draft answer
 """
 
 from __future__ import annotations
@@ -58,32 +59,7 @@ def load_env_file(path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        os.environ.setdefault(key, value)
-
-
-def apply_env_defaults(args: argparse.Namespace) -> None:
-    if not args.ollama_embed_model:
-        args.ollama_embed_model = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-    if args.ollama_embed_url == "http://127.0.0.1:11434/api/embeddings":
-        host = os.getenv("OLLAMA_HOST", "").strip()
-        if host:
-            args.ollama_embed_url = host.rstrip("/") + "/api/embeddings"
-    if args.ollama_generate_url == "http://127.0.0.1:11434/api/generate":
-        host = os.getenv("OLLAMA_HOST", "").strip()
-        if host:
-            args.ollama_generate_url = host.rstrip("/") + "/api/generate"
-
-    if not args.answer_model:
-        if args.answer_provider == "ollama":
-            args.answer_model = os.getenv("ANSWER_MODEL", "").strip() or os.getenv("OLLAMA_MODEL", "").strip()
-        elif args.answer_provider == "openai":
-            args.answer_model = os.getenv("OPENAI_MODEL", "").strip() or "gpt-4.1-mini"
-        elif args.answer_provider == "gemini":
-            args.answer_model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-2.5-flash"
-        elif args.answer_provider == "openrouter":
-            args.answer_model = os.getenv("OPENROUTER_MODEL", "").strip() or "openai/gpt-4.1-mini"
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 def parse_args() -> argparse.Namespace:
@@ -97,17 +73,47 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--embedding-provider", choices=["hashing", "ollama"], default="ollama")
     parser.add_argument("--embedding-dim", type=int, default=768)
     parser.add_argument("--ollama-embed-url", default="http://127.0.0.1:11434/api/embeddings")
-    parser.add_argument("--ollama-embed-model", default="nomic-embed-text")
+    parser.add_argument("--ollama-embed-model", default="")
     parser.add_argument("--answer-provider", choices=["ollama", "openai", "gemini", "openrouter"], default="ollama")
     parser.add_argument("--answer-model", default="")
     parser.add_argument("--ollama-generate-url", default="http://127.0.0.1:11434/api/generate")
     parser.add_argument("--openai-url", default="https://api.openai.com/v1/chat/completions")
-    parser.add_argument("--gemini-url", default="https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
+    parser.add_argument(
+        "--gemini-url",
+        default="https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    )
     parser.add_argument("--openrouter-url", default="https://openrouter.ai/api/v1/chat/completions")
     parser.add_argument("--env-file", default=str(DEFAULT_ENV_FILE))
     parser.add_argument("--output-json", default="")
     parser.add_argument("--output-md", default="")
     return parser.parse_args()
+
+
+def apply_env_defaults(args: argparse.Namespace) -> None:
+    if not args.ollama_embed_model:
+        args.ollama_embed_model = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+
+    if args.ollama_embed_url == "http://127.0.0.1:11434/api/embeddings":
+        host = os.getenv("OLLAMA_HOST", "").strip()
+        if host:
+            args.ollama_embed_url = host.rstrip("/") + "/api/embeddings"
+
+    if args.ollama_generate_url == "http://127.0.0.1:11434/api/generate":
+        host = os.getenv("OLLAMA_HOST", "").strip()
+        if host:
+            args.ollama_generate_url = host.rstrip("/") + "/api/generate"
+
+    if args.answer_model:
+        return
+
+    if args.answer_provider == "ollama":
+        args.answer_model = os.getenv("ANSWER_MODEL", "").strip() or os.getenv("OLLAMA_MODEL", "").strip()
+    elif args.answer_provider == "openai":
+        args.answer_model = os.getenv("OPENAI_MODEL", "").strip() or "gpt-4.1-mini"
+    elif args.answer_provider == "gemini":
+        args.answer_model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-2.5-flash"
+    elif args.answer_provider == "openrouter":
+        args.answer_model = os.getenv("OPENROUTER_MODEL", "").strip() or "openai/gpt-4.1-mini"
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -129,9 +135,42 @@ def query_terms(text: str) -> list[str]:
     return [term for term in TERM_PATTERN.findall(text.lower()) if len(term) >= 2]
 
 
+def compact_text(text: str) -> str:
+    return re.sub(r"\s+", "", text.lower())
+
+
 def shorten(text: str, limit: int = 220) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text if len(text) <= limit else text[:limit] + "..."
+
+
+def detect_category_intents(query: str) -> set[str]:
+    lowered = query.lower()
+    intents: set[str] = set()
+    mapping = {
+        "proposal": ["제안서", "proposal", "입찰"],
+        "rfp": ["rfp", "제안요청서", "과업지시서"],
+        "kickoff": ["착수", "kickoff", "착수보고"],
+        "final_report": ["최종", "종료", "final", "최종보고"],
+        "presentation": ["발표", "presentation", "pt"],
+    }
+    for category, keywords in mapping.items():
+        if any(keyword in lowered for keyword in keywords):
+            intents.add(category)
+    return intents
+
+
+def lexical_match_score(query: str, terms: list[str], texts: list[str]) -> float:
+    corpus = " ".join(texts).lower()
+    score = 0.0
+    for term in terms:
+        if term in corpus:
+            score += 1.0
+    compact_query = compact_text(query)
+    compact_corpus = compact_text(corpus)
+    if compact_query and compact_query in compact_corpus:
+        score += 2.5
+    return score
 
 
 def build_hits(index_path: Path, metadata_path: Path, chunks_path: Path, args: argparse.Namespace) -> list[SearchHit]:
@@ -171,21 +210,26 @@ def reason_list(query: str, group: dict) -> list[str]:
 
     terms = query_terms(query)
     matched_terms = set()
-    for text in group["sections"] + group["snippets"]:
+    for text in group["sections"] + group["snippets"] + [group["source_path"]]:
         lowered = text.lower()
         for term in terms:
             if term in lowered:
                 matched_terms.add(term)
     if matched_terms:
         reasons.append("질의 핵심어와 일치: " + ", ".join(sorted(matched_terms)[:5]))
-
-    category = group["category"] or "unknown"
-    reasons.append(f"문서 유형: {category}")
+    if group.get("category_intent_match"):
+        reasons.append(f"질의 의도와 문서 유형 일치: {group['category']}")
+    if group.get("source_path_match"):
+        reasons.append("파일명/경로에 질의 핵심 문자열이 포함됨")
+    reasons.append(f"문서 유형: {group['category'] or 'unknown'}")
     return reasons
 
 
 def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dict]:
     grouped: dict[str, dict] = {}
+    intents = detect_category_intents(query)
+    term_list = query_terms(query)
+    compact_query = compact_text(query)
 
     for hit in hits:
         group = grouped.setdefault(
@@ -200,6 +244,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
                 "hit_count": 0,
                 "sections": [],
                 "snippets": [],
+                "source_path_match": False,
+                "category_intent_match": False,
             },
         )
         group["best_score"] = max(group["best_score"], hit.score)
@@ -210,10 +256,25 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
         snippet = shorten(hit.chunk_text)
         if snippet and snippet not in group["snippets"]:
             group["snippets"].append(snippet)
+        if compact_query and compact_query in compact_text(hit.source_path):
+            group["source_path_match"] = True
+        if intents and hit.category in intents:
+            group["category_intent_match"] = True
+
+    for group in grouped.values():
+        lexical = lexical_match_score(
+            query,
+            term_list,
+            [group["source_path"], *group["sections"], *group["snippets"]],
+        )
+        category_bonus = 2.0 if group["category_intent_match"] else 0.0
+        path_bonus = 2.5 if group["source_path_match"] else 0.0
+        hit_bonus = min(group["hit_count"], 5) * 0.15
+        group["ranking_score"] = (group["best_score"] * 5.0) + lexical + category_bonus + path_bonus + hit_bonus
 
     ranked = sorted(
         grouped.values(),
-        key=lambda item: (item["best_score"], item["hit_count"], item["score_sum"]),
+        key=lambda item: (item["ranking_score"], item["best_score"], item["hit_count"], item["score_sum"]),
         reverse=True,
     )
 
@@ -227,6 +288,7 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
                 "source_path": group["source_path"],
                 "input_path": group["input_path"],
                 "best_score": group["best_score"],
+                "ranking_score": group["ranking_score"],
                 "hit_count": group["hit_count"],
                 "section_headings": group["sections"][:5],
                 "evidence_snippets": group["snippets"][:3],
@@ -252,8 +314,10 @@ def build_prompt(query: str, documents: list[dict]) -> str:
     ]
     for doc in documents:
         lines.append(f"- 문서ID: {doc['document_id']}")
-        lines.append(f"  유형: {doc['category']}")
-        lines.append(f"  최고점수: {doc['best_score']:.4f}, 히트수: {doc['hit_count']}")
+        lines.append(
+            f"  유형: {doc['category']}, 최고점수: {doc['best_score']:.4f}, "
+            f"랭킹점수: {doc['ranking_score']:.4f}, 히트수: {doc['hit_count']}"
+        )
         if doc["section_headings"]:
             lines.append("  관련 섹션: " + " | ".join(doc["section_headings"][:3]))
         for snippet in doc["evidence_snippets"][:2]:
@@ -317,13 +381,7 @@ def generate_with_gemini(prompt: str, model: str, url_template: str) -> str:
     url = url_template.format(model=model) + f"?key={api_key}"
     data = post_json(
         url,
-        {
-            "contents": [
-                {
-                    "parts": [{"text": prompt}],
-                }
-            ]
-        },
+        {"contents": [{"parts": [{"text": prompt}]}]},
         {"Content-Type": "application/json"},
     )
     candidates = data.get("candidates", [])
@@ -371,13 +429,14 @@ def generate_answer(prompt: str, args: argparse.Namespace) -> str:
 
 
 def write_markdown(path: Path, query: str, documents: list[dict], answer: str) -> None:
-    lines = [f"# RAG Response", "", f"- query: `{query}`", ""]
+    lines = ["# RAG Response", "", f"- query: `{query}`", ""]
     if answer:
         lines.extend(["## Draft Answer", "", answer, ""])
     lines.extend(["## Recommended Documents", ""])
     for doc in documents:
         lines.append(f"### {doc['rank']}. {doc['document_id']} ({doc['category']})")
         lines.append(f"- best_score: `{doc['best_score']:.4f}`")
+        lines.append(f"- ranking_score: `{doc['ranking_score']:.4f}`")
         lines.append(f"- hit_count: `{doc['hit_count']}`")
         lines.append(f"- source_path: `{doc['source_path']}`")
         if doc["section_headings"]:
@@ -394,6 +453,7 @@ def main() -> int:
     args = parse_args()
     load_env_file(Path(args.env_file))
     apply_env_defaults(args)
+
     index_path = Path(args.index_path).resolve()
     metadata_path = Path(args.metadata_path).resolve()
     chunks_path = Path(args.chunks_jsonl).resolve()
