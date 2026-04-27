@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     # Google Gemini API
     gemini_api_key: Optional[str] = None
 
+    # OpenRouter API
+    openrouter_api_key: Optional[str] = None
+
+    # Answer generation defaults
+    answer_provider: str = "ollama"
+    answer_model: str = "gemma4:latest"
+
     # ChromaDB
     chroma_host: str = "localhost"
     chroma_port: int = 8000

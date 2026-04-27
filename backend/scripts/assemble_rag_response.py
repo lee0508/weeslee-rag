@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import urllib.error
 import urllib.request
@@ -32,6 +33,8 @@ from build_faiss_index import hashing_embedding, ollama_embedding
 
 
 TERM_PATTERN = re.compile(r"[0-9A-Za-z가-힣_]+")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_ENV_FILE = PROJECT_ROOT / ".env"
 
 
 @dataclass
@@ -47,6 +50,42 @@ class SearchHit:
     chunk_text: str
 
 
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+def apply_env_defaults(args: argparse.Namespace) -> None:
+    if not args.ollama_embed_model:
+        args.ollama_embed_model = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+    if args.ollama_embed_url == "http://127.0.0.1:11434/api/embeddings":
+        host = os.getenv("OLLAMA_HOST", "").strip()
+        if host:
+            args.ollama_embed_url = host.rstrip("/") + "/api/embeddings"
+    if args.ollama_generate_url == "http://127.0.0.1:11434/api/generate":
+        host = os.getenv("OLLAMA_HOST", "").strip()
+        if host:
+            args.ollama_generate_url = host.rstrip("/") + "/api/generate"
+
+    if not args.answer_model:
+        if args.answer_provider == "ollama":
+            args.answer_model = os.getenv("ANSWER_MODEL", "").strip() or os.getenv("OLLAMA_MODEL", "").strip()
+        elif args.answer_provider == "openai":
+            args.answer_model = os.getenv("OPENAI_MODEL", "").strip() or "gpt-4.1-mini"
+        elif args.answer_provider == "gemini":
+            args.answer_model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-2.5-flash"
+        elif args.answer_provider == "openrouter":
+            args.answer_model = os.getenv("OPENROUTER_MODEL", "").strip() or "openai/gpt-4.1-mini"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Assemble a RAG response from FAISS results")
     parser.add_argument("--index-path", required=True)
@@ -59,8 +98,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--embedding-dim", type=int, default=768)
     parser.add_argument("--ollama-embed-url", default="http://127.0.0.1:11434/api/embeddings")
     parser.add_argument("--ollama-embed-model", default="nomic-embed-text")
+    parser.add_argument("--answer-provider", choices=["ollama", "openai", "gemini", "openrouter"], default="ollama")
     parser.add_argument("--answer-model", default="")
     parser.add_argument("--ollama-generate-url", default="http://127.0.0.1:11434/api/generate")
+    parser.add_argument("--openai-url", default="https://api.openai.com/v1/chat/completions")
+    parser.add_argument("--gemini-url", default="https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
+    parser.add_argument("--openrouter-url", default="https://openrouter.ai/api/v1/chat/completions")
+    parser.add_argument("--env-file", default=str(DEFAULT_ENV_FILE))
     parser.add_argument("--output-json", default="")
     parser.add_argument("--output-md", default="")
     return parser.parse_args()
@@ -218,20 +262,112 @@ def build_prompt(query: str, documents: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def generate_answer(prompt: str, model: str, url: str) -> str:
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode("utf-8")
+def post_json(url: str, payload: dict, headers: dict[str, str]) -> dict:
     request = urllib.request.Request(
         url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
         method="POST",
     )
     try:
         with urllib.request.urlopen(request, timeout=300) as response:
-            data = json.loads(response.read().decode("utf-8"))
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:  # pragma: no cover
+        body = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"HTTP {exc.code} calling {url}: {body}") from exc
     except urllib.error.URLError as exc:  # pragma: no cover
-        raise RuntimeError(f"Ollama generation request failed: {exc}") from exc
+        raise RuntimeError(f"Request failed for {url}: {exc}") from exc
+
+
+def generate_with_ollama(prompt: str, model: str, url: str) -> str:
+    data = post_json(
+        url,
+        {"model": model, "prompt": prompt, "stream": False},
+        {"Content-Type": "application/json"},
+    )
     return data.get("response", "").strip()
+
+
+def generate_with_openai(prompt: str, model: str, url: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+    data = post_json(
+        url,
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+        },
+        {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+    )
+    choices = data.get("choices", [])
+    if not choices:
+        return ""
+    return choices[0].get("message", {}).get("content", "").strip()
+
+
+def generate_with_gemini(prompt: str, model: str, url_template: str) -> str:
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not set")
+    url = url_template.format(model=model) + f"?key={api_key}"
+    data = post_json(
+        url,
+        {
+            "contents": [
+                {
+                    "parts": [{"text": prompt}],
+                }
+            ]
+        },
+        {"Content-Type": "application/json"},
+    )
+    candidates = data.get("candidates", [])
+    if not candidates:
+        return ""
+    parts = candidates[0].get("content", {}).get("parts", [])
+    texts = [part.get("text", "") for part in parts if part.get("text")]
+    return "\n".join(texts).strip()
+
+
+def generate_with_openrouter(prompt: str, model: str, url: str) -> str:
+    api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY is not set")
+    data = post_json(
+        url,
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+        },
+        {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+    )
+    choices = data.get("choices", [])
+    if not choices:
+        return ""
+    return choices[0].get("message", {}).get("content", "").strip()
+
+
+def generate_answer(prompt: str, args: argparse.Namespace) -> str:
+    if not args.answer_model:
+        return ""
+    if args.answer_provider == "ollama":
+        return generate_with_ollama(prompt, args.answer_model, args.ollama_generate_url)
+    if args.answer_provider == "openai":
+        return generate_with_openai(prompt, args.answer_model, args.openai_url)
+    if args.answer_provider == "gemini":
+        return generate_with_gemini(prompt, args.answer_model, args.gemini_url)
+    if args.answer_provider == "openrouter":
+        return generate_with_openrouter(prompt, args.answer_model, args.openrouter_url)
+    raise RuntimeError(f"Unsupported answer provider: {args.answer_provider}")
 
 
 def write_markdown(path: Path, query: str, documents: list[dict], answer: str) -> None:
@@ -256,6 +392,8 @@ def write_markdown(path: Path, query: str, documents: list[dict], answer: str) -
 
 def main() -> int:
     args = parse_args()
+    load_env_file(Path(args.env_file))
+    apply_env_defaults(args)
     index_path = Path(args.index_path).resolve()
     metadata_path = Path(args.metadata_path).resolve()
     chunks_path = Path(args.chunks_jsonl).resolve()
@@ -263,13 +401,14 @@ def main() -> int:
     hits = build_hits(index_path, metadata_path, chunks_path, args)
     documents = aggregate_hits(args.query, hits, args.top_docs)
     prompt = build_prompt(args.query, documents)
-    answer = generate_answer(prompt, args.answer_model, args.ollama_generate_url) if args.answer_model else ""
+    answer = generate_answer(prompt, args)
 
     payload = {
         "query": args.query,
         "top_k": args.top_k,
         "top_docs": args.top_docs,
         "embedding_provider": args.embedding_provider,
+        "answer_provider": args.answer_provider,
         "answer_model": args.answer_model,
         "documents": documents,
         "draft_answer": answer,
