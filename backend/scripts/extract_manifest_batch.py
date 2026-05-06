@@ -18,6 +18,7 @@ import argparse
 import asyncio
 import csv
 import json
+import re
 import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
@@ -34,6 +35,20 @@ from app.extractors.extractor import DocumentExtractor  # noqa: E402
 
 SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx"}
 UNSUPPORTED_FOR_PHASE1 = {".hwp", ".hwpx", ".doc", ".ppt", ".xls"}
+
+_DATE_PREFIX = re.compile(r"^\d{4,8}[.\s]+")
+
+
+def enrich_project_metadata(folder_name: str) -> dict:
+    """Extract project_name and folder_year from a folder_name like '202212. k-water ISP'."""
+    project_name = _DATE_PREFIX.sub("", folder_name).strip()
+    year_match = re.match(r"^(\d{4})", folder_name)
+    folder_year = year_match.group(1) if year_match else ""
+    return {
+        "project_name": project_name,
+        "folder_year": folder_year,
+        "folder_name": folder_name,
+    }
 
 
 @dataclass
@@ -146,6 +161,7 @@ async def run_batch(args: argparse.Namespace) -> int:
 
             if result.get("success"):
                 content = result.get("content", "")
+                project_meta = enrich_project_metadata(row.get("folder_name", ""))
                 metadata = {
                     "document_id": document_id,
                     "category": category,
@@ -153,6 +169,9 @@ async def run_batch(args: argparse.Namespace) -> int:
                     "input_path": str(input_path),
                     "snapshot_path": row.get("snapshot_path", ""),
                     "extension": extension,
+                    "project_name": project_meta["project_name"],
+                    "folder_year": project_meta["folder_year"],
+                    "folder_name": project_meta["folder_name"],
                     "extracted_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                     "result": result,
                 }

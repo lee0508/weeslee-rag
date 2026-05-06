@@ -86,6 +86,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-file", default=str(DEFAULT_ENV_FILE))
     parser.add_argument("--output-json", default="")
     parser.add_argument("--output-md", default="")
+    parser.add_argument(
+        "--category",
+        default="",
+        help="Filter results to this category (rfp, proposal, kickoff, final_report, presentation). Empty = no filter.",
+    )
+    parser.add_argument(
+        "--max-chunks-per-doc",
+        type=int,
+        default=3,
+        dest="max_chunks_per_doc",
+        help="Max FAISS hits per document (0 = unlimited). Prevents a single large doc from dominating.",
+    )
     return parser.parse_args()
 
 
@@ -173,6 +185,28 @@ def lexical_match_score(query: str, terms: list[str], texts: list[str]) -> float
     return score
 
 
+_DATE_PREFIX = re.compile(r"^\d{4,8}[.\s]+")
+
+
+def extract_project_name(source_path: str) -> str:
+    """Extract project folder name from a source_path like 'W:\\...\\202212. k-water ISP\\...'."""
+    parts = source_path.replace("\\", "/").split("/")
+    for part in parts:
+        if _DATE_PREFIX.match(part):
+            return _DATE_PREFIX.sub("", part).strip()
+    return ""
+
+
+def project_match_score(query: str, project_name: str) -> float:
+    """Bonus when query terms overlap with the project name extracted from source_path."""
+    if not project_name:
+        return 0.0
+    project_terms = set(query_terms(project_name))
+    query_term_set = set(query_terms(query))
+    overlap = len(project_terms & query_term_set)
+    return min(overlap * 0.4, 1.5)
+
+
 def category_priority_score(category: str, intents: set[str]) -> float:
     priorities = {
         "proposal": 2.5,
@@ -189,6 +223,25 @@ def category_priority_score(category: str, intents: set[str]) -> float:
     if "final_report" in intents and category == "final_report":
         bonus += 2.0
     return bonus
+
+
+def filter_by_category(hits: list[SearchHit], category: str) -> list[SearchHit]:
+    if not category:
+        return hits
+    return [h for h in hits if h.category == category]
+
+
+def limit_chunks_per_doc(hits: list[SearchHit], max_per_doc: int) -> list[SearchHit]:
+    if max_per_doc <= 0:
+        return hits
+    seen: dict[str, int] = {}
+    result = []
+    for hit in hits:
+        count = seen.get(hit.document_id, 0)
+        if count < max_per_doc:
+            result.append(hit)
+            seen[hit.document_id] = count + 1
+    return result
 
 
 def build_hits(index_path: Path, metadata_path: Path, chunks_path: Path, args: argparse.Namespace) -> list[SearchHit]:
@@ -280,6 +333,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
             group["category_intent_match"] = True
 
     for group in grouped.values():
+        project_name = extract_project_name(group["source_path"])
+        group["project_name"] = project_name
         lexical = lexical_match_score(
             query,
             term_list,
@@ -289,7 +344,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
         path_bonus = 2.5 if group["source_path_match"] else 0.0
         hit_bonus = min(group["hit_count"], 5) * 0.15
         type_bonus = category_priority_score(group["category"], intents)
-        group["ranking_score"] = (group["best_score"] * 5.0) + lexical + category_bonus + path_bonus + hit_bonus + type_bonus
+        project_bonus = project_match_score(query, project_name)
+        group["ranking_score"] = (group["best_score"] * 5.0) + lexical + category_bonus + path_bonus + hit_bonus + type_bonus + project_bonus
 
     ranked = sorted(
         grouped.values(),
@@ -304,6 +360,7 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
                 "rank": rank,
                 "document_id": group["document_id"],
                 "category": group["category"],
+                "project_name": group.get("project_name", ""),
                 "source_path": group["source_path"],
                 "input_path": group["input_path"],
                 "best_score": group["best_score"],
@@ -478,6 +535,8 @@ def main() -> int:
     chunks_path = Path(args.chunks_jsonl).resolve()
 
     hits = build_hits(index_path, metadata_path, chunks_path, args)
+    hits = filter_by_category(hits, args.category)
+    hits = limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     documents = aggregate_hits(args.query, hits, args.top_docs)
     prompt = build_prompt(args.query, documents)
     answer = generate_answer(prompt, args)
@@ -486,6 +545,8 @@ def main() -> int:
         "query": args.query,
         "top_k": args.top_k,
         "top_docs": args.top_docs,
+        "category_filter": args.category or None,
+        "max_chunks_per_doc": args.max_chunks_per_doc,
         "embedding_provider": args.embedding_provider,
         "answer_provider": args.answer_provider,
         "answer_model": args.answer_model,

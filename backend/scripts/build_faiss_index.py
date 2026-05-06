@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import re
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -73,24 +74,28 @@ def hashing_embedding(text: str, dim: int) -> np.ndarray:
     return normalize_vector(vector)
 
 
-def ollama_embedding(text: str, model: str, url: str) -> np.ndarray:
+def ollama_embedding(text: str, model: str, url: str, max_retries: int = 3) -> np.ndarray:
     payload = json.dumps({"model": model, "prompt": text}).encode("utf-8")
-    request = urllib.request.Request(
-        url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    except urllib.error.URLError as exc:  # pragma: no cover
-        raise RuntimeError(f"Ollama embedding request failed: {exc}") from exc
-
-    embedding = np.array(data.get("embedding", []), dtype=np.float32)
-    if embedding.size == 0:
-        raise RuntimeError("Ollama returned an empty embedding")
-    return normalize_vector(embedding)
+    last_exc: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        request = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            embedding = np.array(data.get("embedding", []), dtype=np.float32)
+            if embedding.size == 0:
+                raise RuntimeError("Ollama returned an empty embedding")
+            return normalize_vector(embedding)
+        except (urllib.error.URLError, RuntimeError) as exc:
+            last_exc = exc
+            if attempt < max_retries:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"Ollama embedding failed after {max_retries} attempts: {last_exc}") from last_exc
 
 
 def load_chunks(path: Path) -> list[dict]:
@@ -124,11 +129,18 @@ def main() -> int:
     embeddings: list[np.ndarray] = []
     metadata_rows: list[dict] = []
 
-    for row in rows:
+    total = len(rows)
+    fallback_count = 0
+    for i, row in enumerate(rows, start=1):
         text = row.get("text", "")
         embedding_text = truncate_for_embedding(text, args.max_embed_chars)
         if args.embedding_provider == "ollama":
-            vector = ollama_embedding(embedding_text, args.ollama_model, args.ollama_url)
+            try:
+                vector = ollama_embedding(embedding_text, args.ollama_model, args.ollama_url)
+            except RuntimeError as exc:
+                print(f"  WARN [{i}/{total}] embedding failed, using hashing fallback: {exc}", flush=True)
+                vector = hashing_embedding(embedding_text, args.embedding_dim)
+                fallback_count += 1
         else:
             vector = hashing_embedding(embedding_text, args.embedding_dim)
         embeddings.append(vector.astype(np.float32))
@@ -146,6 +158,8 @@ def main() -> int:
                 "metadata": row.get("metadata", {}),
             }
         )
+        if i % 200 == 0 or i == total:
+            print(f"  [{i}/{total}] embedded (fallbacks={fallback_count})", flush=True)
 
     matrix = np.vstack(embeddings).astype(np.float32)
     dim = matrix.shape[1]

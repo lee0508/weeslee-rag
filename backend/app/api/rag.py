@@ -25,14 +25,22 @@ SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 ASSEMBLE_SCRIPT = SCRIPTS_DIR / "assemble_rag_response.py"
 
 
-def _default_index_path() -> Path:
-    snapshot = settings.faiss_snapshot
-    return PROJECT_ROOT / "data" / "indexes" / "faiss" / f"{snapshot}_ollama.index"
+def _index_paths(snapshot: str, category: Optional[str] = None) -> tuple[Path, Path]:
+    """Return (index_path, metadata_path) for the given snapshot.
 
-
-def _default_metadata_path() -> Path:
-    snapshot = settings.faiss_snapshot
-    return PROJECT_ROOT / "data" / "indexes" / "faiss" / f"{snapshot}_ollama_metadata.jsonl"
+    If a per-category sub-index exists and category is specified, prefer it
+    (true pre-filter). Falls back to the combined all-category index.
+    """
+    faiss_dir = PROJECT_ROOT / "data" / "indexes" / "faiss"
+    if category:
+        cat_index = faiss_dir / f"{snapshot}_{category}_ollama.index"
+        cat_meta = faiss_dir / f"{snapshot}_{category}_ollama_metadata.jsonl"
+        if cat_index.exists() and cat_meta.exists():
+            return cat_index, cat_meta
+    return (
+        faiss_dir / f"{snapshot}_ollama.index",
+        faiss_dir / f"{snapshot}_ollama_metadata.jsonl",
+    )
 
 
 def _default_chunks_path() -> Path:
@@ -49,12 +57,16 @@ class RagQueryRequest(BaseModel):
     index_path: Optional[str] = None
     metadata_path: Optional[str] = None
     chunks_jsonl: Optional[str] = None
+    category: Optional[str] = None
+    max_chunks_per_doc: int = 3
 
 
 @router.post("/query")
 async def query_rag(request: RagQueryRequest):
-    index_path = request.index_path or str(_default_index_path())
-    metadata_path = request.metadata_path or str(_default_metadata_path())
+    snapshot = settings.faiss_snapshot
+    default_index, default_meta = _index_paths(snapshot, request.category)
+    index_path = request.index_path or str(default_index)
+    metadata_path = request.metadata_path or str(default_meta)
     chunks_jsonl = request.chunks_jsonl or str(_default_chunks_path())
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -85,7 +97,11 @@ async def query_rag(request: RagQueryRequest):
             str(output_json),
             "--output-md",
             str(output_md),
+            "--max-chunks-per-doc",
+            str(request.max_chunks_per_doc),
         ]
+        if request.category:
+            cmd += ["--category", request.category]
         # cwd=SCRIPTS_DIR is required: assemble_rag_response.py imports
         # build_faiss_index as a local module (no package prefix)
         proc = subprocess.run(

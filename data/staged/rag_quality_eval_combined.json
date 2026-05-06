@@ -1,0 +1,216 @@
+[
+  {
+    "query_no": 1,
+    "category": "rfp",
+    "query": "ISP 사업 제안요청서 요구사항 항목",
+    "doc_count": 4,
+    "unique_docs": 4,
+    "categories": [
+      "proposal",
+      "presentation",
+      "final_report",
+      "final_report"
+    ],
+    "project_names": [
+      "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+      "",
+      "k-water 데이터허브플랫폼_ISP",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+    ],
+    "kw_score": 0.75,
+    "kw_hits": 3,
+    "answer_len": 2286,
+    "answer_preview": "네, 공공/민간 입찰 rfp 분석 및 컨설팅 경험을 바탕으로 사용자의 질의(\"isp 사업 제안요청서 요구사항 항목\")와 가장 연관성이 높고 제안서 작성에 바로 활용할 수 있는 자료 3개를 추천드립니다.  ---  ### 1. 추천 문서 **doc-20260506b3-0"
+  },
+  {
+    "query_no": 2,
+    "category": "rfp",
+    "query": "정보화전략계획 수립 과업 범위",
+    "doc_count": 2,
+    "unique_docs": 2,
+    "categories": [
+      "final_report",
+      "final_report"
+    ],
+    "project_names": [
+      "k-water 데이터허브플랫폼_ISP",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+    ],
+    "kw_score": 0.75,
+    "kw_hits": 3,
+    "answer_len": 933,
+    "answer_preview": "**1. 추천 문서** *   문서id: doc-20260506-000004  **2. 추천 이유** *   사용자님의 질의는 '정보화전략계획의 과업 범위 설정'에 대한 내용입니다. 추천 드린 문서는 **클라우드 기반 iot 솔루션, plm(product life cy"
+  },
+  {
+    "query_no": 3,
+    "category": "proposal",
+    "query": "ISP 컨설팅 제안서 방법론 구성",
+    "doc_count": 4,
+    "unique_docs": 4,
+    "categories": [
+      "proposal",
+      "presentation",
+      "final_report",
+      "final_report"
+    ],
+    "project_names": [
+      "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+      "",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP",
+      "k-water 데이터허브플랫폼_ISP"
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 4,
+    "answer_len": 1608,
+    "answer_preview": "전문가로서 사용자의 질의(isp 컨설팅 제안서 방법론 구성)에 가장 밀접한 관련이 높은 문서를 근거 중심으로 추천해 드립니다.  ---  ### 1. doc-20260506b3-000011  **2. 추천 이유** 사용자 질의의 핵심 키워드인 '제안서', '방법론', "
+  },
+  {
+    "query_no": 4,
+    "category": "proposal",
+    "query": "AX 전환 전략 제안 핵심 내용",
+    "doc_count": 3,
+    "unique_docs": 3,
+    "categories": [
+      "proposal",
+      "proposal",
+      "final_report"
+    ],
+    "project_names": [
+      "기재부_전자수입인지 기관선정연구",
+      "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+      "k-water 데이터허브플랫폼_ISP"
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 4,
+    "answer_len": 1637,
+    "answer_preview": "사용자님의 질의는 'ax 전환 전략'이라는 고수준의 비전 제시와 로드맵 작성을 위한 근거 자료가 필요합니다. ax(advanced transformation)는 일반적으로 최첨단 디지털 기술(ai, iot, 데이터, 클라우드 등)을 접목하여 혁신을 추구하는 개념이므로,"
+  },
+  {
+    "query_no": 5,
+    "category": "kickoff",
+    "query": "착수보고 추진 일정 주요 내용",
+    "doc_count": 4,
+    "unique_docs": 4,
+    "categories": [
+      "proposal",
+      "presentation",
+      "final_report",
+      "final_report"
+    ],
+    "project_names": [
+      "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+      "",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP",
+      "k-water 데이터허브플랫폼_ISP"
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 4,
+    "answer_len": 1830,
+    "answer_preview": "본 전문가의 분석에 따르면, 사용자의 질의(\"착수보고 추진 일정 주요 내용\")는 프로젝트의 초기 계획, 방법론, 그리고 실행 로드맵을 다루고 있습니다. 따라서 단순히 결과 보고서보다는 **계획(plan) 및 제안(proposal)** 구조를 가진 문서를 중심으로 추천해"
+  },
+  {
+    "query_no": 6,
+    "category": "kickoff",
+    "query": "사업 착수 후 초기 단계 활동",
+    "doc_count": 3,
+    "unique_docs": 3,
+    "categories": [
+      "proposal",
+      "proposal",
+      "final_report"
+    ],
+    "project_names": [
+      "기재부_전자수입인지 기관선정연구",
+      "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+      "k-water 데이터허브플랫폼_ISP"
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 4,
+    "answer_len": 1811,
+    "answer_preview": "전문가적 관점에서, '사업 착수 후 초기 단계 활동'은 프로젝트의 **범위 정의(scope definition)**, **법적/제도적 검토(compliance)**, 그리고 **최초 품질/성능 목표 설정(goal setting)**이 핵심입니다.  제시된 검색 결과 중"
+  },
+  {
+    "query_no": 7,
+    "category": "final_report",
+    "query": "ISP 최종 산출물 목차 구성",
+    "doc_count": 4,
+    "unique_docs": 4,
+    "categories": [
+      "final_report",
+      "proposal",
+      "final_report",
+      "presentation"
+    ],
+    "project_names": [
+      "k-water 데이터허브플랫폼_ISP",
+      "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP",
+      ""
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 4,
+    "answer_len": 1740,
+    "answer_preview": "공공/민간 입찰 rfp 분석 및 컨설팅 제안서 작성 지원 전문가로서, 'isp 최종 산출물 목차 구성'이라는 질의는 성공적인 제안서 작성을 위한 **최종 결과물 구조화(structuring the final deliverable)** 단계에 해당합니다.  제시된 검색 "
+  },
+  {
+    "query_no": 8,
+    "category": "final_report",
+    "query": "정보화전략 이행계획서 주요 과제",
+    "doc_count": 2,
+    "unique_docs": 2,
+    "categories": [
+      "final_report",
+      "final_report"
+    ],
+    "project_names": [
+      "k-water 데이터허브플랫폼_ISP",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 4,
+    "answer_len": 1048,
+    "answer_preview": "**1. 추천 문서** *   문서id: doc-20260506-000004  **2. 추천 이유** 사용자님의 질의가 '정보화전략 이행계획서 주요 과제'라는 고차원적이고 전략적인 내용을 다루고 있습니다. 추천된 문서(doc-20260506-000004)는 '클라우드 "
+  },
+  {
+    "query_no": 9,
+    "category": "presentation",
+    "query": "ISP 중간보고 발표 슬라이드 구성",
+    "doc_count": 4,
+    "unique_docs": 4,
+    "categories": [
+      "presentation",
+      "proposal",
+      "final_report",
+      "final_report"
+    ],
+    "project_names": [
+      "",
+      "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+      "k-water 데이터허브플랫폼_ISP",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 3,
+    "answer_len": 1402,
+    "answer_preview": "전문가 관점에서 질의와 가장 밀접하게 관련된 문서는 **doc-20260506-000015**입니다. 해당 문서는 사용자가 요청한 '발표 슬라이드 구성'이라는 형식적 요구사항과 'isp'라는 주제를 모두 만족하는 자료입니다.  전체 흐름상, 보고서 내용(isp 진행 상"
+  },
+  {
+    "query_no": 10,
+    "category": "presentation",
+    "query": "최종보고회 발표자료 핵심 메시지",
+    "doc_count": 2,
+    "unique_docs": 2,
+    "categories": [
+      "final_report",
+      "final_report"
+    ],
+    "project_names": [
+      "k-water 데이터허브플랫폼_ISP",
+      "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+    ],
+    "kw_score": 1.0,
+    "kw_hits": 3,
+    "answer_len": 1159,
+    "answer_preview": "전문가로서 검색 결과와 사용자의 질의(\"최종보고회 발표자료 핵심 메시지\")를 종합적으로 분석했을 때, 가장 광범위하고 구조화된 핵심 메시지를 도출하는 데 유리한 문서는 **doc-20260506-000004**입니다.  ---  ### 1. 추천 문서 *   **문서i"
+  }
+]
