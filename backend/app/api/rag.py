@@ -15,14 +15,29 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from app.core.config import settings
+
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_INDEX_PATH = PROJECT_ROOT / "data" / "indexes" / "faiss" / "snapshot_2026-04-27_batch-001-top5-v2_ollama.index"
-DEFAULT_METADATA_PATH = PROJECT_ROOT / "data" / "indexes" / "faiss" / "snapshot_2026-04-27_batch-001-top5-v2_ollama_metadata.jsonl"
-DEFAULT_CHUNKS_PATH = PROJECT_ROOT / "data" / "staged" / "chunks" / "snapshot_2026-04-27_batch-001-top5-v2_chunks.jsonl"
-ASSEMBLE_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "assemble_rag_response.py"
+SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
+ASSEMBLE_SCRIPT = SCRIPTS_DIR / "assemble_rag_response.py"
+
+
+def _default_index_path() -> Path:
+    snapshot = settings.faiss_snapshot
+    return PROJECT_ROOT / "data" / "indexes" / "faiss" / f"{snapshot}_ollama.index"
+
+
+def _default_metadata_path() -> Path:
+    snapshot = settings.faiss_snapshot
+    return PROJECT_ROOT / "data" / "indexes" / "faiss" / f"{snapshot}_ollama_metadata.jsonl"
+
+
+def _default_chunks_path() -> Path:
+    snapshot = settings.faiss_snapshot
+    return PROJECT_ROOT / "data" / "staged" / "chunks" / f"{snapshot}_chunks.jsonl"
 
 
 class RagQueryRequest(BaseModel):
@@ -38,9 +53,9 @@ class RagQueryRequest(BaseModel):
 
 @router.post("/query")
 async def query_rag(request: RagQueryRequest):
-    index_path = request.index_path or str(DEFAULT_INDEX_PATH)
-    metadata_path = request.metadata_path or str(DEFAULT_METADATA_PATH)
-    chunks_jsonl = request.chunks_jsonl or str(DEFAULT_CHUNKS_PATH)
+    index_path = request.index_path or str(_default_index_path())
+    metadata_path = request.metadata_path or str(_default_metadata_path())
+    chunks_jsonl = request.chunks_jsonl or str(_default_chunks_path())
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_json = Path(temp_dir) / "rag_response.json"
@@ -71,7 +86,11 @@ async def query_rag(request: RagQueryRequest):
             "--output-md",
             str(output_md),
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        # cwd=SCRIPTS_DIR is required: assemble_rag_response.py imports
+        # build_faiss_index as a local module (no package prefix)
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, cwd=str(SCRIPTS_DIR)
+        )
         if proc.returncode != 0:
             return {
                 "success": False,

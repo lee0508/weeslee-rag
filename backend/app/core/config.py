@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     chroma_port: int = 8000
     chroma_persist_dir: str = "./chroma_data"
 
+    # FAISS index (active snapshot name — set in .env to override)
+    faiss_snapshot: str = "snapshot_2026-04-27_batch-001-top5-v2"
+
     # File Upload
     upload_dir: str = "./uploads"
     max_upload_size: int = 52428800  # 50MB

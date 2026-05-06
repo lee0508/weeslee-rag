@@ -148,22 +148,6 @@ def detect_category_intents(query: str) -> set[str]:
     lowered = query.lower()
     intents: set[str] = set()
     mapping = {
-        "proposal": ["제안서", "proposal", "입찰"],
-        "rfp": ["rfp", "제안요청서", "과업지시서"],
-        "kickoff": ["착수", "kickoff", "착수보고"],
-        "final_report": ["최종", "종료", "final", "최종보고"],
-        "presentation": ["발표", "presentation", "pt"],
-    }
-    for category, keywords in mapping.items():
-        if any(keyword in lowered for keyword in keywords):
-            intents.add(category)
-    return intents
-
-
-def detect_category_intents(query: str) -> set[str]:  # override broken earlier mapping
-    lowered = query.lower()
-    intents: set[str] = set()
-    mapping = {
         "proposal": ["proposal", "제안서", "입찰", "제안"],
         "rfp": ["rfp", "제안요청서", "과업지시서", "입찰공고"],
         "kickoff": ["kickoff", "착수", "착수계"],
