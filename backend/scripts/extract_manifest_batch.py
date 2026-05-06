@@ -31,10 +31,19 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.extractors.extractor import DocumentExtractor  # noqa: E402
+from app.extractors.pdf_extractor import _is_tesseract_available  # noqa: E402
 
 
 SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx"}
 UNSUPPORTED_FOR_PHASE1 = {".hwp", ".hwpx", ".doc", ".ppt", ".xls"}
+
+
+def _detect_ocr() -> bool:
+    """Check tesseract availability and print status. Returns True if available."""
+    available = _is_tesseract_available()
+    status = "available" if available else "NOT available (install tesseract-ocr + pytesseract)"
+    print(json.dumps({"ocr_status": status, "tesseract_available": available}))
+    return available
 
 _DATE_PREFIX = re.compile(r"^\d{4,8}[.\s]+")
 
@@ -70,7 +79,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--text-dir", default="data/staged/text")
     parser.add_argument("--metadata-dir", default="data/staged/metadata")
     parser.add_argument("--summary-csv", default="")
-    parser.add_argument("--use-ocr", action="store_true")
+    parser.add_argument("--use-ocr", action="store_true",
+                        help="Enable Tesseract OCR for scanned PDFs")
+    parser.add_argument("--auto-ocr", action="store_true",
+                        help="Auto-enable OCR if tesseract is available (overrides --use-ocr detection)")
     return parser.parse_args()
 
 
@@ -112,7 +124,12 @@ async def run_batch(args: argparse.Namespace) -> int:
     ensure_dir(metadata_dir)
     ensure_dir(summary_csv.parent)
 
-    extractor = DocumentExtractor(use_ocr=args.use_ocr)
+    # OCR: --use-ocr explicit OR --auto-ocr with tesseract detected
+    use_ocr = args.use_ocr or (args.auto_ocr and _detect_ocr())
+    if not args.use_ocr and not args.auto_ocr:
+        _detect_ocr()  # print status even when OCR not requested
+
+    extractor = DocumentExtractor(use_ocr=use_ocr)
     results: list[ExtractionRow] = []
 
     with manifest_csv.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -194,13 +211,15 @@ async def run_batch(args: argparse.Namespace) -> int:
                     )
                 )
             else:
+                # Distinguish scanned-PDF-no-OCR from genuine extraction failures
+                is_scan_no_ocr = result.get("method") == "scanned_ocr_disabled"
                 results.append(
                     ExtractionRow(
                         document_id=document_id,
                         category=category,
                         source_path=str(input_path),
                         extension=extension,
-                        extraction_status="failed",
+                        extraction_status="skipped_scan_no_ocr" if is_scan_no_ocr else "failed",
                         extraction_method=result.get("method", ""),
                         output_text_path="",
                         output_metadata_path="",

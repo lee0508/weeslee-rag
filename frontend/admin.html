@@ -1,1038 +1,669 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PromptoRAG Admin - Document Management</title>
-    <style>
-        :root {
-            --navy: #1B3A6B;
-            --navy-light: #2A4F8A;
-            --amber: #E8971F;
-            --amber-light: #F5A623;
-            --white: #FFFFFF;
-            --gray-100: #F7F8FA;
-            --gray-200: #E8ECF1;
-            --gray-300: #D1D5DB;
-            --gray-500: #6B7280;
-            --gray-700: #374151;
-            --green: #10B981;
-            --red: #EF4444;
-            --blue: #3B82F6;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--gray-100);
-            color: var(--gray-700);
-            min-height: 100vh;
-        }
-
-        /* Header */
-        .header {
-            background: var(--navy);
-            color: var(--white);
-            padding: 16px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 20px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .header .badge {
-            background: var(--amber);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        /* Main Layout */
-        .main-container {
-            display: flex;
-            height: calc(100vh - 60px);
-        }
-
-        /* Sidebar - File Browser */
-        .sidebar {
-            width: 320px;
-            background: var(--white);
-            border-right: 1px solid var(--gray-200);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            padding: 16px;
-            border-bottom: 1px solid var(--gray-200);
-            background: var(--gray-100);
-        }
-
-        .sidebar-header h2 {
-            font-size: 14px;
-            color: var(--gray-700);
-            margin-bottom: 8px;
-        }
-
-        .path-display {
-            background: var(--white);
-            border: 1px solid var(--gray-200);
-            border-radius: 4px;
-            padding: 8px 12px;
-            font-size: 12px;
-            color: var(--gray-500);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .path-display .icon {
-            color: var(--amber);
-        }
-
-        .folder-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-        }
-
-        .folder-item, .file-item {
-            display: flex;
-            align-items: center;
-            padding: 10px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            gap: 10px;
-            margin-bottom: 4px;
-            transition: all 0.2s;
-        }
-
-        .folder-item:hover {
-            background: var(--gray-100);
-        }
-
-        .folder-item .icon {
-            color: var(--amber);
-            font-size: 18px;
-        }
-
-        .file-item {
-            background: var(--gray-100);
-            border: 1px solid var(--gray-200);
-        }
-
-        .file-item:hover {
-            border-color: var(--amber);
-            background: #FFF8E7;
-        }
-
-        .file-item.selected {
-            border-color: var(--navy);
-            background: #EBF0F7;
-        }
-
-        .file-item .icon {
-            color: var(--navy);
-        }
-
-        .file-item .file-info {
-            flex: 1;
-        }
-
-        .file-item .file-name {
-            font-size: 13px;
-            font-weight: 500;
-            word-break: break-all;
-        }
-
-        .file-item .file-meta {
-            font-size: 11px;
-            color: var(--gray-500);
-            margin-top: 2px;
-        }
-
-        .back-button {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            color: var(--gray-500);
-            cursor: pointer;
-            border-bottom: 1px solid var(--gray-200);
-            margin-bottom: 8px;
-        }
-
-        .back-button:hover {
-            color: var(--navy);
-            background: var(--gray-100);
-        }
-
-        /* Content Area */
-        .content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* Processing Panel */
-        .processing-panel {
-            padding: 24px;
-            background: var(--white);
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .panel-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--navy);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .selected-file-card {
-            background: var(--gray-100);
-            border: 1px solid var(--gray-200);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        .selected-file-card .file-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--navy);
-            margin-bottom: 8px;
-        }
-
-        .selected-file-card .file-path {
-            font-size: 12px;
-            color: var(--gray-500);
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--gray-700);
-            margin-bottom: 6px;
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--gray-200);
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: var(--navy);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: var(--navy);
-            color: var(--white);
-        }
-
-        .btn-primary:hover {
-            background: var(--navy-light);
-        }
-
-        .btn-primary:disabled {
-            background: var(--gray-300);
-            cursor: not-allowed;
-        }
-
-        .btn-secondary {
-            background: var(--white);
-            color: var(--gray-700);
-            border: 1px solid var(--gray-300);
-        }
-
-        .btn-secondary:hover {
-            background: var(--gray-100);
-        }
-
-        /* Progress Section */
-        .progress-section {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .progress-section.active {
-            display: block;
-        }
-
-        .progress-bar-container {
-            background: var(--gray-200);
-            border-radius: 8px;
-            height: 24px;
-            overflow: hidden;
-            margin-bottom: 12px;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--navy) 0%, var(--amber) 100%);
-            border-radius: 8px;
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--white);
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .progress-stages {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-        .stage {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .stage .icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--gray-200);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: var(--gray-500);
-        }
-
-        .stage.active .icon {
-            background: var(--amber);
-            color: var(--white);
-        }
-
-        .stage.completed .icon {
-            background: var(--green);
-            color: var(--white);
-        }
-
-        .stage .label {
-            font-size: 11px;
-            color: var(--gray-500);
-        }
-
-        .progress-message {
-            text-align: center;
-            color: var(--gray-700);
-            font-size: 14px;
-        }
-
-        /* Results Panel */
-        .results-panel {
-            flex: 1;
-            padding: 24px;
-            overflow-y: auto;
-        }
-
-        .result-card {
-            background: var(--white);
-            border: 1px solid var(--gray-200);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-
-        .result-card.success {
-            border-left: 4px solid var(--green);
-        }
-
-        .result-card.error {
-            border-left: 4px solid var(--red);
-        }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .result-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--navy);
-        }
-
-        .result-status {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .result-status.success {
-            background: #D1FAE5;
-            color: #047857;
-        }
-
-        .result-status.error {
-            background: #FEE2E2;
-            color: #DC2626;
-        }
-
-        .result-meta {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .meta-item {
-            background: var(--gray-100);
-            padding: 12px;
-            border-radius: 6px;
-        }
-
-        .meta-item .label {
-            font-size: 11px;
-            color: var(--gray-500);
-            margin-bottom: 4px;
-        }
-
-        .meta-item .value {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--navy);
-        }
-
-        .metadata-section {
-            background: var(--gray-100);
-            border-radius: 6px;
-            padding: 16px;
-        }
-
-        .metadata-section h4 {
-            font-size: 13px;
-            color: var(--gray-700);
-            margin-bottom: 12px;
-        }
-
-        .metadata-grid {
-            display: grid;
-            grid-template-columns: 120px 1fr;
-            gap: 8px;
-            font-size: 13px;
-        }
-
-        .metadata-grid .label {
-            color: var(--gray-500);
-        }
-
-        .metadata-grid .value {
-            color: var(--gray-700);
-        }
-
-        .keywords {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .keyword-tag {
-            background: var(--white);
-            border: 1px solid var(--gray-200);
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            color: var(--gray-700);
-        }
-
-        /* Stats Panel */
-        .stats-panel {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            padding: 16px 24px;
-            background: var(--white);
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .stat-card {
-            background: var(--gray-100);
-            border-radius: 8px;
-            padding: 16px;
-            text-align: center;
-        }
-
-        .stat-card .value {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--navy);
-        }
-
-        .stat-card .label {
-            font-size: 12px;
-            color: var(--gray-500);
-            margin-top: 4px;
-        }
-
-        /* Empty State */
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 60px;
-            color: var(--gray-500);
-        }
-
-        .empty-state .icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .empty-state p {
-            font-size: 14px;
-        }
-
-        /* Loading */
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--gray-200);
-            border-top-color: var(--navy);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--gray-100);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--gray-300);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--gray-500);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAISS Index Management Console</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #1B3A6B;
+      --navy-dark: #122a52;
+      --navy-light: #2a5298;
+      --amber: #E8971F;
+      --bg: #0f1923;
+      --surface: #162032;
+      --surface2: #1e2d42;
+      --border: rgba(255,255,255,.08);
+      --text: #e8edf4;
+      --muted: #7a90aa;
+      --green: #22c55e;
+      --red: #ef4444;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--navy-dark);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header h1 { font-size: 16px; font-weight: 700; }
+    .tag {
+      font-size: 11px; background: var(--amber); color: #000;
+      padding: 2px 8px; border-radius: 99px; font-weight: 700;
+    }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .api-status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    .api-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .api-status.ok .dot { background: var(--green); }
+    .api-status.err .dot { background: var(--red); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      height: calc(100vh - 53px);
+    }
+    .sidebar {
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 20px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .main {
+      overflow-y: auto; padding: 20px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .card-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-badge {
+      font-size: 10px; background: var(--navy-light); color: #fff;
+      padding: 1px 7px; border-radius: 99px; font-weight: 600;
+      letter-spacing: 0; text-transform: none;
+    }
+
+    .status-snapshot {
+      font-size: 13px; font-weight: 600; word-break: break-all; margin-bottom: 10px;
+    }
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: var(--muted);
+      padding: 4px 0; border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-val { color: var(--text); font-weight: 600; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600;
+    }
+    .pill.green { background: rgba(34,197,94,.15); color: var(--green); }
+    .pill.red   { background: rgba(239,68,68,.15);  color: var(--red); }
+    .pill.amber { background: rgba(232,151,31,.15); color: var(--amber); }
+
+    .index-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; margin-bottom: 8px;
+    }
+    .index-item:last-child { margin-bottom: 0; }
+    .index-item.active-idx { border-color: var(--amber); }
+    .index-name { font-size: 12px; font-weight: 600; word-break: break-all; margin-bottom: 6px; }
+    .index-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .chip {
+      font-size: 11px; color: var(--muted); background: rgba(255,255,255,.06);
+      padding: 1px 6px; border-radius: 4px;
+    }
+    .index-actions { margin-top: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 0 14px; height: 32px; border-radius: 6px; border: none;
+      cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary   { background: var(--amber); color: #000; }
+    .btn-secondary { background: var(--navy-light); color: #fff; }
+    .btn-outline   { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { height: 26px; padding: 0 10px; font-size: 11px; }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    input[type="text"] {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 7px 10px; font-size: 13px; outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--navy-light); }
+
+    .progress-wrap { margin-top: 14px; }
+    .progress-track {
+      height: 6px; background: var(--surface2); border-radius: 99px; overflow: hidden; margin-bottom: 8px;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--navy-light), var(--amber));
+      border-radius: 99px; transition: width .4s ease; width: 0%;
+    }
+    .progress-meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+    .progress-pct { font-weight: 700; color: var(--amber); }
+
+    .log-box {
+      margin-top: 10px; background: #0a1117; border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px; max-height: 260px; overflow-y: auto;
+      font-family: 'Consolas', monospace; font-size: 11px; color: #8fb3d5; line-height: 1.6;
+    }
+    .log-err { color: var(--red); }
+
+    .job-row {
+      display: grid; grid-template-columns: 80px 1fr 90px 70px;
+      gap: 8px; align-items: center; padding: 7px 10px;
+      border-radius: 6px; font-size: 12px; border-bottom: 1px solid var(--border);
+    }
+    .job-row:last-child { border-bottom: none; }
+    .job-id { font-family: monospace; color: var(--muted); }
+
+    .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0; }
+
+    .icon-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 15px; padding: 0 4px;
+    }
+    .icon-btn:hover { color: var(--text); }
+
+    /* ── Benchmark table ── */
+    .bm-summary {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px;
+    }
+    .bm-stat {
+      background: var(--surface2); border-radius: 8px; padding: 10px 14px; text-align: center;
+    }
+    .bm-stat .val { font-size: 22px; font-weight: 700; }
+    .bm-stat .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .bm-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .bm-table th {
+      text-align: left; padding: 5px 8px; color: var(--muted);
+      border-bottom: 1px solid var(--border); font-weight: 600;
+    }
+    .bm-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+    .bm-table tr:last-child td { border-bottom: none; }
+    .bm-table tr:hover td { background: var(--surface2); }
+    .pass-badge  { color: var(--green); font-weight: 700; }
+    .fail-badge  { color: var(--red);   font-weight: 700; }
+
+    /* ── Ollama status ── */
+    .ollama-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--border);
+    }
+    .ollama-row:last-child { border-bottom: none; }
+
+    /* ── Category pills row ── */
+    .cat-row {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
+    }
+    .cat-pill {
+      font-size: 11px; padding: 2px 8px; border-radius: 99px;
+      font-weight: 600; display: flex; align-items: center; gap: 3px;
+    }
+    .cat-pill.ok  { background: rgba(34,197,94,.15); color: var(--green); }
+    .cat-pill.no  { background: rgba(239,68,68,.12);  color: var(--red); }
+  </style>
 </head>
 <body>
-    <header class="header">
-        <h1>
-            <span>PromptoRAG</span>
-            <span class="badge">Admin</span>
-        </h1>
-        <div id="connectionStatus">
-            <span style="color: var(--gray-300);">Connecting...</span>
+
+<header>
+  <h1>FAISS Index Management Console</h1>
+  <span class="tag">ADMIN</span>
+  <div class="header-right">
+    <span class="api-status" id="apiStatus">
+      <span class="dot"></span>
+      <span id="apiStatusText">연결 확인 중...</span>
+    </span>
+    <button class="btn btn-outline btn-sm" onclick="refreshAll()">↻ 새로고침</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+
+    <!-- Active Index Status -->
+    <div class="card">
+      <div class="card-title">
+        활성 인덱스
+        <span class="card-badge" id="activeTag">-</span>
+      </div>
+      <div id="activeContent"><div class="empty">로딩 중...</div></div>
+    </div>
+
+    <!-- Ollama Status -->
+    <div class="card">
+      <div class="card-title">
+        Ollama 상태
+        <button class="icon-btn" onclick="loadOllama()" title="새로고침">↻</button>
+      </div>
+      <div id="ollamaContent"><div class="empty">로딩 중...</div></div>
+    </div>
+
+    <!-- Category Index Status -->
+    <div class="card">
+      <div class="card-title">
+        카테고리 인덱스
+        <button class="icon-btn" onclick="loadCategoryStatus()" title="새로고침">↻</button>
+      </div>
+      <div id="categoryContent"><div class="empty">로딩 중...</div></div>
+    </div>
+
+    <!-- Run Pipeline -->
+    <div class="card">
+      <div class="card-title">파이프라인 실행</div>
+      <div class="form-group">
+        <label>스냅샷 이름</label>
+        <input type="text" id="jobSnapshot"
+          placeholder="snapshot_YYYY-MM-DD_batch-XXX-vN">
+      </div>
+      <button class="btn btn-primary" id="runBtn" onclick="startJob()" style="width:100%">
+        ▶ 파이프라인 시작
+      </button>
+      <div class="progress-wrap" id="progressWrap" style="display:none">
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
         </div>
-    </header>
-
-    <main class="main-container">
-        <!-- Sidebar - File Browser -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>Knowledge Source</h2>
-                <div class="path-display">
-                    <span class="icon">📁</span>
-                    <span id="currentPath">Loading...</span>
-                </div>
-            </div>
-            <div class="folder-list" id="folderList">
-                <div class="loading">
-                    <div class="spinner"></div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Content Area -->
-        <div class="content">
-            <!-- Stats Panel -->
-            <div class="stats-panel">
-                <div class="stat-card">
-                    <div class="value" id="statCollections">-</div>
-                    <div class="label">Collections</div>
-                </div>
-                <div class="stat-card">
-                    <div class="value" id="statDocuments">-</div>
-                    <div class="label">Documents</div>
-                </div>
-                <div class="stat-card">
-                    <div class="value" id="statCompleted">-</div>
-                    <div class="label">Completed</div>
-                </div>
-                <div class="stat-card">
-                    <div class="value" id="statPending">-</div>
-                    <div class="label">Pending</div>
-                </div>
-            </div>
-
-            <!-- Processing Panel -->
-            <div class="processing-panel">
-                <h3 class="panel-title">
-                    <span>📄</span> Document Processing
-                </h3>
-
-                <div id="selectedFileCard" class="selected-file-card" style="display: none;">
-                    <div class="file-name" id="selectedFileName">-</div>
-                    <div class="file-path" id="selectedFilePath">-</div>
-                </div>
-
-                <div id="noFileSelected" class="empty-state" style="padding: 30px;">
-                    <span class="icon">👆</span>
-                    <p>Select a document from the file browser to process</p>
-                </div>
-
-                <div id="processingForm" style="display: none;">
-                    <div class="form-group">
-                        <label for="collectionName">Target Collection</label>
-                        <input type="text" id="collectionName" value="default" placeholder="Collection name">
-                    </div>
-
-                    <button class="btn btn-primary" id="processBtn" onclick="processDocument()">
-                        <span>🚀</span> Start Processing
-                    </button>
-
-                    <!-- Progress Section -->
-                    <div class="progress-section" id="progressSection">
-                        <div class="progress-stages">
-                            <div class="stage" id="stage-extracting">
-                                <div class="icon">📖</div>
-                                <span class="label">Extract</span>
-                            </div>
-                            <div class="stage" id="stage-analyzing">
-                                <div class="icon">🔍</div>
-                                <span class="label">Analyze</span>
-                            </div>
-                            <div class="stage" id="stage-chunking">
-                                <div class="icon">✂️</div>
-                                <span class="label">Chunk</span>
-                            </div>
-                            <div class="stage" id="stage-embedding">
-                                <div class="icon">🧠</div>
-                                <span class="label">Embed</span>
-                            </div>
-                            <div class="stage" id="stage-storing">
-                                <div class="icon">💾</div>
-                                <span class="label">Store</span>
-                            </div>
-                        </div>
-
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" id="progressBar" style="width: 0%;">0%</div>
-                        </div>
-
-                        <div class="progress-message" id="progressMessage">Preparing...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Results Panel -->
-            <div class="results-panel" id="resultsPanel">
-                <div class="empty-state">
-                    <span class="icon">📊</span>
-                    <p>Processing results will appear here</p>
-                </div>
-            </div>
+        <div class="progress-meta">
+          <span id="progressStage">-</span>
+          <span class="progress-pct" id="progressPct">0%</span>
         </div>
-    </main>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
 
-    <script>
-        const API_BASE = 'http://localhost:8080/api';
-        let currentSubpath = '';
-        let selectedFile = null;
+  </aside>
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            checkConnection();
-            loadStats();
-            loadFolders('');
-        });
+  <!-- Main -->
+  <main class="main">
 
-        // Check API connection
-        async function checkConnection() {
-            try {
-                const response = await fetch(`${API_BASE}/knowledge-sources/status`);
-                const data = await response.json();
+    <!-- Index List -->
+    <div class="card">
+      <div class="card-title">
+        사용 가능한 인덱스
+        <button class="icon-btn" onclick="loadIndexes()" title="새로고침">↻</button>
+      </div>
+      <div id="indexList"><div class="empty">로딩 중...</div></div>
+    </div>
 
-                if (data.accessible) {
-                    document.getElementById('connectionStatus').innerHTML =
-                        '<span style="color: var(--green);">✓ Connected</span>';
-                    document.getElementById('currentPath').textContent = data.root_path;
-                } else {
-                    document.getElementById('connectionStatus').innerHTML =
-                        '<span style="color: var(--red);">✗ Not accessible</span>';
-                }
-            } catch (error) {
-                document.getElementById('connectionStatus').innerHTML =
-                    '<span style="color: var(--red);">✗ Connection failed</span>';
-            }
-        }
+    <!-- Job History -->
+    <div class="card">
+      <div class="card-title">
+        잡 이력
+        <button class="icon-btn" onclick="loadJobs()" title="새로고침">↻</button>
+      </div>
+      <div id="jobList"><div class="empty">실행된 잡 없음</div></div>
+    </div>
 
-        // Load statistics
-        async function loadStats() {
-            try {
-                const response = await fetch(`${API_BASE}/admin/stats`);
-                const data = await response.json();
+    <!-- Benchmark -->
+    <div class="card">
+      <div class="card-title">검색 품질 벤치마크</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <button class="btn btn-secondary" id="bmBtn" onclick="runBenchmark()">▶ Run Benchmark</button>
+        <span id="bmRunning" style="display:none;font-size:12px;color:var(--amber)">실행 중... (search_only 모드)</span>
+      </div>
+      <div id="bmResults"></div>
+    </div>
 
-                document.getElementById('statCollections').textContent = data.collections.total;
-                document.getElementById('statDocuments').textContent = data.documents.total;
-                document.getElementById('statCompleted').textContent = data.documents.completed;
-                document.getElementById('statPending').textContent =
-                    data.documents.pending + data.documents.processing;
-            } catch (error) {
-                console.error('Failed to load stats:', error);
-            }
-        }
+  </main>
+</div>
 
-        // Load folders and files
-        async function loadFolders(subpath) {
-            const folderList = document.getElementById('folderList');
-            folderList.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-            currentSubpath = subpath;
+<script>
+  const API_BASE = 'http://192.168.0.207:8080/api';
 
-            try {
-                // Load folders
-                const foldersResponse = await fetch(
-                    `${API_BASE}/knowledge-sources/folders?subpath=${encodeURIComponent(subpath)}`
-                );
-                const folders = await foldersResponse.json();
+  // ── API ──────────────────────────────────────────────────────────────────
 
-                // Load files
-                const scanResponse = await fetch(
-                    `${API_BASE}/knowledge-sources/scan?subpath=${encodeURIComponent(subpath)}&recursive=false`
-                );
-                const scanResult = await scanResponse.json();
+  async function api(path, opts = {}) {
+    const r = await fetch(API_BASE + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    return r.json();
+  }
 
-                // Render
-                let html = '';
+  function setApiStatus(ok) {
+    const el = document.getElementById('apiStatus');
+    el.className = 'api-status ' + (ok ? 'ok' : 'err');
+    document.getElementById('apiStatusText').textContent = ok ? '서버 연결됨' : '서버 연결 실패';
+  }
 
-                // Back button
-                if (subpath) {
-                    const parentPath = subpath.split(/[/\\]/).slice(0, -1).join('\\');
-                    html += `
-                        <div class="back-button" onclick="loadFolders('${parentPath.replace(/\\/g, '\\\\')}')">
-                            <span>⬅️</span> Back
-                        </div>
-                    `;
-                }
+  // ── Status ───────────────────────────────────────────────────────────────
 
-                // Folders
-                folders.forEach(folder => {
-                    html += `
-                        <div class="folder-item" onclick="loadFolders('${folder.path.replace(/\\/g, '\\\\')}')">
-                            <span class="icon">📁</span>
-                            <span>${folder.name}</span>
-                        </div>
-                    `;
-                });
+  async function loadStatus() {
+    try {
+      const data = await api('/admin/faiss/status');
+      setApiStatus(true);
+      renderStatus(data);
+    } catch (e) {
+      setApiStatus(false);
+      document.getElementById('activeContent').innerHTML =
+        `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
 
-                // Files
-                scanResult.files.forEach(file => {
-                    const sizeKB = (file.size / 1024).toFixed(1);
-                    html += `
-                        <div class="file-item" onclick="selectFile('${file.relative_path.replace(/\\/g, '\\\\')}', '${file.name}', '${file.type}')">
-                            <span class="icon">${getFileIcon(file.extension)}</span>
-                            <div class="file-info">
-                                <div class="file-name">${file.name}</div>
-                                <div class="file-meta">${file.type} · ${sizeKB} KB</div>
-                            </div>
-                        </div>
-                    `;
-                });
+  function renderStatus({ active, stats }) {
+    const tag = document.getElementById('activeTag');
+    const el  = document.getElementById('activeContent');
 
-                if (!folders.length && !scanResult.files.length) {
-                    html = `
-                        <div class="empty-state">
-                            <span class="icon">📂</span>
-                            <p>No supported documents found</p>
-                        </div>
-                    `;
-                }
+    if (!active) {
+      tag.textContent = '없음';
+      el.innerHTML = '<div class="empty">활성 인덱스 없음</div>';
+      return;
+    }
 
-                folderList.innerHTML = html;
-                document.getElementById('currentPath').textContent =
-                    subpath || 'Root';
+    const s = stats || {};
+    tag.textContent = s.index_exists ? '정상' : '파일 없음';
+    tag.style.background = s.index_exists ? 'var(--green)' : 'var(--red)';
 
-            } catch (error) {
-                folderList.innerHTML = `
-                    <div class="empty-state">
-                        <span class="icon">⚠️</span>
-                        <p>Failed to load: ${error.message}</p>
-                    </div>
-                `;
-            }
-        }
+    const at = (active.activated_at || '').replace('T', ' ').slice(0, 19);
+    el.innerHTML = `
+      <div class="status-snapshot">${esc(active.snapshot)}</div>
+      <div class="stat-row"><span>인덱스 파일</span>
+        <span class="stat-val">${mkpill(s.index_exists, s.index_exists ? '존재' : '없음')}</span></div>
+      <div class="stat-row"><span>메타데이터</span>
+        <span class="stat-val">${mkpill(s.metadata_exists, s.metadata_exists ? '존재' : '없음')}</span></div>
+      <div class="stat-row"><span>인덱스 크기</span>
+        <span class="stat-val">${s.index_size_mb ?? 0} MB</span></div>
+      <div class="stat-row"><span>청크 수</span>
+        <span class="stat-val">${(s.chunk_count ?? 0).toLocaleString()}</span></div>
+      <div class="stat-row"><span>활성화 시각</span>
+        <span class="stat-val">${at || '-'}</span></div>
+    `;
+  }
 
-        // Get file icon
-        function getFileIcon(ext) {
-            const icons = {
-                '.pdf': '📕',
-                '.docx': '📘',
-                '.doc': '📘',
-                '.pptx': '📙',
-                '.ppt': '📙',
-                '.xlsx': '📗',
-                '.xls': '📗',
-                '.hwp': '📓',
-                '.hwpx': '📓'
-            };
-            return icons[ext] || '📄';
-        }
+  function mkpill(ok, label) {
+    return `<span class="pill ${ok ? 'green' : 'red'}">${esc(label)}</span>`;
+  }
 
-        // Select file for processing
-        function selectFile(relativePath, fileName, fileType) {
-            // Deselect previous
-            document.querySelectorAll('.file-item.selected').forEach(el => {
-                el.classList.remove('selected');
-            });
+  // ── Indexes ───────────────────────────────────────────────────────────────
 
-            // Select current
-            event.currentTarget.classList.add('selected');
+  async function loadIndexes() {
+    try {
+      const data = await api('/admin/faiss/indexes');
+      renderIndexes(data.indexes || []);
+    } catch (e) {
+      document.getElementById('indexList').innerHTML =
+        `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
 
-            selectedFile = {
-                relativePath: relativePath,
-                fileName: fileName,
-                fileType: fileType
-            };
+  function renderIndexes(indexes) {
+    const el = document.getElementById('indexList');
+    if (!indexes.length) {
+      el.innerHTML = '<div class="empty">인덱스 없음 (파이프라인 실행 후 생성됩니다)</div>';
+      return;
+    }
+    el.innerHTML = indexes.map(idx => `
+      <div class="index-item ${idx.is_active ? 'active-idx' : ''}">
+        <div class="index-name">${esc(idx.snapshot)}</div>
+        <div class="index-chips">
+          ${idx.is_active ? '<span class="pill amber">● 활성</span>' : ''}
+          <span class="chip">${idx.index_size_mb} MB</span>
+          <span class="chip">${idx.chunk_count.toLocaleString()} chunks</span>
+          <span class="chip" style="color:${idx.index_exists ? 'var(--green)' : 'var(--red)'}">
+            ${idx.index_exists ? '인덱스 OK' : '인덱스 없음'}
+          </span>
+        </div>
+        ${!idx.is_active && idx.index_exists ? `
+        <div class="index-actions">
+          <button class="btn btn-secondary btn-sm"
+            onclick="activateIndex('${esc(idx.snapshot)}')">Activate</button>
+        </div>` : ''}
+      </div>
+    `).join('');
+  }
 
-            // Update UI
-            document.getElementById('noFileSelected').style.display = 'none';
-            document.getElementById('selectedFileCard').style.display = 'block';
-            document.getElementById('processingForm').style.display = 'block';
-            document.getElementById('selectedFileName').textContent = fileName;
-            document.getElementById('selectedFilePath').textContent = relativePath;
-        }
+  async function activateIndex(snapshot) {
+    if (!confirm(`"${snapshot}"\n을(를) 활성 인덱스로 설정하시겠습니까?\n이후 모든 RAG 쿼리에 이 인덱스가 사용됩니다.`)) return;
+    try {
+      await api('/admin/faiss/activate', {
+        method: 'POST',
+        body: JSON.stringify({ snapshot }),
+      });
+      alert('활성화 완료');
+      refreshAll();
+    } catch (e) {
+      alert('활성화 실패: ' + e.message);
+    }
+  }
 
-        // Process document
-        async function processDocument() {
-            if (!selectedFile) {
-                alert('Please select a file first');
-                return;
-            }
+  // ── Jobs ──────────────────────────────────────────────────────────────────
 
-            const collectionName = document.getElementById('collectionName').value || 'default';
-            const processBtn = document.getElementById('processBtn');
-            const progressSection = document.getElementById('progressSection');
+  async function loadJobs() {
+    try {
+      const data = await api('/admin/faiss/jobs');
+      renderJobs(data.jobs || []);
+    } catch (e) {
+      document.getElementById('jobList').innerHTML =
+        `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
 
-            // Disable button and show progress
-            processBtn.disabled = true;
-            progressSection.classList.add('active');
-            resetProgress();
+  function renderJobs(jobs) {
+    const el = document.getElementById('jobList');
+    if (!jobs.length) {
+      el.innerHTML = '<div class="empty">실행된 잡 없음</div>';
+      return;
+    }
+    const color = { completed: 'var(--green)', failed: 'var(--red)', running: 'var(--amber)' };
+    el.innerHTML = jobs.map(j => `
+      <div class="job-row">
+        <span class="job-id">#${esc(j.job_id)}</span>
+        <span style="word-break:break-all;font-size:11px">${esc(j.snapshot)}</span>
+        <span style="color:${color[j.status] || 'var(--muted)'};font-weight:700">${esc(j.status)}</span>
+        <span style="color:var(--muted)">${j.progress}%</span>
+      </div>
+    `).join('');
+  }
 
-            try {
-                const response = await fetch(`${API_BASE}/admin/documents/process`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        file_path: selectedFile.relativePath,
-                        collection_name: collectionName
-                    })
-                });
+  // ── Pipeline ──────────────────────────────────────────────────────────────
 
-                const result = await response.json();
+  let _sseSource = null;
 
-                // Update final progress
-                if (result.success) {
-                    updateProgress(100, 'completed', 'Processing complete!');
-                    displayResult(result);
-                } else {
-                    updateProgress(0, 'failed', result.error || 'Processing failed');
-                    displayError(result);
-                }
+  async function startJob() {
+    const snapshot = document.getElementById('jobSnapshot').value.trim();
+    if (!snapshot) { alert('스냅샷 이름을 입력하세요.'); return; }
 
-                // Refresh stats
-                loadStats();
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('progressWrap').style.display = '';
+    setProgress(0, '잡 시작 중...');
+    clearLog();
 
-            } catch (error) {
-                updateProgress(0, 'failed', error.message);
-                displayError({ error: error.message });
-            } finally {
-                processBtn.disabled = false;
-            }
-        }
+    try {
+      const data = await api('/admin/faiss/jobs', {
+        method: 'POST',
+        body: JSON.stringify({ snapshot }),
+      });
+      streamJob(data.job_id);
+    } catch (e) {
+      alert('잡 시작 실패: ' + e.message);
+      document.getElementById('runBtn').disabled = false;
+    }
+  }
 
-        // Reset progress UI
-        function resetProgress() {
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('progressBar').textContent = '0%';
-            document.getElementById('progressMessage').textContent = 'Starting...';
+  function streamJob(jobId) {
+    if (_sseSource) _sseSource.close();
+    _sseSource = new EventSource(`${API_BASE}/admin/faiss/jobs/${jobId}/stream`);
 
-            document.querySelectorAll('.stage').forEach(stage => {
-                stage.classList.remove('active', 'completed');
-            });
-        }
+    _sseSource.onmessage = (e) => {
+      const ev = JSON.parse(e.data);
+      if (ev.heartbeat) return;
+      if (ev.progress !== undefined) setProgress(ev.progress, ev.stage || '');
+      if (ev.log) appendLog(ev.log, (ev.stage || '').startsWith('오류'));
+      if (ev.done) {
+        _sseSource.close();
+        document.getElementById('runBtn').disabled = false;
+        if (ev.error) appendLog('실패: ' + ev.error, true);
+        else          appendLog('✓ 파이프라인 완료');
+        loadJobs();
+        loadIndexes();
+        loadStatus();
+      }
+    };
 
-        // Update progress UI
-        function updateProgress(percent, stage, message) {
-            const progressBar = document.getElementById('progressBar');
-            progressBar.style.width = `${percent}%`;
-            progressBar.textContent = `${percent}%`;
-            document.getElementById('progressMessage').textContent = message;
+    _sseSource.onerror = () => {
+      _sseSource.close();
+      document.getElementById('runBtn').disabled = false;
+      appendLog('SSE 연결 오류', true);
+    };
+  }
 
-            // Update stages
-            const stages = ['extracting', 'analyzing', 'chunking', 'embedding', 'storing'];
-            const stageIndex = stages.indexOf(stage);
+  function setProgress(pct, stage) {
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+    document.getElementById('progressStage').textContent = stage;
+  }
 
-            stages.forEach((s, i) => {
-                const stageEl = document.getElementById(`stage-${s}`);
-                if (i < stageIndex) {
-                    stageEl.classList.remove('active');
-                    stageEl.classList.add('completed');
-                } else if (i === stageIndex) {
-                    stageEl.classList.add('active');
-                    stageEl.classList.remove('completed');
-                } else {
-                    stageEl.classList.remove('active', 'completed');
-                }
-            });
+  function clearLog() { document.getElementById('logBox').innerHTML = ''; }
 
-            if (stage === 'completed') {
-                stages.forEach(s => {
-                    document.getElementById(`stage-${s}`).classList.add('completed');
-                    document.getElementById(`stage-${s}`).classList.remove('active');
-                });
-            }
-        }
+  function appendLog(text, isErr = false) {
+    const box = document.getElementById('logBox');
+    const span = document.createElement('span');
+    if (isErr) span.className = 'log-err';
+    span.textContent = text;
+    box.appendChild(span);
+    box.appendChild(document.createElement('br'));
+    box.scrollTop = box.scrollHeight;
+  }
 
-        // Display success result
-        function displayResult(result) {
-            const resultsPanel = document.getElementById('resultsPanel');
-            const metadata = result.metadata || {};
+  // ── Utilities ─────────────────────────────────────────────────────────────
 
-            const html = `
-                <div class="result-card success">
-                    <div class="result-header">
-                        <div class="result-title">${metadata.title || selectedFile.fileName}</div>
-                        <span class="result-status success">Success</span>
-                    </div>
+  function esc(s) {
+    return String(s ?? '')
+      .replaceAll('&','&amp;').replaceAll('<','&lt;')
+      .replaceAll('>','&gt;').replaceAll('"','&quot;');
+  }
 
-                    <div class="result-meta">
-                        <div class="meta-item">
-                            <div class="label">Document ID</div>
-                            <div class="value">#${result.document_id}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="label">Chunks</div>
-                            <div class="value">${result.chunk_count}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="label">Processing Time</div>
-                            <div class="value">${result.processing_time.toFixed(2)}s</div>
-                        </div>
-                    </div>
+  // ── Ollama ───────────────────────────────────────────────────────────────
 
-                    <div class="metadata-section">
-                        <h4>Extracted Metadata</h4>
-                        <div class="metadata-grid">
-                            <span class="label">Category</span>
-                            <span class="value">${metadata.category || '-'}</span>
+  async function loadOllama() {
+    const el = document.getElementById('ollamaContent');
+    try {
+      const data = await api('/health/ollama');
+      const ok = data.status === 'healthy';
+      const models = (data.models || []).join(', ') || '-';
+      el.innerHTML = `
+        <div class="ollama-row"><span>상태</span>
+          <span class="stat-val">${mkpill(ok, ok ? 'running' : 'disconnected')}</span></div>
+        <div class="ollama-row"><span>모델</span>
+          <span class="stat-val" style="font-size:11px;text-align:right">${esc(models)}</span></div>
+        ${data.error ? `<div class="ollama-row" style="color:var(--red);font-size:11px">${esc(data.error)}</div>` : ''}
+      `;
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
 
-                            <span class="label">Document Type</span>
-                            <span class="value">${metadata.document_type || '-'}</span>
+  // ── Category Status ───────────────────────────────────────────────────────
 
-                            <span class="label">Organization</span>
-                            <span class="value">${metadata.organization || '-'}</span>
+  async function loadCategoryStatus() {
+    const el = document.getElementById('categoryContent');
+    try {
+      const data = await api('/admin/faiss/category-status');
+      if (!data.snapshot) {
+        el.innerHTML = '<div class="empty">활성 인덱스 없음</div>';
+        return;
+      }
+      const pills = (data.categories || []).map(c => `
+        <span class="cat-pill ${c.exists ? 'ok' : 'no'}">
+          ${c.exists ? '✓' : '✗'} ${esc(c.category)}
+          ${c.exists ? `<span style="opacity:.6">${c.size_mb}MB</span>` : ''}
+        </span>
+      `).join('');
+      el.innerHTML = `
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${esc(data.snapshot)}</div>
+        <div class="cat-row">${pills}</div>
+      `;
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
 
-                            <span class="label">Project</span>
-                            <span class="value">${metadata.project_name || '-'}</span>
+  // ── Benchmark ─────────────────────────────────────────────────────────────
 
-                            <span class="label">Summary</span>
-                            <span class="value">${metadata.summary || '-'}</span>
+  async function runBenchmark() {
+    document.getElementById('bmBtn').disabled = true;
+    document.getElementById('bmRunning').style.display = '';
+    document.getElementById('bmResults').innerHTML = '';
+    try {
+      const data = await api('/admin/faiss/benchmark', { method: 'POST' });
+      renderBenchmark(data);
+    } catch (e) {
+      document.getElementById('bmResults').innerHTML =
+        `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    } finally {
+      document.getElementById('bmBtn').disabled = false;
+      document.getElementById('bmRunning').style.display = 'none';
+    }
+  }
 
-                            <span class="label">Keywords</span>
-                            <span class="value">
-                                <div class="keywords">
-                                    ${(metadata.keywords || []).map(k =>
-                                        `<span class="keyword-tag">${k}</span>`
-                                    ).join('')}
-                                </div>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            ` + resultsPanel.innerHTML.replace(/<div class="empty-state">.*?<\/div>/s, '');
+  function renderBenchmark(data) {
+    const el = document.getElementById('bmResults');
+    const s = data.summary || {};
+    const results = data.results || [];
 
-            resultsPanel.innerHTML = html;
-        }
+    const passColor = s.pass_rate >= 0.8 ? 'var(--green)' : s.pass_rate >= 0.6 ? 'var(--amber)' : 'var(--red)';
 
-        // Display error result
-        function displayError(result) {
-            const resultsPanel = document.getElementById('resultsPanel');
+    const summaryHtml = `
+      <div class="bm-summary">
+        <div class="bm-stat">
+          <div class="val" style="color:${passColor}">${Math.round((s.pass_rate||0)*100)}%</div>
+          <div class="lbl">통과율</div>
+        </div>
+        <div class="bm-stat">
+          <div class="val" style="color:var(--green)">${s.passed ?? 0}</div>
+          <div class="lbl">통과</div>
+        </div>
+        <div class="bm-stat">
+          <div class="val" style="color:var(--red)">${s.failed ?? 0}</div>
+          <div class="lbl">실패</div>
+        </div>
+        <div class="bm-stat">
+          <div class="val">${Math.round((s.avg_kw_score||0)*100)}%</div>
+          <div class="lbl">평균 키워드</div>
+        </div>
+        <div class="bm-stat">
+          <div class="val" style="font-size:14px">${(s.run_at||'').slice(0,19).replace('T',' ')}</div>
+          <div class="lbl">실행 시각</div>
+        </div>
+      </div>
+    `;
 
-            const html = `
-                <div class="result-card error">
-                    <div class="result-header">
-                        <div class="result-title">${selectedFile.fileName}</div>
-                        <span class="result-status error">Failed</span>
-                    </div>
-                    <div style="color: var(--red); padding: 12px; background: #FEE2E2; border-radius: 6px;">
-                        ${result.error || 'Unknown error occurred'}
-                    </div>
-                </div>
-            ` + resultsPanel.innerHTML.replace(/<div class="empty-state">.*?<\/div>/s, '');
+    const rows = results.map(r => `
+      <tr>
+        <td><span class="chip">${esc(r.category)}</span></td>
+        <td style="max-width:260px;word-break:break-all">${esc(r.query)}</td>
+        <td style="text-align:center">${r.kw_hits}/${r.kw_total}</td>
+        <td style="text-align:center">${Math.round(r.kw_score*100)}%</td>
+        <td style="text-align:center">${r.doc_count}</td>
+        <td style="text-align:center">
+          <span class="${r.pass ? 'pass-badge' : 'fail-badge'}">${r.pass ? 'PASS' : 'FAIL'}</span>
+        </td>
+      </tr>
+    `).join('');
 
-            resultsPanel.innerHTML = html;
-        }
-    </script>
+    el.innerHTML = summaryHtml + `
+      <div style="overflow-x:auto">
+        <table class="bm-table">
+          <thead>
+            <tr>
+              <th>카테고리</th><th>쿼리</th><th>KW 적중</th><th>KW 점수</th><th>문서 수</th><th>결과</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function refreshAll() { loadStatus(); loadIndexes(); loadJobs(); loadOllama(); loadCategoryStatus(); }
+
+  // Init
+  refreshAll();
+</script>
 </body>
 </html>

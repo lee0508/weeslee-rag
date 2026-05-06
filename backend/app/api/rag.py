@@ -23,6 +23,20 @@ router = APIRouter(prefix="/rag", tags=["RAG"])
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 ASSEMBLE_SCRIPT = SCRIPTS_DIR / "assemble_rag_response.py"
+_ACTIVE_INDEX_PATH = PROJECT_ROOT / "data" / "active_index.json"
+
+
+def _active_snapshot() -> str:
+    """Read active_index.json; fall back to settings.faiss_snapshot."""
+    if _ACTIVE_INDEX_PATH.exists():
+        try:
+            data = json.loads(_ACTIVE_INDEX_PATH.read_text(encoding="utf-8"))
+            snap = data.get("snapshot", "")
+            if snap:
+                return snap
+        except Exception:
+            pass
+    return settings.faiss_snapshot
 
 
 def _index_paths(snapshot: str, category: Optional[str] = None) -> tuple[Path, Path]:
@@ -44,8 +58,7 @@ def _index_paths(snapshot: str, category: Optional[str] = None) -> tuple[Path, P
 
 
 def _default_chunks_path() -> Path:
-    snapshot = settings.faiss_snapshot
-    return PROJECT_ROOT / "data" / "staged" / "chunks" / f"{snapshot}_chunks.jsonl"
+    return PROJECT_ROOT / "data" / "staged" / "chunks" / f"{_active_snapshot()}_chunks.jsonl"
 
 
 class RagQueryRequest(BaseModel):
@@ -63,7 +76,7 @@ class RagQueryRequest(BaseModel):
 
 @router.post("/query")
 async def query_rag(request: RagQueryRequest):
-    snapshot = settings.faiss_snapshot
+    snapshot = _active_snapshot()
     default_index, default_meta = _index_paths(snapshot, request.category)
     index_path = request.index_path or str(default_index)
     metadata_path = request.metadata_path or str(default_meta)

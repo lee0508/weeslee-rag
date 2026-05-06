@@ -9,6 +9,16 @@ import pdfplumber
 from app.extractors.base import BaseExtractor, ExtractionResult
 
 
+def _is_tesseract_available() -> bool:
+    """Return True if pytesseract and tesseract-ocr are both installed."""
+    try:
+        import pytesseract
+        pytesseract.get_tesseract_version()
+        return True
+    except Exception:
+        return False
+
+
 class PDFExtractor(BaseExtractor):
     """Extracts text from PDF files with pytesseract OCR fallback for scanned pages"""
 
@@ -94,17 +104,24 @@ class PDFExtractor(BaseExtractor):
                 success=False, error=f"File not found: {file_path}"
             ).to_dict()
 
-        if not self._is_scanned_pdf(file_path):
+        is_scanned = self._is_scanned_pdf(file_path)
+
+        if not is_scanned:
             result = self._extract_with_pdfplumber(file_path)
             if result.success and result.content.strip():
+                result.metadata["is_scanned"] = False
                 return result.to_dict()
 
         if self.use_ocr:
-            return self._extract_with_tesseract(file_path).to_dict()
+            result = self._extract_with_tesseract(file_path)
+            result.metadata["is_scanned"] = True
+            return result.to_dict()
 
         return ExtractionResult(
             success=False,
-            error="PDF appears to be scanned but OCR is disabled",
+            error="PDF is scanned but OCR is disabled (install tesseract-ocr and pass --use-ocr)",
+            method="scanned_ocr_disabled",
+            metadata={"is_scanned": True},
         ).to_dict()
 
 

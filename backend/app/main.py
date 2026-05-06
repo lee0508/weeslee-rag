@@ -15,6 +15,8 @@ from app.api.ocr import router as ocr_router
 from app.api.knowledge_sources import router as knowledge_sources_router
 from app.api.rag import router as rag_router
 from app.api.admin import router as admin_router
+from app.api.files import router as files_router
+from app.api.faiss_admin import router as faiss_admin_router
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -63,11 +65,13 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(health_router, tags=["Health"])
+app.include_router(health_router, prefix="/api", tags=["Health"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ocr_router, prefix="/api", tags=["OCR"])
 app.include_router(knowledge_sources_router, prefix="/api", tags=["Knowledge Sources"])
 app.include_router(rag_router, prefix="/api", tags=["RAG"])
+app.include_router(files_router, prefix="/api", tags=["Files"])
+app.include_router(faiss_admin_router, prefix="/api", tags=["FAISS Admin"])
 
 # Serve the assistant UI under the requested path pattern:
 # /weeslee-rag/frontend/rag-assistant.html
