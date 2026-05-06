@@ -1,0 +1,72 @@
+[
+  {
+    "query": "착수보고 추진 일정 주요 내용",
+    "expected_keywords": ["착수", "일정", "추진", "보고"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "사업 착수 후 초기 단계 활동",
+    "expected_keywords": ["착수", "단계", "활동", "사업"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "착수보고서 현황 분석 방법론",
+    "expected_keywords": ["현황", "분석", "방법론", "착수"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "프로젝트 킥오프 회의 agenda",
+    "expected_keywords": ["킥오프", "회의", "agenda", "착수"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.25,
+    "min_docs": 1
+  },
+  {
+    "query": "착수 단계 인터뷰 계획 이해관계자",
+    "expected_keywords": ["인터뷰", "이해관계자", "착수", "계획"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "사업 범위 및 산출물 정의",
+    "expected_keywords": ["범위", "산출물", "정의", "사업"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "ISP 착수보고 현황 파악 체계",
+    "expected_keywords": ["isp", "현황", "파악", "착수"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "컨설팅 프로젝트 WBS 및 일정 계획",
+    "expected_keywords": ["wbs", "일정", "계획", "프로젝트"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.25,
+    "min_docs": 1
+  },
+  {
+    "query": "사업 착수 시 조직 및 역할 분담",
+    "expected_keywords": ["조직", "역할", "착수", "분담"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "착수 보고 리스크 식별 및 대응 계획",
+    "expected_keywords": ["리스크", "식별", "대응", "착수"],
+    "expected_category": "kickoff",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  }
+]

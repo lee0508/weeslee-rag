@@ -1,0 +1,896 @@
+[
+  {
+    "category": "rfp",
+    "results": [
+      {
+        "query": "ISP 사업 제안요청서 요구사항 항목",
+        "kw_score": 0.75,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 1724,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "**전문가 의견:** 사용자의 질의는 **'isp 사업'**이라는 특정 주제와 **'제안요청서의 요구사항 항목 구성'**이라는 구조적 요청이 결합된 형태입니다. 따라서 단순히 유사도가 높은 문서보다는, **① 사업 "
+      },
+      {
+        "query": "정보화전략계획 수립 과업 범위",
+        "kw_score": 0.75,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 1242,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "전문가적 분석 결과, 사용자의 질의(\"정보화전략계획 수립 과업 범위\")와 가장 높은 관련성을 가지며, 제안서 작성에 구체적인 방법론이나 범위 설정에 대한 근거를 제공할 수 있는 문서는 2가지입니다.  ***  ###"
+      },
+      {
+        "query": "발주처 사업 목적 및 배경",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 1652,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "제공해주신 검색 결과를 바탕으로, '발주처 사업 목적 및 배경'을 작성하는 데 가장 핵심적이고 활용도가 높은 문서를 2개 추천드립니다.  ---  ### 1. 추천 문서 및 분석  #### 1. 추천 문서: doc-"
+      },
+      {
+        "query": "제안요청서 입찰 참가자격 조건",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 1350,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "질의하신 '입찰 참가자격 조건'은 제안요청서(rfp)에서 가장 기본적인 전제 조건이나 자격 심사 항목과 직결되는 내용입니다. 따라서 문서의 **구조적 유사성**과 **rfp의 형식적 정의**가 가장 중요한 추천 근거"
+      },
+      {
+        "query": "컨설팅 과업 일정 납품 기한",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 1283,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "전문가의 관점에서 사용자의 질의(\"컨설팅 과업 일정 납품 기한\")와 가장 밀접하게 연관된 문서는 **프로젝트의 방법론과 범위**를 담고 있는 문서들입니다.  제한된 검색 결과 중, 과업 일정 및 납품 기한은 주로 *"
+      },
+      {
+        "query": "사업 예산 규모 및 계약 방식",
+        "kw_score": 0.75,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 1283,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "이 질의는 제안의 **전제 조건(feasibility)**, 즉 프로젝트가 수행 가능한 범위(scope)와 재정적 제약(constraint)을 파악하는 단계에서 가장 중요합니다. 따라서 검색된 문서들은 rfp(req"
+      },
+      {
+        "query": "RFP 기술 요구사항 핵심 항목",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 1449,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "저는 공공/민간 입찰 rfp 분석과 컨설팅 제안서 작성을 지원하는 전문가로서, 사용자의 질의(\"rfp 기술 요구사항 핵심 항목\")에 가장 부합하는 문서를 추천드립니다.  제공된 검색 결과 중, **기술적인 요구사항 "
+      },
+      {
+        "query": "스마트댐 안전관리 플랫폼 제안요청서",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 2240,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "제시된 질의(\"스마트댐 안전관리 플랫폼 제안요청서\")는 **최첨단 기술(ai/플랫폼)**과 **공공 인프라 관리(안전/안정성)**가 결합된 전문 분야의 제안서가 필요한 상황입니다. 따라서 단순한 기술 구현 방안뿐만 "
+      },
+      {
+        "query": "ISP ISMP 수행 방법론 제안요청 기준",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 1051,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "제시해주신 질의는 특정 it 기획 프로젝트(isp/ismp)의 방법론 및 제안요청 기준에 대한 내용이므로, 가장 유사한 도메인 키워드와 높은 전문성을 가진 문서를 중심으로 추천합니다.  **핵심 판단 근거:** do"
+      },
+      {
+        "query": "국가 정보화전략계획 수립 지침 및 기준",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 1538,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "제공된 검색 결과와 질의('국가 정보화전략계획 수립 지침 및 기준')를 종합적으로 분석했을 때, 단순한 유사도 점수보다 **제안서의 논리적 구조(structure)**를 파악하는 것이 가장 중요합니다. 따라서 '요구"
+      }
+    ],
+    "avg_kw": 0.925,
+    "pass_rate": 1.0,
+    "query_count": 10
+  },
+  {
+    "category": "proposal",
+    "results": [
+      {
+        "query": "ISP 컨설팅 제안서 방법론 구성",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 1651,
+        "projects": [
+          "AI 기반 지능형 진로교육정보망",
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "고객님의 질의(isp 컨설팅 제안서 방법론 구성)는 '방법론'과 'isp 컨설팅'이라는 두 가지 핵심 요소를 결합해야 합니다. 검색 결과 중 이 두 가지 요소를 가장 균형 있게 담고 있거나, 각 요소를 보완적으로 설"
+      },
+      {
+        "query": "AX 전환 전략 제안 핵심 내용",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 1308,
+        "projects": [
+          "기재부_전자수입인지 기관선정연구",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "전문가 의견에 근거하여, 사용자의 질의(\"ax 전환 전략 제안 핵심 내용\")와 가장 높은 관련성을 가진 문서를 다음과 같이 추천합니다.  ***  ### 1. 추천 문서  **doc-20260506b3-000011*"
+      },
+      {
+        "query": "프로젝트 수행 계획 및 팀 구성",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 1054,
+        "projects": [
+          "기재부_전자수입인지 기관선정연구",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "제시된 질의(\"프로젝트 수행 계획 및 팀 구성\")에 가장 핵심적이고 직접적으로 연결되는 문서는 **doc-20260506b3-000011**입니다. 해당 문서는 프로젝트의 *방법론*, *실적*, *품질 관리* 등 계"
+      },
+      {
+        "query": "제안사 유사 수행 실적 레퍼런스",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 989,
+        "projects": [
+          "AI 기반 지능형 진로교육정보망",
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": "제시된 질의(\"제안사 유사 수행 실적 레퍼런스\")는 제안서 작성 과정에서 **유사 경험을 어떻게 구조화하고 제시할 것인가**에 대한 가이드라인을 필요로 합니다. 따라서 검색된 문서 중 이 핵심 내용을 직접 다루거나 "
+      },
+      {
+        "query": "컨설팅 제안서 차별화 포인트 및 강점",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "공공기관 정보화 컨설팅 제안 전략",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP ISMP 제안서 추진 배경 및 목적",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "디지털 전환 현황 분석 및 개선 방향",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "법무부 성범죄백서 이행 제안",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 추진 일정 및 마일스톤",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 0.4,
+    "pass_rate": 0.4,
+    "query_count": 10
+  },
+  {
+    "category": "kickoff",
+    "results": [
+      {
+        "query": "착수보고 추진 일정 주요 내용",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 착수 후 초기 단계 활동",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "착수보고서 현황 분석 방법론",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "프로젝트 킥오프 회의 agenda",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "착수 단계 인터뷰 계획 이해관계자",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 범위 및 산출물 정의",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP 착수보고 현황 파악 체계",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "컨설팅 프로젝트 WBS 및 일정 계획",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 착수 시 조직 및 역할 분담",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "착수 보고 리스크 식별 및 대응 계획",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 0.0,
+    "pass_rate": 0.0,
+    "query_count": 10
+  },
+  {
+    "category": "final_report",
+    "results": [
+      {
+        "query": "ISP 최종 산출물 목차 구성",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "정보화전략 이행계획서 주요 과제",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "최종보고서 전략 과제 우선순위",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP ISMP 최종 결과물 권고사항",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "K-water 데이터허브 ISP 추진 전략",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "현황 분석 결과 주요 이슈 도출",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "정보화 아키텍처 목표 체계",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "데이터 거버넌스 전략 및 로드맵",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "디지털 전환 추진 로드맵 단계별 계획",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "공공기관 ISP 3개년 이행 과제",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 0.0,
+    "pass_rate": 0.0,
+    "query_count": 10
+  },
+  {
+    "category": "presentation",
+    "results": [
+      {
+        "query": "ISP 중간보고 발표 슬라이드 구성",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "최종보고회 발표자료 핵심 메시지",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "발표 자료 현황 분석 요약",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "보고회 발표 주요 전략 방향",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP ISMP 발표 슬라이드 목차",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "컨설팅 중간보고 Q&A 주요 내용",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "발주기관 보고 주요 의사결정 사항",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "전략 과제 우선순위 발표 내용",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "보고 자료 개선 방향 및 로드맵 제시",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      },
+      {
+        "query": "AX ISP ISMP 중간 발표 성과 및 진도",
+        "kw_score": 0.0,
+        "kw_hits": 0,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 0,
+        "unique_docs": 0,
+        "answer_len": 0,
+        "projects": [],
+        "categories_returned": [],
+        "pass_kw": false,
+        "pass_docs": false,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 0.0,
+    "pass_rate": 0.0,
+    "query_count": 10
+  }
+]

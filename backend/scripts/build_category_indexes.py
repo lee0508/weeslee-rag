@@ -112,8 +112,13 @@ def main() -> int:
 
         if result.returncode != 0:
             print(f"  ERROR: {result.stderr.strip()[-300:]}")
+            print(f"  STDOUT: {result.stdout.strip()[-200:]}")
         else:
-            manifest = json.loads(result.stdout)
+            # stdout contains progress lines + final JSON manifest; extract the JSON part
+            stdout = result.stdout.strip()
+            json_start = stdout.rfind("\n{")
+            json_text = stdout[json_start + 1:] if json_start != -1 else stdout
+            manifest = json.loads(json_text)
             print(f"  OK: {manifest['vector_count']} vectors, {manifest['document_count']} docs")
 
     print("\nDone. Per-category indexes built.")

@@ -1,0 +1,226 @@
+"""
+Automated RAG benchmark evaluation.
+
+Usage:
+    python tests/evaluation.py [--server http://192.168.0.207:8080] [--category rfp]
+    python tests/evaluation.py --all          # run all categories
+    python tests/evaluation.py --html         # write HTML report to tests/report.html
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import urllib.request
+import urllib.error
+from datetime import datetime
+from pathlib import Path
+
+QUERIES_DIR = Path(__file__).parent / "queries"
+CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
+DEFAULT_SERVER = "http://192.168.0.207:8080"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="RAG benchmark evaluation")
+    parser.add_argument("--server", default=DEFAULT_SERVER)
+    parser.add_argument("--category", choices=CATEGORIES, help="Run single category")
+    parser.add_argument("--all", action="store_true", help="Run all categories")
+    parser.add_argument("--html", action="store_true", help="Write HTML report")
+    parser.add_argument("--no-category-filter", action="store_true",
+                        help="Run without category pre-filter (tests combined index)")
+    parser.add_argument("--retrieval-only", action="store_true",
+                        help="Score on retrieved docs only, skip Ollama answer generation (much faster)")
+    parser.add_argument("--sleep", type=float, default=0.0,
+                        help="Seconds to sleep between queries (default 0; use 2.0 for Ollama full-gen mode)")
+    parser.add_argument("--timeout", type=int, default=300,
+                        help="Per-query timeout in seconds (default 300)")
+    return parser.parse_args()
+
+
+def query_rag(server: str, query: str, category: str | None, top_k: int = 5,
+              retrieval_only: bool = False, timeout: int = 300) -> dict:
+    payload: dict = {"query": query, "top_k": top_k, "stream": False}
+    if category:
+        payload["category"] = category
+    if retrieval_only:
+        payload["answer_provider"] = "none"
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        f"{server}/api/rag/query",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+    except Exception as e:
+        return {"error": str(e), "documents": [], "draft_answer": ""}
+
+
+def score_result(result: dict, case: dict, retrieval_only: bool = False) -> dict:
+    answer = (result.get("draft_answer") or "").lower()
+    docs = result.get("documents", [])
+    keywords = case.get("expected_keywords", [])
+    expected_cat = case.get("expected_category", "")
+
+    if retrieval_only:
+        # Score based on returned categories instead of answer keywords
+        returned_cats = [d.get("category", "") for d in docs]
+        cat_hits = sum(1 for c in returned_cats if c == expected_cat)
+        kw_hits = cat_hits
+        kw_score = cat_hits / len(returned_cats) if returned_cats else 0.0
+    else:
+        kw_hits = sum(1 for kw in keywords if kw.lower() in answer)
+        kw_score = kw_hits / len(keywords) if keywords else 0.0
+
+    returned_cats = [d.get("category", "") for d in docs]
+    cat_match = sum(1 for c in returned_cats if c == expected_cat) / len(returned_cats) if returned_cats else 0.0
+
+    projects = list({d.get("project_name", "") for d in docs if d.get("project_name")})
+    unique_docs = len({d.get("document_id", "") for d in docs})
+
+    return {
+        "query": case["query"],
+        "kw_score": round(kw_score, 3),
+        "kw_hits": kw_hits,
+        "kw_total": len(keywords),
+        "cat_match_rate": round(cat_match, 3),
+        "doc_count": len(docs),
+        "unique_docs": unique_docs,
+        "answer_len": len(answer),
+        "projects": projects[:3],
+        "categories_returned": returned_cats[:5],
+        "pass_kw": kw_score >= case.get("min_kw_score", 0.5),
+        "pass_docs": unique_docs >= case.get("min_docs", 1),
+        "answer_preview": answer[:120].replace("\n", " "),
+    }
+
+
+def run_category(server: str, category: str, use_filter: bool, retrieval_only: bool = False,
+                 query_sleep: float = 0.0) -> dict:
+    query_file = QUERIES_DIR / f"{category}_queries.json"
+    if not query_file.exists():
+        print(f"  [SKIP] No query file: {query_file}")
+        return {"category": category, "results": [], "avg_kw": 0.0, "pass_rate": 0.0}
+
+    cases = json.loads(query_file.read_text(encoding="utf-8"))
+    results = []
+    for case in cases:
+        cat_filter = category if use_filter else None
+        raw = query_rag(server, case["query"], cat_filter, retrieval_only=retrieval_only)
+        s = score_result(raw, case, retrieval_only=retrieval_only)
+        results.append(s)
+        if query_sleep > 0:
+            import time
+            time.sleep(query_sleep)
+        status = "PASS" if (s["pass_kw"] and s["pass_docs"]) else "FAIL"
+        print(
+            f"  [{status}] kw={s['kw_hits']}/{s['kw_total']} "
+            f"cats={s['categories_returned'][:2]} "
+            f"docs={s['unique_docs']} | {case['query'][:50]}"
+        )
+
+    avg_kw = sum(r["kw_score"] for r in results) / len(results) if results else 0.0
+    pass_rate = sum(1 for r in results if r["pass_kw"] and r["pass_docs"]) / len(results) if results else 0.0
+    return {
+        "category": category,
+        "results": results,
+        "avg_kw": round(avg_kw, 3),
+        "pass_rate": round(pass_rate, 3),
+        "query_count": len(results),
+    }
+
+
+def write_html(report: list[dict], out_path: Path) -> None:
+    rows = ""
+    for cat_data in report:
+        cat = cat_data["category"]
+        for r in cat_data["results"]:
+            status = "pass" if (r["pass_kw"] and r["pass_docs"]) else "fail"
+            rows += (
+                f'<tr class="{status}">'
+                f'<td>{cat}</td>'
+                f'<td>{r["query"]}</td>'
+                f'<td>{r["kw_hits"]}/{r["kw_total"]} ({r["kw_score"]:.0%})</td>'
+                f'<td>{r["unique_docs"]}</td>'
+                f'<td>{", ".join(r["categories_returned"][:3])}</td>'
+                f'<td>{r["answer_len"]}</td>'
+                f'</tr>\n'
+            )
+
+    summary_rows = ""
+    for cat_data in report:
+        summary_rows += (
+            f'<tr><td>{cat_data["category"]}</td>'
+            f'<td>{cat_data["query_count"]}</td>'
+            f'<td>{cat_data["avg_kw"]:.1%}</td>'
+            f'<td>{cat_data["pass_rate"]:.1%}</td></tr>\n'
+        )
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>RAG Evaluation Report — {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
+<style>
+body {{font-family: sans-serif; margin: 2rem;}}
+table {{border-collapse: collapse; width: 100%;}}
+th, td {{border: 1px solid #ccc; padding: 6px 10px; text-align: left;}}
+th {{background: #1B3A6B; color: white;}}
+tr.pass td:first-child {{border-left: 4px solid #22c55e;}}
+tr.fail td:first-child {{border-left: 4px solid #ef4444;}}
+</style></head><body>
+<h1>RAG Evaluation Report</h1>
+<p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+<h2>Summary</h2>
+<table><tr><th>Category</th><th>Queries</th><th>Avg KW Score</th><th>Pass Rate</th></tr>
+{summary_rows}</table>
+<h2>Detail</h2>
+<table><tr><th>Category</th><th>Query</th><th>KW Score</th><th>Unique Docs</th><th>Categories</th><th>Ans Len</th></tr>
+{rows}</table>
+</body></html>"""
+    out_path.write_text(html, encoding="utf-8")
+    print(f"\nHTML report → {out_path}")
+
+
+def main() -> None:
+    args = parse_args()
+    use_filter = not args.no_category_filter
+
+    if not args.all and not args.category:
+        args.all = True
+
+    categories = [args.category] if args.category else CATEGORIES
+    report = []
+
+    print(f"Server: {args.server}  |  category_filter={'ON' if use_filter else 'OFF'}")
+    print("=" * 70)
+
+    retrieval_only = getattr(args, 'retrieval_only', False)
+    query_sleep = getattr(args, 'sleep', 0.0)
+    for cat in categories:
+        print(f"\n[{cat.upper()}]")
+        cat_data = run_category(args.server, cat, use_filter, retrieval_only=retrieval_only,
+                                query_sleep=query_sleep)
+        report.append(cat_data)
+        print(f"  → avg_kw={cat_data['avg_kw']:.1%}  pass_rate={cat_data['pass_rate']:.0%}")
+
+    print("\n" + "=" * 70)
+    print("OVERALL SUMMARY")
+    total_q = sum(c["query_count"] for c in report)
+    overall_kw = sum(c["avg_kw"] * c["query_count"] for c in report) / total_q if total_q else 0
+    overall_pass = sum(c["pass_rate"] * c["query_count"] for c in report) / total_q if total_q else 0
+    print(f"  Total queries : {total_q}")
+    print(f"  Avg KW score  : {overall_kw:.1%}")
+    print(f"  Pass rate     : {overall_pass:.0%}")
+
+    out = Path(__file__).parent / f"eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\nResults saved → {out}")
+
+    if args.html:
+        write_html(report, Path(__file__).parent / "report.html")
+
+
+if __name__ == "__main__":
+    main()

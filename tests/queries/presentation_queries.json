@@ -1,0 +1,72 @@
+[
+  {
+    "query": "ISP 중간보고 발표 슬라이드 구성",
+    "expected_keywords": ["중간보고", "발표", "슬라이드"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.67,
+    "min_docs": 1
+  },
+  {
+    "query": "최종보고회 발표자료 핵심 메시지",
+    "expected_keywords": ["최종보고", "발표", "메시지"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.67,
+    "min_docs": 1
+  },
+  {
+    "query": "발표 자료 현황 분석 요약",
+    "expected_keywords": ["발표", "현황", "분석", "요약"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "보고회 발표 주요 전략 방향",
+    "expected_keywords": ["보고회", "전략", "방향", "발표"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "ISP ISMP 발표 슬라이드 목차",
+    "expected_keywords": ["isp", "발표", "슬라이드", "목차"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "컨설팅 중간보고 Q&A 주요 내용",
+    "expected_keywords": ["중간보고", "컨설팅", "주요"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.33,
+    "min_docs": 1
+  },
+  {
+    "query": "발주기관 보고 주요 의사결정 사항",
+    "expected_keywords": ["보고", "의사결정", "발주"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.33,
+    "min_docs": 1
+  },
+  {
+    "query": "전략 과제 우선순위 발표 내용",
+    "expected_keywords": ["전략", "우선순위", "발표", "과제"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "보고 자료 개선 방향 및 로드맵 제시",
+    "expected_keywords": ["개선", "로드맵", "보고"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.33,
+    "min_docs": 1
+  },
+  {
+    "query": "AX ISP ISMP 중간 발표 성과 및 진도",
+    "expected_keywords": ["ax", "isp", "발표", "성과"],
+    "expected_category": "presentation",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  }
+]

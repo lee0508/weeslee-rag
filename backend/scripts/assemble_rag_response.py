@@ -74,7 +74,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--embedding-dim", type=int, default=768)
     parser.add_argument("--ollama-embed-url", default="http://127.0.0.1:11434/api/embeddings")
     parser.add_argument("--ollama-embed-model", default="")
-    parser.add_argument("--answer-provider", choices=["ollama", "openai", "gemini", "openrouter"], default="ollama")
+    parser.add_argument("--answer-provider", choices=["ollama", "openai", "gemini", "openrouter", "none"], default="ollama")
     parser.add_argument("--answer-model", default="")
     parser.add_argument("--ollama-generate-url", default="http://127.0.0.1:11434/api/generate")
     parser.add_argument("--openai-url", default="https://api.openai.com/v1/chat/completions")
@@ -491,7 +491,7 @@ def generate_with_openrouter(prompt: str, model: str, url: str) -> str:
 
 
 def generate_answer(prompt: str, args: argparse.Namespace) -> str:
-    if not args.answer_model:
+    if not args.answer_model or args.answer_provider == "none":
         return ""
     if args.answer_provider == "ollama":
         return generate_with_ollama(prompt, args.answer_model, args.ollama_generate_url)

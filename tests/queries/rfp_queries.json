@@ -1,0 +1,72 @@
+[
+  {
+    "query": "ISP 사업 제안요청서 요구사항 항목",
+    "expected_keywords": ["요구사항", "rfp", "과업", "제안요청"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "정보화전략계획 수립 과업 범위",
+    "expected_keywords": ["isp", "과업", "범위", "정보화"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "발주처 사업 목적 및 배경",
+    "expected_keywords": ["목적", "배경", "사업", "발주"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "제안요청서 입찰 참가자격 조건",
+    "expected_keywords": ["입찰", "참가", "자격", "제안"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "컨설팅 과업 일정 납품 기한",
+    "expected_keywords": ["일정", "납품", "과업", "기한"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "사업 예산 규모 및 계약 방식",
+    "expected_keywords": ["예산", "계약", "사업", "규모"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "RFP 기술 요구사항 핵심 항목",
+    "expected_keywords": ["기술", "요구사항", "rfp", "항목"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "스마트댐 안전관리 플랫폼 제안요청서",
+    "expected_keywords": ["스마트", "안전", "플랫폼", "rfp"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.25,
+    "min_docs": 1
+  },
+  {
+    "query": "ISP ISMP 수행 방법론 제안요청 기준",
+    "expected_keywords": ["방법론", "ismp", "isp", "기준"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "국가 정보화전략계획 수립 지침 및 기준",
+    "expected_keywords": ["지침", "기준", "정보화", "국가"],
+    "expected_category": "rfp",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "query": "ISP 컨설팅 제안서 방법론 구성",
+    "expected_keywords": ["방법론", "제안서", "isp", "컨설팅"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "AX 전환 전략 제안 핵심 내용",
+    "expected_keywords": ["ax", "전환", "전략", "제안"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "프로젝트 수행 계획 및 팀 구성",
+    "expected_keywords": ["수행", "계획", "팀", "구성"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "제안사 유사 수행 실적 레퍼런스",
+    "expected_keywords": ["실적", "레퍼런스", "수행", "제안"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "컨설팅 제안서 차별화 포인트 및 강점",
+    "expected_keywords": ["차별화", "강점", "제안서", "컨설팅"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "공공기관 정보화 컨설팅 제안 전략",
+    "expected_keywords": ["공공기관", "정보화", "컨설팅", "전략"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "ISP ISMP 제안서 추진 배경 및 목적",
+    "expected_keywords": ["추진", "배경", "제안서", "목적"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "디지털 전환 현황 분석 및 개선 방향",
+    "expected_keywords": ["디지털", "전환", "현황", "개선"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "법무부 성범죄백서 이행 제안",
+    "expected_keywords": ["법무부", "성범죄", "이행", "제안"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "사업 추진 일정 및 마일스톤",
+    "expected_keywords": ["일정", "마일스톤", "추진", "사업"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  }
+]

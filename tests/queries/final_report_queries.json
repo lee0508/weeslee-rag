@@ -1,0 +1,72 @@
+[
+  {
+    "query": "ISP 최종 산출물 목차 구성",
+    "expected_keywords": ["최종", "산출물", "목차", "isp"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "정보화전략 이행계획서 주요 과제",
+    "expected_keywords": ["이행", "과제", "정보화", "계획"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "최종보고서 전략 과제 우선순위",
+    "expected_keywords": ["전략", "과제", "우선순위", "최종"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.75,
+    "min_docs": 1
+  },
+  {
+    "query": "ISP ISMP 최종 결과물 권고사항",
+    "expected_keywords": ["결과물", "권고", "isp", "ismp"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "K-water 데이터허브 ISP 추진 전략",
+    "expected_keywords": ["k-water", "데이터", "isp", "전략"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "현황 분석 결과 주요 이슈 도출",
+    "expected_keywords": ["현황", "분석", "이슈", "도출"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "정보화 아키텍처 목표 체계",
+    "expected_keywords": ["아키텍처", "목표", "정보화", "체계"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "데이터 거버넌스 전략 및 로드맵",
+    "expected_keywords": ["데이터", "거버넌스", "전략", "로드맵"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "디지털 전환 추진 로드맵 단계별 계획",
+    "expected_keywords": ["디지털", "전환", "로드맵", "단계"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  },
+  {
+    "query": "공공기관 ISP 3개년 이행 과제",
+    "expected_keywords": ["공공기관", "이행", "과제", "isp"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1
+  }
+]
