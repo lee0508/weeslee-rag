@@ -119,12 +119,6 @@
       border-radius: 12px;
     }
 
-    .app-body {
-      display: flex;
-      margin-top: var(--top);
-      height: calc(100vh - var(--top));
-      overflow: hidden;
-    }
 
     .sidebar {
       width: var(--sidebar);
@@ -619,6 +613,231 @@
     .doc-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
     .copy-feedback { color: var(--good); font-size: 11px; }
 
+    /* ── Main tab panels ───────────────────────────────────────────── */
+    .main-tab-panel {
+      display: none;
+      margin-top: var(--top);
+      height: calc(100vh - var(--top));
+      overflow: hidden;
+    }
+    .main-tab-panel.active { display: flex; }
+    .main-tab-panel.app-body { flex-direction: row; }
+
+    /* ── Knowledge Search ──────────────────────────────────────────── */
+    .knowledge-panel { flex-direction: row; }
+    .ks-sidebar {
+      width: var(--sidebar);
+      flex-shrink: 0;
+      background: var(--navy);
+      overflow-y: auto;
+      border-right: 2px solid var(--navy-m);
+      padding: 16px;
+    }
+    .ks-sidebar-inner { display: flex; flex-direction: column; gap: 12px; }
+    .ks-field { display: flex; flex-direction: column; gap: 4px; }
+    .ks-field label {
+      color: var(--gray-400);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+    .ks-field input, .ks-field select {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: var(--navy-m);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--white);
+      font-size: 13px;
+      outline: none;
+      font-family: var(--font);
+    }
+    .ks-hint {
+      color: var(--gray-400);
+      font-size: 12px;
+      line-height: 1.6;
+      margin-top: 6px;
+      padding: 8px;
+      background: rgba(255,255,255,.04);
+      border-radius: 6px;
+    }
+    .ks-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--gray-50);
+    }
+    .ks-search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      flex-shrink: 0;
+    }
+    .ks-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+      background: var(--gray-50);
+      font-size: 15px;
+      color: var(--text);
+      outline: none;
+      font-family: var(--font);
+    }
+    .ks-input:focus { border-color: var(--navy-m); background: var(--white); }
+    .ks-status { font-size: 13px; color: var(--text-s); white-space: nowrap; }
+    .ks-results {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      align-content: start;
+    }
+    .ks-empty {
+      grid-column: 1 / -1;
+      color: var(--text-s);
+      font-size: 14px;
+      text-align: center;
+      margin-top: 60px;
+    }
+    .ks-doc-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ks-doc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .ks-doc-title { font-weight: 700; font-size: 13px; color: var(--navy); }
+    .ks-doc-meta { display: flex; gap: 8px; flex-wrap: wrap; color: var(--text-s); font-size: 11px; }
+    .ks-doc-chip {
+      background: var(--navy-l);
+      color: var(--navy);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .ks-doc-snippets { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ks-snippet {
+      background: var(--gray-100);
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      padding: 3px 7px;
+      font-size: 11px;
+      color: var(--text);
+    }
+    .ks-doc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ks-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--gray-200);
+      background: var(--white);
+      color: var(--navy);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .ks-link:hover { background: var(--navy-l); }
+
+    /* ── Answer Review ──────────────────────────────────────────────── */
+    .review-panel { flex-direction: row; }
+    .rv-list-wrap {
+      width: 360px;
+      flex-shrink: 0;
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      border-right: 2px solid var(--navy-m);
+    }
+    .rv-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 10px;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .rv-count { font-size: 12px; color: var(--amber); font-weight: 700; }
+    .rv-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .rv-empty { color: var(--gray-400); font-size: 13px; line-height: 1.7; padding: 20px 8px; text-align: center; }
+    .rv-item {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .rv-item:hover { background: rgba(255,255,255,.09); }
+    .rv-item.active { background: rgba(232,151,31,.12); border-color: rgba(232,151,31,.35); }
+    .rv-item-query {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--white);
+      line-height: 1.5;
+      margin-bottom: 5px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .rv-item-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--gray-400); }
+    .rv-detail-wrap { flex: 1; display: flex; flex-direction: column; background: var(--gray-50); overflow: hidden; }
+    .rv-detail { flex: 1; overflow-y: auto; padding: 20px; }
+    .rv-detail-empty { color: var(--text-s); font-size: 14px; text-align: center; margin-top: 80px; }
+    .rv-detail-query {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+    .rv-detail-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-bottom: 6px;
+    }
+    .rv-detail-text { font-size: 14px; color: var(--text); line-height: 1.7; }
+    .rv-answer-block {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+    .rv-answer-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .rv-docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
     @media (max-width: 1180px) {
       .sidebar { width: 280px; }
       .right-panel { width: 320px; }
@@ -631,12 +850,12 @@
         padding: 12px;
         flex-wrap: wrap;
       }
-      .app-body {
+      .main-tab-panel, .main-tab-panel.active {
         margin-top: 0;
         height: auto;
         display: block;
       }
-      .sidebar, .right-panel {
+      .sidebar, .right-panel, .ks-sidebar, .rv-list-wrap {
         width: auto;
         border: none;
       }
@@ -654,9 +873,9 @@
       <div class="logo-badge">WEESLEE RAG WORKSPACE</div>
     </div>
     <div class="topnav-tabs">
-      <button class="topnav-tab active">RAG Assistant</button>
-      <button class="topnav-tab">Knowledge Search</button>
-      <button class="topnav-tab">Answer Review</button>
+      <button class="topnav-tab active" onclick="switchMainTab('rag')">RAG Assistant</button>
+      <button class="topnav-tab" onclick="switchMainTab('knowledge')">Knowledge Search</button>
+      <button class="topnav-tab" onclick="switchMainTab('review')">Answer Review</button>
     </div>
     <div class="topnav-right">
       <span class="topnav-badge">Live</span>
@@ -664,7 +883,7 @@
     </div>
   </nav>
 
-  <div class="app-body">
+  <div id="mainTab-rag" class="main-tab-panel active app-body">
     <aside class="sidebar">
       <div class="sidebar-section">
         <div class="sidebar-label">Runtime Target</div>
@@ -686,6 +905,15 @@
           </div>
         </div>
         <div class="sidebar-controls">
+          <div>
+            <label for="searchMode">Search Mode</label>
+            <select id="searchMode" onchange="onSearchModeChange()">
+              <option value="general">General RAG</option>
+              <option value="bid_project">Bid Project Search</option>
+              <option value="rfp_analysis">RFP Analysis</option>
+            </select>
+          </div>
+          <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
           <div>
             <label for="topK">Top K</label>
             <input id="topK" type="number" min="5" max="50" value="20">
@@ -810,6 +1038,71 @@
     </aside>
   </div>
 
+  <!-- ── Knowledge Search Tab ─────────────────────────────────────────── -->
+  <div id="mainTab-knowledge" class="main-tab-panel knowledge-panel">
+    <div class="ks-sidebar">
+      <div class="ks-sidebar-inner">
+        <div class="sidebar-label" style="color:var(--gray-400);margin-bottom:12px;">검색 조건</div>
+        <div class="ks-field">
+          <label>검색 모드</label>
+          <select id="kSearchMode">
+            <option value="general">General RAG</option>
+            <option value="bid_project">Bid Project</option>
+            <option value="rfp_analysis">RFP Analysis</option>
+          </select>
+        </div>
+        <div class="ks-field">
+          <label>카테고리</label>
+          <select id="kCategory">
+            <option value="">전체</option>
+            <option value="rfp">RFP</option>
+            <option value="proposal">Proposal</option>
+            <option value="kickoff">Kickoff</option>
+            <option value="final_report">Final Report</option>
+            <option value="presentation">Presentation</option>
+          </select>
+        </div>
+        <div class="ks-field">
+          <label>Top K (청크 수)</label>
+          <input id="kTopK" type="number" min="5" max="50" value="20">
+        </div>
+        <div class="ks-field">
+          <label>Top Docs (문서 수)</label>
+          <input id="kTopDocs" type="number" min="3" max="20" value="8">
+        </div>
+        <div class="ks-hint">답변 생성 없이 관련 문서만 검색합니다.</div>
+      </div>
+    </div>
+    <div class="ks-main">
+      <div class="ks-search-bar">
+        <input id="kQuery" class="ks-input" type="text" placeholder="사업명, 키워드, 업무 영역 입력...">
+        <button class="btn btn-primary" onclick="runKnowledgeSearch()">검색</button>
+        <span class="ks-status" id="kStatus"></span>
+      </div>
+      <div id="kResults" class="ks-results">
+        <div class="ks-empty">검색어를 입력하고 검색 버튼을 누르세요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Answer Review Tab ────────────────────────────────────────────── -->
+  <div id="mainTab-review" class="main-tab-panel review-panel">
+    <div class="rv-list-wrap">
+      <div class="rv-list-header">
+        <span class="sidebar-label" style="color:var(--gray-400);">세션 기록</span>
+        <span class="rv-count" id="rvCount">0개</span>
+      </div>
+      <div id="rvList" class="rv-list">
+        <div class="rv-empty">아직 실행된 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.</div>
+      </div>
+    </div>
+    <div class="rv-detail-wrap">
+      <div id="rvDetail" class="rv-detail">
+        <div class="rv-detail-empty">좌측 목록에서 항목을 선택하세요.</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     function detectApiBase() {
       if (window.__API_BASE__) {
@@ -880,46 +1173,50 @@
     }
 
     async function loadHealth() {
-      const healthUrls = [
-        `${API_BASE}/health/all`,
-        API_BASE.replace(/\/api$/, '') + '/health/all'
-      ];
-
       try {
-        let data = null;
-        let lastError = null;
+        const response = await fetch(`${API_BASE}/health/all`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
 
-        for (const url of healthUrls) {
-          try {
-            const response = await fetch(url);
-            if (!response.ok) {
-              throw new Error(`${response.status} ${response.statusText}`);
-            }
-            data = await response.json();
-            break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
+        // ── API / overall status ──────────────────────────────────────────
+        const overall = data.status || 'unknown';
+        const apiEl = document.getElementById('apiStatus');
+        apiEl.textContent = overall;
+        apiEl.className = `value ${overall === 'healthy' ? 'ok' : 'warn'}`;
 
-        if (!data) {
-          throw lastError || new Error('Health endpoint not reachable');
-        }
-
-        const ragHealthy = data.components?.ollama?.status === 'healthy';
-        document.getElementById('apiStatus').textContent = ragHealthy ? 'healthy' : 'degraded';
-        document.getElementById('apiStatus').className = `value ${ragHealthy ? 'ok' : 'warn'}`;
+        // ── FAISS index status ────────────────────────────────────────────
+        const faiss = data.components?.faiss || {};
+        const snapshotShort = faiss.snapshot
+          ? faiss.snapshot.replace(/^snapshot_/, '').replace(/_v\d+$/, '')
+          : '-';
+        const chunkLabel = faiss.chunk_count ? ` (${faiss.chunk_count.toLocaleString()} chunks)` : '';
         document.getElementById('vectorStatus').textContent =
-          data.components?.faiss?.snapshot?.split('_').slice(-1)[0] ||
-          data.components?.vectordb?.status ||
-          '-';
-        document.getElementById('ollamaStatus').textContent = data.components?.ollama?.status || '-';
+          faiss.index_exists ? snapshotShort + chunkLabel : '인덱스 없음';
+
+        // ── Ollama status ─────────────────────────────────────────────────
+        const ollama = data.components?.ollama || {};
+        const ollamaEl = document.getElementById('ollamaStatus');
+        ollamaEl.textContent = ollama.status || '-';
+        ollamaEl.className = `value ${ollama.status === 'healthy' ? 'ok' : 'warn'}`;
+
       } catch (error) {
         document.getElementById('apiStatus').textContent = 'offline';
+        document.getElementById('apiStatus').className = 'value warn';
         document.getElementById('vectorStatus').textContent = '-';
         document.getElementById('ollamaStatus').textContent = '-';
-        document.getElementById('queryStatus').textContent = `Health check failed: ${error.message}`;
+        document.getElementById('queryStatus').textContent = `서버 연결 실패: ${error.message}`;
       }
+    }
+
+    const _MODE_HINTS = {
+      bid_project: '나라장터 사업명 → 키워드 자동 확장.<br>proposal → final_report → presentation 우선순위 적용.',
+      rfp_analysis: 'RFP / 과업지시서 내용 분석.<br>rfp → kickoff → proposal 우선순위 적용.',
+    };
+    function onSearchModeChange() {
+      const mode = document.getElementById('searchMode').value;
+      const hint = document.getElementById('bidHint');
+      hint.innerHTML = _MODE_HINTS[mode] || '';
+      hint.style.display = _MODE_HINTS[mode] ? '' : 'none';
     }
 
     async function runQuery() {
@@ -930,6 +1227,7 @@
       const category = document.getElementById('category').value;
       const answerProvider = document.getElementById('answerProvider').value;
       const answerModel = document.getElementById('answerModel').value.trim() || 'gemma4:latest';
+      const searchMode = document.getElementById('searchMode').value;
       const status = document.getElementById('queryStatus');
 
       syncAnswerModeLabel();
@@ -954,6 +1252,7 @@
             max_chunks_per_doc: maxChunks,
             answer_provider: answerProvider,
             answer_model: answerProvider === 'none' ? '' : answerModel,
+            mode: searchMode,
             ...(category ? { category } : {})
           })
         });
@@ -970,10 +1269,12 @@
           return;
         }
 
-        status.textContent = `Done. Top ${data.documents?.length || 0} documents ranked.`;
+        const expandedNote = data.expanded_query ? ` (확장: ${data.expanded_query.slice(0, 60)}...)` : '';
+        status.textContent = `Done. Top ${data.documents?.length || 0} documents ranked.${expandedNote}`;
         document.getElementById('draftPanel').textContent = data.draft_answer || '(no draft answer)';
         renderResultPanel(data);
         renderResults(data.documents || []);
+        pushHistory(query, data);
         switchAnswerTab('draft');
       } catch (error) {
         status.textContent = `Query failed: ${error.message}`;
@@ -991,15 +1292,18 @@
       results.innerHTML = renderDocumentCards(documents, true);
     }
 
-    function renderSourcePathLink(sourcePath) {
+    function renderSourcePathLink(sourcePath, inputPath) {
       if (!sourcePath) return '';
-      const dl = `${API_BASE}/files/download?path=${encodeURIComponent(sourcePath)}`;
+      // inputPath = server-local snapshot copy; sourcePath = original W:\ label
+      const dlPath = inputPath || sourcePath;
+      const dl = `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}`;
       return `<a class="source-path-link" href="${escapeHtml(dl)}" download title="${escapeHtml(sourcePath)}">${escapeHtml(sourcePath)}</a>`;
     }
 
-    function renderOpenFileAction(sourcePath) {
+    function renderOpenFileAction(sourcePath, inputPath) {
       if (!sourcePath) return '';
-      const downloadUrl = `${API_BASE}/files/download?path=${encodeURIComponent(sourcePath)}`;
+      const dlPath = inputPath || sourcePath;
+      const downloadUrl = `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}`;
       return `
         <div class="doc-actions">
           <a class="doc-link" href="${escapeHtml(downloadUrl)}" download>Download</a>
@@ -1052,12 +1356,12 @@
             </div>
             <div class="badge">${doc.category}</div>
           </div>
-          <div class="meta">${renderSourcePathLink(doc.source_path)}</div>
+          <div class="meta">${renderSourcePathLink(doc.source_path, doc.input_path)}</div>
           <div>${(doc.reasons || []).map(r => `- ${escapeHtml(r)}`).join('<br>')}</div>
           <div class="chips">
             ${(doc.evidence_snippets || []).slice(0, compact ? 3 : undefined).map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
           </div>
-          ${renderOpenFileAction(doc.source_path)}
+          ${renderOpenFileAction(doc.source_path, doc.input_path)}
         </div>
       `).join('');
     }
@@ -1070,6 +1374,194 @@
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
     }
+
+    // ── Main tab switching ────────────────────────────────────────────
+    function switchMainTab(name) {
+      document.querySelectorAll('.topnav-tab').forEach((btn, i) => {
+        const tabs = ['rag', 'knowledge', 'review'];
+        btn.classList.toggle('active', tabs[i] === name);
+      });
+      document.querySelectorAll('.main-tab-panel').forEach(panel => {
+        const id = panel.id; // e.g. "mainTab-rag"
+        panel.classList.toggle('active', id === `mainTab-${name}`);
+      });
+      if (name === 'review') renderReviewList();
+    }
+
+    // ── Knowledge Search ──────────────────────────────────────────────
+    async function runKnowledgeSearch() {
+      const query = document.getElementById('kQuery').value.trim();
+      const category = document.getElementById('kCategory').value;
+      const topK = parseInt(document.getElementById('kTopK').value || '20', 10);
+      const topDocs = parseInt(document.getElementById('kTopDocs').value || '8', 10);
+      const kMode = document.getElementById('kSearchMode').value;
+      const status = document.getElementById('kStatus');
+      const results = document.getElementById('kResults');
+
+      if (!query) { status.textContent = '검색어를 입력하세요.'; return; }
+
+      status.textContent = '검색 중...';
+      results.innerHTML = '';
+
+      try {
+        const response = await fetch(`${API_BASE}/rag/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            top_k: topK,
+            top_docs: topDocs,
+            max_chunks_per_doc: 3,
+            answer_provider: 'none',
+            answer_model: '',
+            mode: kMode,
+            ...(category ? { category } : {})
+          })
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const docs = data.documents || [];
+        status.textContent = docs.length ? `${docs.length}개 문서 검색됨` : '검색 결과 없음';
+        results.innerHTML = docs.length
+          ? docs.map(doc => renderKsCard(doc)).join('')
+          : '<div class="ks-empty">관련 문서를 찾지 못했습니다.</div>';
+      } catch (err) {
+        status.textContent = `오류: ${err.message}`;
+        results.innerHTML = `<div class="ks-empty">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderKsCard(doc) {
+      const dlPath = doc.input_path || doc.source_path;
+      const downloadUrl = dlPath ? `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}` : null;
+      return `
+        <div class="ks-doc-card">
+          <div class="ks-doc-head">
+            <div class="ks-doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</div>
+            <span class="ks-doc-chip">${escapeHtml(doc.category || '-')}</span>
+          </div>
+          <div class="ks-doc-meta">
+            <span>${escapeHtml(doc.document_id)}</span>
+            <span>score: ${Number(doc.best_score).toFixed(4)}</span>
+            <span>hits: ${doc.hit_count}</span>
+          </div>
+          ${doc.source_path ? `<div style="font-size:11px;color:var(--text-s);word-break:break-all;">${escapeHtml(doc.source_path)}</div>` : ''}
+          ${(doc.evidence_snippets || []).length ? `
+            <div class="ks-doc-snippets">
+              ${doc.evidence_snippets.slice(0, 4).map(s => `<span class="ks-snippet">${escapeHtml(s)}</span>`).join('')}
+            </div>` : ''}
+          ${downloadUrl ? `
+            <div class="ks-doc-actions">
+              <a class="ks-link" href="${escapeHtml(downloadUrl)}" download>다운로드</a>
+              <button class="ks-link" type="button" data-copy-path="${escapeHtml(doc.source_path || '')}" onclick="copyPath(this)">경로 복사</button>
+            </div>` : ''}
+        </div>`;
+    }
+
+    document.getElementById('kQuery').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runKnowledgeSearch();
+    });
+
+    // ── Answer Review ─────────────────────────────────────────────────
+    const _queryHistory = [];
+    let _selectedReviewIdx = -1;
+
+    function pushHistory(query, data) {
+      _queryHistory.unshift({
+        ts: new Date(),
+        query,
+        docCount: data.documents?.length || 0,
+        topDoc: data.documents?.[0]?.project_name || data.documents?.[0]?.document_id || '-',
+        answer: data.draft_answer || '',
+        documents: data.documents || [],
+      });
+    }
+
+    function renderReviewList() {
+      const list = document.getElementById('rvList');
+      const count = document.getElementById('rvCount');
+      count.textContent = `${_queryHistory.length}개`;
+      if (!_queryHistory.length) {
+        list.innerHTML = '<div class="rv-empty">아직 실행된 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.</div>';
+        return;
+      }
+      list.innerHTML = _queryHistory.map((item, i) => `
+        <div class="rv-item ${i === _selectedReviewIdx ? 'active' : ''}" onclick="selectReviewItem(${i})">
+          <div class="rv-item-query">${escapeHtml(item.query)}</div>
+          <div class="rv-item-meta">
+            <span>${item.ts.toLocaleTimeString('ko-KR')}</span>
+            <span>문서 ${item.docCount}개</span>
+            <span>${escapeHtml(item.topDoc)}</span>
+          </div>
+        </div>`).join('');
+    }
+
+    function selectReviewItem(idx) {
+      _selectedReviewIdx = idx;
+      const item = _queryHistory[idx];
+      const detail = document.getElementById('rvDetail');
+      const dlDocs = item.documents.map(doc => {
+        const dlPath = doc.input_path || doc.source_path;
+        const downloadUrl = dlPath ? `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}` : null;
+        return `
+          <div class="ks-doc-card">
+            <div class="ks-doc-head">
+              <div class="ks-doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</div>
+              <span class="ks-doc-chip">${escapeHtml(doc.category || '-')}</span>
+            </div>
+            <div class="ks-doc-meta">
+              <span>${escapeHtml(doc.document_id)}</span>
+              <span>score: ${Number(doc.best_score).toFixed(4)}</span>
+            </div>
+            ${downloadUrl ? `<div class="ks-doc-actions"><a class="ks-link" href="${escapeHtml(downloadUrl)}" download>다운로드</a></div>` : ''}
+          </div>`;
+      }).join('');
+
+      detail.innerHTML = `
+        <div class="rv-detail-query">
+          <div class="rv-detail-label">쿼리</div>
+          <div class="rv-detail-text">${escapeHtml(item.query)}</div>
+          <div class="rv-item-meta" style="margin-top:8px;">
+            <span>${item.ts.toLocaleString('ko-KR')}</span>
+            <span>문서 ${item.docCount}개</span>
+          </div>
+        </div>
+        ${item.answer ? `
+          <div class="rv-answer-block">
+            <div class="rv-detail-label">Draft Answer</div>
+            <div class="rv-detail-text" style="white-space:pre-wrap;">${escapeHtml(item.answer)}</div>
+            <div class="rv-answer-actions">
+              <button class="ks-link" type="button" onclick="copyAnswer(${idx})">답변 복사</button>
+            </div>
+          </div>` : '<div class="rv-answer-block"><div class="rv-detail-label">Draft Answer</div><div class="rv-detail-text" style="color:var(--text-s);">검색 전용 모드 — 답변 없음</div></div>'}
+        ${item.documents.length ? `
+          <div class="rv-detail-label" style="margin-bottom:10px;">참조 문서 (${item.documents.length}개)</div>
+          <div class="rv-docs-grid">${dlDocs}</div>` : ''}
+      `;
+      renderReviewList();
+    }
+
+    function copyAnswer(idx) {
+      const answer = _queryHistory[idx]?.answer || '';
+      const done = () => {};
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(answer).then(done).catch(() => _fallbackCopy(answer, done));
+      } else {
+        _fallbackCopy(answer, done);
+      }
+    }
+
+    // ── URL param pre-fill (e.g. from Graph View click) ──────────────
+    (function applyUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q');
+      const mode = params.get('mode');
+      if (q) document.getElementById('query').value = decodeURIComponent(q);
+      if (mode && ['general', 'bid_project', 'rfp_analysis'].includes(mode)) {
+        document.getElementById('searchMode').value = mode;
+        onSearchModeChange();
+      }
+    })();
 
     document.getElementById('answerProvider').addEventListener('change', syncAnswerModeLabel);
     syncAnswerModeLabel();

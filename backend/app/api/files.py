@@ -63,14 +63,23 @@ def _resolve(source_path: str) -> Path | None:
     if not p:
         return None
 
-    # Linux absolute path — must be within data/raw/
+    # Linux absolute path — must be within data/raw/ or PROJECT_ROOT
     if p.startswith('/'):
         try:
             resolved = Path(p).resolve()
             if resolved.is_file():
-                resolved.relative_to(_RAW_DIR)
-                return resolved
-        except (ValueError, OSError):
+                # Accept paths inside data/raw/ or the project data directory
+                _DATA_DIR = _RAW_DIR.parent
+                try:
+                    resolved.relative_to(_RAW_DIR)
+                    return resolved
+                except ValueError:
+                    try:
+                        resolved.relative_to(_DATA_DIR)
+                        return resolved
+                    except ValueError:
+                        pass
+        except OSError:
             pass
 
     # Windows drive-letter path: W:\path\to\file  or  C:/path/to/file

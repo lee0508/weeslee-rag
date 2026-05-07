@@ -155,8 +155,17 @@ async def run_pipeline(job_id: str) -> None:
         if rc != 0:
             emit(90, "카테고리 인덱스", "경고: build_category_indexes.py 실패 (비필수)")
 
-        # ── Stage 6: 완료 알림 (95%) ──────────────────────────────────────
-        emit(95, "준비 완료", f"인덱스 준비됨: {snapshot} — admin에서 Activate 하세요.")
+        # ── Stage 6: 그래프 빌드 (94%) ───────────────────────────────────
+        emit(94, "그래프 데이터 빌드 중...")
+        rc = await _run_script(
+            ["build_graph_jsonl.py", "--snapshot", snapshot],
+            emit, 94, 96,
+        )
+        if rc != 0:
+            emit(94, "그래프 빌드", "경고: build_graph_jsonl.py 실패 (비필수)")
+
+        # ── Stage 7: 완료 알림 (97%) ──────────────────────────────────────
+        emit(97, "준비 완료", f"인덱스 준비됨: {snapshot} — admin에서 Activate 하세요.")
 
         job["status"] = "completed"
         emit(100, "완료")

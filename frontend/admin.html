@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FAISS Index Management Console</title>
+  <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -51,7 +52,7 @@
     .layout {
       display: grid;
       grid-template-columns: 380px 1fr;
-      height: calc(100vh - 53px);
+      height: calc(100vh - 93px);
     }
     .sidebar {
       border-right: 1px solid var(--border);
@@ -204,6 +205,78 @@
     }
     .cat-pill.ok  { background: rgba(34,197,94,.15); color: var(--green); }
     .cat-pill.no  { background: rgba(239,68,68,.12);  color: var(--red); }
+
+    /* ── Tab nav ── */
+    .tab-nav {
+      background: var(--navy-dark); border-bottom: 1px solid var(--border);
+      display: flex; gap: 0; padding: 0 24px;
+    }
+    .tab-btn {
+      padding: 10px 18px; font-size: 12px; font-weight: 600;
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: flex; flex: 1; height: calc(100vh - 93px); overflow: hidden; }
+
+    /* ── Graph View ── */
+    .graph-layout {
+      display: grid; grid-template-columns: 260px 1fr 280px;
+      width: 100%; height: 100%;
+    }
+    .graph-projects {
+      border-right: 1px solid var(--border);
+      overflow-y: auto; padding: 12px;
+    }
+    .graph-projects h3 { font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; padding: 0 4px; }
+    .proj-item {
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      font-size: 12px; margin-bottom: 4px; border: 1px solid transparent;
+    }
+    .proj-item:hover { background: var(--surface); }
+    .proj-item.selected { background: var(--surface); border-color: var(--amber); }
+    .proj-item .proj-name { font-weight: 600; word-break: break-all; }
+    .proj-item .proj-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    #cyCanvas { width: 100%; flex: 1; background: var(--bg); min-height: 0; }
+
+    .graph-detail {
+      border-left: 1px solid var(--border);
+      padding: 16px; overflow-y: auto;
+    }
+    .graph-detail h3 { font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; }
+    .detail-type {
+      display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px;
+      border-radius: 4px; margin-bottom: 10px; background: var(--navy-light); color: #fff;
+    }
+    .detail-label { font-size: 14px; font-weight: 700; margin-bottom: 12px; word-break: break-all; }
+    .detail-row {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      font-size: 11px; padding: 4px 0; border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-key { color: var(--muted); flex-shrink: 0; }
+    .detail-val { color: var(--text); text-align: right; word-break: break-all; }
+    .graph-rag-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+    .graph-rag-btn {
+      display: inline-flex; align-items: center; padding: 5px 12px;
+      border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
+      background: rgba(232,151,31,.12); border: 1px solid rgba(232,151,31,.4);
+      color: var(--amber); text-decoration: none;
+    }
+    .graph-rag-btn:hover { background: rgba(232,151,31,.22); }
+
+    .graph-toolbar {
+      padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .graph-center-col { display: flex; flex-direction: column; overflow: hidden; }
+    .graph-empty { display: flex; align-items: center; justify-content: center;
+      height: 100%; color: var(--muted); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -220,6 +293,14 @@
   </div>
 </header>
 
+<!-- Tab navigation -->
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('faiss')">FAISS Index</button>
+  <button class="tab-btn" onclick="switchTab('graph')">Graph View</button>
+</nav>
+
+<!-- FAISS tab -->
+<div id="tab-faiss" class="tab-panel active" style="flex-direction:column">
 <div class="layout">
 
   <!-- Sidebar -->
@@ -310,9 +391,54 @@
 
   </main>
 </div>
+</div><!-- /tab-faiss -->
+
+<!-- Graph View tab -->
+<div id="tab-graph" class="tab-panel">
+  <div class="graph-layout">
+
+    <!-- Left: project list -->
+    <div class="graph-projects">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h3 style="margin-bottom:0">프로젝트</h3>
+        <button class="btn btn-outline btn-sm" onclick="buildGraph()" id="buildBtn">⚙ Build</button>
+      </div>
+      <div id="graphSummary" style="font-size:11px;color:var(--muted);margin-bottom:10px"></div>
+      <div id="projectList"><div class="empty">그래프 데이터 없음<br>Build 버튼을 눌러 생성하세요.</div></div>
+    </div>
+
+    <!-- Center: Cytoscape canvas -->
+    <div class="graph-center-col">
+      <div class="graph-toolbar">
+        <span id="graphTitle" style="font-size:12px;font-weight:600;color:var(--muted)">프로젝트를 선택하세요</span>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="cy && cy.fit()">⊞ Fit</button>
+          <button class="btn btn-outline btn-sm" onclick="cy && cy.reset()">↺ Reset</button>
+        </div>
+      </div>
+      <div id="cyCanvas"></div>
+    </div>
+
+    <!-- Right: node detail -->
+    <div class="graph-detail">
+      <h3>노드 상세</h3>
+      <div id="nodeDetail"><div style="color:var(--muted);font-size:12px">노드를 클릭하면 상세정보가 표시됩니다.</div></div>
+    </div>
+
+  </div>
+</div><!-- /tab-graph -->
 
 <script>
-  const API_BASE = 'http://192.168.0.207:8080/api';
+  function detectApiBase() {
+    if (window.__API_BASE__) return window.__API_BASE__;
+    const { origin, pathname, port, protocol } = window.location;
+    if (protocol === 'https:' && pathname.startsWith('/weeslee-rag/')) {
+      return `${origin}/weeslee-rag/api`;
+    }
+    if (port === '9284') return 'http://192.168.0.207:8080/api';
+    return `${origin}/api`;
+  }
+  const API_BASE = detectApiBase();
 
   // ── API ──────────────────────────────────────────────────────────────────
 
@@ -661,6 +787,246 @@
   }
 
   function refreshAll() { loadStatus(); loadIndexes(); loadJobs(); loadOllama(); loadCategoryStatus(); }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`.tab-btn[onclick="switchTab('${name}')"]`).classList.add('active');
+    document.getElementById(`tab-${name}`).classList.add('active');
+    if (name === 'graph') {
+      loadGraphSummary();
+      if (cy) cy.resize();
+    }
+  }
+
+  // ── Graph View ────────────────────────────────────────────────────────────
+
+  let cy = null;
+  let _graphProjects = [];
+
+  const CAT_COLORS = {
+    rfp: '#ef4444', proposal: '#3b82f6', kickoff: '#f59e0b',
+    presentation: '#8b5cf6', final_report: '#22c55e',
+  };
+
+  function initCytoscape() {
+    if (cy) { cy.destroy(); cy = null; }
+    cy = cytoscape({
+      container: document.getElementById('cyCanvas'),
+      style: [
+        {
+          selector: 'node[type="project"]',
+          style: {
+            'background-color': '#E8971F',
+            'label': 'data(label)',
+            'width': 70, 'height': 70,
+            'font-size': '9px', 'color': '#fff',
+            'text-valign': 'center', 'text-halign': 'center',
+            'text-wrap': 'wrap', 'text-max-width': '70px',
+            'border-width': 0,
+          }
+        },
+        {
+          selector: 'node[type="document"]',
+          style: {
+            'background-color': 'data(color)',
+            'label': 'data(label)',
+            'width': 44, 'height': 44,
+            'font-size': '8px', 'color': '#cdd8e8',
+            'text-valign': 'bottom', 'text-halign': 'center',
+            'text-wrap': 'wrap', 'text-max-width': '80px',
+            'text-margin-y': 4,
+          }
+        },
+        {
+          selector: 'node[type="category"]',
+          style: {
+            'background-color': 'data(color)',
+            'label': 'data(label)',
+            'width': 32, 'height': 32,
+            'font-size': '8px', 'color': '#9ca3af',
+            'text-valign': 'bottom', 'text-halign': 'center',
+            'shape': 'diamond', 'opacity': 0.7,
+          }
+        },
+        {
+          selector: 'edge',
+          style: {
+            'width': 1.5, 'line-color': '#2d3f55',
+            'target-arrow-color': '#2d3f55', 'target-arrow-shape': 'triangle',
+            'curve-style': 'bezier', 'opacity': 0.7,
+          }
+        },
+        {
+          selector: 'edge[relation="related_sequence"]',
+          style: {
+            'line-color': '#22c55e', 'target-arrow-color': '#22c55e',
+            'width': 2, 'line-style': 'dashed', 'opacity': 0.85,
+          }
+        },
+        {
+          selector: ':selected',
+          style: { 'border-width': 3, 'border-color': '#E8971F', 'opacity': 1 }
+        },
+      ],
+      layout: { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.4 },
+      minZoom: 0.3, maxZoom: 3,
+    });
+
+    cy.on('tap', 'node', (evt) => renderNodeDetail(evt.target.data()));
+    cy.on('tap', (evt) => { if (evt.target === cy) clearNodeDetail(); });
+  }
+
+  async function loadGraphSummary() {
+    try {
+      const data = await api('/graph/summary');
+      const el = document.getElementById('graphSummary');
+      if (data.has_data) {
+        el.textContent = `${data.project_count}개 프로젝트 · ${data.document_count}개 문서 · ${data.edge_count}개 관계 (${(data.built_at||'').slice(0,10)})`;
+      } else {
+        el.textContent = '그래프 미생성';
+      }
+      await loadProjectList();
+    } catch (e) {
+      document.getElementById('graphSummary').textContent = '로드 실패: ' + e.message;
+    }
+  }
+
+  async function loadProjectList() {
+    try {
+      const data = await api('/graph/projects');
+      _graphProjects = data.projects || [];
+      renderProjectList(_graphProjects);
+    } catch (e) {
+      document.getElementById('projectList').innerHTML =
+        `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
+
+  function renderProjectList(projects) {
+    const el = document.getElementById('projectList');
+    if (!projects.length) {
+      el.innerHTML = '<div class="empty">프로젝트 없음</div>';
+      return;
+    }
+    el.innerHTML = projects.map((p, i) => `
+      <div class="proj-item" id="proj-${i}" onclick="selectProject(${i})">
+        <div class="proj-name">${esc(p.label)}</div>
+        <div class="proj-meta">${p.doc_count}개 문서${p.year ? ' · ' + esc(p.year) : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  async function selectProject(idx) {
+    document.querySelectorAll('.proj-item').forEach(el => el.classList.remove('selected'));
+    const el = document.getElementById(`proj-${idx}`);
+    if (el) el.classList.add('selected');
+
+    const p = _graphProjects[idx];
+    document.getElementById('graphTitle').textContent = p.label;
+
+    try {
+      const data = await api(`/graph/project/${encodeURIComponent(p.label)}`);
+      renderCyGraph(data.nodes || [], data.edges || []);
+    } catch (e) {
+      alert('그래프 로드 실패: ' + e.message);
+    }
+  }
+
+  function renderCyGraph(nodes, edges) {
+    if (!cy) initCytoscape();
+    cy.elements().remove();
+
+    const elements = [
+      ...nodes.map(n => ({ data: n })),
+      ...edges.map(e => ({ data: { id: e.id, source: e.source, target: e.target,
+                                   relation: e.relation, label: e.label || '' } })),
+    ];
+    cy.add(elements);
+    cy.layout({ name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.5,
+                roots: nodes.filter(n => n.type === 'project').map(n => `#${CSS.escape(n.id)}`) }).run();
+    cy.fit(undefined, 30);
+  }
+
+  function renderNodeDetail(data) {
+    const el = document.getElementById('nodeDetail');
+    const type = data.type || 'unknown';
+    const typeLabel = { project: 'PROJECT', document: 'DOCUMENT', category: 'CATEGORY' }[type] || type;
+    const typeColor = { project: '#E8971F', document: '#3b82f6', category: '#6b7280' }[type] || '#6b7280';
+
+    let rows = '';
+    const addRow = (k, v) => {
+      if (!v && v !== 0) return;
+      rows += `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${esc(String(v))}</span></div>`;
+    };
+
+    let actions = '';
+
+    if (type === 'project') {
+      addRow('문서 수', data.doc_count);
+      addRow('연도', data.year);
+      addRow('기관', data.organization);
+      const projectName = data.label || data.id || '';
+      if (projectName) {
+        const ragUrl = `/weeslee-rag/frontend/rag-assistant.html?q=${encodeURIComponent(projectName)}&mode=bid_project`;
+        actions = `<a class="graph-rag-btn" href="${ragUrl}" target="_blank">RAG 검색 →</a>`;
+      }
+    } else if (type === 'document') {
+      addRow('카테고리', data.category);
+      addRow('프로젝트', data.project_name);
+      addRow('문서 ID', data.document_id);
+      addRow('확장자', data.extension);
+      if (data.source_path) {
+        rows += `<div class="detail-row"><span class="detail-key">경로</span><span class="detail-val" style="font-size:10px">${esc(data.source_path)}</span></div>`;
+      }
+      const searchTerm = data.project_name || data.label || data.document_id || '';
+      if (searchTerm) {
+        const ragUrl = `/weeslee-rag/frontend/rag-assistant.html?q=${encodeURIComponent(searchTerm)}&mode=bid_project`;
+        const dlPath = data.source_path || '';
+        const dlUrl = dlPath ? `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}` : '';
+        actions = `
+          <a class="graph-rag-btn" href="${ragUrl}" target="_blank">RAG 검색 →</a>
+          ${dlUrl ? `<a class="graph-rag-btn" href="${dlUrl}" download style="background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.4)">다운로드</a>` : ''}
+        `;
+      }
+    } else if (type === 'category') {
+      addRow('종류', data.label);
+    }
+
+    el.innerHTML = `
+      <span class="detail-type" style="background:${typeColor}">${typeLabel}</span>
+      <div class="detail-label">${esc(data.label || data.id)}</div>
+      ${rows}
+      ${actions ? `<div class="graph-rag-actions">${actions}</div>` : ''}
+    `;
+  }
+
+  function clearNodeDetail() {
+    document.getElementById('nodeDetail').innerHTML =
+      '<div style="color:var(--muted);font-size:12px">노드를 클릭하면 상세정보가 표시됩니다.</div>';
+  }
+
+  async function buildGraph() {
+    const btn = document.getElementById('buildBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 빌드 중...';
+    try {
+      const data = await api('/graph/build', { method: 'POST' });
+      document.getElementById('graphSummary').textContent =
+        `빌드 완료: ${data.project_count ?? '?'}개 프로젝트, ${data.document_count ?? '?'}개 문서`;
+      await loadProjectList();
+    } catch (e) {
+      alert('그래프 빌드 실패: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚙ Build';
+    }
+  }
+
+  // Init Cytoscape on page load (deferred)
+  window.addEventListener('load', () => initCytoscape());
 
   // Init
   refreshAll();

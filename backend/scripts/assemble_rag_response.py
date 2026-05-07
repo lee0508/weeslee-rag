@@ -98,6 +98,18 @@ def parse_args() -> argparse.Namespace:
         dest="max_chunks_per_doc",
         help="Max FAISS hits per document (0 = unlimited). Prevents a single large doc from dominating.",
     )
+    parser.add_argument(
+        "--mode",
+        choices=["general", "bid_project", "rfp_analysis"],
+        default="general",
+        help="Search mode. bid_project applies bid-optimised scoring; rfp_analysis prioritises RFP/proposal docs.",
+    )
+    parser.add_argument(
+        "--original-query",
+        default="",
+        dest="original_query",
+        help="Original (unexpanded) query for display and lexical matching.",
+    )
     return parser.parse_args()
 
 
@@ -186,6 +198,42 @@ def lexical_match_score(query: str, terms: list[str], texts: list[str]) -> float
 
 
 _DATE_PREFIX = re.compile(r"^\d{4,8}[.\s]+")
+
+# ── Bid-project scoring ───────────────────────────────────────────────────────
+
+_BID_KEYWORDS: dict[str, float] = {
+    "isp": 1.0, "ismp": 1.0, "정보화전략계획": 1.0, "정보시스템마스터플랜": 0.8,
+    "ai": 0.8, "인공지능": 0.8, "gpt": 0.8, "llm": 0.8, "생성형ai": 0.8, "생성형": 0.6,
+    "ax": 0.7, "디지털전환": 0.7, "dx": 0.7, "ai전환": 0.8,
+    "플랫폼": 0.5, "고도화": 0.5, "혁신": 0.4, "스마트": 0.3,
+    "oda": 0.6, "공적개발원조": 0.6,
+    "erp": 0.6, "bpr": 0.6, "클라우드": 0.5, "보안": 0.4,
+    "빅데이터": 0.5, "블록체인": 0.5,
+}
+
+_BID_CATEGORY_PRIORITY: dict[str, float] = {
+    "proposal": 4.0,
+    "final_report": 2.5,
+    "presentation": 2.0,
+    "rfp": 1.5,
+    "kickoff": 0.5,
+}
+
+# RFP analysis: surface the original RFP and kickoff docs first so the user
+# can understand what was asked before looking at how it was answered.
+_RFP_CATEGORY_PRIORITY: dict[str, float] = {
+    "rfp": 4.5,
+    "kickoff": 3.0,
+    "proposal": 2.0,
+    "presentation": 1.0,
+    "final_report": 0.5,
+}
+
+
+def bid_keyword_score(project_name: str, sections: list[str], snippets: list[str], source_path: str) -> float:
+    text = " ".join([project_name, source_path] + sections + snippets).lower()
+    total = sum(w for kw, w in _BID_KEYWORDS.items() if kw in text)
+    return min(total, 3.0)
 
 
 def extract_project_name(source_path: str) -> str:
@@ -296,11 +344,12 @@ def reason_list(query: str, group: dict) -> list[str]:
     return reasons
 
 
-def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dict]:
+def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str = "general") -> list[dict]:
     grouped: dict[str, dict] = {}
     intents = detect_category_intents(query)
     term_list = query_terms(query)
     compact_query = compact_text(query)
+    is_bid = (mode == "bid_project")
 
     for hit in hits:
         group = grouped.setdefault(
@@ -343,9 +392,25 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int) -> list[dic
         category_bonus = 2.0 if group["category_intent_match"] else 0.0
         path_bonus = 2.5 if group["source_path_match"] else 0.0
         hit_bonus = min(group["hit_count"], 5) * 0.15
-        type_bonus = category_priority_score(group["category"], intents)
+
+        if is_bid:
+            type_bonus = _BID_CATEGORY_PRIORITY.get(group["category"], 0.0)
+            kw_bonus = bid_keyword_score(
+                project_name, group["sections"], group["snippets"], group["source_path"]
+            )
+        elif mode == "rfp_analysis":
+            type_bonus = _RFP_CATEGORY_PRIORITY.get(group["category"], 0.0)
+            kw_bonus = 0.0
+        else:
+            type_bonus = category_priority_score(group["category"], intents)
+            kw_bonus = 0.0
+
         project_bonus = project_match_score(query, project_name)
-        group["ranking_score"] = (group["best_score"] * 5.0) + lexical + category_bonus + path_bonus + hit_bonus + type_bonus + project_bonus
+        group["ranking_score"] = (
+            (group["best_score"] * 5.0)
+            + lexical + category_bonus + path_bonus
+            + hit_bonus + type_bonus + project_bonus + kw_bonus
+        )
 
     ranked = sorted(
         grouped.values(),
@@ -537,12 +602,15 @@ def main() -> int:
     hits = build_hits(index_path, metadata_path, chunks_path, args)
     hits = filter_by_category(hits, args.category)
     hits = limit_chunks_per_doc(hits, args.max_chunks_per_doc)
-    documents = aggregate_hits(args.query, hits, args.top_docs)
-    prompt = build_prompt(args.query, documents)
+    documents = aggregate_hits(args.query, hits, args.top_docs, args.mode)
+    display_query = args.original_query or args.query
+    prompt = build_prompt(display_query, documents)
     answer = generate_answer(prompt, args)
 
     payload = {
-        "query": args.query,
+        "query": display_query,
+        "expanded_query": args.query if args.original_query else None,
+        "mode": args.mode,
         "top_k": args.top_k,
         "top_docs": args.top_docs,
         "category_filter": args.category or None,

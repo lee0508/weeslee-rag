@@ -72,15 +72,25 @@ class RagQueryRequest(BaseModel):
     chunks_jsonl: Optional[str] = None
     category: Optional[str] = None
     max_chunks_per_doc: int = 3
+    mode: str = "general"  # "general" | "bid_project" | "rfp_analysis"
 
 
 @router.post("/query")
 async def query_rag(request: RagQueryRequest):
+    from app.services.query_expander import expand_bid_query, expand_rfp_query
+
     snapshot = _active_snapshot()
     default_index, default_meta = _index_paths(snapshot, request.category)
     index_path = request.index_path or str(default_index)
     metadata_path = request.metadata_path or str(default_meta)
     chunks_jsonl = request.chunks_jsonl or str(_default_chunks_path())
+
+    if request.mode == "bid_project":
+        effective_query = expand_bid_query(request.query)
+    elif request.mode == "rfp_analysis":
+        effective_query = expand_rfp_query(request.query)
+    else:
+        effective_query = request.query
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_json = Path(temp_dir) / "rag_response.json"
@@ -95,6 +105,8 @@ async def query_rag(request: RagQueryRequest):
             "--chunks-jsonl",
             chunks_jsonl,
             "--query",
+            effective_query,
+            "--original-query",
             request.query,
             "--top-k",
             str(request.top_k),
@@ -112,6 +124,8 @@ async def query_rag(request: RagQueryRequest):
             str(output_md),
             "--max-chunks-per-doc",
             str(request.max_chunks_per_doc),
+            "--mode",
+            request.mode,
         ]
         if request.category:
             cmd += ["--category", request.category]

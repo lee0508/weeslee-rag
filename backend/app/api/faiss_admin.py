@@ -65,7 +65,7 @@ def _list_snapshots() -> list[str]:
         stem = f.name[: -len("_ollama.index")]
         # exclude category sub-indexes (they contain an extra underscore segment after snapshot)
         parts = stem.rsplit("_", 1)
-        if len(parts) == 2 and parts[1] in {"ISP", "ISMP", "ODA", "정책연구"}:
+        if len(parts) == 2 and parts[1] in {"rfp", "proposal", "kickoff", "final_report", "presentation"}:
             continue
         names.add(stem)
     return sorted(names, reverse=True)
@@ -166,7 +166,7 @@ async def activate_index(req: ActivateRequest):
 
 # ── Category status ───────────────────────────────────────────────────────────
 
-_CATEGORIES = ["ISP", "ISMP", "ODA", "정책연구"]
+_CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
 
 
 @router.get("/category-status")

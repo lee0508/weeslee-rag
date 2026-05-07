@@ -32,10 +32,11 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app.extractors.extractor import DocumentExtractor  # noqa: E402
 from app.extractors.pdf_extractor import _is_tesseract_available  # noqa: E402
+from app.services.metadata_enricher import enrich_confidence  # noqa: E402
 
 
-SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx"}
-UNSUPPORTED_FOR_PHASE1 = {".hwp", ".hwpx", ".doc", ".ppt", ".xls"}
+SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx", ".hwpx"}
+UNSUPPORTED_FOR_PHASE1 = {".hwp", ".doc", ".ppt", ".xls"}
 
 
 def _detect_ocr() -> bool:
@@ -45,18 +46,20 @@ def _detect_ocr() -> bool:
     print(json.dumps({"ocr_status": status, "tesseract_available": available}))
     return available
 
-_DATE_PREFIX = re.compile(r"^\d{4,8}[.\s]+")
+_DATE_PREFIX = re.compile(r"^\d+\.\s*")
 
 
 def enrich_project_metadata(folder_name: str) -> dict:
-    """Extract project_name and folder_year from a folder_name like '202212. k-water ISP'."""
+    """Extract project_name, folder_year, org, and confidence scores from folder_name."""
     project_name = _DATE_PREFIX.sub("", folder_name).strip()
     year_match = re.match(r"^(\d{4})", folder_name)
     folder_year = year_match.group(1) if year_match else ""
+    confidence = enrich_confidence(folder_name, project_name)
     return {
         "project_name": project_name,
         "folder_year": folder_year,
         "folder_name": folder_name,
+        **confidence,
     }
 
 
@@ -153,7 +156,7 @@ async def run_batch(args: argparse.Namespace) -> int:
                         extraction_method="",
                         output_text_path="",
                         output_metadata_path="",
-                        error=f"Unsupported in phase1: {extension}",
+                        error=f"Unsupported format (no extractor): {extension}",
                     )
                 )
                 continue
@@ -179,6 +182,7 @@ async def run_batch(args: argparse.Namespace) -> int:
             if result.get("success"):
                 content = result.get("content", "")
                 project_meta = enrich_project_metadata(row.get("folder_name", ""))
+                res_meta = result.get("metadata", {})
                 metadata = {
                     "document_id": document_id,
                     "category": category,
@@ -187,8 +191,19 @@ async def run_batch(args: argparse.Namespace) -> int:
                     "snapshot_path": row.get("snapshot_path", ""),
                     "extension": extension,
                     "project_name": project_meta["project_name"],
+                    "project_confidence": project_meta["project_confidence"],
+                    "organization": project_meta["organization"],
+                    "organization_confidence": project_meta["organization_confidence"],
                     "folder_year": project_meta["folder_year"],
                     "folder_name": project_meta["folder_name"],
+                    "extraction_method": result.get("method", ""),
+                    "is_scanned": res_meta.get("is_scanned", False),
+                    "content_length": len(content),
+                    "page_count": res_meta.get("pages", 0),
+                    "metadata_confidence": {
+                        "project_name": project_meta["project_confidence"],
+                        "organization": project_meta["organization_confidence"],
+                    },
                     "extracted_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                     "result": result,
                 }

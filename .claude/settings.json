@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "command": "python backend/scripts/restart_server.py",
+        "description": "Validate → git push → restart server after session"
+      }
+    ]
+  }
+}

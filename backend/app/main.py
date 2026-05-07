@@ -17,6 +17,7 @@ from app.api.rag import router as rag_router
 from app.api.admin import router as admin_router
 from app.api.files import router as files_router
 from app.api.faiss_admin import router as faiss_admin_router
+from app.api.graph import router as graph_router
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -72,6 +73,7 @@ app.include_router(knowledge_sources_router, prefix="/api", tags=["Knowledge Sou
 app.include_router(rag_router, prefix="/api", tags=["RAG"])
 app.include_router(files_router, prefix="/api", tags=["Files"])
 app.include_router(faiss_admin_router, prefix="/api", tags=["FAISS Admin"])
+app.include_router(graph_router, prefix="/api", tags=["Graph"])
 
 # Serve the assistant UI under the requested path pattern:
 # /weeslee-rag/frontend/rag-assistant.html
