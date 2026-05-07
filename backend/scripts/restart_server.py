@@ -20,8 +20,12 @@ PROJECT_DIR = os.environ.get("DEPLOY_PROJECT", "/data/weeslee/weeslee-rag")
 PYTHON = os.environ.get("DEPLOY_PYTHON", f"{PROJECT_DIR}/.venv/bin/python3")
 
 RESTART_CMD = (
-    f"cd {PROJECT_DIR}/backend && git -C {PROJECT_DIR} pull origin main 2>&1 && "
+    # stash any server-local changes so git pull always succeeds
+    f"cd {PROJECT_DIR} && "
+    f"git stash 2>&1; "
+    f"git fetch origin main 2>&1 && git reset --hard origin/main 2>&1 && "
     f"pkill -f 'uvicorn app.main:app' 2>/dev/null; sleep 2; "
+    f"cd {PROJECT_DIR}/backend && "
     f"nohup {PYTHON} -m uvicorn app.main:app --host 0.0.0.0 --port 8080 "
     f"> /tmp/weeslee_fastapi.log 2>&1 & echo RESTARTED"
 )
