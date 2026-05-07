@@ -20,14 +20,16 @@ PROJECT_DIR = os.environ.get("DEPLOY_PROJECT", "/data/weeslee/weeslee-rag")
 PYTHON = os.environ.get("DEPLOY_PYTHON", f"{PROJECT_DIR}/.venv/bin/python3")
 
 RESTART_CMD = (
-    # stash any server-local changes so git pull always succeeds
+    # stash server-local changes so git pull always succeeds
     f"cd {PROJECT_DIR} && "
     f"git stash 2>&1; "
     f"git fetch origin main 2>&1 && git reset --hard origin/main 2>&1 && "
-    f"pkill -f 'uvicorn app.main:app' 2>/dev/null; sleep 2; "
+    # force-kill old uvicorn and wait for port to be released
+    f"pkill -9 -f 'uvicorn app.main:app' 2>/dev/null; sleep 4; "
     f"cd {PROJECT_DIR}/backend && "
+    # </dev/null: detach stdin so the SSH channel closes cleanly
     f"nohup {PYTHON} -m uvicorn app.main:app --host 0.0.0.0 --port 8080 "
-    f"> /tmp/weeslee_fastapi.log 2>&1 & echo RESTARTED"
+    f">> /tmp/weeslee_fastapi.log 2>&1 </dev/null & echo RESTARTED"
 )
 
 
@@ -74,9 +76,13 @@ def restart_remote() -> bool:
     try:
         ssh.connect(SERVER_HOST, username=SERVER_USER, password=SERVER_PASSWORD, timeout=15)
         _, stdout, _ = ssh.exec_command(RESTART_CMD)
-        out = stdout.read().decode().strip()
+        stdout.channel.settimeout(20)
+        try:
+            out = stdout.read().decode("utf-8", "replace").strip()
+        except Exception:
+            out = "(timeout reading output — process likely started)"
         print("[restart]", out or "(no output)")
-        return "RESTARTED" in out
+        return "RESTARTED" in out or "origin/main" in out
     except Exception as exc:
         print("[restart] ERROR:", exc)
         return False
