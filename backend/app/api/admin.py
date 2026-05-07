@@ -419,45 +419,95 @@ async def delete_collection(collection_id: int):
 
 @router.get("/stats")
 async def get_admin_stats():
-    """Get admin dashboard statistics"""
-    from app.core.database import SessionLocal
-    from app.models.collection import Collection
-    from app.models.document import Document, DocumentStatus
-    from app.services.vectordb import vectordb_service
+    """Get admin dashboard statistics — FAISS-based (no MySQL dependency)."""
+    import json
+    from pathlib import Path
 
-    db = SessionLocal()
+    project_root = Path(__file__).resolve().parents[3]
+    faiss_dir = project_root / "data" / "indexes" / "faiss"
+    active_index_path = project_root / "data" / "active_index.json"
+
+    # ── Active snapshot ────────────────────────────────────────────────────
+    snapshot = ""
+    if active_index_path.exists():
+        try:
+            snapshot = json.loads(active_index_path.read_text(encoding="utf-8")).get("snapshot", "")
+        except Exception:
+            pass
+
+    # ── Main index stats ───────────────────────────────────────────────────
+    chunk_count = 0
+    doc_ids: set[str] = set()
+    meta_path = faiss_dir / f"{snapshot}_ollama_metadata.jsonl" if snapshot else None
+    if meta_path and meta_path.exists():
+        try:
+            for line in meta_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                chunk_count += 1
+                try:
+                    doc_ids.add(json.loads(line).get("document_id", ""))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # ── Category sub-index stats ───────────────────────────────────────────
+    categories = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
+    category_stats: dict[str, int] = {}
+    for cat in categories:
+        cat_meta = faiss_dir / f"{snapshot}_{cat}_ollama_metadata.jsonl" if snapshot else None
+        if cat_meta and cat_meta.exists():
+            try:
+                category_stats[cat] = sum(
+                    1 for l in cat_meta.read_text(encoding="utf-8").splitlines() if l.strip()
+                )
+            except Exception:
+                category_stats[cat] = 0
+        else:
+            category_stats[cat] = 0
+
+    # ── Graph stats ────────────────────────────────────────────────────────
+    graph_node_count = 0
+    graph_edge_count = 0
+    graph_jsonl = project_root / "data" / "graph" / "graph.jsonl"
+    if graph_jsonl.exists():
+        try:
+            for line in graph_jsonl.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                obj = json.loads(line)
+                if obj.get("type") == "node":
+                    graph_node_count += 1
+                elif obj.get("type") == "edge":
+                    graph_edge_count += 1
+        except Exception:
+            pass
+
+    # ── Ollama status ──────────────────────────────────────────────────────
+    ollama_ok = False
     try:
-        total_collections = db.query(Collection).count()
-        total_documents = db.query(Document).count()
-        completed_documents = db.query(Document).filter(
-            Document.status == DocumentStatus.COMPLETED
-        ).count()
-        failed_documents = db.query(Document).filter(
-            Document.status == DocumentStatus.FAILED
-        ).count()
-        pending_documents = db.query(Document).filter(
-            Document.status == DocumentStatus.PENDING
-        ).count()
+        import httpx
+        r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
+        ollama_ok = r.status_code == 200
+    except Exception:
+        pass
 
-        # Get ChromaDB collections
-        chroma_collections = vectordb_service.list_collections()
-
-        return {
-            "collections": {
-                "total": total_collections,
-                "chroma_collections": len(chroma_collections)
-            },
-            "documents": {
-                "total": total_documents,
-                "completed": completed_documents,
-                "failed": failed_documents,
-                "pending": pending_documents,
-                "processing": total_documents - completed_documents - failed_documents - pending_documents
-            },
-            "knowledge_source": {
-                "accessible": knowledge_source_service.is_accessible(),
-                "root_path": knowledge_source_service.get_root_path()
-            }
-        }
-    finally:
-        db.close()
+    return {
+        "snapshot": snapshot or "(none)",
+        "index": {
+            "chunk_count": chunk_count,
+            "document_count": len(doc_ids),
+            "index_exists": bool(meta_path and meta_path.exists()),
+        },
+        "categories": category_stats,
+        "graph": {
+            "node_count": graph_node_count,
+            "edge_count": graph_edge_count,
+        },
+        "ollama": {"status": "ok" if ollama_ok else "unavailable"},
+        "knowledge_source": {
+            "accessible": knowledge_source_service.is_accessible(),
+            "root_path": knowledge_source_service.get_root_path(),
+        },
+    }
