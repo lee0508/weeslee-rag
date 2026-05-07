@@ -11,12 +11,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import ssl
 import urllib.request
 import urllib.error
 from datetime import datetime
 from pathlib import Path
 
 QUERIES_DIR = Path(__file__).parent / "queries"
+
+# Allow self-signed certs on internal server
+_SSL_CTX = ssl.create_default_context()
+_SSL_CTX.check_hostname = False
+_SSL_CTX.verify_mode = ssl.CERT_NONE
 CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation", "bid_project"]
 DEFAULT_SERVER = "http://192.168.0.207:8080"
 
@@ -52,7 +58,7 @@ def get_active_snapshot(server: str) -> str:
     """Fetch active snapshot name from admin/stats."""
     req = urllib.request.Request(f"{server}/api/admin/stats", method="GET")
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as r:
             return json.loads(r.read()).get("snapshot", "unknown")
     except Exception:
         return "unknown"
@@ -81,7 +87,7 @@ def query_rag(server: str, query: str, category: str | None, top_k: int = 5,
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX) as r:
             return json.loads(r.read())
     except Exception as e:
         return {"error": str(e), "documents": [], "draft_answer": ""}
@@ -94,11 +100,18 @@ def score_result(result: dict, case: dict, retrieval_only: bool = False) -> dict
     expected_cat = case.get("expected_category", "")
 
     if retrieval_only:
-        # Score based on returned categories instead of answer keywords
         returned_cats = [d.get("category", "") for d in docs]
-        cat_hits = sum(1 for c in returned_cats if c == expected_cat)
-        kw_hits = cat_hits
-        kw_score = cat_hits / len(returned_cats) if returned_cats else 0.0
+        if expected_cat:
+            # Category-filtered search: score by fraction of docs matching expected category
+            cat_hits = sum(1 for c in returned_cats if c == expected_cat)
+            kw_hits = cat_hits
+            kw_score = cat_hits / len(returned_cats) if returned_cats else 0.0
+        else:
+            # Cross-category search (bid_project): score by whether min_docs is reached
+            min_docs = case.get("min_docs", 1)
+            unique_doc_count = len({d.get("document_id", "") for d in docs})
+            kw_hits = unique_doc_count
+            kw_score = min(1.0, unique_doc_count / max(min_docs, 1))
     else:
         kw_hits = sum(1 for kw in keywords if kw.lower() in answer)
         kw_score = kw_hits / len(keywords) if keywords else 0.0

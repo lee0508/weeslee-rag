@@ -1,0 +1,1282 @@
+[
+  {
+    "category": "rfp",
+    "results": [
+      {
+        "query": "ISP 사업 제안요청서 요구사항 항목",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "정보화전략계획 수립 과업 범위",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "발주처 사업 목적 및 배경",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "제안요청서 입찰 참가자격 조건",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "컨설팅 과업 일정 납품 기한",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 예산 규모 및 계약 방식",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "RFP 기술 요구사항 핵심 항목",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "스마트댐 안전관리 플랫폼 제안요청서",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP ISMP 수행 방법론 제안요청 기준",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "국가 정보화전략계획 수립 지침 및 기준",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "범죄예방정책_거대언어모델 도입활용방안 연구",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "rfp",
+          "rfp"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 1.0,
+    "pass_rate": 1.0,
+    "query_count": 10,
+    "snapshot": "snapshot_2026-05-06_combined-v2"
+  },
+  {
+    "category": "proposal",
+    "results": [
+      {
+        "query": "ISP 컨설팅 제안서 방법론 구성",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "기재부_전자수입인지 기관선정연구",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "AX 전환 전략 제안 핵심 내용",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "기재부_전자수입인지 기관선정연구",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "프로젝트 수행 계획 및 팀 구성",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "기재부_전자수입인지 기관선정연구",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "제안사 유사 수행 실적 레퍼런스",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "AI 기반 지능형 진로교육정보망",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "컨설팅 제안서 차별화 포인트 및 강점",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "기재부_전자수입인지 기관선정연구",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "공공기관 정보화 컨설팅 제안 전략",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "AI 기반 지능형 진로교육정보망",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP ISMP 제안서 추진 배경 및 목적",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "디지털 전환 현황 분석 및 개선 방향",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "기재부_전자수입인지 기관선정연구",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "법무부 성범죄백서 이행 제안",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 추진 일정 및 마일스톤",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "과기정통부 AI-NEXT 고도화 ISP 수립",
+          "AI 기반 지능형 진로교육정보망",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "proposal",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 1.0,
+    "pass_rate": 1.0,
+    "query_count": 10,
+    "snapshot": "snapshot_2026-05-06_combined-v2"
+  },
+  {
+    "category": "kickoff",
+    "results": [
+      {
+        "query": "착수보고 추진 일정 주요 내용",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 착수 후 초기 단계 활동",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "착수보고서 현황 분석 방법론",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "프로젝트 킥오프 회의 agenda",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "착수 단계 인터뷰 계획 이해관계자",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 범위 및 산출물 정의",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP 착수보고 현황 파악 체계",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "컨설팅 프로젝트 WBS 및 일정 계획",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "사업 착수 시 조직 및 역할 분담",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "착수 보고 리스크 식별 및 대응 계획",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "AX 활용 정보화전략계획수립_서울주택도시개발공사",
+          "통계청 통계지리정보서비스 ISP"
+        ],
+        "categories_returned": [
+          "kickoff",
+          "kickoff",
+          "kickoff",
+          "kickoff"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 1.0,
+    "pass_rate": 1.0,
+    "query_count": 10,
+    "snapshot": "snapshot_2026-05-06_combined-v2"
+  },
+  {
+    "category": "final_report",
+    "results": [
+      {
+        "query": "ISP 최종 산출물 목차 구성",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report",
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "정보화전략 이행계획서 주요 과제",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "최종보고서 전략 과제 우선순위",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP ISMP 최종 결과물 권고사항",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report",
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "K-water 데이터허브 ISP 추진 전략",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "현황 분석 결과 주요 이슈 도출",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report",
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "정보화 아키텍처 목표 체계",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "데이터 거버넌스 전략 및 로드맵",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report",
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "디지털 전환 추진 로드맵 단계별 계획",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report",
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "공공기관 ISP 3개년 이행 과제",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report",
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 1.0,
+    "pass_rate": 1.0,
+    "query_count": 10,
+    "snapshot": "snapshot_2026-05-06_combined-v2"
+  },
+  {
+    "category": "presentation",
+    "results": [
+      {
+        "query": "ISP 중간보고 발표 슬라이드 구성",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 3,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "최종보고회 발표자료 핵심 메시지",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 3,
+        "cat_match_rate": 1.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "발표 자료 현황 분석 요약",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "보고회 발표 주요 전략 방향",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "ISP ISMP 발표 슬라이드 목차",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "컨설팅 중간보고 Q&A 주요 내용",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 3,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "발주기관 보고 주요 의사결정 사항",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 3,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "전략 과제 우선순위 발표 내용",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "보고 자료 개선 방향 및 로드맵 제시",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 3,
+        "cat_match_rate": 1.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "AX ISP ISMP 중간 발표 성과 및 진도",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 4,
+        "cat_match_rate": 1.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "presentation",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 1.0,
+    "pass_rate": 1.0,
+    "query_count": 10,
+    "snapshot": "snapshot_2026-05-06_combined-v2"
+  },
+  {
+    "category": "bid_project",
+    "results": [
+      {
+        "query": "k-water 데이터허브 플랫폼 ISP 정보화전략계획",
+        "kw_score": 1.0,
+        "kw_hits": 3,
+        "kw_total": 4,
+        "cat_match_rate": 0.0,
+        "doc_count": 3,
+        "unique_docs": 3,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AI 기반 지능형 진로교육정보망"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report",
+          "proposal"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "AX기반 차세대 업무시스템 구축사업",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "법무부 성범죄백서 연구사업 정보화",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "스마트 물관리 디지털 전환 플랫폼 구축",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "proposal",
+          "final_report",
+          "presentation"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "공공기관 정보화 사업 ISP ISMP 제안서",
+        "kw_score": 1.0,
+        "kw_hits": 4,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 4,
+        "unique_docs": 4,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "법무부_디지털플랫폼 교육강화, 환경개선 로드맵 연구사업"
+        ],
+        "categories_returned": [
+          "proposal",
+          "proposal",
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      },
+      {
+        "query": "디지털플랫폼정부 전자정부 정보화 전략계획",
+        "kw_score": 1.0,
+        "kw_hits": 2,
+        "kw_total": 3,
+        "cat_match_rate": 0.0,
+        "doc_count": 2,
+        "unique_docs": 2,
+        "answer_len": 0,
+        "projects": [
+          "k-water 데이터허브플랫폼_ISP",
+          "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+        ],
+        "categories_returned": [
+          "final_report",
+          "final_report"
+        ],
+        "pass_kw": true,
+        "pass_docs": true,
+        "answer_preview": ""
+      }
+    ],
+    "avg_kw": 1.0,
+    "pass_rate": 1.0,
+    "query_count": 6,
+    "snapshot": "snapshot_2026-05-06_combined-v2"
+  }
+]
