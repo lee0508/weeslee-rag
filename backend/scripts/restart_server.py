@@ -15,7 +15,7 @@ import sys
 
 SERVER_HOST = os.environ.get("DEPLOY_HOST", "192.168.0.207")
 SERVER_USER = os.environ.get("DEPLOY_USER", "weeslee")
-SERVER_PASSWORD = os.environ.get("DEPLOY_PASSWORD", "***REMOVED***")
+SERVER_PASSWORD = os.environ["DEPLOY_PASSWORD"]  # must be set via env; no hardcoded fallback
 PROJECT_DIR = os.environ.get("DEPLOY_PROJECT", "/data/weeslee/weeslee-rag")
 PYTHON = os.environ.get("DEPLOY_PYTHON", f"{PROJECT_DIR}/.venv/bin/python3")
 
