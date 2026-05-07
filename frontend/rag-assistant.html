@@ -1124,6 +1124,8 @@
 
     const API_BASE = detectApiBase();
 
+    let _activeSnapshot = '';
+
     function syncAnswerModeLabel() {
       const provider = document.getElementById('answerProvider').value;
       document.getElementById('heroAnswerMode').textContent = provider === 'none' ? 'Search Only' : 'Generate';
@@ -1186,6 +1188,7 @@
 
         // ── FAISS index status ────────────────────────────────────────────
         const faiss = data.components?.faiss || {};
+        if (faiss.snapshot) _activeSnapshot = faiss.snapshot;
         const snapshotShort = faiss.snapshot
           ? faiss.snapshot.replace(/^snapshot_/, '').replace(/_v\d+$/, '')
           : '-';
@@ -1475,6 +1478,19 @@
         answer: data.draft_answer || '',
         documents: data.documents || [],
       });
+
+      const mode = document.getElementById('searchMode')?.value || 'general';
+      fetch(`${API_BASE}/rag/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          mode,
+          answer: data.draft_answer || '',
+          documents: data.documents || [],
+          snapshot: _activeSnapshot,
+        }),
+      }).catch(() => {});
     }
 
     function renderReviewList() {

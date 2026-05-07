@@ -277,7 +277,52 @@
     .graph-center-col { display: flex; flex-direction: column; overflow: hidden; }
     .graph-empty { display: flex; align-items: center; justify-content: center;
       height: 100%; color: var(--muted); font-size: 13px; }
+
+    /* Wiki modal */
+    .wiki-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 1000;
+      display: none; align-items: flex-start; justify-content: center;
+      padding: 40px 20px; overflow-y: auto;
+    }
+    .wiki-overlay.open { display: flex; }
+    .wiki-modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; width: 100%; max-width: 760px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.5);
+    }
+    .wiki-modal-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+    }
+    .wiki-modal-title { font-size: 14px; font-weight: 700; flex: 1; }
+    .wiki-modal-close {
+      background: none; border: none; color: var(--muted); font-size: 20px;
+      cursor: pointer; line-height: 1; padding: 0 4px;
+    }
+    .wiki-modal-close:hover { color: var(--text); }
+    .wiki-modal-body { padding: 20px; overflow: hidden; }
+    .wiki-content { font-size: 13px; line-height: 1.7; color: var(--text); }
+    .wiki-content h1 { font-size: 18px; margin-bottom: 16px; color: var(--amber); }
+    .wiki-content h2 { font-size: 14px; font-weight: 700; margin: 20px 0 10px;
+      padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+    .wiki-content h3 { font-size: 13px; font-weight: 700; margin: 14px 0 8px; color: var(--muted); }
+    .wiki-content p { margin: 8px 0; }
+    .wiki-content table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+    .wiki-content th, .wiki-content td {
+      border: 1px solid var(--border); padding: 5px 10px; text-align: left;
+    }
+    .wiki-content th { background: var(--surface2); font-weight: 600; }
+    .wiki-content blockquote {
+      border-left: 3px solid var(--navy-light); margin: 8px 0;
+      padding: 6px 12px; background: var(--surface2); border-radius: 0 4px 4px 0;
+      font-size: 12px; color: var(--muted);
+    }
+    .wiki-content code { background: var(--surface2); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+    .wiki-content hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .wiki-content em { color: var(--muted); font-style: italic; }
+    .wiki-loading { color: var(--muted); font-size: 13px; text-align: center; padding: 40px; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
 <body>
 
@@ -950,7 +995,7 @@
     cy.fit(undefined, 30);
   }
 
-  function renderNodeDetail(data) {
+  async function renderNodeDetail(data) {
     const el = document.getElementById('nodeDetail');
     const type = data.type || 'unknown';
     const typeLabel = { project: 'PROJECT', document: 'DOCUMENT', category: 'CATEGORY' }[type] || type;
@@ -971,7 +1016,11 @@
       const projectName = data.label || data.id || '';
       if (projectName) {
         const ragUrl = `/weeslee-rag/frontend/rag-assistant.html?q=${encodeURIComponent(projectName)}&mode=bid_project`;
-        actions = `<a class="graph-rag-btn" href="${ragUrl}" target="_blank">RAG 검색 →</a>`;
+        const wikiSlug = await _resolveWikiSlug(projectName);
+        const wikiBtn = wikiSlug
+          ? `<button class="graph-rag-btn" onclick="showWikiModal('${esc(wikiSlug)}')" style="background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:#93c5fd">Wiki 보기</button>`
+          : '';
+        actions = `<a class="graph-rag-btn" href="${ragUrl}" target="_blank">RAG 검색 →</a>${wikiBtn}`;
       }
     } else if (type === 'document') {
       addRow('카테고리', data.category);
@@ -1028,8 +1077,55 @@
   // Init Cytoscape on page load (deferred)
   window.addEventListener('load', () => initCytoscape());
 
+  // ── Wiki modal ────────────────────────────────────────────────────────────
+
+  const _wikiMatchCache = {};  // label → slug | null
+
+  async function _resolveWikiSlug(label) {
+    if (label in _wikiMatchCache) return _wikiMatchCache[label];
+    try {
+      const data = await api(`/wiki/match?label=${encodeURIComponent(label)}`);
+      _wikiMatchCache[label] = data.slug || null;
+    } catch (_) {
+      _wikiMatchCache[label] = null;
+    }
+    return _wikiMatchCache[label];
+  }
+
+  async function showWikiModal(slug) {
+    const overlay = document.getElementById('wikiOverlay');
+    const body = document.getElementById('wikiModalBody');
+    const titleEl = document.getElementById('wikiModalTitle');
+    overlay.classList.add('open');
+    body.innerHTML = '<div class="wiki-loading">⏳ 위키 불러오는 중...</div>';
+    titleEl.textContent = '';
+    try {
+      const data = await api(`/wiki/projects/${encodeURIComponent(slug)}`);
+      titleEl.textContent = data.title || slug;
+      const html = marked.parse(data.markdown || '');
+      body.innerHTML = `<div class="wiki-content">${html}</div>`;
+    } catch (e) {
+      body.innerHTML = `<div class="wiki-loading" style="color:var(--red)">위키 로드 실패: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function closeWikiModal() {
+    document.getElementById('wikiOverlay').classList.remove('open');
+  }
+
   // Init
   refreshAll();
 </script>
+
+<!-- Wiki modal overlay -->
+<div class="wiki-overlay" id="wikiOverlay" onclick="if(event.target===this)closeWikiModal()">
+  <div class="wiki-modal">
+    <div class="wiki-modal-header">
+      <div class="wiki-modal-title" id="wikiModalTitle">위키</div>
+      <button class="wiki-modal-close" onclick="closeWikiModal()">×</button>
+    </div>
+    <div class="wiki-modal-body" id="wikiModalBody"></div>
+  </div>
+</div>
 </body>
 </html>
