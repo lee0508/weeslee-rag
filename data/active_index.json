@@ -1,5 +1,5 @@
 {
-  "snapshot": "snapshot_2026-04-27_batch-001-top5-v2",
-  "activated_at": "2026-05-07T00:00:00",
-  "note": "Initial active index"
+  "snapshot": "snapshot_2026-05-06_combined-v2",
+  "activated_at": "2026-05-07T11:00:00",
+  "note": "Combined batch-001+002+003+ocr-rerun, 7066 vectors, 5-category sub-indexes"
 }
