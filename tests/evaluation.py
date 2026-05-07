@@ -17,8 +17,18 @@ from datetime import datetime
 from pathlib import Path
 
 QUERIES_DIR = Path(__file__).parent / "queries"
-CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
+CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation", "bid_project"]
 DEFAULT_SERVER = "http://192.168.0.207:8080"
+
+# Search mode per category (bid_project uses bid_project mode, rfp uses rfp_analysis)
+CATEGORY_MODE = {
+    "rfp": "rfp_analysis",
+    "proposal": "bid_project",
+    "kickoff": "general",
+    "final_report": "general",
+    "presentation": "general",
+    "bid_project": "bid_project",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,8 +39,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--html", action="store_true", help="Write HTML report")
     parser.add_argument("--no-category-filter", action="store_true",
                         help="Run without category pre-filter (tests combined index)")
-    parser.add_argument("--retrieval-only", action="store_true",
-                        help="Score on retrieved docs only, skip Ollama answer generation (much faster)")
+    parser.add_argument("--retrieval-only", action="store_true", default=True,
+                        help="Score on retrieved docs only, skip Ollama answer generation (default: True)")
     parser.add_argument("--sleep", type=float, default=0.0,
                         help="Seconds to sleep between queries (default 0; use 2.0 for Ollama full-gen mode)")
     parser.add_argument("--timeout", type=int, default=300,
@@ -38,10 +48,28 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def get_active_snapshot(server: str) -> str:
+    """Fetch active snapshot name from admin/stats."""
+    req = urllib.request.Request(f"{server}/api/admin/stats", method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return json.loads(r.read()).get("snapshot", "unknown")
+    except Exception:
+        return "unknown"
+
+
 def query_rag(server: str, query: str, category: str | None, top_k: int = 5,
-              retrieval_only: bool = False, timeout: int = 300) -> dict:
-    payload: dict = {"query": query, "top_k": top_k, "stream": False}
-    if category:
+              retrieval_only: bool = True, timeout: int = 300,
+              mode: str = "general") -> dict:
+    payload: dict = {
+        "query": query,
+        "top_k": top_k,
+        "top_docs": 5,
+        "mode": mode,
+        "max_chunks_per_doc": 3,
+    }
+    # bid_project category is a cross-category search — no category filter
+    if category and category != "bid_project":
         payload["category"] = category
     if retrieval_only:
         payload["answer_provider"] = "none"
@@ -98,18 +126,23 @@ def score_result(result: dict, case: dict, retrieval_only: bool = False) -> dict
     }
 
 
-def run_category(server: str, category: str, use_filter: bool, retrieval_only: bool = False,
+def run_category(server: str, category: str, use_filter: bool, retrieval_only: bool = True,
                  query_sleep: float = 0.0) -> dict:
     query_file = QUERIES_DIR / f"{category}_queries.json"
     if not query_file.exists():
         print(f"  [SKIP] No query file: {query_file}")
-        return {"category": category, "results": [], "avg_kw": 0.0, "pass_rate": 0.0}
+        return {"category": category, "results": [], "avg_kw": 0.0, "pass_rate": 0.0,
+                "query_count": 0}
 
     cases = json.loads(query_file.read_text(encoding="utf-8"))
     results = []
+    search_mode = CATEGORY_MODE.get(category, "general")
     for case in cases:
-        cat_filter = category if use_filter else None
-        raw = query_rag(server, case["query"], cat_filter, retrieval_only=retrieval_only)
+        cat_filter = category if (use_filter and category != "bid_project") else None
+        # Allow per-case mode override
+        effective_mode = case.get("mode", search_mode)
+        raw = query_rag(server, case["query"], cat_filter, retrieval_only=retrieval_only,
+                        mode=effective_mode)
         s = score_result(raw, case, retrieval_only=retrieval_only)
         results.append(s)
         if query_sleep > 0:
@@ -159,19 +192,29 @@ def write_html(report: list[dict], out_path: Path) -> None:
             f'<td>{cat_data["pass_rate"]:.1%}</td></tr>\n'
         )
 
+    snapshot_label = ""
+    if report:
+        snapshot_label = report[0].get("snapshot", "")
+
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>RAG Evaluation Report — {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
 <style>
-body {{font-family: sans-serif; margin: 2rem;}}
-table {{border-collapse: collapse; width: 100%;}}
-th, td {{border: 1px solid #ccc; padding: 6px 10px; text-align: left;}}
-th {{background: #1B3A6B; color: white;}}
+body {{font-family: 'Malgun Gothic', sans-serif; margin: 2rem; background:#f5f7fa;}}
+h1 {{color:#1B3A6B; border-bottom:3px solid #E8971F; padding-bottom:8px;}}
+.meta {{background:#fff;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:.9em;color:#555;}}
+table {{border-collapse: collapse; width: 100%; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.1);}}
+th, td {{border: 1px solid #eee; padding: 7px 10px; text-align: left; font-size:.88em;}}
+th {{background: #1B3A6B; color: white; border-color:#1B3A6B;}}
 tr.pass td:first-child {{border-left: 4px solid #22c55e;}}
 tr.fail td:first-child {{border-left: 4px solid #ef4444;}}
 </style></head><body>
 <h1>RAG Evaluation Report</h1>
-<p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+<div class="meta">
+  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} &nbsp;|&nbsp;
+  Snapshot: <strong>{snapshot_label}</strong> &nbsp;|&nbsp;
+  Mode: search_only (retrieval only)
+</div>
 <h2>Summary</h2>
 <table><tr><th>Category</th><th>Queries</th><th>Avg KW Score</th><th>Pass Rate</th></tr>
 {summary_rows}</table>
@@ -193,15 +236,18 @@ def main() -> None:
     categories = [args.category] if args.category else CATEGORIES
     report = []
 
-    print(f"Server: {args.server}  |  category_filter={'ON' if use_filter else 'OFF'}")
+    snapshot = get_active_snapshot(args.server)
+    print(f"Server: {args.server}  |  snapshot: {snapshot}")
+    print(f"category_filter={'ON' if use_filter else 'OFF'}  |  retrieval_only={args.retrieval_only}")
     print("=" * 70)
 
-    retrieval_only = getattr(args, 'retrieval_only', False)
+    retrieval_only = getattr(args, 'retrieval_only', True)
     query_sleep = getattr(args, 'sleep', 0.0)
     for cat in categories:
         print(f"\n[{cat.upper()}]")
         cat_data = run_category(args.server, cat, use_filter, retrieval_only=retrieval_only,
                                 query_sleep=query_sleep)
+        cat_data["snapshot"] = snapshot
         report.append(cat_data)
         print(f"  → avg_kw={cat_data['avg_kw']:.1%}  pass_rate={cat_data['pass_rate']:.0%}")
 

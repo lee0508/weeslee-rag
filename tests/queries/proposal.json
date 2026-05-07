@@ -1,0 +1,42 @@
+{
+  "category": "proposal",
+  "mode": "bid_project",
+  "description": "제안서 검색 품질 평가 쿼리",
+  "queries": [
+    {
+      "id": "proposal_001",
+      "query": "ISP 정보화전략계획 제안서 추진전략",
+      "expected_keywords": ["ISP", "제안서", "추진전략"],
+      "expected_category": "proposal",
+      "notes": "ISP 제안서 기본 검색"
+    },
+    {
+      "id": "proposal_002",
+      "query": "공공기관 정보시스템 구축 제안 기술방법론",
+      "expected_keywords": ["정보시스템", "구축", "기술방법론"],
+      "expected_category": "proposal",
+      "notes": "시스템 구축 제안서"
+    },
+    {
+      "id": "proposal_003",
+      "query": "데이터 거버넌스 플랫폼 구축 사업 제안",
+      "expected_keywords": ["데이터", "거버넌스", "플랫폼"],
+      "expected_category": "proposal",
+      "notes": "데이터 거버넌스 제안서"
+    },
+    {
+      "id": "proposal_004",
+      "query": "k-water 수자원 정보화 사업 제안서",
+      "expected_keywords": ["k-water", "수자원", "정보화"],
+      "expected_category": "proposal",
+      "notes": "k-water 관련 제안서 (알려진 프로젝트)"
+    },
+    {
+      "id": "proposal_005",
+      "query": "클라우드 전환 마이그레이션 제안 비용",
+      "expected_keywords": ["클라우드", "마이그레이션", "비용"],
+      "expected_category": "proposal",
+      "notes": "클라우드 제안서"
+    }
+  ]
+}

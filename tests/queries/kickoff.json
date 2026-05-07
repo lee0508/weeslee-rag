@@ -1,0 +1,42 @@
+{
+  "category": "kickoff",
+  "mode": "general",
+  "description": "착수보고서 검색 품질 평가 쿼리",
+  "queries": [
+    {
+      "id": "kickoff_001",
+      "query": "ISP 사업 착수보고 추진계획 일정",
+      "expected_keywords": ["착수보고", "추진계획", "일정"],
+      "expected_category": "kickoff",
+      "notes": "착수보고서 기본 검색"
+    },
+    {
+      "id": "kickoff_002",
+      "query": "정보화 사업 킥오프 현황 진단 방법론",
+      "expected_keywords": ["킥오프", "현황진단", "방법론"],
+      "expected_category": "kickoff",
+      "notes": "킥오프 방법론 검색"
+    },
+    {
+      "id": "kickoff_003",
+      "query": "사업 추진 목표 범위 WBS 일정계획",
+      "expected_keywords": ["WBS", "일정계획", "목표"],
+      "expected_category": "kickoff",
+      "notes": "착수보고 WBS 검색"
+    },
+    {
+      "id": "kickoff_004",
+      "query": "AS-IS TO-BE 현황분석 개선방향",
+      "expected_keywords": ["AS-IS", "TO-BE", "현황분석"],
+      "expected_category": "kickoff",
+      "notes": "현황분석 착수보고"
+    },
+    {
+      "id": "kickoff_005",
+      "query": "이해관계자 인터뷰 계획 워크숍",
+      "expected_keywords": ["이해관계자", "인터뷰", "워크숍"],
+      "expected_category": "kickoff",
+      "notes": "이해관계자 분석 착수"
+    }
+  ]
+}

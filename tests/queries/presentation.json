@@ -1,0 +1,42 @@
+{
+  "category": "presentation",
+  "mode": "general",
+  "description": "발표자료 검색 품질 평가 쿼리",
+  "queries": [
+    {
+      "id": "pres_001",
+      "query": "ISP 사업 발표 슬라이드 주요 추진방향",
+      "expected_keywords": ["발표", "슬라이드", "추진방향"],
+      "expected_category": "presentation",
+      "notes": "발표자료 기본 검색"
+    },
+    {
+      "id": "pres_002",
+      "query": "정보화 전략 비전 방향성 요약 보고",
+      "expected_keywords": ["비전", "방향성", "요약"],
+      "expected_category": "presentation",
+      "notes": "전략 발표자료"
+    },
+    {
+      "id": "pres_003",
+      "query": "사업설명회 PT 내용 사업개요",
+      "expected_keywords": ["사업설명회", "사업개요"],
+      "expected_category": "presentation",
+      "notes": "사업설명회 자료"
+    },
+    {
+      "id": "pres_004",
+      "query": "중간보고 발표 현황분석 결과 개선안",
+      "expected_keywords": ["중간보고", "현황분석", "개선안"],
+      "expected_category": "presentation",
+      "notes": "중간보고 발표자료"
+    },
+    {
+      "id": "pres_005",
+      "query": "AI 도입 디지털 혁신 전략 발표",
+      "expected_keywords": ["AI", "디지털혁신", "전략"],
+      "expected_category": "presentation",
+      "notes": "AI 전략 발표자료"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "category": "final_report",
+  "mode": "general",
+  "description": "최종보고서 검색 품질 평가 쿼리",
+  "queries": [
+    {
+      "id": "final_001",
+      "query": "ISP 정보화 전략 최종보고서 로드맵",
+      "expected_keywords": ["최종보고서", "로드맵", "전략"],
+      "expected_category": "final_report",
+      "notes": "ISP 최종보고서 기본 검색"
+    },
+    {
+      "id": "final_002",
+      "query": "데이터 허브 플랫폼 구축 완료 성과",
+      "expected_keywords": ["데이터허브", "플랫폼", "성과"],
+      "expected_category": "final_report",
+      "notes": "데이터 플랫폼 최종보고 (k-water 연관)"
+    },
+    {
+      "id": "final_003",
+      "query": "차세대 업무시스템 정보화 추진결과 시사점",
+      "expected_keywords": ["차세대", "업무시스템", "시사점"],
+      "expected_category": "final_report",
+      "notes": "차세대 시스템 최종보고"
+    },
+    {
+      "id": "final_004",
+      "query": "정보화 사업 결과 추진실적 향후과제",
+      "expected_keywords": ["추진실적", "향후과제", "결과"],
+      "expected_category": "final_report",
+      "notes": "사업 완료 최종보고"
+    },
+    {
+      "id": "final_005",
+      "query": "디지털 전환 이행결과 KPI 달성도",
+      "expected_keywords": ["KPI", "달성도", "이행결과"],
+      "expected_category": "final_report",
+      "notes": "성과 측정 최종보고"
+    }
+  ]
+}

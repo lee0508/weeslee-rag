@@ -1,0 +1,49 @@
+{
+  "category": null,
+  "mode": "bid_project",
+  "description": "입찰 사업명 기반 통합 검색 품질 평가 쿼리",
+  "queries": [
+    {
+      "id": "bid_001",
+      "query": "k-water 데이터허브 플랫폼 ISP",
+      "expected_keywords": ["k-water", "데이터허브", "ISP"],
+      "expected_category": null,
+      "notes": "알려진 프로젝트: k-water 데이터허브플랫폼_ISP"
+    },
+    {
+      "id": "bid_002",
+      "query": "AX기반 차세대 업무시스템 정보화",
+      "expected_keywords": ["AX", "차세대", "업무시스템"],
+      "expected_category": null,
+      "notes": "알려진 프로젝트: AX기반 차세대 업무시스템"
+    },
+    {
+      "id": "bid_003",
+      "query": "법무부 성범죄백서 연구사업",
+      "expected_keywords": ["법무부", "성범죄", "백서"],
+      "expected_category": null,
+      "notes": "알려진 프로젝트: 법무부_성범죄백서"
+    },
+    {
+      "id": "bid_004",
+      "query": "스마트 물관리 디지털 전환 플랫폼 구축",
+      "expected_keywords": ["스마트", "물관리", "디지털전환"],
+      "expected_category": null,
+      "notes": "수자원 관련 입찰 사업 검색"
+    },
+    {
+      "id": "bid_005",
+      "query": "공공기관 차세대 정보시스템 구축사업",
+      "expected_keywords": ["차세대", "정보시스템", "공공기관"],
+      "expected_category": null,
+      "notes": "공공 시스템 구축 입찰"
+    },
+    {
+      "id": "bid_006",
+      "query": "디지털플랫폼정부 전자정부 정보화 사업",
+      "expected_keywords": ["디지털플랫폼", "전자정부", "정보화"],
+      "expected_category": null,
+      "notes": "전자정부 관련 사업 검색"
+    }
+  ]
+}
