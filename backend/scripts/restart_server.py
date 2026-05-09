@@ -13,9 +13,9 @@ import os
 import subprocess
 import sys
 
-SERVER_HOST = os.environ.get("DEPLOY_HOST", "192.168.0.207")
+SERVER_HOST = os.environ.get("DEPLOY_HOST", "218.148.21.12")
+SERVER_PORT = int(os.environ.get("DEPLOY_PORT", "2222"))
 SERVER_USER = os.environ.get("DEPLOY_USER", "weeslee")
-SERVER_PASSWORD = os.environ["DEPLOY_PASSWORD"]  # must be set via env; no hardcoded fallback
 PROJECT_DIR = os.environ.get("DEPLOY_PROJECT", "/data/weeslee/weeslee-rag")
 PYTHON = os.environ.get("DEPLOY_PYTHON", f"{PROJECT_DIR}/.venv/bin/python3")
 
@@ -65,29 +65,26 @@ def git_push() -> bool:
 
 
 def restart_remote() -> bool:
+    """SSH key-based remote restart (no password required)."""
+    cmd = [
+        "ssh",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "ConnectTimeout=15",
+        "-p", str(SERVER_PORT),
+        f"{SERVER_USER}@{SERVER_HOST}",
+        RESTART_CMD,
+    ]
     try:
-        import paramiko  # type: ignore
-    except ImportError:
-        print("[restart] paramiko not installed — skipping server restart")
-        return False
-
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        ssh.connect(SERVER_HOST, username=SERVER_USER, password=SERVER_PASSWORD, timeout=15)
-        _, stdout, _ = ssh.exec_command(RESTART_CMD)
-        stdout.channel.settimeout(20)
-        try:
-            out = stdout.read().decode("utf-8", "replace").strip()
-        except Exception:
-            out = "(timeout reading output — process likely started)"
-        print("[restart]", out or "(no output)")
-        return "RESTARTED" in out or "origin/main" in out
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        out = (result.stdout + result.stderr).strip()
+        print("[restart]", out[-500:] or "(no output)")
+        return result.returncode == 0 or "RESTARTED" in out
+    except subprocess.TimeoutExpired:
+        print("[restart] SSH timed out — server restart may still be in progress")
+        return True
     except Exception as exc:
         print("[restart] ERROR:", exc)
         return False
-    finally:
-        ssh.close()
 
 
 def main() -> int:
