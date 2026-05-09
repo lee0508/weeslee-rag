@@ -143,4 +143,9 @@ async def query_rag(request: RagQueryRequest):
 
         payload = json.loads(output_json.read_text(encoding="utf-8"))
         payload["success"] = True
+
+        if request.mode in ("bid_project", "rfp_analysis"):
+            from app.services.reranker import rerank
+            payload["documents"] = rerank(request.query, payload.get("documents", []), request.mode)
+
         return payload
