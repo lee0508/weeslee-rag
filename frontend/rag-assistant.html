@@ -143,6 +143,34 @@
     }
     .lang-btn:hover:not(.active) { color: var(--white); }
 
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--navy-d);
+      color: var(--white);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.3);
+      border-left: 3px solid var(--amber);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .25s, transform .25s;
+      max-width: 320px;
+      pointer-events: auto;
+      line-height: 1.5;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.toast-error { border-left-color: #ef4444; }
+    .toast.toast-success { border-left-color: var(--good); }
 
     .sidebar {
       width: var(--sidebar);
@@ -974,7 +1002,9 @@
           </div>
           <div>
             <label for="answerModel" data-i18n="model">Model</label>
-            <input id="answerModel" value="gemma4:latest">
+            <select id="answerModel">
+              <option value="gemma4:latest">gemma4:latest</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1033,7 +1063,7 @@
             </div>
             <div class="query-actions">
               <button class="btn btn-primary" onclick="runQuery()" data-i18n="run_rag">Run RAG</button>
-              <button class="btn btn-outline" onclick="loadHealth()" data-i18n="refresh_health">Refresh Health</button>
+              <button class="btn btn-outline" onclick="loadHealth(true)" data-i18n="refresh_health">Refresh Health</button>
             </div>
           </div>
         </div>
@@ -1131,6 +1161,7 @@
     </div>
   </div>
 
+  <div id="toastContainer" class="toast-container"></div>
   <script src="config.js"></script>
   <script>
     // ── i18n ──────────────────────────────────────────────────────────────
@@ -1169,6 +1200,7 @@
         rv_empty:'아직 실행된 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.',
         rv_select:'좌측 목록에서 항목을 선택하세요.',
         checking:'확인 중', no_index:'인덱스 없음', offline:'오프라인',
+        running_btn:'실행 중...', searching_btn:'검색 중...', health_ok:'서버 상태 확인 완료.',
         conn_fail:'서버 연결 실패', enter_query:'쿼리를 입력하세요.',
         running:'검색 중...', generating:'생성 중...',
         done_top:'완료. 상위 {n}개 문서 반환.', no_docs:'반환된 문서 없음.',
@@ -1215,6 +1247,7 @@
         rv_empty:'No RAG queries executed yet.<br>Run a query in the RAG Assistant tab to populate this list.',
         rv_select:'Select an item from the list on the left.',
         checking:'Checking', no_index:'No index', offline:'offline',
+        running_btn:'Running...', searching_btn:'Searching...', health_ok:'Health check OK.',
         conn_fail:'Connection failed', enter_query:'Enter a query first.',
         running:'Running retrieval...', generating:'Generating...',
         done_top:'Done. Top {n} documents ranked.', no_docs:'No documents returned.',
@@ -1269,6 +1302,57 @@
         renderReviewList();
         if (_selectedReviewIdx >= 0) selectReviewItem(_selectedReviewIdx);
       }
+    }
+
+    // ── Toast notifications ───────────────────────────────────────────────
+    function showToast(msg, type = 'info', duration = 3500) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast' + (type === 'error' ? ' toast-error' : type === 'success' ? ' toast-success' : '');
+      toast.textContent = msg;
+      container.appendChild(toast);
+      requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    // ── Model dropdown ────────────────────────────────────────────────────
+    function populateModelSelect(models) {
+      const sel = document.getElementById('answerModel');
+      if (!models.length) return;
+      const current = sel.value;
+      sel.innerHTML = models.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+      if (models.includes(current)) sel.value = current;
+    }
+
+    async function loadOllamaModels() {
+      try {
+        const r = await fetch(`${API_BASE}/health/ollama`);
+        if (!r.ok) return;
+        const data = await r.json();
+        populateModelSelect(data.models || []);
+      } catch (_) {}
+    }
+
+    // ── Category dynamic load ─────────────────────────────────────────────
+    async function loadCategories() {
+      try {
+        const r = await fetch(`${API_BASE}/admin/faiss/category-status`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const cats = (data.categories || []).filter(c => c.exists).map(c => c.category);
+        if (!cats.length) return;
+        ['category', 'kCategory'].forEach(id => {
+          const sel = document.getElementById(id);
+          if (!sel) return;
+          const cur = sel.value;
+          sel.innerHTML = `<option value="">${t('cat_all')}</option>` +
+            cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+          if (cur && cats.includes(cur)) sel.value = cur;
+        });
+      } catch (_) {}
     }
 
     // ── API base ──────────────────────────────────────────────────────────
@@ -1332,7 +1416,7 @@
       resultDocs.innerHTML = renderDocumentCards(data.documents, false);
     }
 
-    async function loadHealth() {
+    async function loadHealth(showFeedback = false) {
       try {
         const response = await fetch(`${API_BASE}/health/all`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1357,12 +1441,18 @@
         ollamaEl.textContent = ollama.status || '-';
         ollamaEl.className = `value ${ollama.status === 'healthy' ? 'ok' : 'warn'}`;
 
+        if (showFeedback) {
+          loadOllamaModels();
+          loadCategories();
+          showToast(t('health_ok'), 'success');
+        }
       } catch (error) {
         document.getElementById('apiStatus').textContent = t('offline');
         document.getElementById('apiStatus').className = 'value warn';
         document.getElementById('vectorStatus').textContent = '-';
         document.getElementById('ollamaStatus').textContent = '-';
         document.getElementById('queryStatus').textContent = `${t('conn_fail')}: ${error.message}`;
+        if (showFeedback) showToast(`${t('conn_fail')}: ${error.message}`, 'error');
       }
     }
 
@@ -1393,6 +1483,10 @@
       status.textContent = t('running');
       document.getElementById('draftPanel').textContent = t('generating');
       document.getElementById('results').innerHTML = '';
+
+      const runBtn = document.querySelector('button[onclick="runQuery()"]');
+      runBtn.disabled = true;
+      runBtn.textContent = t('running_btn');
 
       try {
         const response = await fetch(`${API_BASE}/rag/query`, {
@@ -1429,6 +1523,10 @@
       } catch (error) {
         status.textContent = `${t('query_failed')}: ${error.message}`;
         document.getElementById('draftPanel').textContent = '';
+        showToast(`${t('query_failed')}: ${error.message}`, 'error');
+      } finally {
+        runBtn.disabled = false;
+        runBtn.textContent = t('run_rag');
       }
     }
 
@@ -1546,6 +1644,10 @@
       status.textContent = t('ks_searching');
       results.innerHTML = '';
 
+      const searchBtn = document.querySelector('button[onclick="runKnowledgeSearch()"]');
+      searchBtn.disabled = true;
+      searchBtn.textContent = t('searching_btn');
+
       try {
         const response = await fetch(`${API_BASE}/rag/query`, {
           method: 'POST',
@@ -1566,6 +1668,10 @@
       } catch (err) {
         status.textContent = `${t('ks_error')}: ${err.message}`;
         results.innerHTML = `<div class="ks-empty">${escapeHtml(err.message)}</div>`;
+        showToast(`${t('ks_error')}: ${err.message}`, 'error');
+      } finally {
+        searchBtn.disabled = false;
+        searchBtn.textContent = t('ks_btn');
       }
     }
 
@@ -1721,6 +1827,8 @@
     // 초기 언어 적용 (페이지 로드 시)
     applyLang();
     loadHealth();
+    loadOllamaModels();
+    loadCategories();
   </script>
 </body>
 </html>

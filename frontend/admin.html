@@ -630,6 +630,35 @@
   // ── Pipeline ──────────────────────────────────────────────────────────────
 
   let _sseSource = null;
+  let _jobPollTimer = null;
+
+  function startJobPolling() {
+    if (_jobPollTimer) return;
+    _jobPollTimer = setInterval(async () => {
+      const data = await api('/admin/faiss/jobs').catch(() => ({ jobs: [] }));
+      const jobs = data.jobs || [];
+      renderJobs(jobs);
+      if (!jobs.some(j => j.status === 'running')) stopJobPolling();
+    }, 4000);
+  }
+
+  function stopJobPolling() {
+    if (_jobPollTimer) { clearInterval(_jobPollTimer); _jobPollTimer = null; }
+  }
+
+  async function checkRunningJobs() {
+    try {
+      const data = await api('/admin/faiss/jobs');
+      if ((data.jobs || []).some(j => j.status === 'running')) startJobPolling();
+    } catch (_) {}
+  }
+
+  function setDefaultSnapshot() {
+    const el = document.getElementById('jobSnapshot');
+    if (!el || el.value) return;
+    const today = new Date().toISOString().slice(0, 10);
+    el.value = `snapshot_${today}_batch-`;
+  }
 
   async function startJob() {
     const snapshot = document.getElementById('jobSnapshot').value.trim();
@@ -654,6 +683,7 @@
 
   function streamJob(jobId) {
     if (_sseSource) _sseSource.close();
+    startJobPolling();
     _sseSource = new EventSource(`${API_BASE}/admin/faiss/jobs/${jobId}/stream`);
 
     _sseSource.onmessage = (e) => {
@@ -663,6 +693,7 @@
       if (ev.log) appendLog(ev.log, (ev.stage || '').startsWith('오류'));
       if (ev.done) {
         _sseSource.close();
+        stopJobPolling();
         document.getElementById('runBtn').disabled = false;
         if (ev.error) appendLog('실패: ' + ev.error, true);
         else          appendLog('✓ 파이프라인 완료');
@@ -674,6 +705,7 @@
 
     _sseSource.onerror = () => {
       _sseSource.close();
+      stopJobPolling();
       document.getElementById('runBtn').disabled = false;
       appendLog('SSE 연결 오류', true);
     };
@@ -827,7 +859,10 @@
     `;
   }
 
-  function refreshAll() { loadStatus(); loadIndexes(); loadJobs(); loadOllama(); loadCategoryStatus(); }
+  function refreshAll() {
+    loadStatus(); loadIndexes(); loadJobs(); loadOllama(); loadCategoryStatus();
+    checkRunningJobs();
+  }
 
   // ── Tab switching ─────────────────────────────────────────────────────────
 
@@ -1110,6 +1145,7 @@
   }
 
   // Init
+  setDefaultSnapshot();
   refreshAll();
 </script>
 
