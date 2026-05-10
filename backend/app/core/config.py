@@ -80,6 +80,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8080",
         "http://192.168.0.207:9284",
         "http://192.168.0.207:8080",
+        "http://server.weeslee.co.kr:9284",
+        "https://server.weeslee.co.kr",
+        "http://218.148.21.12:9284",
         "null",
     ]
 

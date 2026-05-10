@@ -879,7 +879,7 @@
     </div>
     <div class="topnav-right">
       <span class="topnav-badge">Live</span>
-      <span>192.168.0.207:8080/api</span>
+      <span id="apiBadge">/api</span>
     </div>
   </nav>
 
@@ -888,7 +888,7 @@
       <div class="sidebar-section">
         <div class="sidebar-label">Runtime Target</div>
         <div class="sidebar-note">
-          Backend API is fixed to <strong>http://192.168.0.207:8080/api</strong> for live validation.
+          Backend API: <strong id="sidebarApiBase"></strong>
         </div>
         <div class="sidebar-status">
           <div class="sidebar-card">
@@ -1103,26 +1103,18 @@
     </div>
   </div>
 
+  <script src="config.js"></script>
   <script>
     function detectApiBase() {
-      if (window.__API_BASE__) {
-        return window.__API_BASE__;
-      }
-
-      const { origin, pathname, port, protocol } = window.location;
-
-      if (protocol === 'https:' && pathname.startsWith('/weeslee-rag/')) {
-        return `${origin}/weeslee-rag/api`;
-      }
-
-      if (port === '9284') {
-        return 'http://192.168.0.207:8080/api';
-      }
-
-      return `${origin}/api`;
+      if (window.__API_BASE__) return window.__API_BASE__;
+      return `${window.location.origin}/api`;
     }
 
     const API_BASE = detectApiBase();
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('sidebarApiBase');
+      if (el) el.textContent = API_BASE;
+    });
 
     let _activeSnapshot = '';
 

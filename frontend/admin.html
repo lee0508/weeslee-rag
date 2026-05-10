@@ -473,15 +473,11 @@
   </div>
 </div><!-- /tab-graph -->
 
+<script src="config.js"></script>
 <script>
   function detectApiBase() {
     if (window.__API_BASE__) return window.__API_BASE__;
-    const { origin, pathname, port, protocol } = window.location;
-    if (protocol === 'https:' && pathname.startsWith('/weeslee-rag/')) {
-      return `${origin}/weeslee-rag/api`;
-    }
-    if (port === '9284') return 'http://192.168.0.207:8080/api';
-    return `${origin}/api`;
+    return `${window.location.origin}/api`;
   }
   const API_BASE = detectApiBase();
 
