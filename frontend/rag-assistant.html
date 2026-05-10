@@ -884,6 +884,14 @@
       margin-bottom: 16px;
     }
     .rv-answer-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .rv-rating { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+    .rv-rating-label { font-size: 12px; color: var(--text-s); }
+    .rv-star { font-size: 20px; cursor: pointer; color: var(--gray-300); transition: color .15s; line-height: 1; }
+    .rv-star.filled { color: #f59e0b; }
+    .rv-star:hover, .rv-star:hover ~ .rv-star { color: var(--gray-300); }
+    .rv-star-wrap:hover .rv-star { color: #f59e0b; }
+    .rv-star-wrap .rv-star:hover ~ .rv-star { color: var(--gray-300); }
+    .rv-item-rating { font-size: 12px; color: #f59e0b; letter-spacing: -1px; }
     .rv-docs-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -915,6 +923,18 @@
       .form-grid, .tpl-info-row, .stats-grid { grid-template-columns: 1fr; }
       .query-actions { justify-content: stretch; }
       .query-actions .btn { flex: 1 1 auto; justify-content: center; }
+      .rv-docs-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .topnav-logo { display: none; }
+      .topnav-tabs { gap: 0; }
+      .topnav-tab { font-size: 12px; padding: 0 10px; }
+      .topnav-right { gap: 6px; }
+      .app-body { flex-direction: column; }
+      .sidebar, .right-panel { max-height: 260px; overflow-y: auto; }
+      .answer-panel, .result-panel { min-height: 200px; }
+      .rv-detail-wrap { min-height: 300px; }
+      .rv-rating { flex-wrap: wrap; }
     }
   </style>
 </head>
@@ -1217,7 +1237,7 @@
         hint_rfp:'RFP / 과업지시서 내용 분석.<br>rfp → kickoff → proposal 우선순위 적용.',
         rv_query_label:'쿼리', rv_docs_count:'문서 {n}개', rv_ref_docs:'참조 문서 ({n}개)',
         rv_copy_answer:'답변 복사', rv_search_only:'검색 전용 모드 — 답변 없음',
-        rv_count:'{n}개',
+        rv_count:'{n}개', rv_rating_label:'품질 평점',
       },
       en: {
         tab_rag:'RAG Assistant', tab_knowledge:'Knowledge Search', tab_review:'Answer Review',
@@ -1264,7 +1284,7 @@
         hint_rfp:'RFP / scope-of-work analysis.<br>Priority: rfp → kickoff → proposal.',
         rv_query_label:'Query', rv_docs_count:'{n} docs', rv_ref_docs:'Referenced Documents ({n})',
         rv_copy_answer:'Copy Answer', rv_search_only:'Search-only mode — no answer generated',
-        rv_count:'{n}',
+        rv_count:'{n}', rv_rating_label:'Quality Rating',
       },
     };
 
@@ -1745,6 +1765,7 @@
         topDoc: data.documents?.[0]?.project_name || data.documents?.[0]?.document_id || '-',
         answer: data.draft_answer || '',
         documents: data.documents || [],
+        rating: 0,
       });
       _saveHistory(_queryHistory);
 
@@ -1768,15 +1789,18 @@
         return;
       }
       const locale = _lang === 'ko' ? 'ko-KR' : 'en-US';
-      list.innerHTML = _queryHistory.map((item, i) => `
+      list.innerHTML = _queryHistory.map((item, i) => {
+        const stars = item.rating ? '★'.repeat(item.rating) + '☆'.repeat(5 - item.rating) : '';
+        return `
         <div class="rv-item ${i === _selectedReviewIdx ? 'active' : ''}" onclick="selectReviewItem(${i})">
           <div class="rv-item-query">${escapeHtml(item.query)}</div>
           <div class="rv-item-meta">
             <span>${item.ts.toLocaleTimeString(locale)}</span>
             <span>${t('rv_docs_count', { n: item.docCount })}</span>
-            <span>${escapeHtml(item.topDoc)}</span>
+            ${stars ? `<span class="rv-item-rating">${stars}</span>` : ''}
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
 
     function selectReviewItem(idx) {
@@ -1810,18 +1834,19 @@
             <span>${t('rv_docs_count', { n: item.docCount })}</span>
           </div>
         </div>
-        ${item.answer ? `
-          <div class="rv-answer-block">
-            <div class="rv-detail-label">${t('draft_answer')}</div>
-            <div class="rv-detail-text" style="white-space:pre-wrap;">${escapeHtml(item.answer)}</div>
-            <div class="rv-answer-actions">
-              <button class="ks-link" type="button" onclick="copyAnswer(${idx})">${t('rv_copy_answer')}</button>
-            </div>
-          </div>` :
-          `<div class="rv-answer-block">
-            <div class="rv-detail-label">${t('draft_answer')}</div>
-            <div class="rv-detail-text" style="color:var(--text-s);">${t('rv_search_only')}</div>
-          </div>`}
+        <div class="rv-answer-block">
+          <div class="rv-detail-label">${t('draft_answer')}</div>
+          ${item.answer
+            ? `<div class="rv-detail-text" style="white-space:pre-wrap;">${escapeHtml(item.answer)}</div>`
+            : `<div class="rv-detail-text" style="color:var(--text-s);">${t('rv_search_only')}</div>`}
+          <div class="rv-rating">
+            <span class="rv-rating-label">${t('rv_rating_label')}</span>
+            <div class="rv-star-wrap" id="starWrap-${idx}">${renderStars(idx, item.rating || 0)}</div>
+          </div>
+          ${item.answer ? `<div class="rv-answer-actions">
+            <button class="ks-link" type="button" onclick="copyAnswer(${idx})">${t('rv_copy_answer')}</button>
+          </div>` : ''}
+        </div>
         ${item.documents.length ? `
           <div class="rv-detail-label" style="margin-bottom:10px;">${t('rv_ref_docs', { n: item.documents.length })}</div>
           <div class="rv-docs-grid">${dlDocs}</div>` : ''}
@@ -1847,6 +1872,23 @@
       } else {
         _fallbackCopy(answer, done);
       }
+    }
+
+    function renderStars(idx, current) {
+      return [1,2,3,4,5].map(n =>
+        `<span class="rv-star ${n <= current ? 'filled' : ''}"
+          onclick="rateItem(${idx},${n})" title="${n}점">★</span>`
+      ).join('');
+    }
+
+    function rateItem(idx, n) {
+      const item = _queryHistory[idx];
+      if (!item) return;
+      item.rating = (item.rating === n) ? 0 : n;
+      _saveHistory(_queryHistory);
+      const wrap = document.getElementById(`starWrap-${idx}`);
+      if (wrap) wrap.innerHTML = renderStars(idx, item.rating);
+      renderReviewList();
     }
 
     // ── URL param pre-fill ────────────────────────────────────────────

@@ -3,14 +3,15 @@
 FAISS Index Management API.
 
 Endpoints:
-  GET  /api/admin/faiss/status              — 현재 활성 인덱스 정보
-  GET  /api/admin/faiss/indexes             — 사용 가능한 인덱스 목록
-  POST /api/admin/faiss/jobs                — 파이프라인 잡 시작
-  GET  /api/admin/faiss/jobs                — 잡 목록
-  GET  /api/admin/faiss/jobs/{job_id}/stream — SSE 진행 스트림
-  GET  /api/admin/faiss/category-status     — 활성 스냅샷의 카테고리 인덱스 존재 여부
-  POST /api/admin/faiss/benchmark           — 검색 품질 벤치마크 실행
-  POST /api/admin/faiss/activate            — 스냅샷 활성화
+  GET    /api/admin/faiss/status              — 현재 활성 인덱스 정보
+  GET    /api/admin/faiss/indexes             — 사용 가능한 인덱스 목록
+  DELETE /api/admin/faiss/indexes/{snapshot}  — 스냅샷 삭제 (활성 인덱스 불가)
+  POST   /api/admin/faiss/jobs                — 파이프라인 잡 시작
+  GET    /api/admin/faiss/jobs                — 잡 목록
+  GET    /api/admin/faiss/jobs/{job_id}/stream — SSE 진행 스트림
+  GET    /api/admin/faiss/category-status     — 활성 스냅샷의 카테고리 인덱스 존재 여부
+  POST   /api/admin/faiss/benchmark           — 검색 품질 벤치마크 실행
+  POST   /api/admin/faiss/activate            — 스냅샷 활성화
 """
 from __future__ import annotations
 
@@ -102,6 +103,47 @@ async def list_indexes():
             for s in snapshots
         ]
     }
+
+
+_CATEGORY_SUFFIXES = [
+    "rfp", "proposal", "kickoff", "final_report", "presentation",
+]
+
+
+@router.delete("/indexes/{snapshot}")
+async def delete_snapshot(snapshot: str):
+    """스냅샷과 관련 파일을 모두 삭제한다. 활성 인덱스는 삭제 불가."""
+    active = runner.read_active_index()
+    if (active or {}).get("snapshot", "") == snapshot:
+        raise HTTPException(
+            status_code=400,
+            detail="활성 인덱스는 삭제할 수 없습니다. 다른 인덱스를 활성화한 후 삭제하세요.",
+        )
+    if not FAISS_DIR.exists():
+        raise HTTPException(status_code=404, detail="FAISS 디렉토리가 없습니다.")
+
+    targets = [
+        FAISS_DIR / f"{snapshot}_ollama.index",
+        FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl",
+    ] + [
+        FAISS_DIR / f"{snapshot}_{cat}_ollama.index" for cat in _CATEGORY_SUFFIXES
+    ] + [
+        FAISS_DIR / f"{snapshot}_{cat}_ollama_metadata.jsonl" for cat in _CATEGORY_SUFFIXES
+    ]
+
+    deleted: list[str] = []
+    for f in targets:
+        if f.exists():
+            try:
+                f.unlink()
+                deleted.append(f.name)
+            except OSError as exc:
+                raise HTTPException(status_code=500, detail=f"삭제 실패: {f.name} — {exc}")
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"스냅샷 파일 없음: {snapshot}")
+
+    return {"deleted": deleted, "snapshot": snapshot}
 
 
 class StartJobRequest(BaseModel):

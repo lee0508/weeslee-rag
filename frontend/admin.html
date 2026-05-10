@@ -355,6 +355,29 @@
     .wiki-content hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
     .wiki-content em { color: var(--muted); font-style: italic; }
     .wiki-loading { color: var(--muted); font-size: 13px; text-align: center; padding: 40px; }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: none;
+      }
+      header { padding: 12px 16px; gap: 10px; }
+      header h1 { font-size: 14px; }
+    }
+    @media (max-width: 600px) {
+      header { flex-wrap: wrap; }
+      .header-right { width: 100%; justify-content: flex-end; }
+      .bm-summary { flex-wrap: wrap; }
+      .bm-stat { min-width: 70px; }
+      .tab-btn { font-size: 12px; padding: 8px 10px; }
+      .index-item { flex-direction: column; align-items: flex-start; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
@@ -464,12 +487,16 @@
 
     <!-- Benchmark -->
     <div class="card">
-      <div class="card-title">검색 품질 벤치마크</div>
+      <div class="card-title">
+        검색 품질 벤치마크
+        <button class="icon-btn" onclick="clearBmHistory()" title="기록 초기화">✕</button>
+      </div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
         <button class="btn btn-secondary" id="bmBtn" onclick="runBenchmark()">▶ Run Benchmark</button>
         <span id="bmRunning" style="display:none;font-size:12px;color:var(--amber)">실행 중... (search_only 모드)</span>
       </div>
       <div id="bmResults"></div>
+      <div id="bmHistory" style="margin-top:16px;"></div>
     </div>
 
   </main>
@@ -627,6 +654,8 @@
         <div class="index-actions">
           <button class="btn btn-secondary btn-sm"
             onclick="activateIndex('${esc(idx.snapshot)}')">Activate</button>
+          <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;"
+            onclick="deleteIndex('${esc(idx.snapshot)}')">삭제</button>
         </div>` : ''}
       </div>
     `).join('');
@@ -661,10 +690,53 @@
         method: 'POST',
         body: JSON.stringify({ snapshot }),
       });
+      showToast('인덱스 활성화 완료', 'success');
       refreshAll();
     } catch (e) {
-      alert('활성화 실패: ' + e.message);
+      showToast('활성화 실패: ' + e.message, 'error');
     }
+  }
+
+  async function deleteIndex(snapshot) {
+    const ok = await showConfirm({
+      icon: '🗑️',
+      title: '스냅샷 삭제',
+      body: `<strong>${esc(snapshot)}</strong><br>의 모든 인덱스 파일을 영구 삭제합니다.<br><span style="color:var(--red)">이 작업은 되돌릴 수 없습니다.</span>`,
+      okLabel: '삭제',
+    });
+    if (!ok) return;
+    try {
+      await api(`/admin/faiss/indexes/${encodeURIComponent(snapshot)}`, { method: 'DELETE' });
+      showToast('스냅샷 삭제 완료', 'success');
+      loadIndexes();
+    } catch (e) {
+      showToast('삭제 실패: ' + e.message, 'error');
+    }
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+
+  function showToast(msg, type = 'info', duration = 3500) {
+    let container = document.getElementById('adminToastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'adminToastContainer';
+      container.style.cssText =
+        'position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999;';
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    const bg = type === 'error' ? 'var(--red)' : type === 'success' ? 'var(--green)' : 'var(--surface2)';
+    toast.style.cssText =
+      `background:${bg};color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;` +
+      `box-shadow:0 4px 12px rgba(0,0,0,.4);opacity:0;transition:opacity .25s;max-width:320px;`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    requestAnimationFrame(() => requestAnimationFrame(() => { toast.style.opacity = '1'; }));
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
   }
 
   // ── Jobs ──────────────────────────────────────────────────────────────────
@@ -867,6 +939,52 @@
 
   // ── Benchmark ─────────────────────────────────────────────────────────────
 
+  const _BM_KEY = 'admin_bm_history';
+  const _BM_MAX = 10;
+
+  function _loadBmHistory() {
+    try { return JSON.parse(localStorage.getItem(_BM_KEY) || '[]'); } catch (_) { return []; }
+  }
+
+  function _saveBmHistory(h) {
+    try { localStorage.setItem(_BM_KEY, JSON.stringify(h.slice(0, _BM_MAX))); } catch (_) {}
+  }
+
+  function clearBmHistory() {
+    localStorage.removeItem(_BM_KEY);
+    document.getElementById('bmHistory').innerHTML = '';
+    showToast('벤치마크 기록 초기화', 'info');
+  }
+
+  function renderBmHistoryList() {
+    const h = _loadBmHistory();
+    const el = document.getElementById('bmHistory');
+    if (!h.length) { el.innerHTML = ''; return; }
+    const rows = h.map((entry, i) => {
+      const s = entry.summary || {};
+      const passColor = s.pass_rate >= 0.8 ? 'var(--green)' : s.pass_rate >= 0.6 ? 'var(--amber)' : 'var(--red)';
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border);font-size:12px;cursor:pointer;"
+          onclick="expandBmHistory(${i})">
+          <span style="color:${passColor};font-weight:600;min-width:36px">${Math.round((s.pass_rate||0)*100)}%</span>
+          <span style="color:var(--green);min-width:30px">${s.passed ?? 0}✓</span>
+          <span style="color:var(--red);min-width:30px">${s.failed ?? 0}✗</span>
+          <span style="color:var(--muted);flex:1">${esc(entry.snapshot || '-')}</span>
+          <span style="color:var(--muted)">${(entry.run_at || '').slice(0, 16).replace('T', ' ')}</span>
+        </div>`;
+    }).join('');
+    el.innerHTML = `
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;letter-spacing:.04em">최근 벤치마크 기록 (${h.length}/${_BM_MAX})</div>
+      ${rows}`;
+  }
+
+  function expandBmHistory(i) {
+    const h = _loadBmHistory();
+    if (!h[i]) return;
+    renderBenchmark(h[i]);
+    renderBmHistoryList();
+  }
+
   async function runBenchmark() {
     document.getElementById('bmBtn').disabled = true;
     document.getElementById('bmRunning').style.display = '';
@@ -874,9 +992,15 @@
     try {
       const data = await api('/admin/faiss/benchmark', { method: 'POST' });
       renderBenchmark(data);
+      const h = _loadBmHistory();
+      h.unshift(data);
+      _saveBmHistory(h);
+      renderBmHistoryList();
+      showToast('벤치마크 완료', 'success');
     } catch (e) {
       document.getElementById('bmResults').innerHTML =
         `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+      showToast('벤치마크 실패: ' + e.message, 'error');
     } finally {
       document.getElementById('bmBtn').disabled = false;
       document.getElementById('bmRunning').style.display = 'none';
@@ -1236,6 +1360,7 @@
   // Init
   setDefaultSnapshot();
   refreshAll();
+  renderBmHistoryList();
 </script>
 
 <!-- Confirm modal -->
