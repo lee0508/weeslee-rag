@@ -118,6 +118,30 @@
       padding: 2px 8px;
       border-radius: 12px;
     }
+    .lang-toggle {
+      display: flex;
+      gap: 2px;
+      background: rgba(255,255,255,.08);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .lang-btn {
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-400);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: all .15s;
+    }
+    .lang-btn.active {
+      background: var(--amber);
+      color: var(--navy-d);
+    }
+    .lang-btn:hover:not(.active) { color: var(--white); }
 
 
     .sidebar {
@@ -873,11 +897,15 @@
       <div class="logo-badge">WEESLEE RAG WORKSPACE</div>
     </div>
     <div class="topnav-tabs">
-      <button class="topnav-tab active" onclick="switchMainTab('rag')">RAG Assistant</button>
-      <button class="topnav-tab" onclick="switchMainTab('knowledge')">Knowledge Search</button>
-      <button class="topnav-tab" onclick="switchMainTab('review')">Answer Review</button>
+      <button class="topnav-tab active" onclick="switchMainTab('rag')" data-i18n="tab_rag">RAG Assistant</button>
+      <button class="topnav-tab" onclick="switchMainTab('knowledge')" data-i18n="tab_knowledge">Knowledge Search</button>
+      <button class="topnav-tab" onclick="switchMainTab('review')" data-i18n="tab_review">Answer Review</button>
     </div>
     <div class="topnav-right">
+      <div class="lang-toggle">
+        <button class="lang-btn active" id="langKo" onclick="setLang('ko')">KO</button>
+        <button class="lang-btn" id="langEn" onclick="setLang('en')">EN</button>
+      </div>
       <span class="topnav-badge">Live</span>
       <span id="apiBadge">/api</span>
     </div>
@@ -886,7 +914,7 @@
   <div id="mainTab-rag" class="main-tab-panel active app-body">
     <aside class="sidebar">
       <div class="sidebar-section">
-        <div class="sidebar-label">Runtime Target</div>
+        <div class="sidebar-label" data-i18n="runtime_target">Runtime Target</div>
         <div class="sidebar-note">
           Backend API: <strong id="sidebarApiBase"></strong>
         </div>
@@ -906,52 +934,52 @@
         </div>
         <div class="sidebar-controls">
           <div>
-            <label for="searchMode">Search Mode</label>
+            <label for="searchMode" data-i18n="search_mode">Search Mode</label>
             <select id="searchMode" onchange="onSearchModeChange()">
-              <option value="general">General RAG</option>
-              <option value="bid_project">Bid Project Search</option>
-              <option value="rfp_analysis">RFP Analysis</option>
+              <option value="general" data-i18n="mode_general">General RAG</option>
+              <option value="bid_project" data-i18n="mode_bid">Bid Project Search</option>
+              <option value="rfp_analysis" data-i18n="mode_rfp">RFP Analysis</option>
             </select>
           </div>
           <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
           <div>
-            <label for="topK">Top K</label>
+            <label for="topK" data-i18n="top_k">Top K</label>
             <input id="topK" type="number" min="5" max="50" value="20">
           </div>
           <div>
-            <label for="topDocs">Top Docs</label>
+            <label for="topDocs" data-i18n="top_docs">Top Docs</label>
             <input id="topDocs" type="number" min="3" max="10" value="5">
           </div>
           <div>
-            <label for="maxChunks">Max Chunks / Doc</label>
+            <label for="maxChunks" data-i18n="max_chunks">Max Chunks / Doc</label>
             <input id="maxChunks" type="number" min="1" max="10" value="3">
           </div>
           <div>
-            <label for="category">Category</label>
+            <label for="category" data-i18n="category">Category</label>
             <select id="category">
-              <option value="">All (combined)</option>
-              <option value="rfp">RFP</option>
-              <option value="proposal">Proposal</option>
-              <option value="kickoff">Kickoff</option>
-              <option value="final_report">Final Report</option>
-              <option value="presentation">Presentation</option>
+              <option value="" data-i18n="cat_all">All</option>
+              <option value="rfp" data-i18n="cat_rfp">RFP</option>
+              <option value="proposal" data-i18n="cat_proposal">Proposal</option>
+              <option value="kickoff" data-i18n="cat_kickoff">Kickoff</option>
+              <option value="final_report" data-i18n="cat_final">Final Report</option>
+              <option value="presentation" data-i18n="cat_presentation">Presentation</option>
             </select>
           </div>
           <div>
-            <label for="answerProvider">Answer Mode</label>
+            <label for="answerProvider" data-i18n="answer_mode">Answer Mode</label>
             <select id="answerProvider">
-              <option value="ollama">Ollama (Generate)</option>
-              <option value="none">Search Only</option>
+              <option value="ollama" data-i18n="ans_ollama">Ollama (Generate)</option>
+              <option value="none" data-i18n="ans_none">Search Only</option>
             </select>
           </div>
           <div>
-            <label for="answerModel">Model</label>
+            <label for="answerModel" data-i18n="model">Model</label>
             <input id="answerModel" value="gemma4:latest">
           </div>
         </div>
       </div>
       <div class="sidebar-section">
-        <div class="sidebar-label">Recommended Documents</div>
+        <div class="sidebar-label" data-i18n="rec_docs">Recommended Documents</div>
       </div>
       <div class="results-wrap">
         <div class="results" id="results"></div>
@@ -962,29 +990,29 @@
       <div class="main-content">
         <div class="tpl-header">
           <div class="tpl-meta">
-            <span class="tpl-tag amber">RAG Retrieval</span>
-            <span class="tpl-tag">Live Mode</span>
+            <span class="tpl-tag amber" data-i18n="tpl_tag1">RAG Retrieval</span>
+            <span class="tpl-tag" data-i18n="tpl_tag2">Live Mode</span>
             <span class="tpl-tag">FAISS + Ollama</span>
           </div>
-          <div class="tpl-name">Weeslee RAG Query Workspace</div>
-          <div class="tpl-desc">
+          <div class="tpl-name" data-i18n="tpl_title">Weeslee RAG Query Workspace</div>
+          <div class="tpl-desc" data-i18n="tpl_desc">
             Enter a project or proposal question, retrieve supporting documents, and generate a draft answer in the same workflow.
           </div>
           <div class="tpl-info-row">
             <div class="tpl-info-item">
-              <div class="tpl-info-label">Target</div>
+              <div class="tpl-info-label" data-i18n="info_target">Target</div>
               <div class="tpl-info-val">RAG Query</div>
             </div>
             <div class="tpl-info-item">
-              <div class="tpl-info-label">Backend</div>
+              <div class="tpl-info-label" data-i18n="info_backend">Backend</div>
               <div class="tpl-info-val">FastAPI 8080</div>
             </div>
             <div class="tpl-info-item">
-              <div class="tpl-info-label">Frontend</div>
+              <div class="tpl-info-label" data-i18n="info_frontend">Frontend</div>
               <div class="tpl-info-val">Nginx 9284</div>
             </div>
             <div class="tpl-info-item">
-              <div class="tpl-info-label">Answer Mode</div>
+              <div class="tpl-info-label" data-i18n="info_ans_mode">Answer Mode</div>
               <div class="tpl-info-val" id="heroAnswerMode">Generate</div>
             </div>
           </div>
@@ -992,20 +1020,20 @@
 
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Query Input</div>
-            <div class="status" id="queryStatus">Ready.</div>
+            <div class="card-title" data-i18n="query_input">Query Input</div>
+            <div class="status" id="queryStatus" data-i18n="ready">Ready.</div>
           </div>
           <div class="card-body">
             <div class="form-grid">
               <div class="form-group full">
-                <label class="form-label" for="query">Query</label>
-                <textarea class="form-textarea" id="query" placeholder="Example: Proposal change request for an AX-based next-generation business system ISMP">AX based proposal request for the next generation business system ISMP software scope change</textarea>
-                <span class="form-hint">Use the left panel controls to narrow retrieval scope and answer mode.</span>
+                <label class="form-label" for="query" data-i18n="query_label">Query</label>
+                <textarea class="form-textarea" id="query" data-i18n-placeholder="query_placeholder" placeholder="Example: Proposal change request for an AX-based next-generation business system ISMP">AX based proposal request for the next generation business system ISMP software scope change</textarea>
+                <span class="form-hint" data-i18n="query_hint">Use the left panel controls to narrow retrieval scope and answer mode.</span>
               </div>
             </div>
             <div class="query-actions">
-              <button class="btn btn-primary" onclick="runQuery()">Run RAG</button>
-              <button class="btn btn-outline" onclick="loadHealth()">Refresh Health</button>
+              <button class="btn btn-primary" onclick="runQuery()" data-i18n="run_rag">Run RAG</button>
+              <button class="btn btn-outline" onclick="loadHealth()" data-i18n="refresh_health">Refresh Health</button>
             </div>
           </div>
         </div>
@@ -1015,23 +1043,23 @@
     <aside class="right-panel">
       <div class="card answer-card">
         <div class="card-header">
-          <div class="card-title">Answer Panel</div>
+          <div class="card-title" data-i18n="answer_panel">Answer Panel</div>
           <div class="panel-tabs">
-            <button class="panel-tab active" type="button" data-tab="draft" onclick="switchAnswerTab('draft')">Draft Answer</button>
-            <button class="panel-tab" type="button" data-tab="result" onclick="switchAnswerTab('result')">Result</button>
+            <button class="panel-tab active" type="button" data-tab="draft" onclick="switchAnswerTab('draft')" data-i18n="draft_answer">Draft Answer</button>
+            <button class="panel-tab" type="button" data-tab="result" onclick="switchAnswerTab('result')" data-i18n="result">Result</button>
           </div>
         </div>
-        <div class="card-body panel-view answer active" id="draftPanel">No answer yet.</div>
+        <div class="card-body panel-view answer active" id="draftPanel" data-i18n="no_answer">No answer yet.</div>
         <div class="card-body panel-view result-view" id="resultPanel">
           <div class="result-summary" id="resultSummary">
             <div class="result-metric">
-              <div class="label">Status</div>
-              <div class="value">No result yet.</div>
+              <div class="label" data-i18n="result_status">Status</div>
+              <div class="value" data-i18n="result_no_result">No result yet.</div>
             </div>
           </div>
-          <div class="result-view-note">Open/Download uses the backend files API. The file must exist in the server's <code>data/raw/</code> directory. Copy Path copies the original source path to clipboard.</div>
+          <div class="result-view-note" id="resultViewNote">Open/Download uses the backend files API. The file must exist in the server's <code>data/raw/</code> directory. Copy Path copies the original source path to clipboard.</div>
           <div class="result-docs" id="resultDocs">
-            <div class="result-json" id="resultPayload">Run a query to inspect the result payload.</div>
+            <div class="result-json" id="resultPayload" data-i18n="result_run_hint">Run a query to inspect the result payload.</div>
           </div>
         </div>
       </div>
@@ -1042,41 +1070,41 @@
   <div id="mainTab-knowledge" class="main-tab-panel knowledge-panel">
     <div class="ks-sidebar">
       <div class="ks-sidebar-inner">
-        <div class="sidebar-label" style="color:var(--gray-400);margin-bottom:12px;">검색 조건</div>
+        <div class="sidebar-label" style="color:var(--gray-400);margin-bottom:12px;" data-i18n="search_conditions">검색 조건</div>
         <div class="ks-field">
-          <label>검색 모드</label>
+          <label data-i18n="ks_mode">검색 모드</label>
           <select id="kSearchMode">
-            <option value="general">General RAG</option>
-            <option value="bid_project">Bid Project</option>
-            <option value="rfp_analysis">RFP Analysis</option>
+            <option value="general" data-i18n="mode_general">General RAG</option>
+            <option value="bid_project" data-i18n="mode_bid">Bid Project Search</option>
+            <option value="rfp_analysis" data-i18n="mode_rfp">RFP Analysis</option>
           </select>
         </div>
         <div class="ks-field">
-          <label>카테고리</label>
+          <label data-i18n="ks_category">카테고리</label>
           <select id="kCategory">
-            <option value="">전체</option>
-            <option value="rfp">RFP</option>
-            <option value="proposal">Proposal</option>
-            <option value="kickoff">Kickoff</option>
-            <option value="final_report">Final Report</option>
-            <option value="presentation">Presentation</option>
+            <option value="" data-i18n="cat_all">전체</option>
+            <option value="rfp" data-i18n="cat_rfp">RFP</option>
+            <option value="proposal" data-i18n="cat_proposal">Proposal</option>
+            <option value="kickoff" data-i18n="cat_kickoff">Kickoff</option>
+            <option value="final_report" data-i18n="cat_final">Final Report</option>
+            <option value="presentation" data-i18n="cat_presentation">Presentation</option>
           </select>
         </div>
         <div class="ks-field">
-          <label>Top K (청크 수)</label>
+          <label data-i18n="ks_topk">Top K (청크 수)</label>
           <input id="kTopK" type="number" min="5" max="50" value="20">
         </div>
         <div class="ks-field">
-          <label>Top Docs (문서 수)</label>
+          <label data-i18n="ks_topdocs">Top Docs (문서 수)</label>
           <input id="kTopDocs" type="number" min="3" max="20" value="8">
         </div>
-        <div class="ks-hint">답변 생성 없이 관련 문서만 검색합니다.</div>
+        <div class="ks-hint" data-i18n="ks_hint">답변 생성 없이 관련 문서만 검색합니다.</div>
       </div>
     </div>
     <div class="ks-main">
       <div class="ks-search-bar">
-        <input id="kQuery" class="ks-input" type="text" placeholder="사업명, 키워드, 업무 영역 입력...">
-        <button class="btn btn-primary" onclick="runKnowledgeSearch()">검색</button>
+        <input id="kQuery" class="ks-input" type="text" data-i18n-placeholder="ks_placeholder" placeholder="사업명, 키워드, 업무 영역 입력...">
+        <button class="btn btn-primary" onclick="runKnowledgeSearch()" data-i18n="ks_btn">검색</button>
         <span class="ks-status" id="kStatus"></span>
       </div>
       <div id="kResults" class="ks-results">
@@ -1089,8 +1117,8 @@
   <div id="mainTab-review" class="main-tab-panel review-panel">
     <div class="rv-list-wrap">
       <div class="rv-list-header">
-        <span class="sidebar-label" style="color:var(--gray-400);">세션 기록</span>
-        <span class="rv-count" id="rvCount">0개</span>
+        <span class="sidebar-label" style="color:var(--gray-400);" data-i18n="session_history">세션 기록</span>
+        <span class="rv-count" id="rvCount">0</span>
       </div>
       <div id="rvList" class="rv-list">
         <div class="rv-empty">아직 실행된 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.</div>
@@ -1105,6 +1133,145 @@
 
   <script src="config.js"></script>
   <script>
+    // ── i18n ──────────────────────────────────────────────────────────────
+    const I18N = {
+      ko: {
+        tab_rag:'RAG Assistant', tab_knowledge:'지식 검색', tab_review:'답변 검토',
+        runtime_target:'서버 상태', search_mode:'검색 모드', top_k:'Top K',
+        top_docs:'Top Docs', max_chunks:'청크 / 문서', category:'카테고리',
+        answer_mode:'답변 모드', model:'모델', rec_docs:'추천 문서',
+        mode_general:'General RAG', mode_bid:'입찰 사업 검색', mode_rfp:'RFP 분석',
+        cat_all:'전체', cat_rfp:'RFP', cat_proposal:'제안서', cat_kickoff:'착수보고',
+        cat_final:'최종보고', cat_presentation:'발표',
+        ans_ollama:'Ollama (생성)', ans_none:'검색 전용',
+        generate_short:'생성', search_only_short:'검색 전용',
+        tpl_tag1:'RAG 검색', tpl_tag2:'라이브', tpl_title:'Weeslee RAG 쿼리 워크스페이스',
+        tpl_desc:'프로젝트·제안서 관련 질문을 입력하면 관련 문서를 검색하고 초안 답변을 생성합니다.',
+        info_target:'대상', info_backend:'백엔드', info_frontend:'프론트엔드', info_ans_mode:'답변 모드',
+        query_input:'쿼리 입력', ready:'준비', query_label:'쿼리',
+        query_placeholder:'예시: AX 기반 차세대 업무시스템 ISMP 소프트웨어 범위 변경 제안',
+        query_hint:'좌측 패널에서 검색 범위와 답변 모드를 설정하세요.',
+        run_rag:'RAG 실행', refresh_health:'상태 새로고침',
+        answer_panel:'답변 패널', draft_answer:'초안 답변', result:'결과',
+        no_answer:'아직 답변이 없습니다.',
+        result_no_result:'결과 없음', result_status:'상태', result_docs:'문서 수',
+        result_top:'최상위 결과', result_ans_size:'답변 크기',
+        result_view_note:'열기/다운로드는 백엔드 파일 API를 사용합니다. 서버의 <code>data/raw/</code> 디렉토리에 파일이 있어야 합니다.',
+        result_run_hint:'쿼리를 실행하면 결과를 확인할 수 있습니다.',
+        result_success:'성공', result_failed:'실패',
+        download:'다운로드', copy_path:'경로 복사', copied:'복사됨!',
+        search_conditions:'검색 조건', ks_mode:'검색 모드', ks_category:'카테고리',
+        ks_topk:'Top K (청크 수)', ks_topdocs:'Top Docs (문서 수)',
+        ks_hint:'답변 생성 없이 관련 문서만 검색합니다.',
+        ks_placeholder:'사업명, 키워드, 업무 영역 입력...', ks_btn:'검색',
+        ks_empty:'검색어를 입력하고 검색 버튼을 누르세요.',
+        session_history:'세션 기록',
+        rv_empty:'아직 실행된 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.',
+        rv_select:'좌측 목록에서 항목을 선택하세요.',
+        checking:'확인 중', no_index:'인덱스 없음', offline:'오프라인',
+        conn_fail:'서버 연결 실패', enter_query:'쿼리를 입력하세요.',
+        running:'검색 중...', generating:'생성 중...',
+        done_top:'완료. 상위 {n}개 문서 반환.', no_docs:'반환된 문서 없음.',
+        query_failed:'쿼리 실패', ks_searching:'검색 중...',
+        ks_found:'{n}개 문서 검색됨', ks_none:'검색 결과 없음',
+        ks_no_docs:'관련 문서를 찾지 못했습니다.', ks_enter:'검색어를 입력하세요.', ks_error:'오류',
+        hint_bid:'나라장터 사업명 → 키워드 자동 확장.<br>proposal → final_report → presentation 우선순위 적용.',
+        hint_rfp:'RFP / 과업지시서 내용 분석.<br>rfp → kickoff → proposal 우선순위 적용.',
+        rv_query_label:'쿼리', rv_docs_count:'문서 {n}개', rv_ref_docs:'참조 문서 ({n}개)',
+        rv_copy_answer:'답변 복사', rv_search_only:'검색 전용 모드 — 답변 없음',
+        rv_count:'{n}개',
+      },
+      en: {
+        tab_rag:'RAG Assistant', tab_knowledge:'Knowledge Search', tab_review:'Answer Review',
+        runtime_target:'Runtime Target', search_mode:'Search Mode', top_k:'Top K',
+        top_docs:'Top Docs', max_chunks:'Max Chunks / Doc', category:'Category',
+        answer_mode:'Answer Mode', model:'Model', rec_docs:'Recommended Docs',
+        mode_general:'General RAG', mode_bid:'Bid Project Search', mode_rfp:'RFP Analysis',
+        cat_all:'All', cat_rfp:'RFP', cat_proposal:'Proposal', cat_kickoff:'Kickoff',
+        cat_final:'Final Report', cat_presentation:'Presentation',
+        ans_ollama:'Ollama (Generate)', ans_none:'Search Only',
+        generate_short:'Generate', search_only_short:'Search Only',
+        tpl_tag1:'RAG Retrieval', tpl_tag2:'Live Mode', tpl_title:'Weeslee RAG Query Workspace',
+        tpl_desc:'Enter a project or proposal question, retrieve supporting documents, and generate a draft answer.',
+        info_target:'Target', info_backend:'Backend', info_frontend:'Frontend', info_ans_mode:'Answer Mode',
+        query_input:'Query Input', ready:'Ready.', query_label:'Query',
+        query_placeholder:'Example: AX-based next-gen business system ISMP software scope change proposal',
+        query_hint:'Use the left panel to configure retrieval scope and answer mode.',
+        run_rag:'Run RAG', refresh_health:'Refresh Health',
+        answer_panel:'Answer Panel', draft_answer:'Draft Answer', result:'Result',
+        no_answer:'No answer yet.',
+        result_no_result:'No result yet.', result_status:'Status', result_docs:'Documents',
+        result_top:'Top Result', result_ans_size:'Answer Size',
+        result_view_note:'Open/Download uses the backend files API. The file must exist in the server\'s <code>data/raw/</code> directory. Copy Path copies the original source path to clipboard.',
+        result_run_hint:'Run a query to inspect the result payload.',
+        result_success:'Success', result_failed:'Failed',
+        download:'Download', copy_path:'Copy Path', copied:'Copied!',
+        search_conditions:'Search Conditions', ks_mode:'Search Mode', ks_category:'Category',
+        ks_topk:'Top K (Chunks)', ks_topdocs:'Top Docs',
+        ks_hint:'Search for relevant documents without generating an answer.',
+        ks_placeholder:'Enter project name, keyword, or domain...', ks_btn:'Search',
+        ks_empty:'Enter a search term and press Search.',
+        session_history:'Session History',
+        rv_empty:'No RAG queries executed yet.<br>Run a query in the RAG Assistant tab to populate this list.',
+        rv_select:'Select an item from the list on the left.',
+        checking:'Checking', no_index:'No index', offline:'offline',
+        conn_fail:'Connection failed', enter_query:'Enter a query first.',
+        running:'Running retrieval...', generating:'Generating...',
+        done_top:'Done. Top {n} documents ranked.', no_docs:'No documents returned.',
+        query_failed:'Query failed', ks_searching:'Searching...',
+        ks_found:'{n} documents found', ks_none:'No results found',
+        ks_no_docs:'No relevant documents found.', ks_enter:'Please enter a search term.', ks_error:'Error',
+        hint_bid:'Nara Marketplace project → keyword expansion.<br>Priority: proposal → final_report → presentation.',
+        hint_rfp:'RFP / scope-of-work analysis.<br>Priority: rfp → kickoff → proposal.',
+        rv_query_label:'Query', rv_docs_count:'{n} docs', rv_ref_docs:'Referenced Documents ({n})',
+        rv_copy_answer:'Copy Answer', rv_search_only:'Search-only mode — no answer generated',
+        rv_count:'{n}',
+      },
+    };
+
+    let _lang = localStorage.getItem('rag_lang') || 'ko';
+    let _hasAnswer = false;
+    let _queryRan = false;
+
+    function t(key, vars = {}) {
+      let str = (I18N[_lang] || I18N.ko)[key] || key;
+      for (const [k, v] of Object.entries(vars)) str = str.replace(`{${k}}`, v);
+      return str;
+    }
+
+    function setLang(lang) {
+      _lang = lang;
+      localStorage.setItem('rag_lang', lang);
+      applyLang();
+    }
+
+    function applyLang() {
+      document.documentElement.lang = _lang === 'ko' ? 'ko' : 'en';
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = t(el.dataset.i18nPlaceholder);
+      });
+      // result-view-note contains <code> tag — use innerHTML
+      const rvNote = document.getElementById('resultViewNote');
+      if (rvNote) rvNote.innerHTML = t('result_view_note');
+      // lang buttons
+      document.getElementById('langKo').classList.toggle('active', _lang === 'ko');
+      document.getElementById('langEn').classList.toggle('active', _lang === 'en');
+      // dynamic elements (only update when in initial state)
+      if (!_hasAnswer) document.getElementById('draftPanel').textContent = t('no_answer');
+      if (!_queryRan) document.getElementById('queryStatus').textContent = t('ready');
+      syncAnswerModeLabel();
+      onSearchModeChange();
+      // re-render review if populated
+      if (_queryHistory.length) {
+        renderReviewList();
+        if (_selectedReviewIdx >= 0) selectReviewItem(_selectedReviewIdx);
+      }
+    }
+
+    // ── API base ──────────────────────────────────────────────────────────
     function detectApiBase() {
       if (window.__API_BASE__) return window.__API_BASE__;
       return `${window.location.origin}/api`;
@@ -1120,7 +1287,8 @@
 
     function syncAnswerModeLabel() {
       const provider = document.getElementById('answerProvider').value;
-      document.getElementById('heroAnswerMode').textContent = provider === 'none' ? 'Search Only' : 'Generate';
+      document.getElementById('heroAnswerMode').textContent =
+        provider === 'none' ? t('search_only_short') : t('generate_short');
     }
 
     function switchAnswerTab(tabName) {
@@ -1140,29 +1308,27 @@
 
       resultSummary.innerHTML = `
         <div class="result-metric">
-          <div class="label">Status</div>
-          <div class="value">${data.success ? 'Success' : 'Failed'}</div>
+          <div class="label">${t('result_status')}</div>
+          <div class="value">${data.success ? t('result_success') : t('result_failed')}</div>
         </div>
         <div class="result-metric">
-          <div class="label">Documents</div>
+          <div class="label">${t('result_docs')}</div>
           <div class="value">${docCount}</div>
         </div>
         <div class="result-metric">
-          <div class="label">Top Result</div>
+          <div class="label">${t('result_top')}</div>
           <div class="value">${escapeHtml(topDocument)}</div>
         </div>
         <div class="result-metric">
-          <div class="label">Answer Size</div>
+          <div class="label">${t('result_ans_size')}</div>
           <div class="value">${answerLength}</div>
         </div>
       `;
 
       if (!docCount) {
-        resultDocs.innerHTML = `<div class="result-json">${escapeHtml(data.error || 'No documents returned.')}</div>`;
+        resultDocs.innerHTML = `<div class="result-json">${escapeHtml(data.error || t('no_docs'))}</div>`;
         return;
       }
-
-      // result panel is wider — show all evidence chips
       resultDocs.innerHTML = renderDocumentCards(data.documents, false);
     }
 
@@ -1172,13 +1338,11 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
-        // ── API / overall status ──────────────────────────────────────────
         const overall = data.status || 'unknown';
         const apiEl = document.getElementById('apiStatus');
         apiEl.textContent = overall;
         apiEl.className = `value ${overall === 'healthy' ? 'ok' : 'warn'}`;
 
-        // ── FAISS index status ────────────────────────────────────────────
         const faiss = data.components?.faiss || {};
         if (faiss.snapshot) _activeSnapshot = faiss.snapshot;
         const snapshotShort = faiss.snapshot
@@ -1186,32 +1350,28 @@
           : '-';
         const chunkLabel = faiss.chunk_count ? ` (${faiss.chunk_count.toLocaleString()} chunks)` : '';
         document.getElementById('vectorStatus').textContent =
-          faiss.index_exists ? snapshotShort + chunkLabel : '인덱스 없음';
+          faiss.index_exists ? snapshotShort + chunkLabel : t('no_index');
 
-        // ── Ollama status ─────────────────────────────────────────────────
         const ollama = data.components?.ollama || {};
         const ollamaEl = document.getElementById('ollamaStatus');
         ollamaEl.textContent = ollama.status || '-';
         ollamaEl.className = `value ${ollama.status === 'healthy' ? 'ok' : 'warn'}`;
 
       } catch (error) {
-        document.getElementById('apiStatus').textContent = 'offline';
+        document.getElementById('apiStatus').textContent = t('offline');
         document.getElementById('apiStatus').className = 'value warn';
         document.getElementById('vectorStatus').textContent = '-';
         document.getElementById('ollamaStatus').textContent = '-';
-        document.getElementById('queryStatus').textContent = `서버 연결 실패: ${error.message}`;
+        document.getElementById('queryStatus').textContent = `${t('conn_fail')}: ${error.message}`;
       }
     }
 
-    const _MODE_HINTS = {
-      bid_project: '나라장터 사업명 → 키워드 자동 확장.<br>proposal → final_report → presentation 우선순위 적용.',
-      rfp_analysis: 'RFP / 과업지시서 내용 분석.<br>rfp → kickoff → proposal 우선순위 적용.',
-    };
     function onSearchModeChange() {
       const mode = document.getElementById('searchMode').value;
       const hint = document.getElementById('bidHint');
-      hint.innerHTML = _MODE_HINTS[mode] || '';
-      hint.style.display = _MODE_HINTS[mode] ? '' : 'none';
+      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp') };
+      hint.innerHTML = hints[mode] || '';
+      hint.style.display = hints[mode] ? '' : 'none';
     }
 
     async function runQuery() {
@@ -1227,13 +1387,11 @@
 
       syncAnswerModeLabel();
 
-      if (!query) {
-        status.textContent = 'Enter a query first.';
-        return;
-      }
+      if (!query) { status.textContent = t('enter_query'); return; }
 
-      status.textContent = 'Running retrieval...';
-      document.getElementById('draftPanel').textContent = 'Generating...';
+      _queryRan = true;
+      status.textContent = t('running');
+      document.getElementById('draftPanel').textContent = t('generating');
       document.getElementById('results').innerHTML = '';
 
       try {
@@ -1241,10 +1399,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query,
-            top_k: topK,
-            top_docs: topDocs,
-            max_chunks_per_doc: maxChunks,
+            query, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
             answer_provider: answerProvider,
             answer_model: answerProvider === 'none' ? '' : answerModel,
             mode: searchMode,
@@ -1252,27 +1407,27 @@
           })
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status} ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
 
         const data = await response.json();
         if (!data.success) {
-          status.textContent = `Failed: ${data.error || 'unknown error'}`;
+          status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
           renderResultPanel(data);
           switchAnswerTab('result');
           return;
         }
 
-        const expandedNote = data.expanded_query ? ` (확장: ${data.expanded_query.slice(0, 60)}...)` : '';
-        status.textContent = `Done. Top ${data.documents?.length || 0} documents ranked.${expandedNote}`;
-        document.getElementById('draftPanel').textContent = data.draft_answer || '(no draft answer)';
+        const expandedNote = data.expanded_query
+          ? ` (${_lang === 'ko' ? '확장' : 'expanded'}: ${data.expanded_query.slice(0, 60)}...)` : '';
+        status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote;
+        _hasAnswer = true;
+        document.getElementById('draftPanel').textContent = data.draft_answer || `(${t('no_docs')})`;
         renderResultPanel(data);
         renderResults(data.documents || []);
         pushHistory(query, data);
         switchAnswerTab('draft');
       } catch (error) {
-        status.textContent = `Query failed: ${error.message}`;
+        status.textContent = `${t('query_failed')}: ${error.message}`;
         document.getElementById('draftPanel').textContent = '';
       }
     }
@@ -1280,16 +1435,14 @@
     function renderResults(documents) {
       const results = document.getElementById('results');
       if (!documents.length) {
-        results.innerHTML = '<div class="doc">No documents returned.</div>';
+        results.innerHTML = `<div class="doc">${t('no_docs')}</div>`;
         return;
       }
-      // sidebar is narrow — limit to 3 evidence chips
       results.innerHTML = renderDocumentCards(documents, true);
     }
 
     function renderSourcePathLink(sourcePath, inputPath) {
       if (!sourcePath) return '';
-      // inputPath = server-local snapshot copy; sourcePath = original W:\ label
       const dlPath = inputPath || sourcePath;
       const dl = `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}`;
       return `<a class="source-path-link" href="${escapeHtml(dl)}" download title="${escapeHtml(sourcePath)}">${escapeHtml(sourcePath)}</a>`;
@@ -1301,19 +1454,19 @@
       const downloadUrl = `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}`;
       return `
         <div class="doc-actions">
-          <a class="doc-link" href="${escapeHtml(downloadUrl)}" download>Download</a>
+          <a class="doc-link" href="${escapeHtml(downloadUrl)}" download>${t('download')}</a>
           <button class="doc-link" type="button"
             data-copy-path="${escapeHtml(sourcePath)}"
-            onclick="copyPath(this)">Copy Path</button>
+            onclick="copyPath(this)">${t('copy_path')}</button>
         </div>
       `;
     }
 
     function copyPath(btn) {
       const path = btn.dataset.copyPath;
+      const orig = btn.textContent;
       const done = () => {
-        const orig = btn.textContent;
-        btn.textContent = 'Copied!';
+        btn.textContent = t('copied');
         btn.classList.add('copy-feedback');
         setTimeout(() => { btn.textContent = orig; btn.classList.remove('copy-feedback'); }, 1600);
       };
@@ -1363,22 +1516,17 @@
 
     function escapeHtml(text) {
       return String(text)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+        .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
     }
 
     // ── Main tab switching ────────────────────────────────────────────
     function switchMainTab(name) {
       document.querySelectorAll('.topnav-tab').forEach((btn, i) => {
-        const tabs = ['rag', 'knowledge', 'review'];
-        btn.classList.toggle('active', tabs[i] === name);
+        btn.classList.toggle('active', ['rag', 'knowledge', 'review'][i] === name);
       });
       document.querySelectorAll('.main-tab-panel').forEach(panel => {
-        const id = panel.id; // e.g. "mainTab-rag"
-        panel.classList.toggle('active', id === `mainTab-${name}`);
+        panel.classList.toggle('active', panel.id === `mainTab-${name}`);
       });
       if (name === 'review') renderReviewList();
     }
@@ -1393,9 +1541,9 @@
       const status = document.getElementById('kStatus');
       const results = document.getElementById('kResults');
 
-      if (!query) { status.textContent = '검색어를 입력하세요.'; return; }
+      if (!query) { status.textContent = t('ks_enter'); return; }
 
-      status.textContent = '검색 중...';
+      status.textContent = t('ks_searching');
       results.innerHTML = '';
 
       try {
@@ -1403,25 +1551,20 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query,
-            top_k: topK,
-            top_docs: topDocs,
-            max_chunks_per_doc: 3,
-            answer_provider: 'none',
-            answer_model: '',
-            mode: kMode,
+            query, top_k: topK, top_docs: topDocs, max_chunks_per_doc: 3,
+            answer_provider: 'none', answer_model: '', mode: kMode,
             ...(category ? { category } : {})
           })
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         const docs = data.documents || [];
-        status.textContent = docs.length ? `${docs.length}개 문서 검색됨` : '검색 결과 없음';
+        status.textContent = docs.length ? t('ks_found', { n: docs.length }) : t('ks_none');
         results.innerHTML = docs.length
           ? docs.map(doc => renderKsCard(doc)).join('')
-          : '<div class="ks-empty">관련 문서를 찾지 못했습니다.</div>';
+          : `<div class="ks-empty">${t('ks_no_docs')}</div>`;
       } catch (err) {
-        status.textContent = `오류: ${err.message}`;
+        status.textContent = `${t('ks_error')}: ${err.message}`;
         results.innerHTML = `<div class="ks-empty">${escapeHtml(err.message)}</div>`;
       }
     }
@@ -1447,8 +1590,8 @@
             </div>` : ''}
           ${downloadUrl ? `
             <div class="ks-doc-actions">
-              <a class="ks-link" href="${escapeHtml(downloadUrl)}" download>다운로드</a>
-              <button class="ks-link" type="button" data-copy-path="${escapeHtml(doc.source_path || '')}" onclick="copyPath(this)">경로 복사</button>
+              <a class="ks-link" href="${escapeHtml(downloadUrl)}" download>${t('download')}</a>
+              <button class="ks-link" type="button" data-copy-path="${escapeHtml(doc.source_path || '')}" onclick="copyPath(this)">${t('copy_path')}</button>
             </div>` : ''}
         </div>`;
     }
@@ -1463,8 +1606,7 @@
 
     function pushHistory(query, data) {
       _queryHistory.unshift({
-        ts: new Date(),
-        query,
+        ts: new Date(), query,
         docCount: data.documents?.length || 0,
         topDoc: data.documents?.[0]?.project_name || data.documents?.[0]?.document_id || '-',
         answer: data.draft_answer || '',
@@ -1476,11 +1618,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query,
-          mode,
-          answer: data.draft_answer || '',
-          documents: data.documents || [],
-          snapshot: _activeSnapshot,
+          query, mode, answer: data.draft_answer || '',
+          documents: data.documents || [], snapshot: _activeSnapshot,
         }),
       }).catch(() => {});
     }
@@ -1488,17 +1627,18 @@
     function renderReviewList() {
       const list = document.getElementById('rvList');
       const count = document.getElementById('rvCount');
-      count.textContent = `${_queryHistory.length}개`;
+      count.textContent = t('rv_count', { n: _queryHistory.length });
       if (!_queryHistory.length) {
-        list.innerHTML = '<div class="rv-empty">아직 실행된 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.</div>';
+        list.innerHTML = `<div class="rv-empty">${t('rv_empty')}</div>`;
         return;
       }
+      const locale = _lang === 'ko' ? 'ko-KR' : 'en-US';
       list.innerHTML = _queryHistory.map((item, i) => `
         <div class="rv-item ${i === _selectedReviewIdx ? 'active' : ''}" onclick="selectReviewItem(${i})">
           <div class="rv-item-query">${escapeHtml(item.query)}</div>
           <div class="rv-item-meta">
-            <span>${item.ts.toLocaleTimeString('ko-KR')}</span>
-            <span>문서 ${item.docCount}개</span>
+            <span>${item.ts.toLocaleTimeString(locale)}</span>
+            <span>${t('rv_docs_count', { n: item.docCount })}</span>
             <span>${escapeHtml(item.topDoc)}</span>
           </div>
         </div>`).join('');
@@ -1507,6 +1647,7 @@
     function selectReviewItem(idx) {
       _selectedReviewIdx = idx;
       const item = _queryHistory[idx];
+      const locale = _lang === 'ko' ? 'ko-KR' : 'en-US';
       const detail = document.getElementById('rvDetail');
       const dlDocs = item.documents.map(doc => {
         const dlPath = doc.input_path || doc.source_path;
@@ -1521,29 +1662,33 @@
               <span>${escapeHtml(doc.document_id)}</span>
               <span>score: ${Number(doc.best_score).toFixed(4)}</span>
             </div>
-            ${downloadUrl ? `<div class="ks-doc-actions"><a class="ks-link" href="${escapeHtml(downloadUrl)}" download>다운로드</a></div>` : ''}
+            ${downloadUrl ? `<div class="ks-doc-actions"><a class="ks-link" href="${escapeHtml(downloadUrl)}" download>${t('download')}</a></div>` : ''}
           </div>`;
       }).join('');
 
       detail.innerHTML = `
         <div class="rv-detail-query">
-          <div class="rv-detail-label">쿼리</div>
+          <div class="rv-detail-label">${t('rv_query_label')}</div>
           <div class="rv-detail-text">${escapeHtml(item.query)}</div>
           <div class="rv-item-meta" style="margin-top:8px;">
-            <span>${item.ts.toLocaleString('ko-KR')}</span>
-            <span>문서 ${item.docCount}개</span>
+            <span>${item.ts.toLocaleString(locale)}</span>
+            <span>${t('rv_docs_count', { n: item.docCount })}</span>
           </div>
         </div>
         ${item.answer ? `
           <div class="rv-answer-block">
-            <div class="rv-detail-label">Draft Answer</div>
+            <div class="rv-detail-label">${t('draft_answer')}</div>
             <div class="rv-detail-text" style="white-space:pre-wrap;">${escapeHtml(item.answer)}</div>
             <div class="rv-answer-actions">
-              <button class="ks-link" type="button" onclick="copyAnswer(${idx})">답변 복사</button>
+              <button class="ks-link" type="button" onclick="copyAnswer(${idx})">${t('rv_copy_answer')}</button>
             </div>
-          </div>` : '<div class="rv-answer-block"><div class="rv-detail-label">Draft Answer</div><div class="rv-detail-text" style="color:var(--text-s);">검색 전용 모드 — 답변 없음</div></div>'}
+          </div>` :
+          `<div class="rv-answer-block">
+            <div class="rv-detail-label">${t('draft_answer')}</div>
+            <div class="rv-detail-text" style="color:var(--text-s);">${t('rv_search_only')}</div>
+          </div>`}
         ${item.documents.length ? `
-          <div class="rv-detail-label" style="margin-bottom:10px;">참조 문서 (${item.documents.length}개)</div>
+          <div class="rv-detail-label" style="margin-bottom:10px;">${t('rv_ref_docs', { n: item.documents.length })}</div>
           <div class="rv-docs-grid">${dlDocs}</div>` : ''}
       `;
       renderReviewList();
@@ -1559,7 +1704,7 @@
       }
     }
 
-    // ── URL param pre-fill (e.g. from Graph View click) ──────────────
+    // ── URL param pre-fill ────────────────────────────────────────────
     (function applyUrlParams() {
       const params = new URLSearchParams(window.location.search);
       const q = params.get('q');
@@ -1572,7 +1717,9 @@
     })();
 
     document.getElementById('answerProvider').addEventListener('change', syncAnswerModeLabel);
-    syncAnswerModeLabel();
+
+    // 초기 언어 적용 (페이지 로드 시)
+    applyLang();
     loadHealth();
   </script>
 </body>
