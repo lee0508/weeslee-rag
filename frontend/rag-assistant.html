@@ -1323,8 +1323,11 @@
       const sel = document.getElementById('answerModel');
       if (!models.length) return;
       const current = sel.value;
-      sel.innerHTML = models.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
-      if (models.includes(current)) sel.value = current;
+      // embed 전용 모델은 generate 불가 — 목록에서 제외
+      const genModels = models.filter(m => !/embed/i.test(m));
+      if (!genModels.length) return;
+      sel.innerHTML = genModels.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+      if (genModels.includes(current)) sel.value = current;
     }
 
     async function loadOllamaModels() {
