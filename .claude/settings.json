@@ -1,10 +1,2 @@
 {
-  "hooks": {
-    "Stop": [
-      {
-        "type": "command",
-        "command": "git push origin main 2>&1 | tail -3"
-      }
-    ]
-  }
 }

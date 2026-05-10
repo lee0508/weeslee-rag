@@ -79,6 +79,7 @@ celerybeat-schedule
 
 # Environments
 .env
+.mcp.json
 .venv
 env/
 venv/
