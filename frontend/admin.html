@@ -278,6 +278,40 @@
     .graph-empty { display: flex; align-items: center; justify-content: center;
       height: 100%; color: var(--muted); font-size: 13px; }
 
+    /* Graph legend */
+    .graph-legend {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Project search */
+    .proj-search {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 6px 10px;
+      font-size: 12px; outline: none; margin-bottom: 8px;
+    }
+    .proj-search:focus { border-color: var(--navy-light); }
+
+    /* Confirm modal */
+    .confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 2000;
+      display: none; align-items: center; justify-content: center;
+    }
+    .confirm-overlay.open { display: flex; }
+    .confirm-modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; width: 420px; max-width: 90vw;
+      box-shadow: 0 24px 64px rgba(0,0,0,.5);
+      padding: 28px 28px 22px;
+    }
+    .confirm-icon { font-size: 28px; margin-bottom: 12px; }
+    .confirm-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .confirm-body { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 22px; }
+    .confirm-body strong { color: var(--text); }
+    .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
     /* Wiki modal */
     .wiki-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 1000;
@@ -330,6 +364,7 @@
   <h1>FAISS Index Management Console</h1>
   <span class="tag">ADMIN</span>
   <div class="header-right">
+    <a class="btn btn-outline btn-sm" href="/weeslee-rag/frontend/rag-assistant.html" target="_blank" style="text-decoration:none">↗ RAG Assistant</a>
     <span class="api-status" id="apiStatus">
       <span class="dot"></span>
       <span id="apiStatusText">연결 확인 중...</span>
@@ -395,7 +430,10 @@
         </div>
         <div class="progress-meta">
           <span id="progressStage">-</span>
-          <span class="progress-pct" id="progressPct">0%</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span class="progress-pct" id="progressPct">0%</span>
+            <button class="btn btn-outline btn-sm" onclick="copyLog()" title="로그 복사">📋 복사</button>
+          </span>
         </div>
         <div class="log-box" id="logBox"></div>
       </div>
@@ -448,7 +486,8 @@
         <h3 style="margin-bottom:0">프로젝트</h3>
         <button class="btn btn-outline btn-sm" onclick="buildGraph()" id="buildBtn">⚙ Build</button>
       </div>
-      <div id="graphSummary" style="font-size:11px;color:var(--muted);margin-bottom:10px"></div>
+      <div id="graphSummary" style="font-size:11px;color:var(--muted);margin-bottom:8px"></div>
+      <input class="proj-search" id="projSearch" type="text" placeholder="프로젝트 검색..." oninput="filterProjects(this.value)">
       <div id="projectList"><div class="empty">그래프 데이터 없음<br>Build 버튼을 눌러 생성하세요.</div></div>
     </div>
 
@@ -460,6 +499,15 @@
           <button class="btn btn-outline btn-sm" onclick="cy && cy.fit()">⊞ Fit</button>
           <button class="btn btn-outline btn-sm" onclick="cy && cy.reset()">↺ Reset</button>
         </div>
+      </div>
+      <div class="graph-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#E8971F"></div>프로젝트</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>RFP</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Proposal</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Kickoff</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Final Report</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Presentation</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6b7280;border-radius:2px"></div>카테고리</div>
       </div>
       <div id="cyCanvas"></div>
     </div>
@@ -584,14 +632,35 @@
     `).join('');
   }
 
+  let _confirmResolve = null;
+
+  function showConfirm({ icon = '⚠️', title, body, okLabel = '확인' } = {}) {
+    document.getElementById('confirmIcon').textContent = icon;
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmBody').innerHTML = body;
+    document.getElementById('confirmOkBtn').textContent = okLabel;
+    document.getElementById('confirmOverlay').classList.add('open');
+    return new Promise(resolve => { _confirmResolve = resolve; });
+  }
+
+  function resolveConfirm(result) {
+    document.getElementById('confirmOverlay').classList.remove('open');
+    if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+  }
+
   async function activateIndex(snapshot) {
-    if (!confirm(`"${snapshot}"\n을(를) 활성 인덱스로 설정하시겠습니까?\n이후 모든 RAG 쿼리에 이 인덱스가 사용됩니다.`)) return;
+    const ok = await showConfirm({
+      icon: '🔄',
+      title: '인덱스 활성화',
+      body: `<strong>${esc(snapshot)}</strong><br>을(를) 활성 인덱스로 변경합니다.<br>이후 모든 RAG 쿼리에 이 인덱스가 사용됩니다.`,
+      okLabel: '활성화',
+    });
+    if (!ok) return;
     try {
       await api('/admin/faiss/activate', {
         method: 'POST',
         body: JSON.stringify({ snapshot }),
       });
-      alert('활성화 완료');
       refreshAll();
     } catch (e) {
       alert('활성화 실패: ' + e.message);
@@ -718,6 +787,20 @@
   }
 
   function clearLog() { document.getElementById('logBox').innerHTML = ''; }
+
+  function copyLog() {
+    const text = document.getElementById('logBox').innerText;
+    navigator.clipboard?.writeText(text).catch(() => {
+      const el = document.createElement('textarea');
+      el.value = text; el.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(el); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+    });
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✓ 복사됨';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }
 
   function appendLog(text, isErr = false) {
     const box = document.getElementById('logBox');
@@ -981,6 +1064,12 @@
     }
   }
 
+  function filterProjects(query) {
+    const q = query.trim().toLowerCase();
+    const filtered = q ? _graphProjects.filter(p => p.label.toLowerCase().includes(q)) : _graphProjects;
+    renderProjectList(filtered);
+  }
+
   function renderProjectList(projects) {
     const el = document.getElementById('projectList');
     if (!projects.length) {
@@ -1148,6 +1237,19 @@
   setDefaultSnapshot();
   refreshAll();
 </script>
+
+<!-- Confirm modal -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-icon" id="confirmIcon">⚠️</div>
+    <div class="confirm-title" id="confirmTitle"></div>
+    <div class="confirm-body" id="confirmBody"></div>
+    <div class="confirm-actions">
+      <button class="btn btn-outline" onclick="resolveConfirm(false)">취소</button>
+      <button class="btn btn-primary" id="confirmOkBtn" onclick="resolveConfirm(true)">확인</button>
+    </div>
+  </div>
+</div>
 
 <!-- Wiki modal overlay -->
 <div class="wiki-overlay" id="wikiOverlay" onclick="if(event.target===this)closeWikiModal()">
