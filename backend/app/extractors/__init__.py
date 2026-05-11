@@ -5,6 +5,7 @@ from app.extractors.docx_extractor import DocxExtractor, docx_extractor
 from app.extractors.pptx_extractor import PptxExtractor, pptx_extractor
 from app.extractors.xlsx_extractor import XlsxExtractor, xlsx_extractor
 from app.extractors.hwpx_extractor import HwpxExtractor
+from app.extractors.hwp_extractor import HwpExtractor
 from app.extractors.extractor import DocumentExtractor, document_extractor
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "XlsxExtractor",
     "xlsx_extractor",
     "HwpxExtractor",
+    "HwpExtractor",
     "DocumentExtractor",
     "document_extractor",
 ]

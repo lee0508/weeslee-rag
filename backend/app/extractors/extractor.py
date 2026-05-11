@@ -12,6 +12,7 @@ from app.extractors.docx_extractor import DocxExtractor
 from app.extractors.pptx_extractor import PptxExtractor
 from app.extractors.xlsx_extractor import XlsxExtractor
 from app.extractors.hwpx_extractor import HwpxExtractor
+from app.extractors.hwp_extractor import HwpExtractor
 
 
 class DocumentExtractor:
@@ -34,6 +35,7 @@ class DocumentExtractor:
             PptxExtractor(),
             XlsxExtractor(),
             HwpxExtractor(),
+            HwpExtractor(),
         ]
 
     @property
