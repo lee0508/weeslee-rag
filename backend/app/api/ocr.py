@@ -71,7 +71,7 @@ async def process_pdf_ocr(
 
     # Save uploaded file temporarily
     temp_path = os.path.join(settings.upload_dir, f"temp_{file.filename}")
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    os.makedirs(settings.upload_dir, exist_ok=True)
 
     try:
         with open(temp_path, "wb") as f:
@@ -117,7 +117,7 @@ async def process_image_ocr(
 
     # Save uploaded file temporarily
     temp_path = os.path.join(settings.upload_dir, f"temp_{file.filename}")
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    os.makedirs(settings.upload_dir, exist_ok=True)
 
     try:
         with open(temp_path, "wb") as f:
@@ -162,7 +162,7 @@ async def extract_document(
 
     # Save uploaded file temporarily
     temp_path = os.path.join(settings.upload_dir, f"temp_{file.filename}")
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    os.makedirs(settings.upload_dir, exist_ok=True)
 
     try:
         with open(temp_path, "wb") as f:
@@ -208,7 +208,7 @@ async def smart_extract(
 
     # Save uploaded file temporarily
     temp_path = os.path.join(settings.upload_dir, f"temp_{file.filename}")
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    os.makedirs(settings.upload_dir, exist_ok=True)
 
     try:
         with open(temp_path, "wb") as f:
