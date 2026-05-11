@@ -532,6 +532,81 @@
       background: var(--navy-l);
     }
 
+    /* ── RFP 업로드 바 ───────────────────────────────────────────── */
+    .rfp-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--gray-50);
+      border: 1.5px dashed var(--gray-200);
+      border-radius: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .rfp-bar.has-file {
+      border-style: solid;
+      border-color: var(--navy);
+      background: var(--navy-l);
+    }
+    .rfp-bar.extracting {
+      border-color: var(--amber);
+      background: var(--amber-l);
+    }
+    .rfp-bar.rfp-error {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+    .rfp-file-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .rfp-file-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+    .rfp-file-status {
+      font-size: 12px;
+      color: var(--text-s);
+      white-space: nowrap;
+    }
+    .rfp-clear {
+      background: none;
+      border: 1px solid var(--gray-200);
+      border-radius: 4px;
+      color: var(--text-s);
+      font-size: 12px;
+      padding: 2px 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .rfp-clear:hover { border-color: #ef4444; color: #ef4444; }
+    .btn-rfp {
+      background: var(--white);
+      color: var(--navy);
+      border: 1.5px solid var(--navy);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all .15s;
+    }
+    .btn-rfp:hover { background: var(--navy-l); }
+
     .query-actions {
       display: flex;
       gap: 8px;
@@ -1077,6 +1152,22 @@
             <div class="status" id="queryStatus" data-i18n="ready">Ready.</div>
           </div>
           <div class="card-body">
+            <!-- RFP 파일 업로드 바 -->
+            <div class="rfp-bar" id="rfpBar">
+              <input type="file" id="rfpFileInput"
+                accept=".pdf,.docx,.hwpx,.hwp,.pptx"
+                style="display:none"
+                onchange="onRfpFileSelected(event)">
+              <button class="btn-rfp" type="button"
+                onclick="document.getElementById('rfpFileInput').click()"
+                data-i18n="rfp_attach">📎 RFP 파일 첨부</button>
+              <div class="rfp-file-info" id="rfpFileInfo" style="display:none">
+                <span class="rfp-file-name" id="rfpFileName"></span>
+                <span class="rfp-file-status" id="rfpFileStatus"></span>
+                <button class="rfp-clear" type="button" onclick="clearRfp()" data-i18n="rfp_remove">✕ 제거</button>
+              </div>
+              <span style="font-size:12px;color:var(--text-s);" id="rfpHint" data-i18n="rfp_hint">PDF · HWP · HWPX · DOCX 첨부 시 RAG 실행에 내용이 반영됩니다.</span>
+            </div>
             <div class="form-grid">
               <div class="form-group full">
                 <label class="form-label" for="query" data-i18n="query_label">Query</label>
@@ -1238,6 +1329,13 @@
         rv_query_label:'쿼리', rv_docs_count:'문서 {n}개', rv_ref_docs:'참조 문서 ({n}개)',
         rv_copy_answer:'답변 복사', rv_search_only:'검색 전용 모드 — 답변 없음',
         rv_count:'{n}개', rv_rating_label:'품질 평점',
+        rfp_attach:'📎 RFP 파일 첨부',
+        rfp_hint:'PDF · HWP · HWPX · DOCX 첨부 시 RAG 실행에 내용이 반영됩니다.',
+        rfp_extracting:'텍스트 추출 중...',
+        rfp_extracted:'추출 완료 ({n}자)',
+        rfp_extract_fail:'추출 실패',
+        rfp_remove:'✕ 제거',
+        rfp_active_notice:'RFP 첨부 파일 포함 — rfp_analysis 모드로 실행합니다.',
       },
       en: {
         tab_rag:'RAG Assistant', tab_knowledge:'Knowledge Search', tab_review:'Answer Review',
@@ -1285,6 +1383,13 @@
         rv_query_label:'Query', rv_docs_count:'{n} docs', rv_ref_docs:'Referenced Documents ({n})',
         rv_copy_answer:'Copy Answer', rv_search_only:'Search-only mode — no answer generated',
         rv_count:'{n}', rv_rating_label:'Quality Rating',
+        rfp_attach:'📎 Attach RFP File',
+        rfp_hint:'Attach PDF · HWP · HWPX · DOCX — content will be included in the RAG query.',
+        rfp_extracting:'Extracting text...',
+        rfp_extracted:'Extracted ({n} chars)',
+        rfp_extract_fail:'Extraction failed',
+        rfp_remove:'✕ Remove',
+        rfp_active_notice:'RFP file attached — running in rfp_analysis mode.',
       },
     };
 
@@ -1506,7 +1611,7 @@
 
       syncAnswerModeLabel();
 
-      if (!query) { status.textContent = t('enter_query'); return; }
+      if (!query && !_rfpExtractedText) { status.textContent = t('enter_query'); return; }
 
       _queryRan = true;
       status.textContent = t('running');
@@ -1517,15 +1622,21 @@
       runBtn.disabled = true;
       runBtn.textContent = t('running_btn');
 
+      const effectiveQuery = _rfpExtractedText
+        ? `${query || '유사 사업 관련 문서'}\n\n[RFP 내용]\n${_rfpExtractedText.slice(0, 2000)}`
+        : query;
+      const effectiveMode = _rfpExtractedText ? 'rfp_analysis' : searchMode;
+      if (_rfpExtractedText) status.textContent = t('rfp_active_notice');
+
       try {
         const response = await fetch(`${API_BASE}/rag/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
+            query: effectiveQuery, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
             answer_provider: answerProvider,
             answer_model: answerProvider === 'none' ? '' : answerModel,
-            mode: searchMode,
+            mode: effectiveMode,
             ...(category ? { category } : {})
           })
         });
@@ -1757,6 +1868,59 @@
 
     const _queryHistory = _loadHistory();
     let _selectedReviewIdx = -1;
+
+    // ── RFP 파일 업로드 ───────────────────────────────────────────────
+    let _rfpExtractedText = '';
+    let _rfpFileName = '';
+
+    async function onRfpFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      _rfpFileName = file.name;
+
+      const bar       = document.getElementById('rfpBar');
+      const info      = document.getElementById('rfpFileInfo');
+      const hint      = document.getElementById('rfpHint');
+      const nameEl    = document.getElementById('rfpFileName');
+      const statusEl  = document.getElementById('rfpFileStatus');
+
+      nameEl.textContent   = file.name;
+      statusEl.textContent = t('rfp_extracting');
+      info.style.display   = 'flex';
+      hint.style.display   = 'none';
+      bar.className        = 'rfp-bar extracting';
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      try {
+        const resp = await fetch(`${API_BASE}/ocr/extract`, { method: 'POST', body: fd });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (!data.success || !data.content) throw new Error(data.error || 'empty content');
+        _rfpExtractedText    = data.content;
+        statusEl.textContent = t('rfp_extracted', { n: _rfpExtractedText.length.toLocaleString() });
+        bar.className        = 'rfp-bar has-file';
+      } catch (err) {
+        _rfpExtractedText    = '';
+        statusEl.textContent = `${t('rfp_extract_fail')}: ${err.message}`;
+        bar.className        = 'rfp-bar rfp-error';
+        showToast(`${t('rfp_extract_fail')}: ${err.message}`, 'error');
+      }
+      // 동일 파일 재선택 가능하도록 input 초기화
+      event.target.value = '';
+    }
+
+    function clearRfp() {
+      _rfpExtractedText = '';
+      _rfpFileName      = '';
+      const bar  = document.getElementById('rfpBar');
+      const info = document.getElementById('rfpFileInfo');
+      const hint = document.getElementById('rfpHint');
+      bar.className      = 'rfp-bar';
+      info.style.display = 'none';
+      hint.style.display = '';
+    }
 
     function pushHistory(query, data) {
       _queryHistory.unshift({
