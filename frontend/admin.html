@@ -378,10 +378,66 @@
       .tab-btn { font-size: 12px; padding: 8px 10px; }
       .index-item { flex-direction: column; align-items: flex-start; }
     }
+
+    /* ── 로그인 모달 ─────────────────────────────────────────────── */
+    .login-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(15,23,42,.85); backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-overlay.hidden { display: none; }
+    .login-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 40px 36px; width: 360px;
+      box-shadow: 0 24px 48px rgba(0,0,0,.5);
+    }
+    .login-logo { font-size: 28px; text-align: center; margin-bottom: 4px; }
+    .login-title { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+    .login-sub { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 28px; }
+    .login-field { margin-bottom: 16px; }
+    .login-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .login-field input {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg);
+      color: var(--text); font-size: 14px; box-sizing: border-box;
+    }
+    .login-field input:focus { outline: none; border-color: var(--accent); }
+    .login-btn {
+      width: 100%; padding: 11px; border-radius: 8px; border: none;
+      background: var(--accent); color: #fff; font-size: 14px;
+      font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity .15s;
+    }
+    .login-btn:hover { opacity: .88; }
+    .login-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .login-error {
+      margin-top: 12px; padding: 9px 12px; border-radius: 8px;
+      background: rgba(239,68,68,.12); color: #f87171;
+      font-size: 12px; text-align: center; display: none;
+    }
+    .login-error.show { display: block; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
 <body>
+
+<!-- 로그인 모달 -->
+<div class="login-overlay hidden" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <div class="login-title">WEESLEE RAG Admin</div>
+    <div class="login-sub">관리자 계정으로 로그인하세요.</div>
+    <div class="login-field">
+      <label>아이디</label>
+      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label>비밀번호</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="submitLogin()">로그인</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
 
 <header>
   <h1>FAISS Index Management Console</h1>
@@ -556,13 +612,103 @@
   }
   const API_BASE = detectApiBase();
 
+  // ── 인증 ─────────────────────────────────────────────────────────────────
+
+  const TOKEN_KEY = 'admin_token';
+
+  function getToken() { return localStorage.getItem(TOKEN_KEY); }
+  function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
+  function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+  function authHeaders() {
+    const t = getToken();
+    return t ? { 'Authorization': `Bearer ${t}` } : {};
+  }
+
+  function showLoginModal() {
+    document.getElementById('loginOverlay').classList.remove('hidden');
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').classList.remove('show');
+    setTimeout(() => document.getElementById('loginUsername').focus(), 100);
+  }
+
+  function hideLoginModal() {
+    document.getElementById('loginOverlay').classList.add('hidden');
+  }
+
+  async function submitLogin() {
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('loginError');
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    if (!username || !password) {
+      errEl.textContent = '아이디와 비밀번호를 입력하세요.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '로그인 중...';
+    errEl.classList.remove('show');
+
+    try {
+      const r = await fetch(API_BASE + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.detail || '로그인 실패');
+      }
+      const data = await r.json();
+      setToken(data.access_token);
+      hideLoginModal();
+      initPage();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '로그인';
+    }
+  }
+
+  async function checkAuth() {
+    const token = getToken();
+    if (!token) { showLoginModal(); return; }
+    try {
+      const r = await fetch(API_BASE + '/auth/verify', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error('invalid');
+    } catch {
+      clearToken();
+      showLoginModal();
+    }
+  }
+
+  // Enter 키 로그인
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !document.getElementById('loginOverlay').classList.contains('hidden')) {
+      submitLogin();
+    }
+  });
+
   // ── API ──────────────────────────────────────────────────────────────────
 
   async function api(path, opts = {}) {
     const r = await fetch(API_BASE + path, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       ...opts,
     });
+    if (r.status === 401) {
+      clearToken();
+      showLoginModal();
+      throw new Error('인증이 만료되었습니다. 다시 로그인하세요.');
+    }
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
     return r.json();
   }
@@ -1357,10 +1503,16 @@
     document.getElementById('wikiOverlay').classList.remove('open');
   }
 
-  // Init
-  setDefaultSnapshot();
-  refreshAll();
-  renderBmHistoryList();
+  // Init — 인증 확인 후 페이지 초기화
+  function initPage() {
+    setDefaultSnapshot();
+    refreshAll();
+    renderBmHistoryList();
+  }
+
+  checkAuth().then(() => {
+    if (getToken()) initPage();
+  });
 </script>
 
 <!-- Confirm modal -->

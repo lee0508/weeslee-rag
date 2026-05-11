@@ -24,6 +24,10 @@ olmocr>=0.1.0
 # HWP (구형 바이너리) 텍스트 추출
 pyhwp>=0.1b15
 
+# Admin 인증 (JWT)
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
 # LangChain (optional, for advanced RAG)
 # langchain>=0.1.0
 # langchain-community>=0.0.19

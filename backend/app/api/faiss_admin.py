@@ -22,13 +22,18 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.core.auth import require_admin_token
 from app.services import faiss_job_runner as runner
 
-router = APIRouter(prefix="/admin/faiss", tags=["FAISS Admin"])
+router = APIRouter(
+    prefix="/admin/faiss",
+    tags=["FAISS Admin"],
+    dependencies=[Depends(require_admin_token)],
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 FAISS_DIR = PROJECT_ROOT / "data" / "indexes" / "faiss"

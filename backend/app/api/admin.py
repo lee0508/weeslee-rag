@@ -4,12 +4,13 @@ Admin API endpoints for document management and RAG pipeline
 """
 import os
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import asyncio
 import json
 
+from app.core.auth import require_admin_token
 from app.services.document_pipeline import (
     document_pipeline_service,
     PipelineProgress,
@@ -19,7 +20,11 @@ from app.services.knowledge_source import knowledge_source_service
 from app.core.config import settings
 
 
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["Admin"],
+    dependencies=[Depends(require_admin_token)],
+)
 
 
 # Request/Response Models

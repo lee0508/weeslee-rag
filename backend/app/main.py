@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import init_db
+from app.api.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.ocr import router as ocr_router
 from app.api.knowledge_sources import router as knowledge_sources_router
@@ -68,6 +69,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router, prefix="/api", tags=["Auth"])
 app.include_router(health_router, prefix="/api", tags=["Health"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ocr_router, prefix="/api", tags=["OCR"])

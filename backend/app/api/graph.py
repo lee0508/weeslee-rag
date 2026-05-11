@@ -16,7 +16,9 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.auth import require_admin_token
 
 router = APIRouter(prefix="/graph", tags=["Graph"])
 
@@ -139,7 +141,7 @@ async def get_document(document_id: str):
     return {"document": doc_node, "nodes": nodes, "edges": related_edges}
 
 
-@router.post("/build")
+@router.post("/build", dependencies=[Depends(require_admin_token)])
 async def build_graph():
     """build_graph_jsonl.py 를 실행하여 그래프 데이터를 재생성."""
     if not _BUILD_SCRIPT.exists():

@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     debug: bool = True
     secret_key: str = "dev-secret-key-change-in-production"
 
+    # Admin Auth
+    admin_username: str = "admin"
+    admin_password: str = "changeme"
+    jwt_secret_key: str = "dev-jwt-secret-change-in-production"
+    jwt_expire_hours: int = 8
+
     # Database (MySQL)
     db_host: str = "localhost"
     db_port: int = 3306
