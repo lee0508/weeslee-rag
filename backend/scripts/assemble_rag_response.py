@@ -100,9 +100,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=["general", "bid_project", "rfp_analysis"],
+        choices=["general", "bid_project", "rfp_analysis", "graph_rag"],
         default="general",
-        help="Search mode. bid_project applies bid-optimised scoring; rfp_analysis prioritises RFP/proposal docs.",
+        help="Search mode. graph_rag runs like general but the API layer appends graph context.",
     )
     parser.add_argument(
         "--original-query",
