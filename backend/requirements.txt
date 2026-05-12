@@ -48,6 +48,9 @@ pydantic-settings>=2.1.0
 pytest>=7.0.0
 pytest-asyncio>=0.23.0
 
+# MCP (Model Context Protocol) 서버
+mcp>=1.0.0
+
 # Development
 black>=24.0.0
 isort>=5.13.0
