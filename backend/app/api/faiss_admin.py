@@ -344,9 +344,15 @@ async def staged_summary():
 
     # ── manifest 파일 스캔 ────────────────────────────────────────────────
     seen: dict[str, dict] = {}  # snapshot → entry (중복 제거)
+    # 매니페스트가 아닌 부가 파일 제외 패턴
+    _SKIP_SUFFIXES = ("_extraction_summary", "_selection_summary", "_manifest_extraction_summary")
+
     if MANIFEST_DIR.exists():
         for mf in sorted(MANIFEST_DIR.glob("snapshot_*.*"), reverse=True):
             if mf.suffix not in {".csv", ".jsonl"}:
+                continue
+            # 집계/요약 파일 제외
+            if any(mf.stem.endswith(s) for s in _SKIP_SUFFIXES):
                 continue
             snapshot = _snapshot_from_stem(mf.stem)
             if not snapshot.startswith("snapshot_"):
