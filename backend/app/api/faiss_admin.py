@@ -218,18 +218,24 @@ _CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
 
 @router.get("/category-status")
 async def category_status():
-    """활성 스냅샷의 카테고리 서브-인덱스 존재 여부."""
+    # 작성일: 2026-05-12 | 기능: 카테고리별 인덱스 크기 및 청크 수 반환
+    """활성 스냅샷의 카테고리 서브-인덱스 존재 여부 + 청크 수."""
     active = runner.read_active_index()
     if not active:
         return {"snapshot": None, "categories": []}
     snapshot = active.get("snapshot", "")
     cats = []
     for cat in _CATEGORIES:
-        idx = FAISS_DIR / f"{snapshot}_{cat}_ollama.index"
+        idx  = FAISS_DIR / f"{snapshot}_{cat}_ollama.index"
+        meta = FAISS_DIR / f"{snapshot}_{cat}_ollama_metadata.jsonl"
+        chunk_count = 0
+        if meta.exists():
+            chunk_count = sum(1 for ln in meta.read_text(encoding="utf-8").splitlines() if ln.strip())
         cats.append({
-            "category": cat,
-            "exists": idx.exists(),
-            "size_mb": round(idx.stat().st_size / 1_048_576, 2) if idx.exists() else 0,
+            "category":    cat,
+            "exists":      idx.exists(),
+            "size_mb":     round(idx.stat().st_size / 1_048_576, 2) if idx.exists() else 0,
+            "chunk_count": chunk_count,
         })
     return {"snapshot": snapshot, "categories": cats}
 

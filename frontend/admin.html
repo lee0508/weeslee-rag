@@ -512,6 +512,7 @@
           <span style="display:flex;align-items:center;gap:8px">
             <span class="progress-pct" id="progressPct">0%</span>
             <button class="btn btn-outline btn-sm" onclick="copyLog()" title="로그 복사">📋 복사</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadLog()" title="로그 다운로드">⬇ 저장</button>
           </span>
         </div>
         <div class="log-box" id="logBox"></div>
@@ -1006,6 +1007,7 @@
 
   function clearLog() { document.getElementById('logBox').innerHTML = ''; }
 
+  // 작성일: 2026-05-12 | 기능: 파이프라인 로그를 클립보드에 복사
   function copyLog() {
     const text = document.getElementById('logBox').innerText;
     navigator.clipboard?.writeText(text).catch(() => {
@@ -1018,6 +1020,19 @@
     const orig = btn.textContent;
     btn.textContent = '✓ 복사됨';
     setTimeout(() => { btn.textContent = orig; }, 1500);
+  }
+
+  // 작성일: 2026-05-12 | 기능: 파이프라인 로그를 .txt 파일로 저장
+  function downloadLog() {
+    const text = document.getElementById('logBox').innerText;
+    if (!text.trim()) return;
+    const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `pipeline-log-${now}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   function appendLog(text, isErr = false) {
@@ -1068,10 +1083,11 @@
         el.innerHTML = '<div class="empty">활성 인덱스 없음</div>';
         return;
       }
+      // 작성일: 2026-05-12 | 기능: 카테고리별 인덱스 크기 및 청크 수 표시
       const pills = (data.categories || []).map(c => `
         <span class="cat-pill ${c.exists ? 'ok' : 'no'}">
           ${c.exists ? '✓' : '✗'} ${esc(c.category)}
-          ${c.exists ? `<span style="opacity:.6">${c.size_mb}MB</span>` : ''}
+          ${c.exists ? `<span style="opacity:.6">${c.size_mb}MB | ${(c.chunk_count ?? 0).toLocaleString()}청크</span>` : ''}
         </span>
       `).join('');
       el.innerHTML = `
@@ -1306,6 +1322,14 @@
 
     cy.on('tap', 'node', (evt) => renderNodeDetail(evt.target.data()));
     cy.on('tap', (evt) => { if (evt.target === cy) clearNodeDetail(); });
+
+    // 작성일: 2026-05-12 | 기능: 그래프 확대/축소/초기화 키보드 단축키 (+  -  0)
+    document.addEventListener('keydown', (e) => {
+      if (!cy || document.activeElement.tagName === 'INPUT') return;
+      if (e.key === '+' || e.key === '=') cy.zoom({ level: cy.zoom() * 1.2, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+      if (e.key === '-')                  cy.zoom({ level: cy.zoom() * 0.8, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+      if (e.key === '0')                  cy.fit(undefined, 30);
+    });
   }
 
   async function loadGraphSummary() {
