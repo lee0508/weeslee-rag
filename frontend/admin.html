@@ -397,6 +397,37 @@
       .index-item { flex-direction: column; align-items: flex-start; }
     }
 
+    /* ── Staged Summary ──────────────────────────────────────────── */
+    .staged-total-box {
+      background: var(--surface2); border-radius: 8px;
+      padding: 8px 14px; text-align: center; flex: 1;
+    }
+    .staged-total-box .val { font-size: 20px; font-weight: 700; color: var(--amber); }
+    .staged-total-box .lbl { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .staged-row {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 11px 14px; margin-bottom: 8px;
+    }
+    .staged-row:last-child { margin-bottom: 0; }
+    .staged-snapshot-name {
+      font-size: 12px; font-weight: 700; word-break: break-all; margin-bottom: 7px;
+    }
+    .staged-badges {
+      display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-bottom: 8px;
+    }
+    .staged-badge {
+      font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600;
+    }
+    .staged-badge.ok  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .staged-badge.no  { background: rgba(239,68,68,.12);  color: var(--red); }
+    .staged-badge.dim { background: rgba(255,255,255,.06); color: var(--muted); }
+    .staged-use-btn {
+      font-size: 11px; padding: 3px 10px; border-radius: 5px; border: none;
+      background: var(--amber); color: #000; font-weight: 700; cursor: pointer;
+    }
+    .staged-use-btn:hover { opacity: .85; }
+
     /* ── 로그인 모달 ─────────────────────────────────────────────── */
     .login-overlay {
       position: fixed; inset: 0; z-index: 9999;
@@ -541,6 +572,16 @@
 
   <!-- Main -->
   <main class="main">
+
+    <!-- Staged Summary -->
+    <div class="card">
+      <div class="card-title">
+        staged 준비 현황
+        <button class="icon-btn" onclick="loadStagedSummary()" title="새로고침">↻</button>
+      </div>
+      <div id="stagedTotals" style="display:flex;gap:16px;margin-bottom:12px"></div>
+      <div id="stagedList"><div class="empty">로딩 중...</div></div>
+    </div>
 
     <!-- Index List -->
     <div class="card">
@@ -1294,8 +1335,74 @@
     `;
   }
 
+  // ── Staged Summary ────────────────────────────────────────────────────────
+
+  // 작성일: 2026-05-12 | 기능: staged 디렉토리 스냅샷별 파이프라인 준비 현황 로드
+  async function loadStagedSummary() {
+    const listEl   = document.getElementById('stagedList');
+    const totalsEl = document.getElementById('stagedTotals');
+    try {
+      const data = await api('/admin/faiss/staged-summary');
+      const t = data.totals || {};
+      totalsEl.innerHTML = `
+        <div class="staged-total-box">
+          <div class="val">${(t.text_count ?? 0).toLocaleString()}</div>
+          <div class="lbl">텍스트 파일</div>
+        </div>
+        <div class="staged-total-box">
+          <div class="val">${(t.metadata_count ?? 0).toLocaleString()}</div>
+          <div class="lbl">메타데이터</div>
+        </div>
+      `;
+      renderStagedSummary(data.snapshots || []);
+    } catch (e) {
+      listEl.innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
+
+  function renderStagedSummary(snapshots) {
+    const el = document.getElementById('stagedList');
+    if (!snapshots.length) {
+      el.innerHTML = '<div class="empty">매니페스트 없음 (data/staged/manifest/)</div>';
+      return;
+    }
+    el.innerHTML = snapshots.map(s => {
+      const chunkBadge = s.chunks_exist
+        ? `<span class="staged-badge ok">● 청크 ${s.chunk_count.toLocaleString()}개 · ${s.chunks_size_mb}MB</span>`
+        : `<span class="staged-badge no">○ 청크 없음</span>`;
+      const faissBadge = s.faiss_indexed
+        ? `<span class="staged-badge ok">● 인덱스 완료</span>`
+        : `<span class="staged-badge no">○ 미인덱싱</span>`;
+      return `
+        <div class="staged-row">
+          <div class="staged-snapshot-name">${esc(s.snapshot)}</div>
+          <div class="staged-badges">
+            <span class="staged-badge dim">📄 ${s.doc_count.toLocaleString()} 문서</span>
+            <span class="staged-badge ok">● 매니페스트</span>
+            ${chunkBadge}
+            ${faissBadge}
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${esc(s.manifest_file)}</div>
+          ${!s.faiss_indexed ? `
+          <button class="staged-use-btn" onclick="fillPipelineSnapshot('${esc(s.snapshot)}')">
+            → 파이프라인에 사용
+          </button>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 작성일: 2026-05-12 | 기능: staged 카드의 스냅샷 이름을 파이프라인 입력란에 자동 입력
+  function fillPipelineSnapshot(snapshot) {
+    document.getElementById('jobSnapshot').value = snapshot;
+    document.getElementById('jobSnapshot').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('jobSnapshot').focus();
+    showToast(`스냅샷 이름 입력 완료: ${snapshot}`, 'success');
+  }
+
   function refreshAll() {
     loadStatus(); loadIndexes(); loadJobs(); loadOllama(); loadCategoryStatus();
+    loadStagedSummary();
     checkRunningJobs();
   }
 

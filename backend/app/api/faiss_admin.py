@@ -12,11 +12,14 @@ Endpoints:
   GET    /api/admin/faiss/category-status     — 활성 스냅샷의 카테고리 인덱스 존재 여부
   POST   /api/admin/faiss/benchmark           — 검색 품질 벤치마크 실행
   POST   /api/admin/faiss/activate            — 스냅샷 활성화
+  GET    /api/admin/faiss/staged-summary      — staged 디렉토리 파이프라인 준비 현황
 """
 from __future__ import annotations
 
 import asyncio
+import csv
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -36,7 +39,14 @@ router = APIRouter(
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-FAISS_DIR = PROJECT_ROOT / "data" / "indexes" / "faiss"
+DATA_DIR     = PROJECT_ROOT / "data"
+FAISS_DIR    = DATA_DIR / "indexes" / "faiss"
+MANIFEST_DIR = DATA_DIR / "staged" / "manifest"
+TEXT_DIR     = DATA_DIR / "staged" / "text"
+META_DIR     = DATA_DIR / "staged" / "metadata"
+CHUNKS_DIR   = DATA_DIR / "staged" / "chunks"
+
+_TIMESTAMP_RE = re.compile(r"_\d{8}_\d{6}$")
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -307,3 +317,74 @@ async def run_benchmark():
             pass
 
     raise HTTPException(status_code=500, detail="Could not parse benchmark output")
+
+
+# ── Staged Summary ────────────────────────────────────────────────────────────
+
+# 작성일: 2026-05-12 | 기능: staged 디렉토리의 스냅샷별 파이프라인 준비 상태 반환
+@router.get("/staged-summary")
+async def staged_summary():
+    """staged 디렉토리를 스캔하여 파이프라인 실행 가능 상태를 반환한다."""
+
+    def _snapshot_from_stem(stem: str) -> str:
+        """manifest 파일 stem → 스냅샷 이름 추출."""
+        name = _TIMESTAMP_RE.sub("", stem)   # 말미 _YYYYMMDD_HHMMSS 제거
+        name = re.sub(r"_manifest$", "", name)
+        return name
+
+    def _count_manifest(path: Path) -> int:
+        try:
+            if path.suffix == ".jsonl":
+                return sum(1 for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip())
+            # CSV: 헤더 1행 제외
+            with path.open("r", encoding="utf-8-sig") as f:
+                return max(0, sum(1 for _ in csv.reader(f)) - 1)
+        except Exception:
+            return 0
+
+    # ── manifest 파일 스캔 ────────────────────────────────────────────────
+    seen: dict[str, dict] = {}  # snapshot → entry (중복 제거)
+    if MANIFEST_DIR.exists():
+        for mf in sorted(MANIFEST_DIR.glob("snapshot_*.*"), reverse=True):
+            if mf.suffix not in {".csv", ".jsonl"}:
+                continue
+            snapshot = _snapshot_from_stem(mf.stem)
+            if not snapshot.startswith("snapshot_"):
+                continue
+            if snapshot in seen:
+                continue  # 같은 스냅샷의 중복 파일은 첫 번째만 사용
+
+            chunks_path = CHUNKS_DIR / f"{snapshot}_chunks.jsonl"
+            chunks_exist = chunks_path.exists()
+            chunks_size_mb = (
+                round(chunks_path.stat().st_size / 1_048_576, 1) if chunks_exist else 0
+            )
+            chunk_count = 0
+            if chunks_exist:
+                chunk_count = sum(
+                    1 for ln in chunks_path.read_text(encoding="utf-8").splitlines() if ln.strip()
+                )
+
+            faiss_indexed = (FAISS_DIR / f"{snapshot}_ollama.index").exists()
+
+            seen[snapshot] = {
+                "snapshot":       snapshot,
+                "manifest_file":  mf.name,
+                "doc_count":      _count_manifest(mf),
+                "chunks_exist":   chunks_exist,
+                "chunks_size_mb": chunks_size_mb,
+                "chunk_count":    chunk_count,
+                "faiss_indexed":  faiss_indexed,
+            }
+
+    # ── 전체 텍스트/메타데이터 파일 수 ───────────────────────────────────
+    text_count = len(list(TEXT_DIR.glob("*.txt"))) if TEXT_DIR.exists() else 0
+    meta_count = len(list(META_DIR.glob("*.json"))) if META_DIR.exists() else 0
+
+    return {
+        "snapshots": list(seen.values()),
+        "totals": {
+            "text_count":     text_count,
+            "metadata_count": meta_count,
+        },
+    }
