@@ -1065,6 +1065,7 @@
               <option value="general" data-i18n="mode_general">General RAG</option>
               <option value="bid_project" data-i18n="mode_bid">Bid Project Search</option>
               <option value="rfp_analysis" data-i18n="mode_rfp">RFP Analysis</option>
+              <option value="graph_rag" data-i18n="mode_graph">Graph RAG</option>
             </select>
           </div>
           <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
@@ -1221,6 +1222,7 @@
             <option value="general" data-i18n="mode_general">General RAG</option>
             <option value="bid_project" data-i18n="mode_bid">Bid Project Search</option>
             <option value="rfp_analysis" data-i18n="mode_rfp">RFP Analysis</option>
+            <option value="graph_rag" data-i18n="mode_graph">Graph RAG</option>
           </select>
         </div>
         <div class="ks-field">
@@ -1326,6 +1328,9 @@
         ks_no_docs:'관련 문서를 찾지 못했습니다.', ks_enter:'검색어를 입력하세요.', ks_error:'오류',
         hint_bid:'나라장터 사업명 → 키워드 자동 확장.<br>proposal → final_report → presentation 우선순위 적용.',
         hint_rfp:'RFP / 과업지시서 내용 분석.<br>rfp → kickoff → proposal 우선순위 적용.',
+        hint_graph:'FAISS 검색 후 동일 프로젝트의 RFP·제안·착수·보고서 체인을 함께 표시합니다.',
+        mode_graph:'Graph RAG',
+        graph_context_title:'프로젝트 문서 체인',
         rv_query_label:'쿼리', rv_docs_count:'문서 {n}개', rv_ref_docs:'참조 문서 ({n}개)',
         rv_copy_answer:'답변 복사', rv_search_only:'검색 전용 모드 — 답변 없음',
         rv_count:'{n}개', rv_rating_label:'품질 평점',
@@ -1380,6 +1385,9 @@
         ks_no_docs:'No relevant documents found.', ks_enter:'Please enter a search term.', ks_error:'Error',
         hint_bid:'Nara Marketplace project → keyword expansion.<br>Priority: proposal → final_report → presentation.',
         hint_rfp:'RFP / scope-of-work analysis.<br>Priority: rfp → kickoff → proposal.',
+        hint_graph:'Runs FAISS search then displays the full project chain (RFP → Proposal → Kickoff → Report).',
+        mode_graph:'Graph RAG',
+        graph_context_title:'Project Document Chain',
         rv_query_label:'Query', rv_docs_count:'{n} docs', rv_ref_docs:'Referenced Documents ({n})',
         rv_copy_answer:'Copy Answer', rv_search_only:'Search-only mode — no answer generated',
         rv_count:'{n}', rv_rating_label:'Quality Rating',
@@ -1547,7 +1555,25 @@
         resultDocs.innerHTML = `<div class="result-json">${escapeHtml(data.error || t('no_docs'))}</div>`;
         return;
       }
-      resultDocs.innerHTML = renderDocumentCards(data.documents, false);
+
+      // 작성일: 2026-05-12 | 기능: graph_rag 모드 — 프로젝트 문서 체인 섹션 렌더링
+      let graphSection = '';
+      if (data.graph_context?.length) {
+        const CAT_LABEL = { rfp:'RFP', proposal:'제안서', kickoff:'착수보고', final_report:'최종보고', presentation:'발표' };
+        const CAT_COLOR = { rfp:'#ef4444', proposal:'#3b82f6', kickoff:'#f59e0b', final_report:'#22c55e', presentation:'#8b5cf6' };
+        const chains = data.graph_context.map(ctx => {
+          const docs = ctx.related_docs.map(d => {
+            const color = CAT_COLOR[d.category] || '#6b7280';
+            const label = CAT_LABEL[d.category] || d.category;
+            const ragUrl = `/weeslee-rag/frontend/rag-assistant.html?q=${encodeURIComponent(ctx.project_name)}&mode=bid_project`;
+            return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.06);border:1px solid ${color}44;border-radius:5px;padding:3px 8px;font-size:11px;color:${color}">${label}</span>`;
+          }).join(' → ');
+          return `<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px">${escapeHtml(ctx.project_name)}</div><div>${docs}</div></div>`;
+        }).join('');
+        graphSection = `<div style="margin-bottom:12px;padding:10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px"><div style="font-size:11px;font-weight:700;color:#93c5fd;margin-bottom:8px">🔗 ${t('graph_context_title')}</div>${chains}</div>`;
+      }
+
+      resultDocs.innerHTML = graphSection + renderDocumentCards(data.documents, false);
     }
 
     async function loadHealth(showFeedback = false) {
@@ -1593,7 +1619,7 @@
     function onSearchModeChange() {
       const mode = document.getElementById('searchMode').value;
       const hint = document.getElementById('bidHint');
-      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp') };
+      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph') };
       hint.innerHTML = hints[mode] || '';
       hint.style.display = hints[mode] ? '' : 'none';
     }

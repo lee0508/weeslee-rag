@@ -61,6 +61,48 @@ def _default_chunks_path() -> Path:
     return PROJECT_ROOT / "data" / "staged" / "chunks" / f"{_active_snapshot()}_chunks.jsonl"
 
 
+GRAPH_NODES_PATH = PROJECT_ROOT / "data" / "indexes" / "graph" / "graph_nodes.jsonl"
+
+
+# 작성일: 2026-05-12 | 기능: FAISS 결과에서 프로젝트 추출 → 그래프 관련 문서 조회
+def _enrich_with_graph_context(payload: dict) -> dict:
+    if not GRAPH_NODES_PATH.exists():
+        payload["graph_context"] = []
+        return payload
+
+    found_projects = {
+        doc.get("project_name", "")
+        for doc in payload.get("documents", [])
+        if doc.get("project_name")
+    }
+    if not found_projects:
+        payload["graph_context"] = []
+        return payload
+
+    by_project: dict[str, list[dict]] = {}
+    for line in GRAPH_NODES_PATH.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        node = json.loads(line)
+        if node.get("type") != "document":
+            continue
+        proj = node.get("project_name", "")
+        if proj not in found_projects:
+            continue
+        by_project.setdefault(proj, []).append({
+            "document_id": node.get("document_id", ""),
+            "category":    node.get("category", ""),
+            "label":       node.get("label", ""),
+            "source_path": node.get("source_path", ""),
+        })
+
+    payload["graph_context"] = [
+        {"project_name": proj, "related_docs": docs}
+        for proj, docs in by_project.items()
+    ]
+    return payload
+
+
 class RagQueryRequest(BaseModel):
     query: str = Field(..., min_length=2)
     top_k: int = 20
@@ -72,7 +114,7 @@ class RagQueryRequest(BaseModel):
     chunks_jsonl: Optional[str] = None
     category: Optional[str] = None
     max_chunks_per_doc: int = 3
-    mode: str = "general"  # "general" | "bid_project" | "rfp_analysis"
+    mode: str = "general"  # "general" | "bid_project" | "rfp_analysis" | "graph_rag"
 
 
 @router.post("/query")
@@ -90,7 +132,7 @@ async def query_rag(request: RagQueryRequest):
     elif request.mode == "rfp_analysis":
         effective_query = expand_rfp_query(request.query)
     else:
-        effective_query = request.query
+        effective_query = request.query  # general, graph_rag 모두 확장 없음
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_json = Path(temp_dir) / "rag_response.json"
@@ -147,5 +189,9 @@ async def query_rag(request: RagQueryRequest):
         if request.mode in ("bid_project", "rfp_analysis"):
             from app.services.reranker import rerank
             payload["documents"] = rerank(request.query, payload.get("documents", []), request.mode)
+
+        # 작성일: 2026-05-12 | 기능: graph_rag 모드 — 동일 프로젝트 관련 문서 체인 추가
+        if request.mode == "graph_rag":
+            payload = _enrich_with_graph_context(payload)
 
         return payload
