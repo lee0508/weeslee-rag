@@ -69,6 +69,20 @@ def _read_active_snapshot() -> str:
     return ""
 
 
+# 작성일: 2026-05-12 | 기능: source_path 폴더 구조에서 프로젝트명 추출 (project_name 빈 경우 폴백)
+def _project_name_from_path(source_path: str) -> str:
+    if not source_path:
+        return ""
+    parts = [p for p in re.split(r"[\\/]", source_path) if p and p != "."]
+    # 드라이브 문자 제거 (예: "W:")
+    if parts and len(parts[0]) == 2 and parts[0][1] == ":":
+        parts = parts[1:]
+    # 구조: [최상위 폴더, 프로젝트 폴더, ...]
+    if len(parts) < 2:
+        return ""
+    return _DATE_PREFIX.sub("", parts[1]).strip()
+
+
 def _docs_from_faiss_meta(path: Path) -> list[dict]:
     """Extract unique documents from a FAISS metadata JSONL."""
     seen: set[str] = set()
@@ -83,11 +97,13 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
                 continue
             seen.add(doc_id)
             meta = row.get("metadata") or {}
-            project_name = meta.get("project_name") or ""
+            source_path = row.get("source_path") or meta.get("source_path", "")
+            # 작성일: 2026-05-12 | 기능: metadata.project_name 없으면 source_path 경로에서 추출
+            project_name = meta.get("project_name") or _project_name_from_path(source_path)
             docs.append({
                 "document_id": doc_id,
                 "category":    row.get("category") or meta.get("category", ""),
-                "source_path": row.get("source_path") or meta.get("source_path", ""),
+                "source_path": source_path,
                 "extension":   meta.get("extension", ""),
                 "project_name":             project_name,
                 "organization":             meta.get("organization", ""),
