@@ -1241,8 +1241,10 @@
     document.querySelector(`.tab-btn[onclick="switchTab('${name}')"]`).classList.add('active');
     document.getElementById(`tab-${name}`).classList.add('active');
     if (name === 'graph') {
+      // 작성일: 2026-05-12 | 기능: 그래프 탭 전환 시 Cytoscape 초기화 및 데이터 로드
+      if (!cy) initCytoscape();
+      else cy.resize();
       loadGraphSummary();
-      if (cy) cy.resize();
     }
   }
 
@@ -1332,26 +1334,32 @@
     });
   }
 
+  // 작성일: 2026-05-12 | 기능: 그래프 통계 로드 및 데이터 없을 때 안내 표시
   async function loadGraphSummary() {
     try {
       const data = await api('/graph/summary');
       const el = document.getElementById('graphSummary');
       if (data.has_data) {
         el.textContent = `${data.project_count}개 프로젝트 · ${data.document_count}개 문서 · ${data.edge_count}개 관계 (${(data.built_at||'').slice(0,10)})`;
+        await loadProjectList();
       } else {
-        el.textContent = '그래프 미생성';
+        el.textContent = '그래프 미생성 — Build 버튼을 눌러 생성하세요.';
+        document.getElementById('projectList').innerHTML =
+          '<div class="empty">Build 버튼을 눌러<br>그래프를 생성하세요.</div>';
+        document.getElementById('graphTitle').textContent = '프로젝트를 선택하세요';
       }
-      await loadProjectList();
     } catch (e) {
       document.getElementById('graphSummary').textContent = '로드 실패: ' + e.message;
     }
   }
 
+  // 작성일: 2026-05-12 | 기능: 프로젝트 목록 로드 및 렌더링
   async function loadProjectList() {
     try {
       const data = await api('/graph/projects');
       _graphProjects = data.projects || [];
       renderProjectList(_graphProjects);
+      if (_graphProjects.length > 0 && !cy?.elements().length) selectProject(0);
     } catch (e) {
       document.getElementById('projectList').innerHTML =
         `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
@@ -1378,6 +1386,7 @@
     `).join('');
   }
 
+  // 작성일: 2026-05-12 | 기능: 프로젝트 선택 → Cytoscape에 노드/엣지 렌더링
   async function selectProject(idx) {
     document.querySelectorAll('.proj-item').forEach(el => el.classList.remove('selected'));
     const el = document.getElementById(`proj-${idx}`);
@@ -1385,6 +1394,11 @@
 
     const p = _graphProjects[idx];
     document.getElementById('graphTitle').textContent = p.label;
+    document.getElementById('graphTitle').style.color = 'var(--text)';
+
+    if (!cy) initCytoscape();
+    cy.elements().remove();
+    cy.$('#cy-empty-msg').remove();
 
     try {
       const data = await api(`/graph/project/${encodeURIComponent(p.label)}`);
@@ -1471,6 +1485,7 @@
       '<div style="color:var(--muted);font-size:12px">노드를 클릭하면 상세정보가 표시됩니다.</div>';
   }
 
+  // 작성일: 2026-05-12 | 기능: 그래프 빌드 후 첫 프로젝트 자동 선택
   async function buildGraph() {
     const btn = document.getElementById('buildBtn');
     btn.disabled = true;
@@ -1480,6 +1495,7 @@
       document.getElementById('graphSummary').textContent =
         `빌드 완료: ${data.project_count ?? '?'}개 프로젝트, ${data.document_count ?? '?'}개 문서`;
       await loadProjectList();
+      if (_graphProjects.length > 0) selectProject(0);
     } catch (e) {
       alert('그래프 빌드 실패: ' + e.message);
     } finally {
@@ -1488,8 +1504,7 @@
     }
   }
 
-  // Init Cytoscape on page load (deferred)
-  window.addEventListener('load', () => initCytoscape());
+  // Cytoscape는 탭 전환 시 초기화 (switchTab → initCytoscape)
 
   // ── Wiki modal ────────────────────────────────────────────────────────────
 
