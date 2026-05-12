@@ -114,6 +114,24 @@
       padding: 1px 6px; border-radius: 4px;
     }
     .index-actions { margin-top: 8px; }
+    .index-toggle { margin-top: 8px; }
+    .index-toggle-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 11px; color: var(--muted); padding: 0;
+    }
+    .index-toggle-btn:hover { color: var(--text); }
+    .index-detail {
+      display: none; margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .index-detail.open { display: block; }
+    .cat-row {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; padding: 2px 0;
+    }
+    .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .cat-name { color: var(--text); min-width: 80px; }
+    .cat-stat { color: var(--muted); }
 
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
@@ -804,8 +822,56 @@
           <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;"
             onclick="deleteIndex('${esc(idx.snapshot)}')">삭제</button>
         </div>` : ''}
+        <div class="index-toggle">
+          <button class="index-toggle-btn" onclick="toggleIndexDetail('${esc(idx.snapshot)}', this)">▶ 카테고리 상세</button>
+        </div>
+        <div class="index-detail" id="detail-${esc(idx.snapshot)}">
+          <div class="cat-stat" style="font-size:11px">로딩 중...</div>
+        </div>
       </div>
     `).join('');
+  }
+
+  // 작성일: 2026-05-12 | 기능: 인덱스 카드 accordion — 카테고리별 크기·청크 수 표시
+  const _CAT_COLORS = {
+    rfp: '#ef4444', proposal: '#3b82f6', kickoff: '#f59e0b',
+    final_report: '#22c55e', presentation: '#8b5cf6',
+  };
+  const _CAT_LABELS = {
+    rfp: 'RFP', proposal: '제안서', kickoff: '착수보고',
+    final_report: '최종보고', presentation: '발표',
+  };
+
+  async function toggleIndexDetail(snapshot, btn) {
+    const detail = document.getElementById(`detail-${snapshot}`);
+    const isOpen = detail.classList.contains('open');
+    if (isOpen) {
+      detail.classList.remove('open');
+      btn.textContent = '▶ 카테고리 상세';
+      return;
+    }
+    btn.textContent = '▼ 카테고리 상세';
+    detail.classList.add('open');
+    if (detail.dataset.loaded) return;
+    try {
+      const data = await api(`/admin/faiss/indexes/${encodeURIComponent(snapshot)}/categories`);
+      const cats = data.categories || [];
+      const existing = cats.filter(c => c.exists);
+      if (!existing.length) {
+        detail.innerHTML = '<div class="cat-stat">카테고리 서브인덱스 없음</div>';
+      } else {
+        detail.innerHTML = existing.map(c => `
+          <div class="cat-row">
+            <span class="cat-dot" style="background:${_CAT_COLORS[c.category] || '#6b7280'}"></span>
+            <span class="cat-name">${_CAT_LABELS[c.category] || c.category}</span>
+            <span class="cat-stat">${c.size_mb} MB · ${c.chunk_count.toLocaleString()} 청크</span>
+          </div>
+        `).join('');
+      }
+      detail.dataset.loaded = '1';
+    } catch (e) {
+      detail.innerHTML = `<div class="cat-stat" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
   }
 
   let _confirmResolve = null;
