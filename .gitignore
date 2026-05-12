@@ -151,5 +151,26 @@ data/staged/markdown/
 data/staged/manifest/*.jsonl
 data/staged/manifest/*.csv
 data/staged/manifest/*.parquet
+data/staged/
 data/wiki/generated/
 *.faiss
+
+# Documentation / work logs (excluded from deployment)
+*.md
+*.txt
+*.mmd
+
+# Security & local config
+.env.*
+!.env.example
+.claude/settings.local.json
+.claude/settings.json.bak
+.claude/scheduled_tasks.lock
+
+# Local tooling / screenshots / work files
+.playwright-mcp/
+diagrams/
+docs/
+nul
+*.pptx
+*.png
