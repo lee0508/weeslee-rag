@@ -13,23 +13,21 @@ import os
 import subprocess
 import sys
 
-SERVER_HOST = os.environ.get("DEPLOY_HOST", "218.148.21.12")
-SERVER_PORT = int(os.environ.get("DEPLOY_PORT", "2222"))
+SERVER_HOST = os.environ.get("DEPLOY_HOST", "192.168.0.207")
+SERVER_PORT = int(os.environ.get("DEPLOY_PORT", "22"))
 SERVER_USER = os.environ.get("DEPLOY_USER", "weeslee")
 PROJECT_DIR = os.environ.get("DEPLOY_PROJECT", "/data/weeslee/weeslee-rag")
 PYTHON = os.environ.get("DEPLOY_PYTHON", f"{PROJECT_DIR}/.venv/bin/python3")
 
 RESTART_CMD = (
-    # stash server-local changes so git pull always succeeds
     f"cd {PROJECT_DIR} && "
-    f"git stash 2>&1; "
-    f"git fetch origin main 2>&1 && git reset --hard origin/main 2>&1 && "
-    # force-kill old uvicorn and wait for port to be released
-    f"pkill -9 -f 'uvicorn app.main:app' 2>/dev/null; sleep 4; "
+    f"git pull origin main 2>&1 && "
+    f"pids=$(lsof -ti:8080 2>/dev/null) && "
+    f"if [ -n \"$pids\" ]; then kill -9 $pids; fi; "
+    f"sleep 2; "
     f"cd {PROJECT_DIR}/backend && "
-    # </dev/null: detach stdin so the SSH channel closes cleanly
     f"nohup {PYTHON} -m uvicorn app.main:app --host 0.0.0.0 --port 8080 "
-    f">> /tmp/weeslee_fastapi.log 2>&1 </dev/null & echo RESTARTED"
+    f"> /tmp/uvicorn.log 2>&1 </dev/null & echo RESTARTED"
 )
 
 
@@ -37,6 +35,7 @@ def validate_local() -> bool:
     """Syntax check key backend files. Skips if venv packages are missing locally."""
     import ast
     files = [
+        "backend/scripts/restart_server.py",
         "backend/app/api/rag.py",
         "backend/app/services/query_expander.py",
         "backend/scripts/assemble_rag_response.py",
