@@ -740,6 +740,97 @@
     .doc-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
     .copy-feedback { color: var(--good); font-size: 11px; }
 
+    /* ── File Preview Modal ────────────────────────────────────────── */
+    .preview-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-overlay.open { display: flex; }
+    .preview-modal {
+      background: var(--white);
+      border-radius: 12px;
+      width: min(92vw, 1100px);
+      height: min(90vh, 860px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--gray-200);
+      background: var(--gray-50);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .preview-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+      word-break: break-all;
+      flex: 1;
+      min-width: 0;
+    }
+    .preview-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      color: var(--text-s);
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .preview-close:hover { background: var(--gray-200); color: var(--text); }
+    .preview-body {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .preview-body iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .preview-text {
+      height: 100%;
+      overflow-y: auto;
+      padding: 20px 24px;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 1.75;
+      color: var(--gray-800);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .preview-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-s);
+      font-size: 14px;
+    }
+    .preview-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 10px 18px;
+      border-top: 1px solid var(--gray-200);
+      background: var(--gray-50);
+      flex-shrink: 0;
+    }
+
     /* ── Main tab panels ───────────────────────────────────────────── */
     .main-tab-panel {
       display: none;
@@ -1309,7 +1400,7 @@
         result_view_note:'열기/다운로드는 백엔드 파일 API를 사용합니다. 서버의 <code>data/raw/</code> 디렉토리에 파일이 있어야 합니다.',
         result_run_hint:'쿼리를 실행하면 결과를 확인할 수 있습니다.',
         result_success:'성공', result_failed:'실패',
-        download:'다운로드', copy_path:'경로 복사', copied:'복사됨!',
+        view_file:'보기', download:'다운로드', copy_path:'경로 복사', copied:'복사됨!',
         search_conditions:'검색 조건', ks_mode:'검색 모드', ks_category:'카테고리',
         ks_topk:'Top K (청크 수)', ks_topdocs:'Top Docs (문서 수)',
         ks_hint:'답변 생성 없이 관련 문서만 검색합니다.',
@@ -1366,7 +1457,7 @@
         result_view_note:'Open/Download uses the backend files API. The file must exist in the server\'s <code>data/raw/</code> directory. Copy Path copies the original source path to clipboard.',
         result_run_hint:'Run a query to inspect the result payload.',
         result_success:'Success', result_failed:'Failed',
-        download:'Download', copy_path:'Copy Path', copied:'Copied!',
+        view_file:'View', download:'Download', copy_path:'Copy Path', copied:'Copied!',
         search_conditions:'Search Conditions', ks_mode:'Search Mode', ks_category:'Category',
         ks_topk:'Top K (Chunks)', ks_topdocs:'Top Docs',
         ks_hint:'Search for relevant documents without generating an answer.',
@@ -1712,12 +1803,17 @@
       return `<a class="source-path-link" href="${escapeHtml(dl)}" download title="${escapeHtml(sourcePath)}">${escapeHtml(sourcePath)}</a>`;
     }
 
-    function renderOpenFileAction(sourcePath, inputPath) {
+    function renderOpenFileAction(sourcePath, inputPath, docId) {
       if (!sourcePath) return '';
       const dlPath = inputPath || sourcePath;
       const downloadUrl = `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}`;
+      const safeDoc  = escapeHtml(docId || '');
+      const safeSrc  = escapeHtml(sourcePath);
+      const safeIn   = escapeHtml(inputPath || '');
       return `
         <div class="doc-actions">
+          <button class="doc-link" type="button"
+            onclick="openFilePreview('${safeSrc}','${safeIn}','${safeDoc}')">${t('view_file')}</button>
           <a class="doc-link" href="${escapeHtml(downloadUrl)}" download>${t('download')}</a>
           <button class="doc-link" type="button"
             data-copy-path="${escapeHtml(sourcePath)}"
@@ -1773,7 +1869,7 @@
           <div class="chips">
             ${(doc.evidence_snippets || []).slice(0, compact ? 3 : undefined).map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
           </div>
-          ${renderOpenFileAction(doc.source_path, doc.input_path)}
+          ${renderOpenFileAction(doc.source_path, doc.input_path, doc.document_id)}
         </div>
       `).join('');
     }
@@ -1862,6 +1958,8 @@
             </div>` : ''}
           ${downloadUrl ? `
             <div class="ks-doc-actions">
+              <button class="ks-link" type="button"
+                onclick="openFilePreview('${escapeHtml(doc.source_path||'')}','${escapeHtml(doc.input_path||'')}','${escapeHtml(doc.document_id||'')}')">${t('view_file')}</button>
               <a class="ks-link" href="${escapeHtml(downloadUrl)}" download>${t('download')}</a>
               <button class="ks-link" type="button" data-copy-path="${escapeHtml(doc.source_path || '')}" onclick="copyPath(this)">${t('copy_path')}</button>
             </div>` : ''}
@@ -2100,6 +2198,80 @@
     loadHealth();
     loadOllamaModels();
     loadCategories();
+
+    // ── File Preview Modal ────────────────────────────────────────────
+    function _fileExt(sourcePath) {
+      if (!sourcePath) return '';
+      const m = sourcePath.match(/\.([^./\\]+)$/);
+      return m ? m[1].toLowerCase() : '';
+    }
+
+    function openFilePreview(sourcePath, inputPath, docId) {
+      const resolvedPath = inputPath || sourcePath;
+      const ext = _fileExt(resolvedPath);
+      const fileName = (resolvedPath || '').split(/[/\\]/).pop() || docId;
+      const modal = document.getElementById('previewOverlay');
+      const title = document.getElementById('previewTitle');
+      const body  = document.getElementById('previewBody');
+      const dlBtn = document.getElementById('previewDlBtn');
+
+      title.textContent = fileName;
+      body.innerHTML = `<div class="preview-loading">불러오는 중...</div>`;
+      dlBtn.href = `${API_BASE}/files/download?path=${encodeURIComponent(resolvedPath)}`;
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+
+      if (ext === 'pdf') {
+        const viewUrl = `${API_BASE}/files/view?path=${encodeURIComponent(resolvedPath)}`;
+        body.innerHTML = `<iframe src="${escapeHtml(viewUrl)}" title="${escapeHtml(fileName)}"></iframe>`;
+      } else {
+        _loadTextPreview(body, docId, fileName);
+      }
+    }
+
+    async function _loadTextPreview(body, docId, fileName) {
+      if (!docId) {
+        body.innerHTML = `<div class="preview-text">문서 ID가 없어 텍스트를 불러올 수 없습니다.</div>`;
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/files/text?doc_id=${encodeURIComponent(docId)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        body.innerHTML = `<div class="preview-text">${escapeHtml(data.text)}</div>`;
+      } catch (err) {
+        body.innerHTML = `<div class="preview-text" style="color:var(--bad)">텍스트를 불러오지 못했습니다: ${escapeHtml(err.message)}\n\n파일을 다운로드해서 확인하세요.</div>`;
+      }
+    }
+
+    function closePreview() {
+      const modal = document.getElementById('previewOverlay');
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+      document.getElementById('previewBody').innerHTML = '';
+    }
+
+    document.getElementById('previewOverlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('previewOverlay')) closePreview();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closePreview();
+    });
   </script>
+
+  <!-- ── File Preview Modal ─────────────────────────────────────────── -->
+  <div id="previewOverlay" class="preview-overlay" role="dialog" aria-modal="true">
+    <div class="preview-modal">
+      <div class="preview-header">
+        <div class="preview-title" id="previewTitle"></div>
+        <button class="preview-close" type="button" onclick="closePreview()" aria-label="닫기">✕</button>
+      </div>
+      <div class="preview-body" id="previewBody"></div>
+      <div class="preview-footer">
+        <a id="previewDlBtn" class="doc-link" href="#" download>다운로드</a>
+        <button class="doc-link" type="button" onclick="closePreview()">닫기</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

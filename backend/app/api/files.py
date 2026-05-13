@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+r"""
 Secure file serving for RAG result source documents.
 
 Serves files from two allowed roots:
@@ -18,6 +18,7 @@ router = APIRouter(prefix="/files", tags=["Files"])
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _RAW_DIR = (PROJECT_ROOT / "data" / "raw").resolve()
+_STAGED_TEXT_DIR = (PROJECT_ROOT / "data" / "staged" / "text").resolve()
 
 _WIN_DRIVE_RE = re.compile(r'^[A-Za-z]:[/\\](.+)$', re.DOTALL)
 
@@ -34,7 +35,7 @@ _MIME = {
 }
 
 def _try_knowledge_root(relative: str) -> Path | None:
-    """Resolve a path relative to the knowledge source root (W:\ or UNC share)."""
+    r"""Resolve a path relative to the knowledge source root (W:\ or UNC share)."""
     from app.services.knowledge_source import knowledge_source_service
     if not knowledge_source_service.is_accessible():
         return None
@@ -50,7 +51,7 @@ def _try_knowledge_root(relative: str) -> Path | None:
 
 
 def _resolve(source_path: str) -> Path | None:
-    """
+    r"""
     Locate a source document on this server.
 
     Supported path formats stored in FAISS metadata:
@@ -121,6 +122,37 @@ async def file_info(path: str = Query(..., description="source_path from RAG res
         "size": stat.st_size,
         "accessible": True,
     }
+
+
+@router.get("/view")
+async def view_file(path: str = Query(..., description="source_path from RAG result")):
+    """Serve a PDF inline so the browser can display it without downloading."""
+    resolved = _resolve(path)
+    if not resolved:
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
+    if resolved.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=415, detail="Inline view is only supported for PDF files")
+    encoded_name = quote(resolved.name, safe="")
+    headers = {
+        "Content-Disposition": f"inline; filename*=UTF-8''{encoded_name}",
+        "Cache-Control": "no-store",
+    }
+    return FileResponse(path=str(resolved), media_type="application/pdf", headers=headers)
+
+
+@router.get("/text")
+async def get_text(doc_id: str = Query(..., description="document_id from RAG result")):
+    """Return the extracted plain text for a document (from data/staged/text/)."""
+    if not re.match(r'^[\w\-]+$', doc_id):
+        raise HTTPException(status_code=400, detail="Invalid doc_id")
+    text_file = (_STAGED_TEXT_DIR / f"{doc_id}.txt").resolve()
+    try:
+        text_file.relative_to(_STAGED_TEXT_DIR)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid doc_id")
+    if not text_file.is_file():
+        raise HTTPException(status_code=404, detail=f"Text not found for: {doc_id}")
+    return {"doc_id": doc_id, "text": text_file.read_text(encoding="utf-8")}
 
 
 @router.get("/download")

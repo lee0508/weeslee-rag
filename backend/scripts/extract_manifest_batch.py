@@ -35,8 +35,8 @@ from app.extractors.pdf_extractor import _is_tesseract_available  # noqa: E402
 from app.services.metadata_enricher import enrich_confidence  # noqa: E402
 
 
-SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx", ".hwpx"}
-UNSUPPORTED_FOR_PHASE1 = {".hwp", ".doc", ".ppt", ".xls"}
+SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx", ".hwpx", ".hwp"}
+UNSUPPORTED_FOR_PHASE1 = {".doc", ".ppt", ".xls"}
 
 
 def _detect_ocr() -> bool:
