@@ -49,6 +49,8 @@ class SearchHit:
     source_path: str
     input_path: str
     chunk_text: str
+    organization: str = ""
+    folder_year: str = ""
 
 
 def load_env_file(path: Path) -> None:
@@ -109,6 +111,16 @@ def parse_args() -> argparse.Namespace:
         default="",
         dest="original_query",
         help="Original (unexpanded) query for display and lexical matching.",
+    )
+    parser.add_argument(
+        "--organization",
+        default="",
+        help="발주기관명 필터 (부분 일치). 예: 행정안전부",
+    )
+    parser.add_argument(
+        "--year",
+        default="",
+        help="연도 필터 (폴더 연도 기준). 예: 2023",
     )
     return parser.parse_args()
 
@@ -279,6 +291,16 @@ def filter_by_category(hits: list[SearchHit], category: str) -> list[SearchHit]:
     return [h for h in hits if h.category == category]
 
 
+def filter_by_metadata(hits: list[SearchHit], organization: str, year: str) -> list[SearchHit]:
+    """발주기관(부분 일치) 및 연도(정확 일치) 필터."""
+    if organization:
+        org_lower = organization.lower()
+        hits = [h for h in hits if org_lower in h.organization.lower()]
+    if year:
+        hits = [h for h in hits if h.folder_year == year]
+    return hits
+
+
 def limit_chunks_per_doc(hits: list[SearchHit], max_per_doc: int) -> list[SearchHit]:
     if max_per_doc <= 0:
         return hits
@@ -316,6 +338,8 @@ def build_hits(index_path: Path, metadata_path: Path, chunks_path: Path, args: a
                 source_path=row.get("source_path", ""),
                 input_path=row.get("input_path", ""),
                 chunk_text=chunk.get("text", ""),
+                organization=row.get("organization", ""),
+                folder_year=row.get("folder_year", ""),
             )
         )
     return hits
@@ -601,6 +625,7 @@ def main() -> int:
 
     hits = build_hits(index_path, metadata_path, chunks_path, args)
     hits = filter_by_category(hits, args.category)
+    hits = filter_by_metadata(hits, args.organization, args.year)
     hits = limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     documents = aggregate_hits(args.query, hits, args.top_docs, args.mode)
     display_query = args.original_query or args.query
