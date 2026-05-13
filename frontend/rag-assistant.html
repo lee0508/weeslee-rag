@@ -1184,6 +1184,14 @@
             </select>
           </div>
           <div>
+            <label for="filterOrg" data-i18n="filter_org">Organization Filter</label>
+            <input id="filterOrg" type="text" placeholder="" data-i18n-placeholder="filter_org_placeholder">
+          </div>
+          <div>
+            <label for="filterYear" data-i18n="filter_year">Year Filter</label>
+            <input id="filterYear" type="text" placeholder="" data-i18n-placeholder="filter_year_placeholder" maxlength="4" pattern="\d{4}">
+          </div>
+          <div>
             <label for="answerProvider" data-i18n="answer_mode">Answer Mode</label>
             <select id="answerProvider">
               <option value="ollama" data-i18n="ans_ollama">Ollama (Generate)</option>
@@ -1404,6 +1412,8 @@
         result_run_hint:'쿼리를 실행하면 결과를 확인할 수 있습니다.',
         result_success:'성공', result_failed:'실패',
         view_file:'보기', download:'다운로드', copy_path:'경로 복사', copied:'복사됨!',
+        filter_org:'기관명 필터', filter_org_placeholder:'예: 행정안전부',
+        filter_year:'연도 필터', filter_year_placeholder:'예: 2024',
         search_conditions:'검색 조건', ks_mode:'검색 모드', ks_category:'카테고리',
         ks_topk:'Top K (청크 수)', ks_topdocs:'Top Docs (문서 수)',
         ks_hint:'답변 생성 없이 관련 문서만 검색합니다.',
@@ -1464,6 +1474,8 @@
         result_run_hint:'Run a query to inspect the result payload.',
         result_success:'Success', result_failed:'Failed',
         view_file:'View', download:'Download', copy_path:'Copy Path', copied:'Copied!',
+        filter_org:'Organization Filter', filter_org_placeholder:'e.g. MOIS',
+        filter_year:'Year Filter', filter_year_placeholder:'e.g. 2024',
         search_conditions:'Search Conditions', ks_mode:'Search Mode', ks_category:'Category',
         ks_topk:'Top K (Chunks)', ks_topdocs:'Top Docs',
         ks_hint:'Search for relevant documents without generating an answer.',
@@ -1745,6 +1757,8 @@
       const topDocs = parseInt(document.getElementById('topDocs').value || '5', 10);
       const maxChunks = parseInt(document.getElementById('maxChunks').value || '3', 10);
       const category = document.getElementById('category').value;
+      const filterOrg = document.getElementById('filterOrg').value.trim();
+      const filterYear = document.getElementById('filterYear').value.trim();
       const answerProvider = document.getElementById('answerProvider').value;
       const answerModel = document.getElementById('answerModel').value.trim() || 'gemma4:latest';
       const searchMode = document.getElementById('searchMode').value;
@@ -1778,7 +1792,9 @@
             answer_provider: answerProvider,
             answer_model: answerProvider === 'none' ? '' : answerModel,
             mode: effectiveMode,
-            ...(category ? { category } : {})
+            ...(category   ? { category }              : {}),
+            ...(filterOrg  ? { organization: filterOrg } : {}),
+            ...(filterYear ? { year: filterYear }       : {})
           })
         });
 

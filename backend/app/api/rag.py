@@ -113,6 +113,8 @@ class RagQueryRequest(BaseModel):
     metadata_path: Optional[str] = None
     chunks_jsonl: Optional[str] = None
     category: Optional[str] = None
+    organization: Optional[str] = None
+    year: Optional[str] = None
     max_chunks_per_doc: int = 3
     mode: str = "general"  # "general" | "bid_project" | "rfp_analysis" | "graph_rag"
 
@@ -171,6 +173,10 @@ async def query_rag(request: RagQueryRequest):
         ]
         if request.category:
             cmd += ["--category", request.category]
+        if request.organization:
+            cmd += ["--organization", request.organization]
+        if request.year:
+            cmd += ["--year", request.year]
         # cwd=SCRIPTS_DIR is required: assemble_rag_response.py imports
         # build_faiss_index as a local module (no package prefix)
         proc = subprocess.run(
