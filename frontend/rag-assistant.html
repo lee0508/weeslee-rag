@@ -1391,6 +1391,8 @@
         info_target:'대상', info_backend:'백엔드', info_frontend:'프론트엔드', info_ans_mode:'답변 모드',
         query_input:'쿼리 입력', ready:'준비', query_label:'쿼리',
         query_placeholder:'예시: AX 기반 차세대 업무시스템 ISMP 소프트웨어 범위 변경 제안',
+        query_placeholder_bid:'예시: 행정안전부 공공데이터 품질관리 시스템 구축 유사 수행실적을 찾아줘',
+        query_placeholder_rfp:'예시: 첨부한 RFP의 주요 요구사항과 기술 스택을 분석하고 유사 실적을 검색해줘',
         query_hint:'좌측 패널에서 검색 범위와 답변 모드를 설정하세요.',
         run_rag:'RAG 실행', refresh_health:'상태 새로고침',
         answer_panel:'답변 패널', draft_answer:'초안 답변', result:'결과',
@@ -1448,6 +1450,8 @@
         info_target:'Target', info_backend:'Backend', info_frontend:'Frontend', info_ans_mode:'Answer Mode',
         query_input:'Query Input', ready:'Ready.', query_label:'Query',
         query_placeholder:'Example: AX-based next-gen business system ISMP software scope change proposal',
+        query_placeholder_bid:'Example: Find similar past projects for a Public Data Quality Management System build at MOIS',
+        query_placeholder_rfp:'Example: Analyze the key requirements and tech stack from the attached RFP and search for similar projects',
         query_hint:'Use the left panel to configure retrieval scope and answer mode.',
         run_rag:'Run RAG', refresh_health:'Refresh Health',
         answer_panel:'Answer Panel', draft_answer:'Draft Answer', result:'Result',
@@ -1606,6 +1610,7 @@
       const provider = document.getElementById('answerProvider').value;
       document.getElementById('heroAnswerMode').textContent =
         provider === 'none' ? t('search_only_short') : t('generate_short');
+      if (provider === 'none') switchAnswerTab('result');
     }
 
     function switchAnswerTab(tabName) {
@@ -1713,6 +1718,13 @@
       const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph') };
       hint.innerHTML = hints[mode] || '';
       hint.style.display = hints[mode] ? '' : 'none';
+
+      const queryEl = document.getElementById('query');
+      const placeholders = {
+        bid_project:  t('query_placeholder_bid'),
+        rfp_analysis: t('query_placeholder_rfp'),
+      };
+      queryEl.placeholder = placeholders[mode] || t('query_placeholder');
     }
 
     async function runQuery() {
