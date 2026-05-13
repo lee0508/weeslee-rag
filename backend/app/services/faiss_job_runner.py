@@ -51,10 +51,38 @@ def list_jobs() -> list[dict]:
     ]
 
 
+_MANIFEST_SKIP = ("_extraction_summary", "_selection_summary", "_manifest_extraction_summary")
+
+
+def _find_manifest_csv(manifest_dir: Path, snapshot: str) -> Path:
+    """스냅샷 이름에 맞는 실제 manifest CSV를 찾는다.
+
+    두 가지 명명 패턴을 모두 지원한다.
+      - 신버전: {snapshot}_manifest.csv
+      - 구버전: {snapshot}_{YYYYMMDD}_{HHMMSS}.csv
+    """
+    # 신버전 우선
+    preferred = manifest_dir / f"{snapshot}_manifest.csv"
+    if preferred.exists():
+        return preferred
+
+    # 구버전: snapshot 이름으로 시작하는 CSV 중 요약 파일 제외
+    candidates = [
+        f for f in manifest_dir.glob(f"{snapshot}*.csv")
+        if not any(f.stem.endswith(s) for s in _MANIFEST_SKIP)
+    ]
+    if candidates:
+        return sorted(candidates)[0]
+
+    # 미존재 시 오류 메시지용으로 신버전 경로 반환 (FileNotFoundError 발생시킴)
+    return preferred
+
+
 def _paths(snapshot: str) -> dict[str, Path]:
     manifest_dir = DATA_DIR / "staged" / "manifest"
+    manifest_csv = _find_manifest_csv(manifest_dir, snapshot)
     return {
-        "manifest_csv":   manifest_dir / f"{snapshot}_manifest.csv",
+        "manifest_csv":   manifest_csv,
         "summary_csv":    manifest_dir / f"{snapshot}_manifest_extraction_summary.csv",
         "text_dir":       DATA_DIR / "staged" / "text",
         "metadata_dir":   DATA_DIR / "staged" / "metadata",
@@ -88,7 +116,7 @@ async def run_pipeline(job_id: str) -> None:
         if not p["manifest_csv"].exists():
             raise FileNotFoundError(
                 f"Manifest CSV 없음: {p['manifest_csv']}\n"
-                "data/staged/manifest/ 에 {snapshot}_manifest.csv 를 먼저 준비하세요."
+                f"data/staged/manifest/ 에 {snapshot}_manifest.csv 또는 {snapshot}_*.csv 를 먼저 준비하세요."
             )
         emit(5, "manifest CSV 확인", f"OK: {p['manifest_csv'].name}")
 
