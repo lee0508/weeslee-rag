@@ -17,7 +17,7 @@ from app.api.knowledge_sources import router as knowledge_sources_router
 from app.api.rag import router as rag_router
 from app.api.admin import router as admin_router
 from app.api.files import router as files_router
-from app.api.faiss_admin import router as faiss_admin_router
+from app.api.faiss_admin import router as faiss_admin_router, sse_router as faiss_sse_router
 from app.api.graph import router as graph_router
 from app.api.wiki import router as wiki_router
 from app.api.review import router as review_router
@@ -77,6 +77,7 @@ app.include_router(knowledge_sources_router, prefix="/api", tags=["Knowledge Sou
 app.include_router(rag_router, prefix="/api", tags=["RAG"])
 app.include_router(files_router, prefix="/api", tags=["Files"])
 app.include_router(faiss_admin_router, prefix="/api", tags=["FAISS Admin"])
+app.include_router(faiss_sse_router, prefix="/api", tags=["FAISS Admin SSE"])
 app.include_router(graph_router, prefix="/api", tags=["Graph"])
 app.include_router(wiki_router, prefix="/api", tags=["Wiki"])
 app.include_router(review_router, prefix="/api", tags=["Review"])

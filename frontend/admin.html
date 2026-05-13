@@ -1079,7 +1079,7 @@
   function streamJob(jobId) {
     if (_sseSource) _sseSource.close();
     startJobPolling();
-    _sseSource = new EventSource(`${API_BASE}/admin/faiss/jobs/${jobId}/stream`);
+    _sseSource = new EventSource(`${API_BASE}/admin/faiss/jobs/${jobId}/stream?token=${encodeURIComponent(getToken() || '')}`);
 
     _sseSource.onmessage = (e) => {
       const ev = JSON.parse(e.data);

@@ -194,6 +194,10 @@ def build_chunks_for_document(
                         "content_length": metadata.get("content_length", 0),
                         "page_count": metadata.get("page_count", 0),
                         "metadata_confidence": metadata.get("metadata_confidence", {}),
+                        # 관리·보고용 보강 필드
+                        "file_name": Path(metadata.get("source_path", "")).name,
+                        "created_at": metadata.get("extracted_at", ""),
+                        "page_no": metadata.get("page_no", 0),
                     },
                 )
             )

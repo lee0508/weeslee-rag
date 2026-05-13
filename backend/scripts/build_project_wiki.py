@@ -26,13 +26,16 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+import os
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WIKI_DIR = PROJECT_ROOT / "data" / "wiki" / "projects"
 INVENTORY_PATH = PROJECT_ROOT / "data" / "staged" / "project_inventory.json"
 
-RAG_API_BASE = "http://192.168.0.207:8080"
-OLLAMA_BASE = "http://192.168.0.207:11434"
-OLLAMA_MODEL = "gemma3:4b"   # fast; fallback to gemma4:latest if missing
+# 환경변수 우선, 없으면 로컬 기본값 사용 (CLI 인자로 덮어쓸 수 있음)
+RAG_API_BASE = os.getenv("RAG_API_BASE", "http://127.0.0.1:8080")
+OLLAMA_BASE = os.getenv("OLLAMA_BASE", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 
 SSL_CTX = ssl.create_default_context()
 SSL_CTX.check_hostname = False
@@ -413,11 +416,35 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--all", action="store_true", help="Generate all target projects")
     parser.add_argument("--list", action="store_true", help="List all available projects")
     parser.add_argument("--project", default=None, help="Project slug (e.g. k-water, ax, moj)")
+    parser.add_argument(
+        "--rag-api-base",
+        default=None,
+        help="RAG API base URL (default: RAG_API_BASE env or http://127.0.0.1:8080)",
+    )
+    parser.add_argument(
+        "--ollama-base",
+        default=None,
+        help="Ollama base URL (default: OLLAMA_BASE env or http://127.0.0.1:11434)",
+    )
+    parser.add_argument(
+        "--ollama-model",
+        default=None,
+        help="Ollama model name (default: OLLAMA_MODEL env or gemma3:4b)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
+    global RAG_API_BASE, OLLAMA_BASE, OLLAMA_MODEL
+
     args = parse_args()
+
+    if args.rag_api_base:
+        RAG_API_BASE = args.rag_api_base
+    if args.ollama_base:
+        OLLAMA_BASE = args.ollama_base
+    if args.ollama_model:
+        OLLAMA_MODEL = args.ollama_model
 
     if args.list:
         list_projects()
@@ -425,6 +452,8 @@ def main() -> None:
 
     inventory = load_inventory()
     snapshot = get_active_snapshot()
+    print(f"RAG API base: {RAG_API_BASE}")
+    print(f"Ollama base: {OLLAMA_BASE}")
     print(f"Active snapshot: {snapshot}")
     print(f"Ollama model: {OLLAMA_MODEL}")
 

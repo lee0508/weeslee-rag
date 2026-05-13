@@ -620,6 +620,21 @@ def main() -> int:
         "answer_model": args.answer_model,
         "documents": documents,
         "draft_answer": answer,
+        # 하위호환 alias — 외부 소비자 및 보고서 스키마용
+        "results": [
+            {
+                "rank": doc["rank"],
+                "score": doc["best_score"],
+                "file_name": Path(doc["source_path"]).name,
+                "project_name": doc.get("project_name", ""),
+                "category": doc.get("category", ""),
+                "snippet": (doc.get("evidence_snippets") or [""])[0],
+                "reason": "; ".join(doc.get("reasons", [])),
+                "source_path": doc.get("source_path", ""),
+            }
+            for doc in documents
+        ],
+        "answer": answer,
     }
 
     if args.output_json:

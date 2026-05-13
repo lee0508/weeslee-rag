@@ -199,29 +199,6 @@ async def list_jobs():
     return {"jobs": runner.list_jobs()}
 
 
-@router.get("/jobs/{job_id}/stream")
-async def stream_job(job_id: str):
-    """SSE 스트림으로 잡 진행 상황 수신."""
-    job = runner.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-
-    q: asyncio.Queue = job["queue"]
-
-    async def generate():
-        while True:
-            try:
-                event = await asyncio.wait_for(q.get(), timeout=30)
-            except asyncio.TimeoutError:
-                yield "data: {\"heartbeat\": true}\n\n"
-                continue
-
-            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-
-            if event.get("done"):
-                break
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 class ActivateRequest(BaseModel):
@@ -394,3 +371,42 @@ async def staged_summary():
             "metadata_count": meta_count,
         },
     }
+
+
+# ── SSE 전용 라우터 (auth 없음 — query param 토큰으로 자체 검증) ──────────────────
+# EventSource는 커스텀 헤더를 보낼 수 없으므로 router-level auth 의존성 없이 등록한다.
+
+sse_router = APIRouter(prefix="/admin/faiss", tags=["FAISS Admin SSE"])
+
+
+@sse_router.get("/jobs/{job_id}/stream")
+async def stream_job(job_id: str, token: Optional[str] = None):
+    """SSE 스트림으로 잡 진행 상황 수신.
+
+    브라우저 EventSource는 커스텀 헤더를 지원하지 않으므로 ?token= query param으로 인증한다.
+    """
+    from app.core.auth import decode_token
+
+    if not token or not decode_token(token):
+        raise HTTPException(status_code=401, detail="유효하지 않거나 만료된 토큰입니다.")
+
+    job = runner.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+    q: asyncio.Queue = job["queue"]
+
+    async def generate():
+        while True:
+            try:
+                event = await asyncio.wait_for(q.get(), timeout=30)
+            except asyncio.TimeoutError:
+                yield "data: {\"heartbeat\": true}\n\n"
+                continue
+
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+            if event.get("done"):
+                break
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
