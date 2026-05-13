@@ -428,6 +428,16 @@
     }
     .staged-use-btn:hover { opacity: .85; }
 
+    /* ── 시스템 점검 ─────────────────────────────────────────────── */
+    .syscheck-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border);
+    }
+    .syscheck-row:last-child { border-bottom: none; }
+    .syscheck-icon { font-size: 13px; flex-shrink: 0; line-height: 1.4; }
+    .syscheck-name { font-weight: 600; min-width: 110px; flex-shrink: 0; }
+    .syscheck-detail { color: var(--muted); font-size: 11px; word-break: break-all; }
+
     /* ── 로그인 모달 ─────────────────────────────────────────────── */
     .login-overlay {
       position: fixed; inset: 0; z-index: 9999;
@@ -539,6 +549,18 @@
         <button class="icon-btn" onclick="loadCategoryStatus()" title="새로고침">↻</button>
       </div>
       <div id="categoryContent"><div class="empty">로딩 중...</div></div>
+    </div>
+
+    <!-- System Check -->
+    <div class="card">
+      <div class="card-title">
+        시스템 점검
+        <button class="icon-btn" onclick="loadSystemCheck()" title="새로고침">↻</button>
+      </div>
+      <div id="sysCheckContent"><div class="empty">버튼을 눌러 점검하세요.</div></div>
+      <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="loadSystemCheck()">
+        🔍 시스템 점검 실행
+      </button>
     </div>
 
     <!-- Run Pipeline -->
@@ -1333,6 +1355,42 @@
         </table>
       </div>
     `;
+  }
+
+  // ── System Check ──────────────────────────────────────────────────────────
+
+  async function loadSystemCheck() {
+    const el = document.getElementById('sysCheckContent');
+    el.innerHTML = '<div class="empty">점검 중...</div>';
+    try {
+      const data = await api('/admin/system-check');
+      const LABELS = {
+        hwp_extractor: 'HWP 추출기',
+        ocr_tesseract: 'OCR (Tesseract)',
+        ollama:        'Ollama',
+        faiss_index:   'FAISS 인덱스',
+        staged_texts:  'Staged 텍스트',
+      };
+      const items = [
+        { key: 'hwp_extractor', ok: data.hwp_extractor?.ok,  detail: data.hwp_extractor?.detail },
+        { key: 'ocr_tesseract', ok: data.ocr_tesseract?.ok,  detail: data.ocr_tesseract?.detail },
+        { key: 'ollama',        ok: data.ollama?.ok,          detail: data.ollama?.detail },
+        { key: 'faiss_index',   ok: data.faiss_index?.ok,     detail: data.faiss_index?.detail },
+        { key: 'staged_texts',  ok: true,
+          detail: `${(data.staged_texts?.count ?? 0).toLocaleString()}개 파일 (${data.staged_texts?.dir ?? '-'})` },
+      ];
+      el.innerHTML = items.map(item => `
+        <div class="syscheck-row">
+          <span class="syscheck-icon" style="color:${item.ok ? 'var(--green)' : 'var(--red)'}">
+            ${item.ok ? '✓' : '✗'}
+          </span>
+          <span class="syscheck-name">${LABELS[item.key] || item.key}</span>
+          <span class="syscheck-detail">${esc(item.detail ?? '')}</span>
+        </div>
+      `).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
   }
 
   // ── Staged Summary ────────────────────────────────────────────────────────
