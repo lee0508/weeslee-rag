@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -62,6 +62,7 @@ def _default_chunks_path() -> Path:
 
 
 GRAPH_NODES_PATH = PROJECT_ROOT / "data" / "indexes" / "graph" / "graph_nodes.jsonl"
+PROPOSAL_SCRIPT = SCRIPTS_DIR / "generate_proposal_draft.py"
 
 
 # 작성일: 2026-05-12 | 기능: FAISS 결과에서 프로젝트 추출 → 그래프 관련 문서 조회
@@ -200,4 +201,55 @@ async def query_rag(request: RagQueryRequest):
         if request.mode == "graph_rag":
             payload = _enrich_with_graph_context(payload)
 
+        return payload
+
+
+class ProposalRequest(BaseModel):
+    project_name: str = Field(..., min_length=2)
+    organization: str = ""
+    category: str = "proposal"
+    sections: List[str] = ["overview", "current", "strategy", "schedule", "track", "effect"]
+    top_k: int = 15
+    top_docs: int = 4
+    answer_model: str = "gemma4:latest"
+    index_path: Optional[str] = None
+    metadata_path: Optional[str] = None
+    chunks_jsonl: Optional[str] = None
+
+
+@router.post("/proposal")
+async def generate_proposal(request: ProposalRequest):
+    snapshot = _active_snapshot()
+    default_index, default_meta = _index_paths(snapshot, None)
+    index_path   = request.index_path   or str(default_index)
+    metadata_path = request.metadata_path or str(default_meta)
+    chunks_jsonl  = request.chunks_jsonl  or str(_default_chunks_path())
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_json = Path(temp_dir) / "proposal_draft.json"
+        cmd = [
+            sys.executable,
+            str(PROPOSAL_SCRIPT),
+            "--index-path",    index_path,
+            "--metadata-path", metadata_path,
+            "--chunks-jsonl",  chunks_jsonl,
+            "--project-name",  request.project_name,
+            "--organization",  request.organization,
+            "--category",      request.category,
+            "--sections",      ",".join(request.sections),
+            "--top-k",         str(request.top_k),
+            "--top-docs",      str(request.top_docs),
+            "--answer-model",  request.answer_model,
+            "--embedding-provider", "ollama",
+            "--output-json",   str(output_json),
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(SCRIPTS_DIR))
+        if proc.returncode != 0:
+            return {
+                "success": False,
+                "error": proc.stderr.strip() or "Proposal generation failed",
+                "stdout": proc.stdout,
+            }
+        payload = json.loads(output_json.read_text(encoding="utf-8"))
+        payload["success"] = True
         return payload
