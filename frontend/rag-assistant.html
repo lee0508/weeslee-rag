@@ -1263,7 +1263,7 @@
             <div class="form-grid">
               <div class="form-group full">
                 <label class="form-label" for="query" data-i18n="query_label">Query</label>
-                <textarea class="form-textarea" id="query" data-i18n-placeholder="query_placeholder" placeholder="Example: Proposal change request for an AX-based next-generation business system ISMP">AX based proposal request for the next generation business system ISMP software scope change</textarea>
+                <textarea class="form-textarea" id="query" data-i18n-placeholder="query_placeholder" data-is-example="false" placeholder="Example: Proposal change request for an AX-based next-generation business system ISMP"></textarea>
                 <span class="form-hint" data-i18n="query_hint">Use the left panel controls to narrow retrieval scope and answer mode.</span>
               </div>
             </div>
@@ -1391,8 +1391,9 @@
         info_target:'대상', info_backend:'백엔드', info_frontend:'프론트엔드', info_ans_mode:'답변 모드',
         query_input:'쿼리 입력', ready:'준비', query_label:'쿼리',
         query_placeholder:'예시: AX 기반 차세대 업무시스템 ISMP 소프트웨어 범위 변경 제안',
-        query_placeholder_bid:'예시: 행정안전부 공공데이터 품질관리 시스템 구축 유사 수행실적을 찾아줘',
-        query_placeholder_rfp:'예시: 첨부한 RFP의 주요 요구사항과 기술 스택을 분석하고 유사 실적을 검색해줘',
+        query_example_bid:'행정안전부 공공데이터 품질관리 시스템 구축 유사 수행실적을 찾아줘',
+        query_example_rfp:'첨부한 RFP의 주요 요구사항과 기술 스택을 분석하고 유사 실적을 검색해줘',
+        query_example_graph:'차세대 업무시스템 ISMP 사업에서 제안부터 최종보고까지 문서 체인을 보여줘',
         query_hint:'좌측 패널에서 검색 범위와 답변 모드를 설정하세요.',
         run_rag:'RAG 실행', refresh_health:'상태 새로고침',
         answer_panel:'답변 패널', draft_answer:'초안 답변', result:'결과',
@@ -1450,8 +1451,9 @@
         info_target:'Target', info_backend:'Backend', info_frontend:'Frontend', info_ans_mode:'Answer Mode',
         query_input:'Query Input', ready:'Ready.', query_label:'Query',
         query_placeholder:'Example: AX-based next-gen business system ISMP software scope change proposal',
-        query_placeholder_bid:'Example: Find similar past projects for a Public Data Quality Management System build at MOIS',
-        query_placeholder_rfp:'Example: Analyze the key requirements and tech stack from the attached RFP and search for similar projects',
+        query_example_bid:'Find similar past projects for a Public Data Quality Management System build at MOIS',
+        query_example_rfp:'Analyze the key requirements and tech stack from the attached RFP and search for similar projects',
+        query_example_graph:'Show the full document chain from proposal to final report for the next-gen business system ISMP project',
         query_hint:'Use the left panel to configure retrieval scope and answer mode.',
         run_rag:'Run RAG', refresh_health:'Refresh Health',
         answer_panel:'Answer Panel', draft_answer:'Draft Answer', result:'Result',
@@ -1720,11 +1722,21 @@
       hint.style.display = hints[mode] ? '' : 'none';
 
       const queryEl = document.getElementById('query');
-      const placeholders = {
-        bid_project:  t('query_placeholder_bid'),
-        rfp_analysis: t('query_placeholder_rfp'),
+      const examples = {
+        bid_project:  t('query_example_bid'),
+        rfp_analysis: t('query_example_rfp'),
+        graph_rag:    t('query_example_graph'),
       };
-      queryEl.placeholder = placeholders[mode] || t('query_placeholder');
+      const example = examples[mode] || '';
+      // 사용자가 직접 입력한 내용이 아닌 경우(비어 있거나 이전 예시 텍스트)에만 교체
+      const isExample = queryEl.dataset.isExample === 'true';
+      if (example && (queryEl.value.trim() === '' || isExample)) {
+        queryEl.value = example;
+        queryEl.dataset.isExample = 'true';
+      } else if (!example && isExample) {
+        queryEl.value = '';
+        queryEl.dataset.isExample = 'false';
+      }
     }
 
     async function runQuery() {
@@ -1977,6 +1989,10 @@
             </div>` : ''}
         </div>`;
     }
+
+    document.getElementById('query').addEventListener('input', () => {
+      document.getElementById('query').dataset.isExample = 'false';
+    });
 
     document.getElementById('kQuery').addEventListener('keydown', e => {
       if (e.key === 'Enter') runKnowledgeSearch();
