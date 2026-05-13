@@ -425,9 +425,12 @@ async def delete_collection(collection_id: int):
 @router.get("/system-check")
 async def system_check():
     """Phase 1 검증용: HWP·OCR·Ollama·FAISS 가용 여부를 한번에 확인한다."""
+    import importlib
     import subprocess
     import httpx
     from pathlib import Path
+
+    from app.extractors.hwp_extractor import _hwp5txt_path
 
     project_root = Path(__file__).resolve().parents[3]
 
@@ -441,8 +444,21 @@ async def system_check():
         except Exception as e:
             return False, str(e)
 
-    # hwp5txt (pyhwp)
-    hwp_ok, hwp_msg = _run(["hwp5txt", "--version"])
+    # hwp5txt (CLI) + hwp5 (Python module)
+    hwp_cli_ok, hwp_cli_msg = _run([_hwp5txt_path(), "--version"])
+    try:
+        hwp5 = importlib.import_module("hwp5")
+        hwp_module_ok = True
+        hwp_module_msg = getattr(hwp5, "__file__", "hwp5 imported")
+    except Exception as e:
+        hwp_module_ok = False
+        hwp_module_msg = str(e)
+
+    hwp_ok = hwp_cli_ok or hwp_module_ok
+    hwp_msg = (
+        f"cli_ok={hwp_cli_ok}; cli={hwp_cli_msg[:120]}; "
+        f"module_ok={hwp_module_ok}; module={hwp_module_msg[:120]}"
+    )
 
     # tesseract OCR
     ocr_ok, ocr_msg = _run(["tesseract", "--version"])
