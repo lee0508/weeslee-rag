@@ -422,6 +422,69 @@ async def delete_collection(collection_id: int):
         db.close()
 
 
+@router.get("/system-check")
+async def system_check():
+    """Phase 1 검증용: HWP·OCR·Ollama·FAISS 가용 여부를 한번에 확인한다."""
+    import subprocess
+    import httpx
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[3]
+
+    def _run(cmd: list[str]) -> tuple[bool, str]:
+        try:
+            r = subprocess.run(cmd, capture_output=True, timeout=10)
+            out = (r.stdout + r.stderr).decode("utf-8", errors="replace").strip()
+            return r.returncode == 0, out[:200]
+        except FileNotFoundError:
+            return False, "command not found"
+        except Exception as e:
+            return False, str(e)
+
+    # hwp5txt (pyhwp)
+    hwp_ok, hwp_msg = _run(["hwp5txt", "--version"])
+
+    # tesseract OCR
+    ocr_ok, ocr_msg = _run(["tesseract", "--version"])
+
+    # Ollama
+    ollama_ok, ollama_msg = False, ""
+    try:
+        r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
+        ollama_ok = r.status_code == 200
+        tags = [m.get("name", "") for m in r.json().get("models", [])]
+        ollama_msg = f"{len(tags)} models: {', '.join(tags[:5])}"
+    except Exception as e:
+        ollama_msg = str(e)
+
+    # FAISS active index
+    active_index_path = project_root / "data" / "active_index.json"
+    faiss_ok = False
+    faiss_msg = "active_index.json not found"
+    if active_index_path.exists():
+        try:
+            import json as _json
+            info = _json.loads(active_index_path.read_text(encoding="utf-8"))
+            snapshot = info.get("snapshot", "")
+            idx = project_root / "data" / "indexes" / "faiss" / f"{snapshot}_ollama.index"
+            faiss_ok = idx.exists()
+            faiss_msg = f"snapshot={snapshot}, index={'exists' if faiss_ok else 'missing'}"
+        except Exception as e:
+            faiss_msg = str(e)
+
+    # staged text dir
+    text_dir = project_root / "data" / "staged" / "text"
+    text_count = len(list(text_dir.glob("*.txt"))) if text_dir.exists() else 0
+
+    return {
+        "hwp_extractor":  {"ok": hwp_ok,    "detail": hwp_msg},
+        "ocr_tesseract":  {"ok": ocr_ok,    "detail": ocr_msg},
+        "ollama":         {"ok": ollama_ok,  "detail": ollama_msg},
+        "faiss_index":    {"ok": faiss_ok,   "detail": faiss_msg},
+        "staged_texts":   {"count": text_count, "dir": str(text_dir)},
+    }
+
+
 @router.get("/stats")
 async def get_admin_stats():
     """Get admin dashboard statistics — FAISS-based (no MySQL dependency)."""
@@ -475,19 +538,23 @@ async def get_admin_stats():
     # ── Graph stats ────────────────────────────────────────────────────────
     graph_node_count = 0
     graph_edge_count = 0
-    graph_jsonl = project_root / "data" / "graph" / "graph.jsonl"
-    if graph_jsonl.exists():
+    graph_dir = project_root / "data" / "indexes" / "graph"
+    graph_nodes = graph_dir / "graph_nodes.jsonl"
+    graph_edges = graph_dir / "graph_edges.jsonl"
+    if graph_nodes.exists():
         try:
-            for line in graph_jsonl.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                obj = json.loads(line)
-                if obj.get("type") == "node":
-                    graph_node_count += 1
-                elif obj.get("type") == "edge":
-                    graph_edge_count += 1
+            graph_node_count = sum(
+                1 for line in graph_nodes.read_text(encoding="utf-8").splitlines() if line.strip()
+            )
         except Exception:
-            pass
+            graph_node_count = 0
+    if graph_edges.exists():
+        try:
+            graph_edge_count = sum(
+                1 for line in graph_edges.read_text(encoding="utf-8").splitlines() if line.strip()
+            )
+        except Exception:
+            graph_edge_count = 0
 
     # ── Ollama status ──────────────────────────────────────────────────────
     ollama_ok = False
