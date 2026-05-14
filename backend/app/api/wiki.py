@@ -27,7 +27,11 @@ _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,79}$")
 
 
 def _slugify(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    # 한글도 허용하는 slug 생성
+    slug = re.sub(r"[^\w가-힣]+", "-", name.lower()).strip("-")
+    # 연속된 하이픈 제거
+    slug = re.sub(r"-+", "-", slug)
+    return slug or "unknown"
 
 
 def _read_wiki(path: Path) -> dict:
@@ -170,3 +174,195 @@ async def build_wiki(slug: Optional[str] = None):
         "generated": generated,
         "stdout": proc.stdout.strip()[-2000:],
     }
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Wiki 통계 및 카테고리별 생성 API
+# ────────────────────────────────────────────────────────────────────────────
+
+WIKI_ORG_DIR = PROJECT_ROOT / "data" / "wiki" / "organizations"
+WIKI_TECH_DIR = PROJECT_ROOT / "data" / "wiki" / "technologies"
+
+
+@router.get("/stats")
+async def get_wiki_stats():
+    """Wiki 현황 통계."""
+    WIKI_DIR.mkdir(parents=True, exist_ok=True)
+    WIKI_ORG_DIR.mkdir(parents=True, exist_ok=True)
+    WIKI_TECH_DIR.mkdir(parents=True, exist_ok=True)
+
+    project_count = len(list(WIKI_DIR.glob("*.md")))
+    org_count = len(list(WIKI_ORG_DIR.glob("*.md")))
+    tech_count = len(list(WIKI_TECH_DIR.glob("*.md")))
+
+    return {
+        "project_count": project_count,
+        "organization_count": org_count,
+        "technology_count": tech_count,
+        "total": project_count + org_count + tech_count,
+    }
+
+
+@router.post("/generate/by-organization")
+async def generate_wiki_by_organization():
+    """발주기관별 Wiki 생성."""
+    from app.services.metadata_db import metadata_db_service
+
+    WIKI_ORG_DIR.mkdir(parents=True, exist_ok=True)
+
+    # SQLite에서 발주기관별 문서 집계
+    documents = metadata_db_service.list_documents(limit=1000)
+    org_docs: dict[str, list] = {}
+
+    for doc in documents:
+        org = doc.get("organization", "").strip()
+        if not org:
+            org = "미분류"
+        if org not in org_docs:
+            org_docs[org] = []
+        org_docs[org].append(doc)
+
+    generated = []
+    for org_name, docs in org_docs.items():
+        if org_name == "미분류" and len(docs) < 3:
+            continue
+
+        slug = _slugify(org_name) or "unknown"
+        md_content = _generate_org_wiki_markdown(org_name, docs)
+
+        wiki_path = WIKI_ORG_DIR / f"{slug}.md"
+        wiki_path.write_text(md_content, encoding="utf-8")
+        generated.append(slug)
+
+    return {"success": True, "generated": generated, "count": len(generated)}
+
+
+@router.post("/generate/by-project")
+async def generate_wiki_by_project():
+    """사업별 Wiki 생성 (기존 build 함수 호출)."""
+    return await build_wiki(slug=None)
+
+
+@router.post("/generate/by-technology")
+async def generate_wiki_by_technology():
+    """기술별 Wiki 생성."""
+    from app.services.metadata_db import metadata_db_service
+
+    WIKI_TECH_DIR.mkdir(parents=True, exist_ok=True)
+
+    # SQLite에서 기술 태그별 문서 집계
+    documents = metadata_db_service.list_documents(limit=1000)
+    tech_docs: dict[str, list] = {}
+
+    for doc in documents:
+        # suggestion에서 technology_tags 조회
+        suggestion = metadata_db_service.get_suggestion(doc["id"])
+        if not suggestion:
+            continue
+
+        tech_tags_raw = suggestion.get("technology_tags", "[]")
+        if isinstance(tech_tags_raw, str):
+            try:
+                tech_tags = json.loads(tech_tags_raw)
+            except json.JSONDecodeError:
+                tech_tags = []
+        else:
+            tech_tags = tech_tags_raw or []
+
+        for tag in tech_tags:
+            tag = tag.strip()
+            if not tag:
+                continue
+            if tag not in tech_docs:
+                tech_docs[tag] = []
+            tech_docs[tag].append(doc)
+
+    generated = []
+    for tech_name, docs in tech_docs.items():
+        if len(docs) < 2:
+            continue
+
+        slug = _slugify(tech_name) or "tech"
+        md_content = _generate_tech_wiki_markdown(tech_name, docs)
+
+        wiki_path = WIKI_TECH_DIR / f"{slug}.md"
+        wiki_path.write_text(md_content, encoding="utf-8")
+        generated.append(slug)
+
+    return {"success": True, "generated": generated, "count": len(generated)}
+
+
+def _generate_org_wiki_markdown(org_name: str, docs: list) -> str:
+    """발주기관 Wiki 마크다운 생성."""
+    from datetime import datetime
+
+    lines = [
+        f"# {org_name}",
+        "",
+        f"> 발주기관 Wiki - 자동 생성: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+        "## 개요",
+        "",
+        f"**{org_name}** 관련 프로젝트 문서 {len(docs)}건이 등록되어 있습니다.",
+        "",
+        "## 문서 목록",
+        "",
+        "| 문서명 | 유형 | 사업명 | 연도 |",
+        "|--------|------|--------|------|",
+    ]
+
+    for doc in docs[:50]:
+        file_name = doc.get("file_name", "").split("\\")[-1].split("/")[-1]
+        doc_type = doc.get("document_type", "unknown")
+        project_name = doc.get("project_name", "")[:30]
+        year = doc.get("project_year", "")
+        lines.append(f"| {file_name[:40]} | {doc_type} | {project_name} | {year} |")
+
+    if len(docs) > 50:
+        lines.append(f"| ... 외 {len(docs) - 50}건 | | | |")
+
+    lines.extend([
+        "",
+        "---",
+        f"*자동 생성: {datetime.now().strftime('%Y-%m-%d %H:%M')}*",
+    ])
+
+    return "\n".join(lines)
+
+
+def _generate_tech_wiki_markdown(tech_name: str, docs: list) -> str:
+    """기술 키워드 Wiki 마크다운 생성."""
+    from datetime import datetime
+
+    lines = [
+        f"# {tech_name}",
+        "",
+        f"> 기술 키워드 Wiki - 자동 생성: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+        "## 개요",
+        "",
+        f"**{tech_name}** 관련 프로젝트 문서 {len(docs)}건이 등록되어 있습니다.",
+        "",
+        "## 관련 문서",
+        "",
+        "| 문서명 | 유형 | 발주기관 | 연도 |",
+        "|--------|------|----------|------|",
+    ]
+
+    for doc in docs[:50]:
+        file_name = doc.get("file_name", "").split("\\")[-1].split("/")[-1]
+        doc_type = doc.get("document_type", "unknown")
+        org = doc.get("organization", "")[:20]
+        year = doc.get("project_year", "")
+        lines.append(f"| {file_name[:40]} | {doc_type} | {org} | {year} |")
+
+    if len(docs) > 50:
+        lines.append(f"| ... 외 {len(docs) - 50}건 | | | |")
+
+    lines.extend([
+        "",
+        "---",
+        f"*자동 생성: {datetime.now().strftime('%Y-%m-%d %H:%M')}*",
+    ])
+
+    return "\n".join(lines)

@@ -514,7 +514,12 @@
 <!-- Tab navigation -->
 <nav class="tab-nav">
   <button class="tab-btn active" onclick="switchTab('faiss')">FAISS Index</button>
-  <button class="tab-btn" onclick="switchTab('graph')">Graph View</button>
+  <button class="tab-btn" onclick="switchTab('documents')">📁 문서 관리</button>
+  <button class="tab-btn" onclick="switchTab('metadata')">🏷️ 메타데이터</button>
+  <button class="tab-btn" onclick="switchTab('pipeline')">⚙️ RAG 처리</button>
+  <button class="tab-btn" onclick="switchTab('wiki')">📚 LLM-Wiki</button>
+  <button class="tab-btn" onclick="switchTab('graph')">🔗 Graph View</button>
+  <button class="tab-btn" onclick="switchTab('benchmark')">🔍 검색 품질</button>
 </nav>
 
 <!-- FAISS tab -->
@@ -685,6 +690,360 @@
 
   </div>
 </div><!-- /tab-graph -->
+
+<!-- 📁 문서 관리 탭 -->
+<div id="tab-documents" class="tab-panel">
+  <div class="layout" style="grid-template-columns: 1fr;">
+    <main class="main" style="max-width:1400px;margin:0 auto">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📁 문서 관리</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="openUploadModal()">+ 문서 업로드</button>
+            <button class="btn btn-secondary" onclick="autoGenerateAllMetadata()">✨ 전체 자동 메타 생성</button>
+            <button class="btn btn-outline" onclick="loadDocuments()">↻ 새로고침</button>
+          </div>
+        </div>
+
+        <!-- 문서 현황 요약 -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+          <div class="bm-stat"><div class="val" id="docStatTotal">-</div><div class="lbl">전체 문서</div></div>
+          <div class="bm-stat" style="border-left:3px solid var(--red)"><div class="val" id="docStatUnclassified">-</div><div class="lbl">미분류</div></div>
+          <div class="bm-stat" style="border-left:3px solid var(--green)"><div class="val" id="docStatConfirmed">-</div><div class="lbl">메타 확정</div></div>
+          <div class="bm-stat" style="border-left:3px solid var(--amber)"><div class="val" id="docStatRagReady">-</div><div class="lbl">RAG 준비</div></div>
+        </div>
+
+        <!-- 필터 -->
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+          <select id="filterDocType" onchange="loadDocuments()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+            <option value="">전체 유형</option>
+            <optgroup label="컨설팅/SI 문서">
+              <option value="rfp">RFP</option>
+              <option value="proposal">제안서</option>
+              <option value="kickoff_report">착수보고서</option>
+              <option value="interim_report">중간보고서</option>
+              <option value="final_report">결과보고서</option>
+              <option value="completion_report">완료보고서</option>
+              <option value="presentation">발표자료</option>
+            </optgroup>
+            <optgroup label="기타">
+              <option value="unknown">미분류</option>
+            </optgroup>
+          </select>
+          <select id="filterStatus" onchange="loadDocuments()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+            <option value="">전체 상태</option>
+            <option value="uploaded">업로드됨</option>
+            <option value="text_extracted">텍스트 추출됨</option>
+            <option value="metadata_auto_suggested">자동 메타 생성됨</option>
+            <option value="metadata_confirmed">메타 확정됨</option>
+            <option value="rag_ready">RAG 준비됨</option>
+          </select>
+          <select id="filterMetaStatus" onchange="loadDocuments()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+            <option value="">전체 메타 상태</option>
+            <option value="pending">대기</option>
+            <option value="auto_suggested">자동 생성됨</option>
+            <option value="confirmed">확정됨</option>
+          </select>
+          <input type="text" id="filterSearch" placeholder="사업명/파일명 검색" oninput="debounceLoadDocs()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text);width:200px">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)">
+            <input type="checkbox" id="selectAllDocs" onchange="toggleSelectAllDocs()"> 전체 선택
+          </label>
+          <button class="btn btn-secondary btn-sm" onclick="autoGenerateSelectedMetadata()">✨ 선택 자동 메타</button>
+        </div>
+
+        <!-- 문서 목록 테이블 -->
+        <div style="overflow-x:auto">
+          <table class="bm-table" style="min-width:900px">
+            <thead>
+              <tr>
+                <th style="width:30px"><input type="checkbox" id="headerCheckDoc" onchange="toggleSelectAllDocs()"></th>
+                <th>파일명</th>
+                <th style="width:100px">문서 유형</th>
+                <th>사업명</th>
+                <th style="width:120px">발주기관</th>
+                <th style="width:90px">처리 상태</th>
+                <th style="width:80px">메타 상태</th>
+                <th style="width:140px">작업</th>
+              </tr>
+            </thead>
+            <tbody id="documentTableBody">
+              <tr><td colspan="8" class="empty">문서 관리 탭을 선택하면 목록이 로드됩니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div><!-- /tab-documents -->
+
+<!-- 🏷️ 메타데이터 탭 -->
+<div id="tab-metadata" class="tab-panel">
+  <div class="layout" style="grid-template-columns: 1fr;">
+    <main class="main" style="max-width:1200px;margin:0 auto">
+      <div class="card">
+        <div class="card-title">🏷️ 메타데이터 관리</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+          문서의 메타데이터(문서 유형, 사업명, 태그 등)를 자동 생성하고 검수합니다.
+        </p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div class="bm-stat"><div class="val" id="metaStatPending">-</div><div class="lbl">검수 대기</div></div>
+          <div class="bm-stat"><div class="val" id="metaStatAutoSuggested">-</div><div class="lbl">자동 생성됨</div></div>
+          <div class="bm-stat"><div class="val" id="metaStatConfirmed">-</div><div class="lbl">확정됨</div></div>
+        </div>
+        <div style="margin-top:20px;color:var(--muted);font-size:12px">
+          자세한 메타데이터 작업은 "문서 관리" 탭에서 개별 문서의 "검수" 버튼을 사용하세요.
+        </div>
+      </div>
+    </main>
+  </div>
+</div><!-- /tab-metadata -->
+
+<!-- ⚙️ RAG 처리 탭 -->
+<div id="tab-pipeline" class="tab-panel">
+  <div class="layout" style="grid-template-columns: 1fr;">
+    <main class="main" style="max-width:1200px;margin:0 auto">
+      <div class="card">
+        <div class="card-title">⚙️ RAG 처리 파이프라인</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+          문서 처리 파이프라인을 실행합니다. 현재 FAISS Index 탭의 파이프라인 기능을 사용하세요.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="background:var(--surface2);padding:14px;border-radius:8px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:20px">1️⃣</span>
+            <div>
+              <div style="font-weight:600;font-size:13px">텍스트 추출</div>
+              <div style="font-size:11px;color:var(--muted)">PDF, HWP, DOCX 등에서 텍스트를 추출합니다.</div>
+            </div>
+          </div>
+          <div style="background:var(--surface2);padding:14px;border-radius:8px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:20px">2️⃣</span>
+            <div>
+              <div style="font-weight:600;font-size:13px">Chunking</div>
+              <div style="font-size:11px;color:var(--muted)">문서를 검색 가능한 청크로 분할합니다.</div>
+            </div>
+          </div>
+          <div style="background:var(--surface2);padding:14px;border-radius:8px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:20px">3️⃣</span>
+            <div>
+              <div style="font-weight:600;font-size:13px">Embedding</div>
+              <div style="font-size:11px;color:var(--muted)">청크를 벡터로 변환합니다 (nomic-embed-text).</div>
+            </div>
+          </div>
+          <div style="background:var(--surface2);padding:14px;border-radius:8px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:20px">4️⃣</span>
+            <div>
+              <div style="font-weight:600;font-size:13px">FAISS 인덱싱</div>
+              <div style="font-size:11px;color:var(--muted)">벡터를 FAISS 인덱스에 저장합니다.</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" onclick="switchTab('faiss')">FAISS Index 탭으로 이동</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div><!-- /tab-pipeline -->
+
+<!-- 📚 LLM-Wiki 탭 -->
+<div id="tab-wiki" class="tab-panel">
+  <div class="layout" style="grid-template-columns: 1fr;">
+    <main class="main" style="max-width:1200px;margin:0 auto">
+      <div class="card">
+        <div class="card-title">📚 LLM-Wiki 관리</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+          문서를 사람이 이해할 수 있는 지식 구조로 정리합니다.
+        </p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+          <div class="bm-stat"><div class="val" id="wikiOrgCount">-</div><div class="lbl">발주기관</div></div>
+          <div class="bm-stat"><div class="val" id="wikiProjectCount">-</div><div class="lbl">사업</div></div>
+          <div class="bm-stat"><div class="val" id="wikiTechCount">-</div><div class="lbl">기술 키워드</div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="generateWikiByOrganization()">발주기관별 Wiki 생성</button>
+          <button class="btn btn-secondary" onclick="generateWikiByProject()">사업별 Wiki 생성</button>
+          <button class="btn btn-secondary" onclick="generateWikiByTechnology()">기술별 Wiki 생성</button>
+          <button class="btn btn-outline" onclick="runGraphify()">🔗 Graphify 실행</button>
+        </div>
+        <div id="wikiList" style="margin-top:20px"></div>
+      </div>
+    </main>
+  </div>
+</div><!-- /tab-wiki -->
+
+<!-- 🔍 검색 품질 탭 -->
+<div id="tab-benchmark" class="tab-panel">
+  <div class="layout" style="grid-template-columns: 1fr;">
+    <main class="main" style="max-width:1200px;margin:0 auto">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>🔍 검색 품질 검증</span>
+          <button class="btn btn-primary" onclick="runBenchmarkFromTab()">▶ 벤치마크 실행</button>
+        </div>
+
+        <!-- 직접 검색 테스트 -->
+        <div style="margin-bottom:20px">
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:10px">직접 검색 테스트</h4>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:300px">
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">검색 쿼리</label>
+              <textarea id="testSearchQuery" rows="2" placeholder="예: 경기주택도시공사 정보화전략계획(ISP) 수립 용역" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text);resize:vertical"></textarea>
+            </div>
+            <select id="testSearchMode" style="padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              <option value="general">General RAG</option>
+              <option value="bid">사업명 기반 검색</option>
+              <option value="rfp">RFP 분석</option>
+            </select>
+            <button class="btn btn-secondary" onclick="runSearchTest()">🔍 검색 테스트</button>
+          </div>
+        </div>
+
+        <!-- 검색 결과 -->
+        <div id="searchResultPanel" style="display:none;margin-bottom:20px">
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:10px">검색 결과</h4>
+          <div id="searchResultList"></div>
+        </div>
+
+        <!-- 벤치마크 이력 -->
+        <div>
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:10px">벤치마크 이력</h4>
+          <div id="benchmarkHistoryList" style="color:var(--muted);font-size:12px">
+            FAISS Index 탭의 벤치마크 기능을 사용하세요.
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div><!-- /tab-benchmark -->
+
+<!-- 문서 업로드 모달 -->
+<div id="uploadModal" class="confirm-overlay">
+  <div class="confirm-modal" style="width:500px">
+    <div class="confirm-icon">📄</div>
+    <div class="confirm-title">문서 업로드</div>
+    <div class="confirm-body">
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">파일 선택 (PDF, HWP, DOCX, PPTX, XLSX)</label>
+        <input type="file" id="uploadFileInput" multiple accept=".pdf,.hwp,.hwpx,.docx,.pptx,.xlsx,.txt" style="width:100%">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">문서 유형 (선택사항)</label>
+        <select id="uploadDocType" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+          <option value="">자동 분류</option>
+          <option value="rfp">RFP / 제안요청서</option>
+          <option value="proposal">제안서</option>
+          <option value="kickoff_report">착수보고서</option>
+          <option value="final_report">결과보고서</option>
+          <option value="presentation">발표자료</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">사업명 (선택사항)</label>
+        <input type="text" id="uploadProjectName" placeholder="예: K-water형 고유플랫폼 구축 전략계획 수립 용역" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+      </div>
+      <div id="uploadProgressArea" style="display:none;margin-top:14px">
+        <div class="progress-track"><div class="progress-fill" id="uploadProgressBar"></div></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px" id="uploadProgressText">0%</div>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-primary" onclick="submitUpload()">업로드 시작</button>
+      <button class="btn btn-outline" onclick="closeUploadModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 메타데이터 검수 모달 -->
+<div id="metadataReviewModal" class="confirm-overlay">
+  <div class="confirm-modal" style="width:700px;max-height:90vh;overflow-y:auto">
+    <div class="confirm-icon">🔍</div>
+    <div class="confirm-title">자동 생성 메타데이터 검수</div>
+    <input type="hidden" id="reviewDocumentId">
+    <div class="confirm-body">
+      <!-- 신뢰도 표시 -->
+      <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--muted)">자동 추출 신뢰도</span>
+          <div style="flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
+            <div id="reviewConfidenceBar" style="height:100%;background:var(--green);width:0%"></div>
+          </div>
+          <span id="reviewConfidenceValue" style="font-size:12px;font-weight:700">-</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">
+          <strong>판단 근거:</strong> <span id="reviewReason">-</span>
+        </div>
+      </div>
+
+      <!-- 메타데이터 편집 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">문서 유형 *</label>
+          <select id="reviewDocumentType" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+            <optgroup label="컨설팅/SI 문서">
+              <option value="rfp">RFP / 제안요청서</option>
+              <option value="proposal">제안서</option>
+              <option value="kickoff_report">착수보고서</option>
+              <option value="interim_report">중간보고서</option>
+              <option value="final_report">결과보고서</option>
+              <option value="completion_report">완료보고서</option>
+              <option value="presentation">발표자료</option>
+              <option value="temporary_material">임시자료</option>
+            </optgroup>
+            <optgroup label="공공/법령 문서">
+              <option value="law">법령/법률</option>
+              <option value="regulation">규제/고시</option>
+              <option value="policy">정책/계획서</option>
+              <option value="guideline">가이드라인</option>
+            </optgroup>
+            <optgroup label="기타">
+              <option value="unknown">미분류</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">재사용 가능성</label>
+          <select id="reviewReuseLevel" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+            <option value="high">높음</option>
+            <option value="medium">보통</option>
+            <option value="low">낮음</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">사업명</label>
+          <input type="text" id="reviewProjectName" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">발주기관</label>
+          <input type="text" id="reviewOrganization" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">수행연도</label>
+          <input type="text" id="reviewProjectYear" placeholder="예: 2024" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">사업분야</label>
+          <input type="text" id="reviewBusinessDomain" placeholder="예: 공공 ISP / 데이터 플랫폼" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">기술 태그 (쉼표 구분)</label>
+          <input type="text" id="reviewTechnologyTags" placeholder="예: AI, LLM, RAG, 클라우드" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">업무 태그 (쉼표 구분)</label>
+          <input type="text" id="reviewBusinessTags" placeholder="예: 공공기관, 정보화전략계획, ISP" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">문서 요약</label>
+          <textarea id="reviewSummary" rows="3" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text);resize:vertical"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-primary" onclick="confirmMetadata()">✅ 확정 저장</button>
+      <button class="btn btn-outline" onclick="closeMetadataReviewModal()">취소</button>
+    </div>
+  </div>
+</div>
 
 <script src="config.js"></script>
 <script>
@@ -1772,6 +2131,418 @@
   function closeWikiModal() {
     document.getElementById('wikiOverlay').classList.remove('open');
   }
+
+  // ── Documents Tab ────────────────────────────────────────────────────────
+
+  let _docLoadTimeout = null;
+  let _selectedDocIds = new Set();
+
+  function debounceLoadDocs() {
+    if (_docLoadTimeout) clearTimeout(_docLoadTimeout);
+    _docLoadTimeout = setTimeout(loadDocuments, 300);
+  }
+
+  async function loadDocuments() {
+    const tbody = document.getElementById('documentTableBody');
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">로딩 중...</td></tr>';
+
+    const params = new URLSearchParams();
+    const docType = document.getElementById('filterDocType')?.value;
+    const status = document.getElementById('filterStatus')?.value;
+    const metaStatus = document.getElementById('filterMetaStatus')?.value;
+    const search = document.getElementById('filterSearch')?.value;
+
+    if (docType) params.append('document_type', docType);
+    if (status) params.append('status', status);
+    if (metaStatus) params.append('meta_status', metaStatus);
+    if (search) params.append('search', search);
+
+    try {
+      const data = await api(`/admin/documents?${params.toString()}`);
+      renderDocuments(data.documents || []);
+      loadDocumentStats();
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="empty" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  async function loadDocumentStats() {
+    try {
+      const data = await api('/admin/documents/stats');
+      document.getElementById('docStatTotal').textContent = data.total ?? '-';
+      document.getElementById('docStatUnclassified').textContent = data.unclassified ?? '-';
+      document.getElementById('docStatConfirmed').textContent = data.confirmed ?? '-';
+      document.getElementById('docStatRagReady').textContent = data.rag_ready ?? '-';
+    } catch (e) {
+      console.error('Stats load failed:', e);
+    }
+  }
+
+  const DOC_TYPE_LABELS = {
+    rfp: 'RFP', proposal: '제안서', kickoff_report: '착수보고서',
+    interim_report: '중간보고서', final_report: '결과보고서',
+    completion_report: '완료보고서', presentation: '발표자료',
+    temporary_material: '임시자료', law: '법령', regulation: '규제',
+    policy: '정책', guideline: '가이드라인', unknown: '미분류',
+  };
+
+  const DOC_TYPE_COLORS = {
+    rfp: '#ef4444', proposal: '#3b82f6', kickoff_report: '#f59e0b',
+    interim_report: '#a855f7', final_report: '#22c55e',
+    completion_report: '#14b8a6', presentation: '#8b5cf6',
+    temporary_material: '#6b7280', law: '#dc2626', regulation: '#ea580c',
+    policy: '#0891b2', guideline: '#4f46e5', unknown: '#71717a',
+  };
+
+  const STATUS_LABELS = {
+    uploaded: '업로드됨', text_extracted: '텍스트추출', chunked: '청킹완료',
+    embedded: '임베딩완료', faiss_indexed: 'FAISS저장', rag_ready: 'RAG준비',
+    wiki_created: 'Wiki생성', graph_created: '그래프생성', failed: '실패',
+    metadata_auto_suggested: '자동메타', metadata_confirmed: '메타확정',
+  };
+
+  const META_STATUS_LABELS = { pending: '대기', auto_suggested: '자동생성', confirmed: '확정' };
+  const META_STATUS_COLORS = { pending: '#71717a', auto_suggested: '#f59e0b', confirmed: '#22c55e' };
+
+  function renderDocuments(documents) {
+    const tbody = document.getElementById('documentTableBody');
+    if (!documents.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">문서가 없습니다.</td></tr>';
+      return;
+    }
+    _selectedDocIds.clear();
+    document.getElementById('selectAllDocs').checked = false;
+    document.getElementById('headerCheckDoc').checked = false;
+
+    tbody.innerHTML = documents.map(doc => {
+      const typeColor = DOC_TYPE_COLORS[doc.document_type] || '#6b7280';
+      const typeLabel = DOC_TYPE_LABELS[doc.document_type] || doc.document_type || '-';
+      const statusLabel = STATUS_LABELS[doc.status] || doc.status || '-';
+      const metaColor = META_STATUS_COLORS[doc.meta_status] || '#6b7280';
+      const metaLabel = META_STATUS_LABELS[doc.meta_status] || doc.meta_status || '-';
+      return `
+        <tr>
+          <td><input type="checkbox" class="doc-check" value="${doc.id}" onchange="toggleDocSelect(${doc.id})"></td>
+          <td style="max-width:250px;word-break:break-all;font-size:12px">${esc(doc.file_name || '-')}</td>
+          <td><span style="background:${typeColor}20;color:${typeColor};padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600">${typeLabel}</span></td>
+          <td style="max-width:200px;word-break:break-all;font-size:12px">${esc(doc.project_name || '-')}</td>
+          <td style="font-size:12px">${esc(doc.organization || '-')}</td>
+          <td><span class="chip">${statusLabel}</span></td>
+          <td><span style="background:${metaColor}20;color:${metaColor};padding:2px 6px;border-radius:4px;font-size:11px">${metaLabel}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="openMetadataReviewModal(${doc.id})">검수</button>
+            <button class="btn btn-outline btn-sm" onclick="autoGenerateSingleMetadata(${doc.id})">✨</button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function toggleDocSelect(id) {
+    if (_selectedDocIds.has(id)) _selectedDocIds.delete(id);
+    else _selectedDocIds.add(id);
+  }
+
+  function toggleSelectAllDocs() {
+    const checks = document.querySelectorAll('.doc-check');
+    const allChecked = document.getElementById('selectAllDocs').checked;
+    document.getElementById('headerCheckDoc').checked = allChecked;
+    checks.forEach(cb => {
+      cb.checked = allChecked;
+      const id = parseInt(cb.value, 10);
+      if (allChecked) _selectedDocIds.add(id);
+      else _selectedDocIds.delete(id);
+    });
+  }
+
+  // ── Upload Modal ────────────────────────────────────────────────────────
+
+  function openUploadModal() {
+    document.getElementById('uploadModal').classList.add('open');
+    document.getElementById('uploadFileInput').value = '';
+    document.getElementById('uploadDocType').value = '';
+    document.getElementById('uploadProjectName').value = '';
+    document.getElementById('uploadProgressArea').style.display = 'none';
+  }
+
+  function closeUploadModal() {
+    document.getElementById('uploadModal').classList.remove('open');
+  }
+
+  async function submitUpload() {
+    const files = document.getElementById('uploadFileInput').files;
+    if (!files.length) { alert('파일을 선택하세요.'); return; }
+
+    const docType = document.getElementById('uploadDocType').value;
+    const projectName = document.getElementById('uploadProjectName').value.trim();
+
+    document.getElementById('uploadProgressArea').style.display = '';
+    document.getElementById('uploadProgressBar').style.width = '0%';
+    document.getElementById('uploadProgressText').textContent = '0%';
+
+    const formData = new FormData();
+    for (const file of files) formData.append('files', file);
+    if (docType) formData.append('document_type', docType);
+    if (projectName) formData.append('project_name', projectName);
+
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/admin/documents/upload-multi`);
+      const token = getToken();
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          document.getElementById('uploadProgressBar').style.width = pct + '%';
+          document.getElementById('uploadProgressText').textContent = pct + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          showToast('업로드 완료', 'success');
+          closeUploadModal();
+          loadDocuments();
+        } else {
+          showToast('업로드 실패: ' + xhr.statusText, 'error');
+        }
+      };
+
+      xhr.onerror = () => showToast('업로드 오류', 'error');
+      xhr.send(formData);
+    } catch (e) {
+      showToast('업로드 실패: ' + e.message, 'error');
+    }
+  }
+
+  // ── Auto Metadata ────────────────────────────────────────────────────────
+
+  async function autoGenerateSingleMetadata(docId) {
+    showToast('메타데이터 자동 생성 중...', 'info');
+    try {
+      await api(`/admin/documents/${docId}/auto-metadata`, { method: 'POST' });
+      showToast('자동 메타데이터 생성 완료', 'success');
+      loadDocuments();
+    } catch (e) {
+      showToast('자동 생성 실패: ' + e.message, 'error');
+    }
+  }
+
+  async function autoGenerateAllMetadata() {
+    const ok = await showConfirm({
+      icon: '✨', title: '전체 자동 메타데이터 생성',
+      body: '모든 문서에 대해 자동 메타데이터를 생성합니다.<br>시간이 오래 걸릴 수 있습니다.',
+      okLabel: '시작',
+    });
+    if (!ok) return;
+    showToast('전체 자동 메타 생성 시작...', 'info');
+    try {
+      await api('/admin/documents/auto-metadata-all', { method: 'POST' });
+      showToast('전체 자동 메타 생성 완료', 'success');
+      loadDocuments();
+    } catch (e) {
+      showToast('실패: ' + e.message, 'error');
+    }
+  }
+
+  async function autoGenerateSelectedMetadata() {
+    const ids = Array.from(_selectedDocIds);
+    if (!ids.length) { alert('문서를 선택하세요.'); return; }
+    showToast(`${ids.length}개 문서 자동 메타 생성 중...`, 'info');
+    try {
+      await api('/admin/documents/auto-metadata-batch', {
+        method: 'POST',
+        body: JSON.stringify({ document_ids: ids }),
+      });
+      showToast('선택 문서 자동 메타 생성 완료', 'success');
+      loadDocuments();
+    } catch (e) {
+      showToast('실패: ' + e.message, 'error');
+    }
+  }
+
+  // ── Metadata Review Modal ────────────────────────────────────────────────
+
+  async function openMetadataReviewModal(docId) {
+    document.getElementById('reviewDocumentId').value = docId;
+    document.getElementById('metadataReviewModal').classList.add('open');
+
+    // 기존 데이터 로드
+    try {
+      const doc = await api(`/admin/documents/${docId}`);
+      document.getElementById('reviewDocumentType').value = doc.document_type || 'unknown';
+      document.getElementById('reviewProjectName').value = doc.project_name || '';
+      document.getElementById('reviewOrganization').value = doc.organization || '';
+      document.getElementById('reviewProjectYear').value = doc.project_year || '';
+      document.getElementById('reviewBusinessDomain').value = doc.business_domain || '';
+      document.getElementById('reviewReuseLevel').value = doc.reuse_level || 'medium';
+      document.getElementById('reviewSummary').value = doc.summary || '';
+
+      // 자동 생성 제안 로드
+      const suggestion = await api(`/admin/documents/${docId}/suggestion`).catch(() => null);
+      if (suggestion) {
+        document.getElementById('reviewConfidenceBar').style.width = (suggestion.confidence * 100) + '%';
+        document.getElementById('reviewConfidenceValue').textContent = Math.round(suggestion.confidence * 100) + '%';
+        document.getElementById('reviewReason').textContent = suggestion.reason || '-';
+        // tags가 JSON 문자열일 수 있으므로 파싱
+        let techTags = suggestion.technology_tags || [];
+        let bizTags = suggestion.business_tags || [];
+        if (typeof techTags === 'string') { try { techTags = JSON.parse(techTags); } catch(e) { techTags = []; } }
+        if (typeof bizTags === 'string') { try { bizTags = JSON.parse(bizTags); } catch(e) { bizTags = []; } }
+        document.getElementById('reviewTechnologyTags').value = techTags.join(', ');
+        document.getElementById('reviewBusinessTags').value = bizTags.join(', ');
+      } else {
+        document.getElementById('reviewConfidenceBar').style.width = '0%';
+        document.getElementById('reviewConfidenceValue').textContent = '-';
+        document.getElementById('reviewReason').textContent = '자동 생성 데이터 없음';
+        document.getElementById('reviewTechnologyTags').value = '';
+        document.getElementById('reviewBusinessTags').value = '';
+      }
+    } catch (e) {
+      showToast('문서 정보 로드 실패: ' + e.message, 'error');
+    }
+  }
+
+  function closeMetadataReviewModal() {
+    document.getElementById('metadataReviewModal').classList.remove('open');
+  }
+
+  async function confirmMetadata() {
+    const docId = document.getElementById('reviewDocumentId').value;
+    const data = {
+      document_type: document.getElementById('reviewDocumentType').value,
+      project_name: document.getElementById('reviewProjectName').value,
+      organization: document.getElementById('reviewOrganization').value,
+      project_year: document.getElementById('reviewProjectYear').value,
+      business_domain: document.getElementById('reviewBusinessDomain').value,
+      reuse_level: document.getElementById('reviewReuseLevel').value,
+      summary: document.getElementById('reviewSummary').value,
+      technology_tags: document.getElementById('reviewTechnologyTags').value.split(',').map(s => s.trim()).filter(Boolean),
+      business_tags: document.getElementById('reviewBusinessTags').value.split(',').map(s => s.trim()).filter(Boolean),
+    };
+
+    try {
+      await api(`/admin/documents/${docId}/confirm-metadata`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      showToast('메타데이터 확정 완료', 'success');
+      closeMetadataReviewModal();
+      loadDocuments();
+    } catch (e) {
+      showToast('확정 실패: ' + e.message, 'error');
+    }
+  }
+
+  // ── Benchmark Tab ────────────────────────────────────────────────────────
+
+  async function runSearchTest() {
+    const query = document.getElementById('testSearchQuery').value.trim();
+    if (!query) { alert('검색 쿼리를 입력하세요.'); return; }
+    const mode = document.getElementById('testSearchMode').value;
+
+    document.getElementById('searchResultPanel').style.display = '';
+    document.getElementById('searchResultList').innerHTML = '<div class="empty">검색 중...</div>';
+
+    try {
+      const data = await api('/rag/search', {
+        method: 'POST',
+        body: JSON.stringify({ query, mode, top_k: 10 }),
+      });
+      renderSearchResults(data.results || []);
+    } catch (e) {
+      document.getElementById('searchResultList').innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+    }
+  }
+
+  function renderSearchResults(results) {
+    const el = document.getElementById('searchResultList');
+    if (!results.length) {
+      el.innerHTML = '<div class="empty">검색 결과 없음</div>';
+      return;
+    }
+    el.innerHTML = results.map((r, i) => `
+      <div style="background:var(--surface2);padding:10px 12px;border-radius:8px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:600;font-size:12px">#${i + 1} ${esc(r.document_id || r.source || '-')}</span>
+          <span class="chip">${r.category || '-'}</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);max-height:60px;overflow:hidden">${esc((r.content || r.text || '').slice(0, 200))}...</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">유사도: ${(r.score ?? r.similarity ?? 0).toFixed(3)}</div>
+      </div>
+    `).join('');
+  }
+
+  function runBenchmarkFromTab() {
+    switchTab('faiss');
+    setTimeout(runBenchmark, 300);
+  }
+
+  // ── Wiki Tab ────────────────────────────────────────────────────────────
+
+  async function loadWikiStats() {
+    try {
+      const data = await api('/wiki/stats');
+      document.getElementById('wikiOrgCount').textContent = data.organization_count ?? '-';
+      document.getElementById('wikiProjectCount').textContent = data.project_count ?? '-';
+      document.getElementById('wikiTechCount').textContent = data.technology_count ?? '-';
+    } catch (e) {
+      console.error('Wiki stats load failed:', e);
+    }
+  }
+
+  async function generateWikiByOrganization() {
+    showToast('발주기관별 Wiki 생성 중...', 'info');
+    try {
+      await api('/wiki/generate/by-organization', { method: 'POST' });
+      showToast('발주기관별 Wiki 생성 완료', 'success');
+      loadWikiStats();
+    } catch (e) {
+      showToast('실패: ' + e.message, 'error');
+    }
+  }
+
+  async function generateWikiByProject() {
+    showToast('사업별 Wiki 생성 중...', 'info');
+    try {
+      await api('/wiki/generate/by-project', { method: 'POST' });
+      showToast('사업별 Wiki 생성 완료', 'success');
+      loadWikiStats();
+    } catch (e) {
+      showToast('실패: ' + e.message, 'error');
+    }
+  }
+
+  async function generateWikiByTechnology() {
+    showToast('기술별 Wiki 생성 중...', 'info');
+    try {
+      await api('/wiki/generate/by-technology', { method: 'POST' });
+      showToast('기술별 Wiki 생성 완료', 'success');
+      loadWikiStats();
+    } catch (e) {
+      showToast('실패: ' + e.message, 'error');
+    }
+  }
+
+  async function runGraphify() {
+    showToast('Graphify 실행 중...', 'info');
+    try {
+      await api('/graph/build', { method: 'POST' });
+      showToast('Graphify 완료', 'success');
+    } catch (e) {
+      showToast('실패: ' + e.message, 'error');
+    }
+  }
+
+  // ── Tab switching (extended) ────────────────────────────────────────────
+
+  const _origSwitchTab = switchTab;
+  switchTab = function(name) {
+    _origSwitchTab(name);
+    if (name === 'documents') loadDocuments();
+    if (name === 'metadata') loadDocumentStats();
+    if (name === 'wiki') loadWikiStats();
+  };
 
   // Init — 인증 확인 후 페이지 초기화
   function initPage() {

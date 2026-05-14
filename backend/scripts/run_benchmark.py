@@ -25,17 +25,39 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--server", default="http://127.0.0.1:8080")
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--top-docs", type=int, default=5)
-    parser.add_argument("--answer-provider", default="search_only")
+    parser.add_argument("--answer-provider", default="none")
+    parser.add_argument("--mode", default="", help="RAG mode: general, bid_project, rfp_analysis. Empty=auto-detect from category")
     parser.add_argument("--output", default="")
     return parser.parse_args()
 
 
-def query_rag(server: str, query: str, category: str | None, top_k: int, top_docs: int, answer_provider: str) -> dict:
+def infer_mode(category: str, query_text: str) -> str:
+    """Infer appropriate RAG mode based on category and query content."""
+    lowered = query_text.lower()
+
+    # RFP 관련 쿼리
+    if category == "rfp" or any(kw in lowered for kw in ["rfp", "과업지시서", "제안요청서", "입찰공고"]):
+        return "rfp_analysis"
+
+    # 제안서 관련
+    if category == "proposal" or "제안" in lowered:
+        return "bid_project"
+
+    # 입찰사업 관련
+    if category == "bid_project" or any(kw in lowered for kw in ["사업", "isp", "ismp", "구축", "고도화"]):
+        return "bid_project"
+
+    # 기타
+    return "general"
+
+
+def query_rag(server: str, query: str, category: str | None, top_k: int, top_docs: int, answer_provider: str, mode: str = "general") -> dict:
     payload: dict = {
         "query": query,
         "top_k": top_k,
         "top_docs": top_docs,
         "answer_provider": answer_provider,
+        "mode": mode,
     }
     if category:
         payload["category"] = category
@@ -56,14 +78,26 @@ def query_rag(server: str, query: str, category: str | None, top_k: int, top_doc
 def score_result(result: dict, expected_keywords: list[str], min_kw_score: float, min_docs: int) -> dict:
     docs = result.get("documents", [])
 
-    # Build searchable corpus: draft_answer + all evidence snippets + project names
+    # Build searchable corpus from all document fields
     corpus_parts: list[str] = [
         (result.get("draft_answer") or "").lower(),
     ]
     for doc in docs:
+        # Evidence snippets
         for snippet in doc.get("evidence_snippets", []):
             corpus_parts.append(snippet.lower())
+        # Project name (extracted from source_path)
         corpus_parts.append((doc.get("project_name") or "").lower())
+        # Source path (contains file names, folder names, etc.)
+        corpus_parts.append((doc.get("source_path") or "").lower())
+        # Category (document type)
+        corpus_parts.append((doc.get("category") or "").lower())
+        # Section headings
+        for heading in doc.get("section_headings", []):
+            corpus_parts.append(heading.lower())
+        # Reasons (contains matched keywords)
+        for reason in doc.get("reasons", []):
+            corpus_parts.append(reason.lower())
     corpus = " ".join(corpus_parts)
 
     kw_hits = sum(1 for kw in expected_keywords if kw.lower() in corpus)
@@ -112,17 +146,21 @@ def main() -> int:
             min_kw_score = float(q.get("min_kw_score", 0.5))
             min_docs = int(q.get("min_docs", 1))
 
+            # Determine RAG mode
+            query_mode = args.mode if args.mode else infer_mode(cat_name, query_text)
+
             total_run += 1
-            emit({"running": query_text, "category": cat_name, "n": total_run})
+            emit({"running": query_text, "category": cat_name, "mode": query_mode, "n": total_run})
 
             rag_result = query_rag(
                 args.server, query_text, expected_category,
-                args.top_k, args.top_docs, args.answer_provider,
+                args.top_k, args.top_docs, args.answer_provider, query_mode,
             )
             scores = score_result(rag_result, expected_keywords, min_kw_score, min_docs)
 
             row = {
                 "category": cat_name,
+                "mode": query_mode,
                 "query": query_text,
                 "expected_keywords": expected_keywords,
                 "min_kw_score": min_kw_score,

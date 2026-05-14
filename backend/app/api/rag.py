@@ -134,8 +134,11 @@ async def query_rag(request: RagQueryRequest):
         effective_query = expand_bid_query(request.query)
     elif request.mode == "rfp_analysis":
         effective_query = expand_rfp_query(request.query)
+    elif request.mode == "graph_rag":
+        effective_query = request.query  # 그래프 모드는 확장 없음
     else:
-        effective_query = request.query  # general, graph_rag 모두 확장 없음
+        # general 모드도 기본 IT 용어 확장 적용 (검색 품질 향상)
+        effective_query = expand_bid_query(request.query)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_json = Path(temp_dir) / "rag_response.json"

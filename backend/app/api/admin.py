@@ -17,6 +17,8 @@ from app.services.document_pipeline import (
     PipelineStage
 )
 from app.services.knowledge_source import knowledge_source_service
+from app.services.metadata_db import metadata_db_service
+from app.services.metadata_auto_generator import metadata_auto_generator
 from app.core.config import settings
 
 
@@ -278,13 +280,13 @@ async def get_document_status(document_id: int):
     return DocumentStatusResponse(**status)
 
 
-@router.get("/documents", response_model=List[dict])
-async def list_documents(
+@router.get("/documents-legacy", response_model=List[dict])
+async def list_documents_legacy(
     collection_id: Optional[int] = Query(None, description="Filter by collection"),
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(100, ge=1, le=1000)
 ):
-    """List processed documents"""
+    """List processed documents (legacy MySQL/ChromaDB endpoint)"""
     from app.models.document import DocumentStatus
 
     doc_status = None
@@ -598,4 +600,345 @@ async def get_admin_stats():
             "accessible": knowledge_source_service.is_accessible(),
             "root_path": knowledge_source_service.get_root_path(),
         },
+    }
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# SQLite 기반 문서 메타데이터 관리 API (Phase 1-2)
+# ────────────────────────────────────────────────────────────────────────────
+
+@router.get("/documents/stats")
+async def get_document_stats():
+    """문서 현황 통계 반환 (SQLite)."""
+    return metadata_db_service.get_document_stats()
+
+
+@router.get("/documents")
+async def list_documents_sqlite(
+    document_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    meta_status: Optional[str] = Query(None),
+    organization: Optional[str] = Query(None),
+    project_year: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    """문서 목록 조회 (SQLite)."""
+    documents = metadata_db_service.list_documents(
+        document_type=document_type,
+        status=status,
+        meta_status=meta_status,
+        organization=organization,
+        project_year=project_year,
+        search=search,
+        limit=limit,
+        offset=offset,
+    )
+    return {"documents": documents, "count": len(documents)}
+
+
+@router.get("/documents/{document_id}")
+async def get_document_detail(document_id: int):
+    """문서 상세 조회 (SQLite) - suggestion 포함."""
+    doc = metadata_db_service.get_document(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    # suggestion 데이터 포함
+    suggestion = metadata_db_service.get_suggestion(document_id)
+    if suggestion:
+        doc["suggestion"] = suggestion
+    return doc
+
+
+@router.put("/documents/{document_id}")
+async def update_document_metadata(document_id: int, data: dict):
+    """문서 메타데이터 업데이트 (SQLite)."""
+    success = metadata_db_service.update_document(document_id, data)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found or no changes")
+    return {"success": True}
+
+
+@router.delete("/documents/{document_id}")
+async def delete_document_sqlite(document_id: int):
+    """문서 삭제 (SQLite)."""
+    success = metadata_db_service.delete_document(document_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"success": True}
+
+
+@router.get("/documents/{document_id}/suggestion")
+async def get_metadata_suggestion(document_id: int):
+    """자동 생성 메타데이터 제안 조회."""
+    suggestion = metadata_db_service.get_suggestion(document_id)
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="No suggestion found")
+    return suggestion
+
+
+@router.post("/documents/{document_id}/auto-metadata")
+async def auto_generate_metadata(
+    document_id: int,
+    use_llm: bool = Query(False, description="LLM 사용 여부")
+):
+    """단일 문서 자동 메타데이터 생성."""
+    doc = metadata_db_service.get_document(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    file_name = doc.get("file_name", "")
+    file_path = doc.get("file_path", "")
+
+    # 파일 내용 읽기 시도 (텍스트 파일인 경우)
+    file_content = ""
+    if file_path:
+        try:
+            from pathlib import Path
+            fp = Path(file_path)
+            if fp.exists() and fp.suffix.lower() in ['.txt', '.md']:
+                file_content = fp.read_text(encoding='utf-8')[:3000]
+        except Exception:
+            pass
+
+    # 메타데이터 추출
+    if use_llm:
+        extracted = await metadata_auto_generator.extract_with_llm(
+            file_name=file_name,
+            file_content=file_content
+        )
+    else:
+        extracted = metadata_auto_generator.extract_metadata(
+            file_name=file_name,
+            file_content=file_content
+        )
+
+    # 제안 데이터 구성
+    suggestion_data = {
+        "document_type": extracted.get("document_type", "unknown"),
+        "project_name": extracted.get("project_name", ""),
+        "organization": extracted.get("organization", ""),
+        "project_year": extracted.get("project_year", ""),
+        "business_domain": extracted.get("business_domain", ""),
+        "summary": extracted.get("summary", ""),
+        "reuse_level": extracted.get("reuse_level", "medium"),
+        "confidence": extracted.get("confidence", 0.0),
+        "technology_tags": json.dumps(extracted.get("technology_tags", []), ensure_ascii=False),
+        "business_tags": json.dumps(extracted.get("business_tags", []), ensure_ascii=False),
+        "deliverable_tags": json.dumps(extracted.get("deliverable_tags", []), ensure_ascii=False),
+        "reason": extracted.get("reason", ""),
+        "status": "auto_suggested",
+    }
+
+    metadata_db_service.create_suggestion(document_id, suggestion_data)
+    metadata_db_service.update_document(document_id, {"meta_status": "auto_suggested"})
+
+    return {
+        "success": True,
+        "message": "Auto metadata generated",
+        "suggestion": suggestion_data
+    }
+
+
+@router.post("/documents/auto-metadata-all")
+async def auto_generate_all_metadata():
+    """전체 문서 자동 메타데이터 일괄 생성 (규칙 기반)."""
+    documents = metadata_db_service.list_documents(meta_status="pending", limit=1000)
+    generated = 0
+    errors = []
+
+    for doc in documents:
+        try:
+            file_name = doc.get("file_name", "")
+            file_path = doc.get("file_path", "")
+
+            # 파일 내용 읽기 시도
+            file_content = ""
+            if file_path:
+                try:
+                    from pathlib import Path
+                    fp = Path(file_path)
+                    if fp.exists() and fp.suffix.lower() in ['.txt', '.md']:
+                        file_content = fp.read_text(encoding='utf-8')[:3000]
+                except Exception:
+                    pass
+
+            # 규칙 기반 메타데이터 추출
+            extracted = metadata_auto_generator.extract_metadata(
+                file_name=file_name,
+                file_content=file_content
+            )
+
+            suggestion_data = {
+                "document_type": extracted.get("document_type", "unknown"),
+                "project_name": extracted.get("project_name", ""),
+                "organization": extracted.get("organization", ""),
+                "project_year": extracted.get("project_year", ""),
+                "business_domain": extracted.get("business_domain", ""),
+                "summary": extracted.get("summary", ""),
+                "reuse_level": extracted.get("reuse_level", "medium"),
+                "confidence": extracted.get("confidence", 0.0),
+                "technology_tags": json.dumps(extracted.get("technology_tags", []), ensure_ascii=False),
+                "business_tags": json.dumps(extracted.get("business_tags", []), ensure_ascii=False),
+                "deliverable_tags": json.dumps(extracted.get("deliverable_tags", []), ensure_ascii=False),
+                "reason": extracted.get("reason", ""),
+                "status": "auto_suggested",
+            }
+
+            metadata_db_service.create_suggestion(doc["id"], suggestion_data)
+            metadata_db_service.update_document(doc["id"], {"meta_status": "auto_suggested"})
+            generated += 1
+        except Exception as e:
+            errors.append({"id": doc.get("id"), "error": str(e)})
+
+    return {
+        "success": True,
+        "generated": generated,
+        "total": len(documents),
+        "errors": errors[:10]
+    }
+
+
+@router.post("/documents/auto-metadata-batch")
+async def auto_generate_batch_metadata(
+    data: dict,
+    use_llm: bool = Query(False, description="LLM 사용 여부")
+):
+    """선택 문서 자동 메타데이터 일괄 생성."""
+    document_ids = data.get("document_ids", [])
+    generated = 0
+    errors = []
+
+    for doc_id in document_ids:
+        try:
+            doc = metadata_db_service.get_document(doc_id)
+            if not doc:
+                errors.append({"id": doc_id, "error": "Document not found"})
+                continue
+
+            file_name = doc.get("file_name", "")
+            file_path = doc.get("file_path", "")
+
+            # 파일 내용 읽기 시도
+            file_content = ""
+            if file_path:
+                try:
+                    from pathlib import Path
+                    fp = Path(file_path)
+                    if fp.exists() and fp.suffix.lower() in ['.txt', '.md']:
+                        file_content = fp.read_text(encoding='utf-8')[:3000]
+                except Exception:
+                    pass
+
+            # 메타데이터 추출
+            if use_llm:
+                extracted = await metadata_auto_generator.extract_with_llm(
+                    file_name=file_name,
+                    file_content=file_content
+                )
+            else:
+                extracted = metadata_auto_generator.extract_metadata(
+                    file_name=file_name,
+                    file_content=file_content
+                )
+
+            suggestion_data = {
+                "document_type": extracted.get("document_type", "unknown"),
+                "project_name": extracted.get("project_name", ""),
+                "organization": extracted.get("organization", ""),
+                "project_year": extracted.get("project_year", ""),
+                "business_domain": extracted.get("business_domain", ""),
+                "summary": extracted.get("summary", ""),
+                "reuse_level": extracted.get("reuse_level", "medium"),
+                "confidence": extracted.get("confidence", 0.0),
+                "technology_tags": json.dumps(extracted.get("technology_tags", []), ensure_ascii=False),
+                "business_tags": json.dumps(extracted.get("business_tags", []), ensure_ascii=False),
+                "deliverable_tags": json.dumps(extracted.get("deliverable_tags", []), ensure_ascii=False),
+                "reason": extracted.get("reason", ""),
+                "status": "auto_suggested",
+            }
+
+            metadata_db_service.create_suggestion(doc_id, suggestion_data)
+            metadata_db_service.update_document(doc_id, {"meta_status": "auto_suggested"})
+            generated += 1
+        except Exception as e:
+            errors.append({"id": doc_id, "error": str(e)})
+
+    return {
+        "success": True,
+        "generated": generated,
+        "total": len(document_ids),
+        "errors": errors[:10]
+    }
+
+
+@router.post("/documents/{document_id}/confirm-metadata")
+async def confirm_metadata(document_id: int, data: dict):
+    """메타데이터 확정 저장."""
+    doc = metadata_db_service.get_document(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    success = metadata_db_service.confirm_suggestion(document_id, data)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to confirm metadata")
+
+    return {"success": True, "message": "Metadata confirmed"}
+
+
+@router.post("/documents/upload-multi")
+async def upload_multiple_documents(
+    files: List[UploadFile] = File(...),
+    document_type: Optional[str] = Query(None),
+    project_name: Optional[str] = Query(None),
+    organization: Optional[str] = Query(None),
+):
+    """다중 문서 업로드 및 SQLite DB 등록."""
+    from pathlib import Path
+    import shutil
+
+    allowed_extensions = ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.hwp', '.hwpx', '.txt']
+    project_root = Path(__file__).resolve().parents[3]
+    upload_dir = project_root / "data" / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    uploaded = []
+    errors = []
+
+    for file in files:
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            errors.append({"file": file.filename, "error": f"Unsupported file type: {file_ext}"})
+            continue
+
+        # 파일 저장
+        file_path = upload_dir / file.filename
+        try:
+            content = await file.read()
+            with open(file_path, "wb") as f:
+                f.write(content)
+
+            # SQLite DB에 등록
+            doc_data = {
+                "file_name": file.filename,
+                "file_path": str(file_path),
+                "file_type": file_ext.lstrip('.'),
+                "file_size": len(content),
+                "document_type": document_type or "unknown",
+                "project_name": project_name or "",
+                "organization": organization or "",
+                "status": "uploaded",
+                "meta_status": "pending",
+            }
+            doc_id = metadata_db_service.create_document(doc_data)
+            uploaded.append({"file": file.filename, "id": doc_id})
+        except Exception as e:
+            errors.append({"file": file.filename, "error": str(e)})
+
+    return {
+        "success": len(errors) == 0,
+        "uploaded": uploaded,
+        "errors": errors,
+        "message": f"{len(uploaded)}개 업로드 완료, {len(errors)}개 실패"
     }

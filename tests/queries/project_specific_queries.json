@@ -1,0 +1,82 @@
+[
+  {
+    "query": "k-water 데이터허브플랫폼 ISP 수행 결과",
+    "expected_keywords": ["k-water", "데이터허브", "플랫폼", "isp", "결과"],
+    "expected_category": null,
+    "min_kw_score": 0.4,
+    "min_docs": 1,
+    "description": "k-water 데이터허브플랫폼 ISP 프로젝트 관련 문서 검색"
+  },
+  {
+    "query": "정신건강 MHIS 착수보고 내용",
+    "expected_keywords": ["정신건강", "착수", "보고", "mhis"],
+    "expected_category": "kickoff_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "정신건강 MHIS 프로젝트 착수보고서 검색"
+  },
+  {
+    "query": "스마트시티 제안서 핵심 전략",
+    "expected_keywords": ["스마트시티", "제안", "전략"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "스마트시티 관련 제안서 검색"
+  },
+  {
+    "query": "수소차 충돌 안전성 연구 결과보고",
+    "expected_keywords": ["수소", "충돌", "안전", "결과"],
+    "expected_category": "final_report",
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "수소차 충돌 안전성 프로젝트 결과보고서 검색"
+  },
+  {
+    "query": "기상청 기후자료 제안서",
+    "expected_keywords": ["기상청", "기후", "제안"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "기상청 기후자료 관련 제안서 검색"
+  },
+  {
+    "query": "디지털트윈 플랫폼 구축 방안",
+    "expected_keywords": ["디지털트윈", "플랫폼", "구축"],
+    "expected_category": null,
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "디지털트윈 관련 문서 검색"
+  },
+  {
+    "query": "한국수자원공사 정보화 전략계획",
+    "expected_keywords": ["수자원", "정보화", "전략", "계획"],
+    "expected_category": null,
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "한국수자원공사 관련 ISP 문서 검색"
+  },
+  {
+    "query": "공공기관 데이터 플랫폼 구축 사례",
+    "expected_keywords": ["공공기관", "데이터", "플랫폼", "구축"],
+    "expected_category": null,
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "공공기관 데이터플랫폼 관련 문서 검색"
+  },
+  {
+    "query": "AI 빅데이터 활용 방안 제안",
+    "expected_keywords": ["ai", "빅데이터", "활용", "제안"],
+    "expected_category": "proposal",
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "AI/빅데이터 관련 제안서 검색"
+  },
+  {
+    "query": "클라우드 전환 전략 수립 사업",
+    "expected_keywords": ["클라우드", "전환", "전략", "수립"],
+    "expected_category": null,
+    "min_kw_score": 0.5,
+    "min_docs": 1,
+    "description": "클라우드 전환 관련 문서 검색"
+  }
+]
