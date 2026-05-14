@@ -1318,13 +1318,14 @@
         <div class="sidebar-label" style="color:var(--gray-400);margin-bottom:12px;" data-i18n="search_conditions">검색 조건</div>
         <div class="ks-field">
           <label data-i18n="ks_mode">검색 모드</label>
-          <select id="kSearchMode">
+          <select id="kSearchMode" onchange="onKSearchModeChange()">
             <option value="general" data-i18n="mode_general">General RAG</option>
             <option value="bid_project" data-i18n="mode_bid">Bid Project Search</option>
             <option value="rfp_analysis" data-i18n="mode_rfp">RFP Analysis</option>
             <option value="graph_rag" data-i18n="mode_graph">Graph RAG</option>
           </select>
         </div>
+        <div id="kSearchHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
         <div class="ks-field">
           <label data-i18n="ks_category">카테고리</label>
           <select id="kCategory">
@@ -1491,6 +1492,9 @@
         ks_topk:'Top K (청크 수)', ks_topdocs:'Top Docs (문서 수)',
         ks_hint:'답변 생성 없이 관련 문서만 검색합니다.',
         ks_placeholder:'사업명, 키워드, 업무 영역 입력...', ks_btn:'검색',
+        ks_example_bid:'공공데이터 품질관리 시스템 구축 유사 사업',
+        ks_example_rfp:'정보화전략계획 ISP 과업지시서',
+        ks_example_graph:'차세대 업무시스템 문서 체인',
         ks_empty:'검색어를 입력하고 검색 버튼을 누르세요.',
         session_history:'세션 기록',
         rv_empty:'아직 실행된 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.',
@@ -1559,6 +1563,9 @@
         ks_topk:'Top K (Chunks)', ks_topdocs:'Top Docs',
         ks_hint:'Search for relevant documents without generating an answer.',
         ks_placeholder:'Enter project name, keyword, or domain...', ks_btn:'Search',
+        ks_example_bid:'Public data quality management system build projects',
+        ks_example_rfp:'ISP strategic plan scope of work',
+        ks_example_graph:'Next-gen business system document chain',
         ks_empty:'Enter a search term and press Search.',
         session_history:'Session History',
         rv_empty:'No RAG queries executed yet.<br>Run a query in the RAG Assistant tab to populate this list.',
@@ -2076,6 +2083,31 @@
     }
 
     // ── Knowledge Search ──────────────────────────────────────────────
+    let _kQueryIsExample = false;
+
+    function onKSearchModeChange() {
+      const mode = document.getElementById('kSearchMode').value;
+      const hint = document.getElementById('kSearchHint');
+      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph') };
+      hint.innerHTML = hints[mode] || '';
+      hint.style.display = hints[mode] ? '' : 'none';
+
+      const queryEl = document.getElementById('kQuery');
+      const examples = {
+        bid_project:  t('ks_example_bid'),
+        rfp_analysis: t('ks_example_rfp'),
+        graph_rag:    t('ks_example_graph'),
+      };
+      const example = examples[mode] || '';
+      if (example && (queryEl.value.trim() === '' || _kQueryIsExample)) {
+        queryEl.value = example;
+        _kQueryIsExample = true;
+      } else if (!example && _kQueryIsExample) {
+        queryEl.value = '';
+        _kQueryIsExample = false;
+      }
+    }
+
     async function runKnowledgeSearch() {
       const query = document.getElementById('kQuery').value.trim();
       const category = document.getElementById('kCategory').value;
@@ -2156,6 +2188,9 @@
 
     document.getElementById('kQuery').addEventListener('keydown', e => {
       if (e.key === 'Enter') runKnowledgeSearch();
+    });
+    document.getElementById('kQuery').addEventListener('input', () => {
+      _kQueryIsExample = false;
     });
 
     // ── Answer Review ─────────────────────────────────────────────────
