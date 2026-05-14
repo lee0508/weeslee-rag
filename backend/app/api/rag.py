@@ -207,6 +207,76 @@ async def query_rag(request: RagQueryRequest):
         return payload
 
 
+# ── 검색 테스트용 간단 API ─────────────────────────────────────────────────────
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(..., min_length=1)
+    mode: str = "general"  # "general" | "bid" | "rfp"
+    top_k: int = 10
+
+
+@router.post("/search")
+async def search_documents(request: SearchRequest):
+    """검색 품질 탭에서 사용하는 간단한 검색 API."""
+    from app.services.query_expander import expand_bid_query, expand_rfp_query
+
+    snapshot = _active_snapshot()
+    default_index, default_meta = _index_paths(snapshot, None)
+    index_path = str(default_index)
+    metadata_path = str(default_meta)
+    chunks_jsonl = str(_default_chunks_path())
+
+    # 모드에 따른 쿼리 확장
+    if request.mode == "bid":
+        effective_query = expand_bid_query(request.query)
+        rag_mode = "bid_project"
+    elif request.mode == "rfp":
+        effective_query = expand_rfp_query(request.query)
+        rag_mode = "rfp_analysis"
+    else:
+        effective_query = expand_bid_query(request.query)
+        rag_mode = "general"
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_json = Path(temp_dir) / "search_result.json"
+        output_md = Path(temp_dir) / "search_result.md"
+        cmd = [
+            sys.executable,
+            str(ASSEMBLE_SCRIPT),
+            "--index-path", index_path,
+            "--metadata-path", metadata_path,
+            "--chunks-jsonl", chunks_jsonl,
+            "--query", effective_query,
+            "--original-query", request.query,
+            "--top-k", str(request.top_k),
+            "--top-docs", "5",
+            "--embedding-provider", "ollama",
+            "--answer-provider", "none",
+            "--output-json", str(output_json),
+            "--output-md", str(output_md),
+            "--mode", rag_mode,
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(SCRIPTS_DIR))
+        if proc.returncode != 0:
+            return {"results": [], "error": proc.stderr.strip() or "Search failed"}
+
+        payload = json.loads(output_json.read_text(encoding="utf-8"))
+
+    # UI 형식에 맞게 results 변환
+    results = []
+    for doc in payload.get("documents", []):
+        for snippet in doc.get("evidence_snippets", [])[:2]:
+            results.append({
+                "document_id": doc.get("project_name") or doc.get("source_path", "")[:50],
+                "source": doc.get("source_path", ""),
+                "category": doc.get("category", "unknown"),
+                "content": snippet,
+                "score": doc.get("score", 0),
+            })
+    return {"results": results[:request.top_k], "query": request.query, "mode": request.mode}
+
+
 class ProposalRequest(BaseModel):
     project_name: str = Field(..., min_length=2)
     organization: str = ""
