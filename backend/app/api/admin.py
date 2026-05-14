@@ -887,6 +887,112 @@ async def confirm_metadata(document_id: int, data: dict):
     return {"success": True, "message": "Metadata confirmed"}
 
 
+@router.post("/documents/confirm-metadata-batch")
+async def confirm_metadata_batch(data: dict):
+    """메타데이터 일괄 확정 - 제안 데이터를 그대로 확정."""
+    document_ids = data.get("document_ids", [])
+    min_confidence = data.get("min_confidence", 0.5)
+    confirmed = 0
+    skipped = 0
+    errors = []
+
+    for doc_id in document_ids:
+        try:
+            doc = metadata_db_service.get_document(doc_id)
+            if not doc:
+                errors.append({"id": doc_id, "error": "Document not found"})
+                continue
+
+            suggestion = metadata_db_service.get_suggestion(doc_id)
+            if not suggestion:
+                skipped += 1
+                continue
+
+            # 신뢰도 체크
+            if suggestion.get("confidence", 0) < min_confidence:
+                skipped += 1
+                continue
+
+            # suggestion 데이터를 confirm
+            confirm_data = {
+                "document_type": suggestion.get("document_type", "unknown"),
+                "project_name": suggestion.get("project_name", ""),
+                "organization": suggestion.get("organization", ""),
+                "project_year": suggestion.get("project_year", ""),
+                "business_domain": suggestion.get("business_domain", ""),
+                "summary": suggestion.get("summary", ""),
+                "reuse_level": suggestion.get("reuse_level", "medium"),
+            }
+
+            success = metadata_db_service.confirm_suggestion(doc_id, confirm_data)
+            if success:
+                confirmed += 1
+            else:
+                errors.append({"id": doc_id, "error": "Confirm failed"})
+        except Exception as e:
+            errors.append({"id": doc_id, "error": str(e)})
+
+    return {
+        "success": True,
+        "confirmed": confirmed,
+        "skipped": skipped,
+        "total": len(document_ids),
+        "errors": errors[:10]
+    }
+
+
+@router.post("/documents/confirm-all-suggested")
+async def confirm_all_suggested(
+    min_confidence: float = Query(0.5, description="최소 신뢰도 임계값")
+):
+    """auto_suggested 상태인 모든 문서의 메타데이터를 일괄 확정."""
+    documents = metadata_db_service.list_documents(meta_status="auto_suggested", limit=1000)
+    confirmed = 0
+    skipped = 0
+    errors = []
+
+    for doc in documents:
+        doc_id = doc.get("id")
+        try:
+            suggestion = metadata_db_service.get_suggestion(doc_id)
+            if not suggestion:
+                skipped += 1
+                continue
+
+            # 신뢰도 체크
+            if suggestion.get("confidence", 0) < min_confidence:
+                skipped += 1
+                continue
+
+            # suggestion 데이터를 confirm
+            confirm_data = {
+                "document_type": suggestion.get("document_type", "unknown"),
+                "project_name": suggestion.get("project_name", ""),
+                "organization": suggestion.get("organization", ""),
+                "project_year": suggestion.get("project_year", ""),
+                "business_domain": suggestion.get("business_domain", ""),
+                "summary": suggestion.get("summary", ""),
+                "reuse_level": suggestion.get("reuse_level", "medium"),
+            }
+
+            success = metadata_db_service.confirm_suggestion(doc_id, confirm_data)
+            if success:
+                confirmed += 1
+            else:
+                errors.append({"id": doc_id, "error": "Confirm failed"})
+        except Exception as e:
+            errors.append({"id": doc_id, "error": str(e)})
+
+    return {
+        "success": True,
+        "confirmed": confirmed,
+        "skipped": skipped,
+        "total": len(documents),
+        "errors": errors[:10],
+        "message": f"신뢰도 {min_confidence} 이상인 {confirmed}건 확정, {skipped}건 생략"
+    }
+
+
 @router.post("/documents/upload-multi")
 async def upload_multiple_documents(
     files: List[UploadFile] = File(...),
