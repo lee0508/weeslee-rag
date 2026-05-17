@@ -7,8 +7,8 @@ Output:
   data/indexes/graph/graph_edges.jsonl
   data/indexes/graph/graph_manifest.json
 
-Node types:  project | document | category
-Edge types:  has_document | has_category | related_sequence
+Node types:  project | document | category | organization | technology | methodology | domain
+Edge types:  has_document | has_category | related_sequence | 발주 | 적용기술 | 사용방법론 | 관련도메인 | 동의어 | 유사기술
 """
 from __future__ import annotations
 
@@ -33,6 +33,17 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.services.metadata_enricher import enrich_confidence  # noqa: E402
+from app.services.knowledge_graph import (  # noqa: E402
+    normalize_organization,
+    get_organization_synonyms,
+    extract_technologies,
+    extract_methodologies,
+    extract_domains,
+    ORGANIZATION_SYNONYMS,
+    TECHNOLOGY_HIERARCHY,
+    METHODOLOGY_SYNONYMS,
+    DOMAIN_SYNONYMS,
+)
 
 # ── Category config ───────────────────────────────────────────────────────────
 
@@ -230,7 +241,243 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
             label = f"{ordered[i]['category']} → {ordered[i + 1]['category']}"
             add_edge(src, tgt, "related_sequence", label=label)
 
+    # 개선방안 5: 유사 프로젝트 엣지 생성 (SIMILAR_PROJECT)
+    _add_similar_project_edges(nodes, edges, by_project, edge_counter)
+
+    # Knowledge Graph 확장: organization, technology, methodology, domain 노드 및 엣지
+    _add_knowledge_graph_nodes(nodes, edges, by_project, edge_counter, node_ids)
+
     return nodes, edges
+
+
+# ── Knowledge Graph 확장 ─────────────────────────────────────────────────────
+
+
+def _add_knowledge_graph_nodes(
+    nodes: list[dict],
+    edges: list[dict],
+    by_project: dict[str, list[dict]],
+    edge_counter: list[int],
+    node_ids: set[str],
+) -> None:
+    """
+    Knowledge Graph 확장: organization, technology, methodology, domain 노드 생성.
+
+    각 프로젝트에서 엔티티를 추출하고 노드/엣지로 연결.
+    """
+
+    def add_node(n: dict) -> bool:
+        if n["id"] not in node_ids:
+            nodes.append(n)
+            node_ids.add(n["id"])
+            return True
+        return False
+
+    def add_edge(src: str, tgt: str, relation: str, **extra) -> None:
+        edge_id = f"{src}->{tgt}:{relation}"
+        if any(e["id"] == edge_id for e in edges):
+            return
+        edge_counter[0] += 1
+        edges.append({"id": edge_id, "source": src, "target": tgt,
+                      "relation": relation, **extra})
+
+    # 1. Organization 노드 생성 및 동의어 엣지
+    org_nodes_created: set[str] = set()
+    for canonical, synonyms in ORGANIZATION_SYNONYMS.items():
+        org_id = f"org:{canonical}"
+        if add_node({
+            "id": org_id,
+            "type": "organization",
+            "label": canonical,
+            "synonyms": synonyms,
+            "color": "#0ea5e9",
+        }):
+            org_nodes_created.add(canonical)
+
+    # 2. Technology 노드 생성 및 계층 엣지
+    for tech_name, info in TECHNOLOGY_HIERARCHY.items():
+        tech_id = f"tech:{tech_name}"
+        add_node({
+            "id": tech_id,
+            "type": "technology",
+            "label": tech_name,
+            "synonyms": info.get("synonyms", []),
+            "color": "#8b5cf6",
+        })
+
+        # 부모-자식 관계
+        if info.get("parent"):
+            parent_id = f"tech:{info['parent']}"
+            add_edge(parent_id, tech_id, "유사기술", label="상위기술")
+
+        for child in info.get("children", []):
+            child_id = f"tech:{child}"
+            add_edge(tech_id, child_id, "유사기술", label="하위기술")
+
+    # 3. Methodology 노드 생성
+    for method_name, synonyms in METHODOLOGY_SYNONYMS.items():
+        method_id = f"method:{method_name}"
+        add_node({
+            "id": method_id,
+            "type": "methodology",
+            "label": method_name,
+            "synonyms": synonyms,
+            "color": "#f59e0b",
+        })
+
+    # 4. Domain 노드 생성
+    for domain_name, synonyms in DOMAIN_SYNONYMS.items():
+        domain_id = f"domain:{domain_name}"
+        add_node({
+            "id": domain_id,
+            "type": "domain",
+            "label": domain_name,
+            "synonyms": synonyms,
+            "color": "#22c55e",
+        })
+
+    # 5. 프로젝트에서 엔티티 추출 및 엣지 연결
+    for project_name, proj_docs in by_project.items():
+        if project_name == "미분류":
+            continue
+
+        proj_id = f"project:{project_name}"
+
+        # 프로젝트명 + 문서 경로에서 텍스트 추출
+        text_for_extraction = project_name
+        for doc in proj_docs:
+            text_for_extraction += " " + doc.get("source_path", "")
+
+        # Organization 연결 (기존 organization 필드 활용 + 추출)
+        org_from_meta = next((d.get("organization") for d in proj_docs if d.get("organization")), "")
+        if org_from_meta:
+            canonical_org = normalize_organization(org_from_meta)
+            org_id = f"org:{canonical_org}"
+            if org_id.replace("org:", "") in org_nodes_created or canonical_org in ORGANIZATION_SYNONYMS:
+                add_edge(org_id, proj_id, "발주")
+
+        # Technology 추출 및 연결
+        techs = extract_technologies(text_for_extraction)
+        for tech in techs:
+            tech_id = f"tech:{tech}"
+            add_edge(proj_id, tech_id, "적용기술")
+
+        # Methodology 추출 및 연결
+        methods = extract_methodologies(text_for_extraction)
+        for method in methods:
+            method_id = f"method:{method}"
+            add_edge(proj_id, method_id, "사용방법론")
+
+        # Domain 추출 및 연결
+        domains = extract_domains(text_for_extraction)
+        for domain in domains:
+            domain_id = f"domain:{domain}"
+            add_edge(proj_id, domain_id, "관련도메인")
+
+
+# ── 유사 프로젝트 연결 (개선방안 5) ────────────────────────────────────────────────
+
+def _add_similar_project_edges(
+    nodes: list[dict],
+    edges: list[dict],
+    by_project: dict[str, list[dict]],
+    edge_counter: list[int],
+) -> None:
+    """
+    동일 발주기관 또는 유사 카테고리 구성을 가진 프로젝트 간 SIMILAR_PROJECT 엣지 생성.
+
+    규칙:
+    1. 동일 발주기관 프로젝트 → 연결 (weight 0.8)
+    2. ISP → 구축/고도화 연계 패턴 → 연결 (weight 0.7)
+    3. 유사 카테고리 구성 (60% 이상 일치) → 연결 (weight 0.5)
+    """
+    project_nodes = [n for n in nodes if n["type"] == "project"]
+    if len(project_nodes) < 2:
+        return
+
+    # 프로젝트별 메타데이터 수집
+    project_info: dict[str, dict] = {}
+    for pn in project_nodes:
+        proj_name = pn["label"]
+        org = pn.get("organization", "")
+        year = pn.get("year", "")
+        docs = by_project.get(proj_name, [])
+        categories = set(d["category"] for d in docs if d.get("category"))
+
+        # 프로젝트 유형 추론 (ISP, 구축, 고도화 등)
+        proj_type = ""
+        proj_name_lower = proj_name.lower()
+        if "isp" in proj_name_lower or "정보화전략" in proj_name_lower:
+            proj_type = "isp"
+        elif "ismp" in proj_name_lower or "마스터플랜" in proj_name_lower:
+            proj_type = "ismp"
+        elif "구축" in proj_name_lower or "개발" in proj_name_lower:
+            proj_type = "build"
+        elif "고도화" in proj_name_lower or "개선" in proj_name_lower:
+            proj_type = "upgrade"
+        elif "운영" in proj_name_lower or "유지보수" in proj_name_lower:
+            proj_type = "operation"
+
+        project_info[proj_name] = {
+            "id": pn["id"],
+            "organization": org,
+            "year": year,
+            "categories": categories,
+            "proj_type": proj_type,
+        }
+
+    added_pairs: set[tuple[str, str]] = set()
+
+    def add_similar_edge(p1: str, p2: str, reason: str, weight: float) -> None:
+        pair = tuple(sorted([p1, p2]))
+        if pair in added_pairs:
+            return
+        added_pairs.add(pair)
+        edge_counter[0] += 1
+        edges.append({
+            "id": f"e{edge_counter[0]}",
+            "source": project_info[p1]["id"],
+            "target": project_info[p2]["id"],
+            "relation": "similar_project",
+            "label": reason,
+            "weight": weight,
+        })
+
+    project_names = list(project_info.keys())
+
+    for i, p1 in enumerate(project_names):
+        info1 = project_info[p1]
+        if p1 == "미분류":
+            continue
+
+        for p2 in project_names[i + 1:]:
+            info2 = project_info[p2]
+            if p2 == "미분류":
+                continue
+
+            # 1. 동일 발주기관 연결
+            if info1["organization"] and info1["organization"] == info2["organization"]:
+                add_similar_edge(p1, p2, f"동일기관({info1['organization']})", 0.8)
+                continue
+
+            # 2. ISP → 구축/고도화 연계 패턴
+            if info1["proj_type"] == "isp" and info2["proj_type"] in ("build", "upgrade"):
+                if info1["organization"] == info2["organization"]:
+                    add_similar_edge(p1, p2, "ISP→구축연계", 0.7)
+                    continue
+            if info2["proj_type"] == "isp" and info1["proj_type"] in ("build", "upgrade"):
+                if info1["organization"] == info2["organization"]:
+                    add_similar_edge(p2, p1, "ISP→구축연계", 0.7)
+                    continue
+
+            # 3. 유사 카테고리 구성 (60% 이상 일치)
+            if info1["categories"] and info2["categories"]:
+                intersection = len(info1["categories"] & info2["categories"])
+                union = len(info1["categories"] | info2["categories"])
+                if union > 0:
+                    similarity = intersection / union
+                    if similarity >= 0.6:
+                        add_similar_edge(p1, p2, f"유사구성({similarity:.0%})", 0.5)
 
 
 # ── Output ────────────────────────────────────────────────────────────────────
