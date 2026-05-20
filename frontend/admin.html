@@ -4765,33 +4765,24 @@
   }
 
   async function _initCtxBar() {
-    // Knowledge Source 목록으로 Source 셀렉트 채우기
+    await refreshCtxSourceSelect();
+  }
+
+  async function refreshCtxSourceSelect() {
+    const sel = document.getElementById('ctxSource');
+    if (!sel) return;
     try {
-      const r = await fetch(`${API_BASE}/knowledge-sources/status`, { headers: authHeaders() });
-      if (r.status === 404) {
-        notifyMissingRoute('/api/knowledge-sources/status', 'Context Bar');
-        const sel = document.getElementById('ctxSource');
-        if (sel) sel.innerHTML = '<option value="">미배포(404)</option>';
-        return;
-      }
+      const r = await fetch(`${API_BASE}/admin/document-sources`, { headers: authHeaders() });
       if (!r.ok) return;
-      const d = await r.json();
-      const sources = d.sources || [];
-      if (sources.length > 0) {
-        const sel = document.getElementById('ctxSource');
-        if (sel) {
-          sel.innerHTML = sources.map(s =>
-            `<option value="${esc(s.id || s.name)}">${esc(s.name || s.source_name || s.id)}</option>`
-          ).join('');
-        }
-      }
-    } catch (e) {
-      if (isRoute404Error(e)) {
-        notifyMissingRoute(e.route, 'Context Bar');
-        const sel = document.getElementById('ctxSource');
-        if (sel) sel.innerHTML = '<option value="">미배포(404)</option>';
-      }
-    }
+      const sources = await r.json();
+      if (!Array.isArray(sources) || sources.length === 0) return;
+      const current = sel.value;
+      sel.innerHTML = sources.map(s =>
+        `<option value="${esc(s.source_id || s.id)}">${esc(s.source_name || s.name || s.source_id)}</option>`
+      ).join('');
+      // 기존 선택값 유지 (있으면)
+      if (sources.some(s => (s.source_id || s.id) === current)) sel.value = current;
+    } catch { /* 실패 시 기본값 유지 */ }
   }
 
   // 인덱스 오버플로우 메뉴 토글
@@ -5157,17 +5148,70 @@
     }
   }
 
-  function saveDocSource() {
-    const name = document.getElementById('dsName').value.trim();
-    const selectedSubpath = document.getElementById('dsSelectedSubpath').value.trim();
+  async function saveDocSource() {
+    const name       = document.getElementById('dsName').value.trim();
+    const clientId   = document.getElementById('dsClient').value.trim() || 'weeslee';
+    const origPath   = document.getElementById('dsOrigPath').value.trim();
+    const mountPath  = document.getElementById('dsMountPath').value.trim();
+    const dataPath   = document.getElementById('dsDataPath').value.trim();
+    const subpath    = document.getElementById('dsSelectedSubpath').value.trim();
+    const resultEl   = document.getElementById('dsTestResult');
+
     if (!name) { alert('Source 이름을 입력하세요.'); return; }
-    if (!selectedSubpath) { alert('먼저 폴더를 선택하거나 현재 경로 사용을 눌러주세요.'); return; }
-    // 실제 POST API가 구현되면 연결 — 지금은 안내만
-    alert(`"${name}" Source 등록 요청이 준비되었습니다.\nAPI: POST /api/admin/document-sources`);
+    if (!origPath && !mountPath) { alert('원본 경로 또는 마운트 경로를 입력하세요.'); return; }
+
+    // source_id: 이름을 slug로 변환
+    const sourceId = name.toLowerCase()
+      .replace(/[^a-z0-9가-힣\s_-]/g, '')
+      .replace(/\s+/g, '_')
+      .replace(/_+/g, '_')
+      .slice(0, 64) || ('src_' + Date.now());
+
+    const payload = {
+      source_id:    sourceId,
+      client_id:    clientId,
+      source_name:  name,
+      source_type:  'smb',
+      source_uri:   origPath || mountPath,
+      mount_path:   mountPath || origPath,
+      root_subpath: subpath,
+      readonly:     true,
+      enabled:      true,
+    };
+
+    if (resultEl) resultEl.innerHTML = 'DB에 저장 중...';
+    try {
+      const r = await fetch(`${API_BASE}/admin/document-sources`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 409) {
+        if (resultEl) resultEl.innerHTML = `<span style="color:var(--amber)">⚠️ 이미 등록된 source_id입니다: ${esc(sourceId)}</span>`;
+        return;
+      }
+      if (!r.ok) {
+        if (resultEl) resultEl.innerHTML = `<span style="color:var(--red)">❌ 저장 실패 (${r.status}): ${esc(d.detail || '')}</span>`;
+        return;
+      }
+      if (resultEl) resultEl.innerHTML = `<span style="color:var(--green)">✅ "${esc(name)}" 저장 완료 (source_id: ${esc(d.source_id || sourceId)})</span>`;
+
+      // 컨텍스트 바 드롭다운 갱신 후 새 항목 선택
+      await refreshCtxSourceSelect();
+      const sel = document.getElementById('ctxSource');
+      if (sel) sel.value = d.source_id || sourceId;
+      onCtxChange();
+
+      // Document Source 목록 새로고침
+      loadDocSources();
+    } catch (e) {
+      if (resultEl) resultEl.innerHTML = `<span style="color:var(--red)">❌ 네트워크 오류: ${esc(e.message)}</span>`;
+    }
   }
 
-  function confirmDocSourceScan() {
-    saveDocSource();
+  async function confirmDocSourceScan() {
+    await saveDocSource();
     switchTab('wizard');
   }
 
@@ -5360,6 +5404,20 @@
     return String(detail);
   }
 
+  function buildWizardRequestBody(step, cfg) {
+    const body = cfg.body ? JSON.parse(JSON.stringify(cfg.body)) : undefined;
+    if (!body) return undefined;
+    const currentClient = document.getElementById('ctxClient')?.value?.trim();
+    const currentSource = document.getElementById('ctxSource')?.value?.trim();
+    if (step === 1 || step === 3) {
+      body.source_id = currentSource || body.source_id || 'rag_source';
+    }
+    if (step === 2 || step === 3) {
+      body.client_id = currentClient || body.client_id || 'weeslee';
+    }
+    return body;
+  }
+
   async function wizardRun(step) {
     const cfg = WIZARD_STEPS[step];
     if (!cfg || !cfg.api) {
@@ -5378,10 +5436,11 @@
       const apiUrl = cfg.api.startsWith('/api/')
         ? `${API_BASE}${cfg.api.slice(4)}`
         : cfg.api;
+      const body = buildWizardRequestBody(step, cfg);
       const r = await fetch(apiUrl, {
         method: cfg.method,
         headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-        body: cfg.body ? JSON.stringify(cfg.body) : undefined,
+        body: body ? JSON.stringify(body) : undefined,
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok) {
