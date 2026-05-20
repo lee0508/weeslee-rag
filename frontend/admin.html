@@ -4765,6 +4765,12 @@
     // Knowledge Source 목록으로 Source 셀렉트 채우기
     try {
       const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      if (r.status === 404) {
+        notifyMissingRoute('/api/knowledge-sources/status', 'Context Bar');
+        const sel = document.getElementById('ctxSource');
+        if (sel) sel.innerHTML = '<option value="">미배포(404)</option>';
+        return;
+      }
       if (!r.ok) return;
       const d = await r.json();
       const sources = d.sources || [];
@@ -4776,7 +4782,13 @@
           ).join('');
         }
       }
-    } catch { /* 실패 시 기본값 유지 */ }
+    } catch (e) {
+      if (isRoute404Error(e)) {
+        notifyMissingRoute(e.route, 'Context Bar');
+        const sel = document.getElementById('ctxSource');
+        if (sel) sel.innerHTML = '<option value="">미배포(404)</option>';
+      }
+    }
   }
 
   // 인덱스 오버플로우 메뉴 토글
@@ -4807,6 +4819,34 @@
     const ds  = document.getElementById('ctxDataset').value;
     console.log('[CTX] Source:', src, '| Dataset:', ds);
     // 향후 각 탭 데이터를 재로드할 때 이 값을 참조
+  }
+
+  const _adminMissingRouteWarnings = new Set();
+
+  function isRoute404Error(err) {
+    return err && (err.code === 'ROUTE_404' || err.status === 404);
+  }
+
+  function createRoute404Error(route) {
+    const err = new Error(`404 Not Found: ${route}`);
+    err.code = 'ROUTE_404';
+    err.status = 404;
+    err.route = route;
+    return err;
+  }
+
+  function notifyMissingRoute(route, contextLabel = '관리자 화면') {
+    const key = `${contextLabel}:${route}`;
+    if (_adminMissingRouteWarnings.has(key)) return;
+    _adminMissingRouteWarnings.add(key);
+    showToast(`${contextLabel} API 404. 서버에 최신 백엔드 코드가 아직 배포되지 않았을 수 있습니다. (${route})`, 'error', 5500);
+    console.warn(`[admin] missing route for ${contextLabel}: ${route}`);
+  }
+
+  function setDashMissing(id, dotId) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '미배포(404)';
+    _setStatusDot(dotId, false);
   }
 
   function getCtx() {
@@ -5112,11 +5152,11 @@
   async function loadDashboard() {
     const h = { 'Authorization': 'Bearer ' + getToken() };
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    let missingDeployDetected = false;
 
-    // 404 → null (미배포), !ok → throw, ok → json
     const safeFetch = async (url) => {
       const r = await fetch(url, { headers: h });
-      if (r.status === 404) return null;
+      if (r.status === 404) throw createRoute404Error(url);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     };
@@ -5124,68 +5164,101 @@
     // FAISS 상태
     try {
       const d = await safeFetch('/api/admin/faiss/status');
-      if (d === null) { setText('dash-faiss', '-'); _setStatusDot('dot-faiss', null); }
-      else {
-        const snap = d.active_index || d.snapshot || null;
-        setText('dash-faiss', snap ? '활성' : '없음');
-        _setStatusDot('dot-faiss', !!snap);
+      const snap = d.active_index || d.snapshot || null;
+      setText('dash-faiss', snap ? '활성' : '없음');
+      _setStatusDot('dot-faiss', !!snap);
+    } catch (e) {
+      if (isRoute404Error(e)) {
+        missingDeployDetected = true;
+        notifyMissingRoute(e.route, 'Dashboard');
+        setDashMissing('dash-faiss', 'dot-faiss');
+      } else {
+        setText('dash-faiss', '오류');
+        _setStatusDot('dot-faiss', false);
       }
-    } catch { setText('dash-faiss', '오류'); _setStatusDot('dot-faiss', false); }
+    }
 
     // Collection 상태
     try {
       const d = await safeFetch('/api/collections');
-      if (d === null) { setText('dash-col', '-'); _setStatusDot('dot-col', null); }
-      else {
-        const list = Array.isArray(d) ? d : (d.collections || []);
-        setText('dash-col', list.length + '개');
-        _setStatusDot('dot-col', list.length > 0);
+      const list = Array.isArray(d) ? d : (d.collections || []);
+      setText('dash-col', list.length + '개');
+      _setStatusDot('dot-col', list.length > 0);
+    } catch (e) {
+      if (isRoute404Error(e)) {
+        missingDeployDetected = true;
+        notifyMissingRoute(e.route, 'Dashboard');
+        setDashMissing('dash-col', 'dot-col');
+      } else {
+        setText('dash-col', '오류');
+        _setStatusDot('dot-col', false);
       }
-    } catch { setText('dash-col', '오류'); _setStatusDot('dot-col', false); }
+    }
 
     // Graph 상태
     try {
       const d = await safeFetch('/api/graph/summary');
-      if (d === null) { setText('dash-graph', '-'); _setStatusDot('dot-graph', null); }
-      else {
-        const nodes = d.node_count || d.nodes || 0;
-        const edges = d.edge_count || d.edges || 0;
-        setText('dash-graph', nodes + ' / ' + edges);
-        _setStatusDot('dot-graph', nodes > 0);
+      const nodes = d.node_count || d.nodes || 0;
+      const edges = d.edge_count || d.edges || 0;
+      setText('dash-graph', nodes + ' / ' + edges);
+      _setStatusDot('dot-graph', nodes > 0);
+    } catch (e) {
+      if (isRoute404Error(e)) {
+        missingDeployDetected = true;
+        notifyMissingRoute(e.route, 'Dashboard');
+        setDashMissing('dash-graph', 'dot-graph');
+      } else {
+        setText('dash-graph', '오류');
+        _setStatusDot('dot-graph', false);
       }
-    } catch { setText('dash-graph', '오류'); _setStatusDot('dot-graph', false); }
+    }
 
     // RAG Source 상태
     try {
       const d = await safeFetch('/api/admin/rag-source/status');
-      if (d === null) {
-        setText('dash-files', '-'); setText('dash-meta', '-');
-        _setStatusDot('dot-files', null); _setStatusDot('dot-meta', null);
+      const total = d.total_files || d.total || 0;
+      const meta = d.metadata_done || d.metadata_confirmed || 0;
+      setText('dash-files', total + '개');
+      setText('dash-meta', meta + ' / ' + total);
+      _setStatusDot('dot-files', total > 0);
+      _setStatusDot('dot-meta', total > 0 && meta >= total);
+    } catch (e) {
+      if (isRoute404Error(e)) {
+        missingDeployDetected = true;
+        notifyMissingRoute(e.route, 'Dashboard');
+        setDashMissing('dash-files', 'dot-files');
+        setDashMissing('dash-meta', 'dot-meta');
       } else {
-        const total = d.total_files || d.total || 0;
-        const meta = d.metadata_done || d.metadata_confirmed || 0;
-        setText('dash-files', total + '개');
-        setText('dash-meta', meta + ' / ' + total);
-        _setStatusDot('dot-files', total > 0);
-        _setStatusDot('dot-meta', total > 0 && meta >= total);
+        setText('dash-files', '-');
+        setText('dash-meta', '-');
       }
-    } catch {
-      setText('dash-files', '-'); setText('dash-meta', '-');
     }
 
     // 문서소스 상태
     try {
       const d = await safeFetch('/api/knowledge-sources/status');
-      if (d === null) { setText('dash-docsource', '-'); _setStatusDot('dot-docsource', null); }
-      else {
-        const ok = d.accessible || d.status === 'ok' || (d.sources && d.sources.length > 0);
-        setText('dash-docsource', ok ? '연결됨' : '미연결');
-        _setStatusDot('dot-docsource', ok);
+      const ok = d.accessible || d.status === 'ok' || (d.sources && d.sources.length > 0);
+      setText('dash-docsource', ok ? '연결됨' : '미연결');
+      _setStatusDot('dot-docsource', ok);
+    } catch (e) {
+      if (isRoute404Error(e)) {
+        missingDeployDetected = true;
+        notifyMissingRoute(e.route, 'Dashboard');
+        setDashMissing('dash-docsource', 'dot-docsource');
+      } else {
+        setText('dash-docsource', '오류');
+        _setStatusDot('dot-docsource', false);
       }
-    } catch { setText('dash-docsource', '오류'); _setStatusDot('dot-docsource', false); }
+    }
 
     // 다음 작업 결정
     _updateDashNextAction();
+    if (missingDeployDetected) {
+      const nextText = document.getElementById('dashNextText');
+      const nextBtn = document.getElementById('dashNextBtn');
+      if (nextText) nextText.textContent = '일부 API가 404입니다. 서버에 최신 백엔드 코드가 아직 배포되지 않았을 수 있습니다.';
+      if (nextBtn) nextBtn.style.display = 'none';
+    }
   }
 
   function _updateDashNextAction() {
