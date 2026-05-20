@@ -532,6 +532,7 @@
     }
     .card-status-dot.ok  { background: var(--green); }
     .card-status-dot.err { background: var(--red); }
+    .card-status-dot.off { background: var(--border); }
 
     /* ── 빈 상태 CTA ─────────────────────────────────────────────────── */
     .empty-state { text-align: center; padding: 36px 20px; }
@@ -702,26 +703,54 @@
   <!-- 신규 Source 등록 폼 -->
   <div id="docSourceForm" class="card" style="display:none">
     <div class="card-title">새 Document Source 등록</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="font-size:12px;color:var(--muted)">직접 경로를 입력하지 않고, Knowledge Source 폴더를 선택해 자동 채움할 수 있습니다.</div>
+      <div id="dsAutoStatus" class="pill amber">자동 선택 대기</div>
+    </div>
+    <div class="card" style="background:var(--surface2);border-style:dashed;margin-bottom:14px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <div>
+          <div style="font-size:12px;font-weight:700">폴더 선택으로 자동 입력</div>
+          <div id="dsBrowseRoot" style="font-size:11px;color:var(--muted);margin-top:4px">루트 경로를 확인하는 중...</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="loadDocSourceFolders()">↻ 폴더 목록</button>
+          <button class="btn btn-outline btn-sm" onclick="goUpDocSourceFolder()">↑ 상위 폴더</button>
+          <button class="btn btn-secondary btn-sm" onclick="applyCurrentDocSourceFolder()">현재 경로 사용</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+        현재 위치: <code id="dsBrowsePath">/</code>
+      </div>
+      <input type="hidden" id="dsSelectedSubpath" value="">
+      <div id="dsFolderList" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding-right:4px">
+        <div class="empty">폴더 목록을 불러오세요.</div>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       <div class="form-group">
         <label>Source 이름 *</label>
-        <input type="text" id="dsName" placeholder="예: 00. RAG 소스 2026">
+        <input type="text" id="dsName" placeholder="예: 00. RAG 소스 2026" oninput="syncDocSourceDataPath()">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">선택한 폴더명을 기준으로 자동 제안됩니다.</div>
       </div>
       <div class="form-group">
         <label>Client</label>
-        <input type="text" id="dsClient" placeholder="예: weeslee" value="weeslee">
+        <input type="text" id="dsClient" placeholder="예: weeslee" value="weeslee" oninput="syncDocSourceDataPath()">
       </div>
       <div class="form-group">
         <label>원본 경로 (UNC 또는 절대경로)</label>
         <input type="text" id="dsOrigPath" placeholder="예: \\diskstation\W2_프로젝트폴더\00. RAG 소스">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">선택한 Knowledge Source 하위 경로로 자동 채움됩니다. 필요하면 수동 수정할 수 있습니다.</div>
       </div>
       <div class="form-group">
         <label>마운트 경로 (서비스 서버)</label>
         <input type="text" id="dsMountPath" placeholder="예: /mnt/w2_project/00. RAG 소스">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">현재 선택한 루트와 하위 폴더 기준으로 자동 생성됩니다.</div>
       </div>
       <div class="form-group">
         <label>데이터 저장 경로</label>
         <input type="text" id="dsDataPath" placeholder="예: /data/weeslee/weeslee-rag/data/clients/weeslee/sources/rag_source">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">Client와 Source 이름을 기준으로 기본 경로를 자동 제안합니다.</div>
       </div>
       <div class="form-group">
         <label>파일 구조 유형</label>
@@ -4767,7 +4796,7 @@
   function _setStatusDot(id, ok) {
     const dot = document.getElementById(id);
     if (!dot) return;
-    dot.className = 'card-status-dot ' + (ok ? 'ok' : 'err');
+    dot.className = 'card-status-dot ' + (ok === null ? 'off' : ok ? 'ok' : 'err');
   }
 
   // ────────────────────────────────────────────────────
@@ -4846,9 +4875,159 @@
     }
   }
 
-  function openDocSourceForm() {
+  let _docSourceBrowse = {
+    rootPath: '',
+    currentSubpath: '',
+    selectedSubpath: '',
+    selectedFullPath: '',
+  };
+
+  function _docSourceSlug(value) {
+    return (value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9가-힣]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'source';
+  }
+
+  function _docSourceJoinPath(root, subpath) {
+    if (!root) return subpath || '';
+    if (!subpath) return root;
+    return `${root.replace(/[\\/]+$/, '')}/${subpath.replace(/^[\\/]+/, '')}`;
+  }
+
+  function _docSourceSourceNameFromPath(subpath) {
+    const parts = (subpath || '').split('/').filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '새 Source';
+  }
+
+  function _docSourceDataPath(clientId, sourceName) {
+    const client = _docSourceSlug(clientId || 'weeslee');
+    const source = _docSourceSlug(sourceName || 'source');
+    return `/data/weeslee/weeslee-rag/data/clients/${client}/sources/${source}`;
+  }
+
+  function syncDocSourceDataPath() {
+    const clientId = document.getElementById('dsClient')?.value?.trim() || 'weeslee';
+    const sourceName = document.getElementById('dsName')?.value?.trim() || 'source';
+    const dataPathEl = document.getElementById('dsDataPath');
+    if (dataPathEl) dataPathEl.value = _docSourceDataPath(clientId, sourceName);
+  }
+
+  function _setDocSourceAutoStatus(text, tone = 'amber') {
+    const el = document.getElementById('dsAutoStatus');
+    if (!el) return;
+    el.className = `pill ${tone}`;
+    el.textContent = text;
+  }
+
+  function _renderDocSourceFolders(folders) {
+    const el = document.getElementById('dsFolderList');
+    if (!el) return;
+    if (!folders.length) {
+      el.innerHTML = '<div class="empty">선택 가능한 하위 폴더가 없습니다.</div>';
+      return;
+    }
+    el.innerHTML = folders.map(folder => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+        <div style="min-width:0">
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📁 ${esc(folder.name || '')}</div>
+          <div style="font-size:11px;color:var(--muted);word-break:break-all">${esc(folder.path || '')}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-outline btn-sm" data-subpath="${esc(folder.path || '')}" onclick="openDocSourceFolderFromButton(this)">열기</button>
+          <button class="btn btn-secondary btn-sm" data-subpath="${esc(folder.path || '')}" data-full-path="${esc(folder.full_path || '')}" data-folder-name="${esc(folder.name || '')}" onclick="selectDocSourceFolderFromButton(this)">사용</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadDocSourceFolders(subpath = null) {
+    const listEl = document.getElementById('dsFolderList');
+    const rootEl = document.getElementById('dsBrowseRoot');
+    const pathEl = document.getElementById('dsBrowsePath');
+    const nextSubpath = subpath === null ? _docSourceBrowse.currentSubpath : subpath;
+    if (listEl) listEl.innerHTML = '<div class="empty">폴더 목록을 불러오는 중...</div>';
+    try {
+      const statusResp = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      if (!statusResp.ok) throw new Error(`상태 조회 실패 (${statusResp.status})`);
+      const statusData = await statusResp.json();
+      _docSourceBrowse.rootPath = statusData.root_path || '';
+      if (rootEl) rootEl.textContent = _docSourceBrowse.rootPath
+        ? `루트 경로: ${_docSourceBrowse.rootPath}`
+        : '루트 경로를 확인할 수 없습니다.';
+
+      const qs = nextSubpath ? `?subpath=${encodeURIComponent(nextSubpath)}` : '';
+      const folderResp = await fetch(`/api/knowledge-sources/folders${qs}`, { headers: authHeaders() });
+      if (!folderResp.ok) throw new Error(`폴더 조회 실패 (${folderResp.status})`);
+      const folders = await folderResp.json();
+      _docSourceBrowse.currentSubpath = nextSubpath || '';
+      if (pathEl) pathEl.textContent = _docSourceBrowse.currentSubpath || '/';
+      _renderDocSourceFolders(Array.isArray(folders) ? folders : []);
+    } catch (e) {
+      if (listEl) listEl.innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+      _setDocSourceAutoStatus('루트 조회 실패', 'red');
+    }
+  }
+
+  function openDocSourceFolder(subpath) {
+    loadDocSourceFolders(subpath || '');
+  }
+
+  function openDocSourceFolderFromButton(btn) {
+    openDocSourceFolder(btn?.dataset?.subpath || '');
+  }
+
+  function goUpDocSourceFolder() {
+    const parts = (_docSourceBrowse.currentSubpath || '').split('/').filter(Boolean);
+    parts.pop();
+    loadDocSourceFolders(parts.join('/'));
+  }
+
+  function _applyDocSourcePathSelection(subpath, fullPath, folderName) {
+    const sourceName = folderName || _docSourceSourceNameFromPath(subpath);
+    const clientId = document.getElementById('dsClient').value.trim() || 'weeslee';
+    const mountPath = fullPath || _docSourceJoinPath(_docSourceBrowse.rootPath, subpath);
+    document.getElementById('dsSelectedSubpath').value = subpath || '';
+    document.getElementById('dsName').value = sourceName;
+    document.getElementById('dsOrigPath').value = mountPath;
+    document.getElementById('dsMountPath').value = mountPath;
+    document.getElementById('dsDataPath').value = _docSourceDataPath(clientId, sourceName);
+    _docSourceBrowse.selectedSubpath = subpath || '';
+    _docSourceBrowse.selectedFullPath = mountPath;
+    _setDocSourceAutoStatus('폴더 자동 선택 완료', 'green');
+  }
+
+  function selectDocSourceFolder(subpath, fullPath, folderName) {
+    _applyDocSourcePathSelection(subpath, fullPath, folderName);
+  }
+
+  function selectDocSourceFolderFromButton(btn) {
+    selectDocSourceFolder(
+      btn?.dataset?.subpath || '',
+      btn?.dataset?.fullPath || '',
+      btn?.dataset?.folderName || ''
+    );
+  }
+
+  function applyCurrentDocSourceFolder() {
+    const current = _docSourceBrowse.currentSubpath || '';
+    const sourceName = _docSourceSourceNameFromPath(current || _docSourceBrowse.rootPath);
+    const fullPath = _docSourceJoinPath(_docSourceBrowse.rootPath, current);
+    _applyDocSourcePathSelection(current, fullPath, sourceName);
+  }
+
+  async function openDocSourceForm() {
     document.getElementById('docSourceForm').style.display = '';
     document.getElementById('docSourceScanPreview').style.display = 'none';
+    document.getElementById('dsClient').value = document.getElementById('ctxClient')?.value || 'weeslee';
+    syncDocSourceDataPath();
+    document.getElementById('dsSelectedSubpath').value = '';
+    _docSourceBrowse.currentSubpath = '';
+    _docSourceBrowse.selectedSubpath = '';
+    _docSourceBrowse.selectedFullPath = '';
+    _setDocSourceAutoStatus('폴더 선택 대기', 'amber');
+    await loadDocSourceFolders('');
   }
 
   function closeDocSourceForm() {
@@ -4862,26 +5041,51 @@
     res.innerHTML = '접근 테스트 중...';
     try {
       const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      if (!r.ok) {
+        const text = await r.text();
+        const isHtml = text.trim().startsWith('<');
+        res.innerHTML = isHtml
+          ? '<span style="color:var(--red)">❌ 백엔드 서버가 응답하지 않습니다. (API 서버 실행 여부 확인)</span>'
+          : `<span style="color:var(--red)">❌ 서버 오류 (${r.status})</span>`;
+        return;
+      }
       const d = await r.json();
-      const ok = r.ok && (d.status === 'ok' || d.accessible);
-      res.innerHTML = ok
-        ? '<span style="color:var(--green)">✅ 접근 가능</span>'
+      const selectedSubpath = document.getElementById('dsSelectedSubpath').value.trim();
+      res.innerHTML = d.accessible
+        ? `<span style="color:var(--green)">✅ 접근 가능 — ${esc(selectedSubpath || d.root_path || path)}</span>`
         : '<span style="color:var(--red)">❌ 접근 불가 — 경로 또는 마운트를 확인하세요.</span>';
-    } catch { res.innerHTML = '<span style="color:var(--red)">❌ 서버 오류</span>'; }
+    } catch (e) {
+      res.innerHTML = `<span style="color:var(--red)">❌ 네트워크 오류: ${esc(e.message)}</span>`;
+    }
   }
 
   async function previewDocSourceScan() {
     const preview = document.getElementById('docSourceScanPreview');
     const result  = document.getElementById('docSourceScanResult');
+    const selectedSubpath = document.getElementById('dsSelectedSubpath').value.trim();
     preview.style.display = '';
     result.innerHTML = '스캔 중...';
     try {
-      const r = await fetch('/api/knowledge-sources/scan?limit=20', { headers: authHeaders() });
+      const qs = new URLSearchParams({
+        subpath: selectedSubpath,
+        recursive: 'true',
+        max_depth: '3',
+      });
+      const r = await fetch(`/api/knowledge-sources/scan?${qs.toString()}`, { headers: authHeaders() });
+      if (!r.ok) {
+        const text = await r.text();
+        const isHtml = text.trim().startsWith('<');
+        result.innerHTML = isHtml
+          ? '<span style="color:var(--red);font-size:12px">❌ 백엔드 서버가 응답하지 않습니다. (API 서버 실행 여부 확인)</span>'
+          : `<span style="color:var(--red);font-size:12px">❌ 스캔 실패 (${r.status})</span>`;
+        return;
+      }
       const d = await r.json();
-      const files = d.files || d.results || [];
-      result.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">미리보기: ${files.length}개 파일 감지됨 (최대 20개 표시)</div>
+      const files = d.files || [];
+      result.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">대상 경로: ${esc(selectedSubpath || '/')}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">미리보기: ${files.length}개 파일 감지됨 (최대 20개 표시)</div>
         <div style="display:flex;flex-direction:column;gap:4px">
-        ${files.slice(0, 20).map(f => `<div style="font-size:11px;padding:3px 6px;background:var(--surface2);border-radius:4px">${esc(f.name || f.filename || f.path || f)}</div>`).join('')}
+        ${files.slice(0, 20).map(f => `<div style="font-size:11px;padding:3px 6px;background:var(--surface2);border-radius:4px">${esc(f.name || f.path)}</div>`).join('')}
         </div>`;
     } catch (e) {
       result.innerHTML = `<span style="color:var(--red);font-size:12px">스캔 오류: ${esc(e.message)}</span>`;
@@ -4890,7 +5094,9 @@
 
   function saveDocSource() {
     const name = document.getElementById('dsName').value.trim();
+    const selectedSubpath = document.getElementById('dsSelectedSubpath').value.trim();
     if (!name) { alert('Source 이름을 입력하세요.'); return; }
+    if (!selectedSubpath) { alert('먼저 폴더를 선택하거나 현재 경로 사용을 눌러주세요.'); return; }
     // 실제 POST API가 구현되면 연결 — 지금은 안내만
     alert(`"${name}" Source 등록 요청이 준비되었습니다.\nAPI: POST /api/admin/document-sources`);
   }
@@ -4907,65 +5113,75 @@
     const h = { 'Authorization': 'Bearer ' + getToken() };
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
+    // 404 → null (미배포), !ok → throw, ok → json
+    const safeFetch = async (url) => {
+      const r = await fetch(url, { headers: h });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    };
+
     // FAISS 상태
     try {
-      const r = await fetch('/api/admin/faiss/status', { headers: h });
-      if (r.ok) {
-        const d = await r.json();
+      const d = await safeFetch('/api/admin/faiss/status');
+      if (d === null) { setText('dash-faiss', '-'); _setStatusDot('dot-faiss', null); }
+      else {
         const snap = d.active_index || d.snapshot || null;
         setText('dash-faiss', snap ? '활성' : '없음');
         _setStatusDot('dot-faiss', !!snap);
-      } else throw new Error();
+      }
     } catch { setText('dash-faiss', '오류'); _setStatusDot('dot-faiss', false); }
 
     // Collection 상태
     try {
-      const r = await fetch('/api/collections', { headers: h });
-      if (r.ok) {
-        const d = await r.json();
+      const d = await safeFetch('/api/collections');
+      if (d === null) { setText('dash-col', '-'); _setStatusDot('dot-col', null); }
+      else {
         const list = Array.isArray(d) ? d : (d.collections || []);
         setText('dash-col', list.length + '개');
         _setStatusDot('dot-col', list.length > 0);
-      } else throw new Error();
+      }
     } catch { setText('dash-col', '오류'); _setStatusDot('dot-col', false); }
 
     // Graph 상태
     try {
-      const r = await fetch('/api/graph/summary', { headers: h });
-      if (r.ok) {
-        const d = await r.json();
+      const d = await safeFetch('/api/graph/summary');
+      if (d === null) { setText('dash-graph', '-'); _setStatusDot('dot-graph', null); }
+      else {
         const nodes = d.node_count || d.nodes || 0;
         const edges = d.edge_count || d.edges || 0;
         setText('dash-graph', nodes + ' / ' + edges);
         _setStatusDot('dot-graph', nodes > 0);
-      } else throw new Error();
+      }
     } catch { setText('dash-graph', '오류'); _setStatusDot('dot-graph', false); }
 
-    // RAG Source 상태 (파일 수, metadata)
+    // RAG Source 상태
     try {
-      const r = await fetch('/api/admin/rag-source/status', { headers: h });
-      if (r.ok) {
-        const d = await r.json();
+      const d = await safeFetch('/api/admin/rag-source/status');
+      if (d === null) {
+        setText('dash-files', '-'); setText('dash-meta', '-');
+        _setStatusDot('dot-files', null); _setStatusDot('dot-meta', null);
+      } else {
         const total = d.total_files || d.total || 0;
         const meta = d.metadata_done || d.metadata_confirmed || 0;
         setText('dash-files', total + '개');
         setText('dash-meta', meta + ' / ' + total);
         _setStatusDot('dot-files', total > 0);
         _setStatusDot('dot-meta', total > 0 && meta >= total);
-      } else throw new Error();
+      }
     } catch {
       setText('dash-files', '-'); setText('dash-meta', '-');
     }
 
     // 문서소스 상태
     try {
-      const r = await fetch('/api/knowledge-sources/status', { headers: h });
-      if (r.ok) {
-        const d = await r.json();
-        const ok = d.status === 'ok' || d.connected || (d.sources && d.sources.length > 0);
-        setText('dash-docsource', ok ? '연결됨' : '오류');
+      const d = await safeFetch('/api/knowledge-sources/status');
+      if (d === null) { setText('dash-docsource', '-'); _setStatusDot('dot-docsource', null); }
+      else {
+        const ok = d.accessible || d.status === 'ok' || (d.sources && d.sources.length > 0);
+        setText('dash-docsource', ok ? '연결됨' : '미연결');
         _setStatusDot('dot-docsource', ok);
-      } else throw new Error();
+      }
     } catch { setText('dash-docsource', '오류'); _setStatusDot('dot-docsource', false); }
 
     // 다음 작업 결정
