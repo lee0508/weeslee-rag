@@ -3567,7 +3567,7 @@
 
   // ── Platform Settings ────────────────────────────────────────────────────
 
-  const API = (path) => `/api${path}`;
+  const API = (path) => `${API_BASE}${path}`;
 
   async function platformFetch(path, options = {}) {
     const res = await fetch(API(path), {
@@ -5358,7 +5358,10 @@
     if (stepEl) stepEl.classList.add('active-step');
 
     try {
-      const r = await fetch(cfg.api, {
+      const apiUrl = cfg.api.startsWith('/api/')
+        ? `${API_BASE}${cfg.api.slice(4)}`
+        : cfg.api;
+      const r = await fetch(apiUrl, {
         method: cfg.method,
         headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' }
       });
