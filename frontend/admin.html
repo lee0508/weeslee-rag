@@ -52,7 +52,7 @@
     .layout {
       display: grid;
       grid-template-columns: 380px 1fr;
-      height: calc(100vh - 93px);
+      height: calc(100vh - 133px);
     }
     .sidebar {
       border-right: 1px solid var(--border);
@@ -253,7 +253,7 @@
     }
     .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
     .tab-panel { display: none; }
-    .tab-panel.active { display: flex; flex: 1; height: calc(100vh - 93px); overflow: hidden; }
+    .tab-panel.active { display: flex; flex: 1; height: calc(100vh - 133px); overflow: hidden; }
     .rs-tree-item:hover, .tag-type-item:hover { background: var(--surface2); }
     .rs-tree-item.rs-active, .tag-type-item.active { background: rgba(232,151,31,.15); color: var(--amber); font-weight: 600; }
 
@@ -494,9 +494,21 @@
     }
     .login-error.show { display: block; }
 
-    /* ── API 힌트 (Dev Mode에서만 표시) ─────────────────────────────── */
-    .api-hint { display: none; }
-    body.dev-mode .api-hint { display: block; }
+    /* ── API 힌트 접이식 (details/summary) ──────────────────────────── */
+    .api-hint-details { margin-bottom: 12px; }
+    .api-hint-details summary {
+      font-size: 10px; color: var(--muted); cursor: pointer; user-select: none;
+      list-style: none; display: flex; align-items: center; gap: 4px;
+    }
+    .api-hint-details summary::-webkit-details-marker { display: none; }
+    .api-hint-details summary::after { content: '▶'; font-size: 8px; transition: transform .2s; }
+    .api-hint-details[open] summary::after { transform: rotate(90deg); }
+    .api-hint-details .api-hint-body {
+      font-size: 10px; color: var(--muted); margin-top: 4px;
+      padding: 6px 10px; background: rgba(255,255,255,.03);
+      border-radius: 4px; border-left: 2px solid var(--border);
+      line-height: 1.8;
+    }
 
     /* ── 인덱스 오버플로우 메뉴 ─────────────────────────────────────── */
     .idx-menu-wrap { position: relative; }
@@ -529,6 +541,38 @@
     .empty-state .empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
     .empty-state.err .empty-icon { font-size: 28px; }
     .empty-state.err .empty-title { color: var(--red); }
+
+    /* ── Wizard 스텝 ─────────────────────────────────────────────────── */
+    .wizard-step-num {
+      width: 28px; height: 28px; border-radius: 50%; background: var(--navy-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .wizard-step.done .wizard-step-num { background: var(--green); }
+    .wizard-step.active-step .wizard-step-num { background: var(--amber); color: #000; }
+    .wizard-step-status {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      white-space: nowrap;
+    }
+    .wizard-step-status.ok { color: var(--green); }
+    .wizard-step-status.running { color: var(--amber); }
+    .wizard-step-status.err { color: var(--red); }
+    .wizard-expand-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 11px; padding: 0 4px; flex-shrink: 0;
+    }
+    .wizard-expand-btn:hover { color: var(--text); }
+    .wizard-log {
+      margin-top: 8px; background: #0a1117; border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px; font-family: monospace; font-size: 11px;
+      color: #8fb3d5; max-height: 150px; overflow-y: auto; display: none;
+    }
+    .wizard-log.show { display: block; }
+    .wizard-progress-dot {
+      width: 20px; height: 6px; border-radius: 3px; background: var(--surface2); flex-shrink: 0;
+    }
+    .wizard-progress-dot.done { background: var(--green); }
+    .wizard-progress-dot.active-step { background: var(--amber); }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
@@ -563,13 +607,15 @@
       <span id="apiStatusText">연결 확인 중...</span>
     </span>
     <button class="btn btn-outline btn-sm" onclick="refreshAll()">↻ 새로고침</button>
-    <button class="btn btn-outline btn-sm" id="devModeBtn" onclick="toggleDevMode()" style="font-size:10px;opacity:.5">DEV</button>
   </div>
 </header>
 
 <!-- Tab navigation -->
 <nav class="tab-nav">
-  <button class="tab-btn active" onclick="switchTab('faiss')">FAISS Index</button>
+  <button class="tab-btn active" onclick="switchTab('dashboard')">🏠 대시보드</button>
+  <button class="tab-btn" onclick="switchTab('docsource')">📂 Document Source</button>
+  <button class="tab-btn" onclick="switchTab('wizard')">🧙 Dataset Builder</button>
+  <button class="tab-btn" onclick="switchTab('faiss')">FAISS Index</button>
   <button class="tab-btn" onclick="switchTab('documents')">📁 문서 관리</button>
   <button class="tab-btn" onclick="switchTab('metadata')">🏷️ 메타데이터</button>
   <button class="tab-btn" onclick="switchTab('pipeline')">⚙️ RAG 처리</button>
@@ -583,8 +629,465 @@
   <button class="tab-btn" onclick="switchTab('platform')">🏢 플랫폼 설정</button>
 </nav>
 
+<!-- ── Source/Dataset 공통 컨텍스트 바 ──────────────────────────── -->
+<div id="sourceContextBar" style="
+  background:var(--navy-dark); border-bottom:1px solid var(--border);
+  padding:8px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  font-size:11px; color:var(--muted);
+">
+  <span style="font-weight:700;color:var(--text);white-space:nowrap">현재 작업 대상</span>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span>Client</span>
+    <select id="ctxClient" onchange="onCtxChange()"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">
+      <option value="weeslee">weeslee</option>
+    </select>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span>Document Source</span>
+    <select id="ctxSource" onchange="onCtxChange()"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">
+      <option value="rag_source">00. RAG 소스</option>
+    </select>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span>Dataset</span>
+    <select id="ctxDataset" onchange="onCtxChange()"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">
+      <option value="current">현재 (기본)</option>
+    </select>
+  </div>
+  <div id="ctxActiveBadge" style="
+    margin-left:auto; padding:2px 10px; border-radius:99px; font-size:10px;
+    background:rgba(34,197,94,.15); color:var(--green); font-weight:700;
+  ">● ACTIVE</div>
+  <button class="btn btn-outline btn-sm" onclick="switchTab('docsource')"
+    style="margin-left:4px;font-size:10px">+ 새 Source 등록</button>
+</div>
+
+<!-- ───────────────────────────────────────────────────────────── -->
+<!-- ───────────────────────────────────────────────────────────── -->
+<!-- 📂 Document Source Manager 탭 -->
+<!-- ───────────────────────────────────────────────────────────── -->
+<div id="tab-docsource" class="tab-panel" style="padding:24px;flex-direction:column;gap:20px">
+
+  <!-- 안내 배너 -->
+  <div style="background:rgba(232,151,31,.08);border:1px solid rgba(232,151,31,.3);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--amber)">
+    기존 Dataset은 삭제하거나 덮어쓰지 않습니다.
+    새 문서 위치는 별도 Dataset/Snapshot으로 생성됩니다.
+    사용자 페이지에 공개하려면 Active Dataset으로 지정해야 합니다.
+  </div>
+
+  <!-- 등록된 Source 목록 -->
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📂 Document Source 목록</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="openDocSourceForm()">+ 신규 Source 등록</button>
+        <button class="btn btn-outline btn-sm" onclick="loadDocSources()">↻</button>
+      </div>
+    </div>
+    <details class="api-hint-details">
+      <summary>API 경로</summary>
+      <div class="api-hint-body">
+        GET /api/knowledge-sources/status<br>
+        POST /api/admin/document-sources<br>
+        POST /api/admin/document-sources/{source_id}/test<br>
+        POST /api/admin/document-sources/{source_id}/scan
+      </div>
+    </details>
+    <div id="docSourceList"><div class="empty">로딩 중...</div></div>
+  </div>
+
+  <!-- 신규 Source 등록 폼 -->
+  <div id="docSourceForm" class="card" style="display:none">
+    <div class="card-title">새 Document Source 등록</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="form-group">
+        <label>Source 이름 *</label>
+        <input type="text" id="dsName" placeholder="예: 00. RAG 소스 2026">
+      </div>
+      <div class="form-group">
+        <label>Client</label>
+        <input type="text" id="dsClient" placeholder="예: weeslee" value="weeslee">
+      </div>
+      <div class="form-group">
+        <label>원본 경로 (UNC 또는 절대경로)</label>
+        <input type="text" id="dsOrigPath" placeholder="예: \\diskstation\W2_프로젝트폴더\00. RAG 소스">
+      </div>
+      <div class="form-group">
+        <label>마운트 경로 (서비스 서버)</label>
+        <input type="text" id="dsMountPath" placeholder="예: /mnt/w2_project/00. RAG 소스">
+      </div>
+      <div class="form-group">
+        <label>데이터 저장 경로</label>
+        <input type="text" id="dsDataPath" placeholder="예: /data/weeslee/weeslee-rag/data/clients/weeslee/sources/rag_source">
+      </div>
+      <div class="form-group">
+        <label>파일 구조 유형</label>
+        <select id="dsStructure" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+          <option value="rfp_proposal_deliverable">RFP / 제안서 / 산출물</option>
+          <option value="flat">단층 폴더</option>
+          <option value="custom">직접 지정</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="testDocSource()">🔌 접근 테스트</button>
+      <button class="btn btn-outline btn-sm" onclick="previewDocSourceScan()">🔍 스캔 미리보기</button>
+      <button class="btn btn-primary btn-sm" onclick="saveDocSource()">💾 DB에 저장</button>
+      <button class="btn btn-outline btn-sm" onclick="closeDocSourceForm()">취소</button>
+    </div>
+    <div id="dsTestResult" style="margin-top:10px;font-size:12px"></div>
+  </div>
+
+  <!-- 스캔 결과 미리보기 -->
+  <div id="docSourceScanPreview" class="card" style="display:none">
+    <div class="card-title">스캔 미리보기 결과</div>
+    <div id="docSourceScanResult"><div class="empty">스캔 실행 전</div></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-secondary btn-sm" onclick="confirmDocSourceScan()">✅ DB에 저장 후 Dataset 생성</button>
+      <button class="btn btn-outline btn-sm" onclick="switchTab('wizard')">→ Dataset Builder로 이동</button>
+    </div>
+  </div>
+
+</div><!-- /tab-docsource -->
+
+<!-- ───────────────────────────────────────────────────────────── -->
+<!-- 🏠 Dashboard 탭 -->
+<!-- ───────────────────────────────────────────────────────────── -->
+<div id="tab-dashboard" class="tab-panel active" style="padding:24px;flex-direction:column;gap:20px">
+
+  <!-- 다음 작업 배너 -->
+  <div id="dashNextAction" style="background:linear-gradient(135deg,var(--navy-light),var(--navy-dark));border:1px solid var(--amber);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:16px">
+    <div style="font-size:24px">🎯</div>
+    <div style="flex:1">
+      <div style="font-size:11px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">다음 작업</div>
+      <div id="dashNextText" style="font-size:14px;font-weight:600">상태 확인 중...</div>
+    </div>
+    <button id="dashNextBtn" class="btn btn-primary" style="display:none" onclick="switchTab('wizard')">마법사로 이동 →</button>
+  </div>
+
+  <!-- 상태 카드 그리드 -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">
+
+    <div class="card" style="position:relative">
+      <div class="card-title">📂 문서소스 <span class="card-status-dot" id="dot-docsource"></span></div>
+      <div id="dash-docsource" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">연결 상태</div>
+      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
+        <summary>API</summary>
+        <div class="api-hint-body">GET /api/knowledge-sources/status</div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📄 스캔 파일 <span class="card-status-dot" id="dot-files"></span></div>
+      <div id="dash-files" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">인식된 파일 수</div>
+      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
+        <summary>API</summary>
+        <div class="api-hint-body">GET /api/admin/rag-source/status</div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏷️ Metadata <span class="card-status-dot" id="dot-meta"></span></div>
+      <div id="dash-meta" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">확정 완료</div>
+      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
+        <summary>API</summary>
+        <div class="api-hint-body">GET /api/admin/rag-source/status</div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🗂️ Collection <span class="card-status-dot" id="dot-col"></span></div>
+      <div id="dash-col" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">생성된 수</div>
+      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
+        <summary>API</summary>
+        <div class="api-hint-body">GET /api/collections</div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚡ FAISS Index <span class="card-status-dot" id="dot-faiss"></span></div>
+      <div id="dash-faiss" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">활성 인덱스</div>
+      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
+        <summary>API</summary>
+        <div class="api-hint-body">GET /api/admin/faiss/status</div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔗 Graph <span class="card-status-dot" id="dot-graph"></span></div>
+      <div id="dash-graph" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">노드 / 엣지</div>
+      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
+        <summary>API</summary>
+        <div class="api-hint-body">GET /api/graph/summary</div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📚 LLM Wiki <span class="card-status-dot" id="dot-wiki"></span></div>
+      <div id="dash-wiki" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">생성된 페이지</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 검색 품질 <span class="card-status-dot" id="dot-bench"></span></div>
+      <div id="dash-bench" style="font-size:22px;font-weight:700">-</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">최근 성공률</div>
+    </div>
+
+  </div>
+
+  <!-- 빠른 이동 -->
+  <div class="card">
+    <div class="card-title">⚡ 빠른 이동</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="switchTab('wizard')">🧙 RAG 마법사</button>
+      <button class="btn btn-outline btn-sm" onclick="switchTab('faiss')">⚡ FAISS Index</button>
+      <button class="btn btn-outline btn-sm" onclick="switchTab('documents')">📁 문서 관리</button>
+      <button class="btn btn-outline btn-sm" onclick="switchTab('metadata')">🏷️ 메타데이터</button>
+      <button class="btn btn-outline btn-sm" onclick="switchTab('collection')">🗂️ Collection</button>
+      <button class="btn btn-outline btn-sm" onclick="switchTab('graph')">🔗 Graph View</button>
+      <button class="btn btn-outline btn-sm" onclick="switchTab('benchmark')">🔍 검색 품질</button>
+    </div>
+  </div>
+
+</div><!-- /tab-dashboard -->
+
+<!-- ───────────────────────────────────────────────────────────── -->
+<!-- 🧙 RAG Build Wizard 탭 -->
+<!-- ───────────────────────────────────────────────────────────── -->
+<div id="tab-wizard" class="tab-panel" style="padding:24px;flex-direction:column;gap:0">
+
+  <div style="margin-bottom:20px">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:6px">RAG 데이터 생성 마법사</h2>
+    <p style="font-size:12px;color:var(--muted)">문서 스캔부터 사용자 공개까지 단계별로 진행합니다. 각 단계를 순서대로 완료하면 검색 데이터가 만들어집니다.</p>
+  </div>
+
+  <!-- 진행 바 -->
+  <div style="display:flex;gap:4px;margin-bottom:24px;flex-wrap:wrap" id="wizardProgressBar"></div>
+
+  <!-- 단계 목록 -->
+  <div style="display:flex;flex-direction:column;gap:12px" id="wizardStepList">
+
+    <!-- Step 1 -->
+    <div class="wizard-step card" data-step="1">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">1</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">파일 스캔</div>
+          <div style="font-size:11px;color:var(--muted)">문서소스를 스캔하여 파일 목록을 DB에 저장합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-1">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(1)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">GET /api/admin/rag-source/status<br>POST /api/admin/rag-source/scan</div>
+        </details>
+        <div class="wizard-log" id="wlog-1"></div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="wizard-step card" data-step="2">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">2</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Collection 생성</div>
+          <div style="font-size:11px;color:var(--muted)">문서 구조를 기준으로 VectorDB Collection을 생성합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-2">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(2)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">GET /api/collections<br>POST /api/admin/rag-source/collections/bootstrap</div>
+        </details>
+        <div class="wizard-log" id="wlog-2"></div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="wizard-step card" data-step="3">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">3</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Metadata 생성</div>
+          <div style="font-size:11px;color:var(--muted)">규칙 기반으로 파일명·경로에서 메타데이터를 추출합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-3">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(3)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">POST /api/admin/rag-source/metadata/build<br>GET /api/admin/documents?limit=500</div>
+        </details>
+        <div class="wizard-log" id="wlog-3"></div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="wizard-step card" data-step="4">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">4</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Tag / Keyword 생성</div>
+          <div style="font-size:11px;color:var(--muted)">기본 Tag 및 Keyword를 자동 생성합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-4">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(4)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">POST /api/admin/rag-source/tags/bootstrap<br>POST /api/admin/rag-source/keywords/extract</div>
+        </details>
+        <div class="wizard-log" id="wlog-4"></div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="wizard-step card" data-step="5">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">5</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">텍스트 추출 → Chunk 생성</div>
+          <div style="font-size:11px;color:var(--muted)">PDF/HWP/DOCX에서 텍스트를 추출하고 검색 단위로 분할합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-5">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(5)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">POST /api/admin/faiss/jobs (type: text_extract)<br>POST /api/admin/faiss/jobs (type: chunk)</div>
+        </details>
+        <div class="wizard-log" id="wlog-5"></div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="wizard-step card" data-step="6">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">6</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">FAISS / VectorDB 생성</div>
+          <div style="font-size:11px;color:var(--muted)">청크를 벡터로 변환하고 검색 인덱스를 생성합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-6">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(6)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">POST /api/admin/faiss/jobs (type: build)<br>GET /api/admin/faiss/status</div>
+        </details>
+        <div class="wizard-log" id="wlog-6"></div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="wizard-step card" data-step="7">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">7</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Graph RAG 생성</div>
+          <div style="font-size:11px;color:var(--muted)">프로젝트 간 관련 문서를 연결하는 관계 그래프를 생성합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-7">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(7)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">POST /api/graph/build<br>GET /api/graph/summary</div>
+        </details>
+        <div class="wizard-log" id="wlog-7"></div>
+      </div>
+    </div>
+
+    <!-- Step 8 -->
+    <div class="wizard-step card" data-step="8">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">8</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">LLM Wiki 생성</div>
+          <div style="font-size:11px;color:var(--muted)">프로젝트별 자동 지식 문서를 생성합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-8">-</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(8)">실행</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">POST /api/wiki/build<br>GET /api/wiki/list</div>
+        </details>
+        <div class="wizard-log" id="wlog-8"></div>
+      </div>
+    </div>
+
+    <!-- Step 9 -->
+    <div class="wizard-step card" data-step="9">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">9</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">검색 테스트</div>
+          <div style="font-size:11px;color:var(--muted)">생성된 데이터로 검색 품질을 확인합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-9">대기</span>
+        <button class="btn btn-outline btn-sm" onclick="switchTab('benchmark')">검색 품질 탭으로 →</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <div class="wizard-log" id="wlog-9"></div>
+      </div>
+    </div>
+
+    <!-- Step 10 -->
+    <div class="wizard-step card" data-step="10">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wizard-step-num">10</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">FAISS 인덱스 활성화</div>
+          <div style="font-size:11px;color:var(--muted)">생성된 인덱스를 검색 서버에 적용합니다.</div>
+        </div>
+        <span class="wizard-step-status" id="wstatus-10">대기</span>
+        <button class="btn btn-outline btn-sm" onclick="switchTab('faiss')">FAISS 탭으로 →</button>
+        <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
+      </div>
+      <div class="wizard-detail" style="display:none">
+        <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
+          <summary>API 경로</summary>
+          <div class="api-hint-body">POST /api/admin/faiss/activate/{snapshot}</div>
+        </details>
+        <div class="wizard-log" id="wlog-10"></div>
+      </div>
+    </div>
+
+  </div><!-- /wizardStepList -->
+</div><!-- /tab-wizard -->
+
 <!-- FAISS tab -->
-<div id="tab-faiss" class="tab-panel active" style="flex-direction:column">
+<div id="tab-faiss" class="tab-panel" style="flex-direction:column">
 <div class="layout">
 
   <!-- Sidebar -->
@@ -1121,10 +1624,16 @@
         <button class="btn btn-outline btn-sm" onclick="loadCollections()">↻</button>
       </div>
     </div>
-    <div class="api-hint" style="font-size:10px;color:var(--muted);margin-bottom:12px">
-      GET /api/collections &nbsp;|&nbsp; POST /api/collections &nbsp;|&nbsp; PUT /api/collections/{id} &nbsp;|&nbsp; DELETE /api/collections/{id}
-      &nbsp;|&nbsp; POST /api/admin/rag-source/collections/bootstrap
-    </div>
+    <details class="api-hint-details">
+      <summary>API 경로</summary>
+      <div class="api-hint-body">
+        GET /api/collections<br>
+        POST /api/collections<br>
+        PUT /api/collections/{id}<br>
+        DELETE /api/collections/{id}<br>
+        POST /api/admin/rag-source/collections/bootstrap
+      </div>
+    </details>
     <div id="colManagerList"><div class="empty">로딩 중...</div></div>
 
     <!-- 신규/수정 폼 -->
@@ -1184,10 +1693,16 @@
               <button class="btn btn-outline btn-sm" onclick="loadTags()">↻</button>
             </div>
           </div>
-          <div class="api-hint" style="font-size:10px;color:var(--muted);margin-bottom:12px">
-            GET /api/admin/tags &nbsp;|&nbsp; POST /api/admin/tags &nbsp;|&nbsp; PUT /api/admin/tags/{id} &nbsp;|&nbsp; DELETE /api/admin/tags/{id}
-            &nbsp;|&nbsp; POST /api/admin/rag-source/tags/bootstrap
-          </div>
+          <details class="api-hint-details">
+            <summary>API 경로</summary>
+            <div class="api-hint-body">
+              GET /api/admin/tags<br>
+              POST /api/admin/tags<br>
+              PUT /api/admin/tags/{id}<br>
+              DELETE /api/admin/tags/{id}<br>
+              POST /api/admin/rag-source/tags/bootstrap
+            </div>
+          </details>
           <div id="tagList"><div class="empty">로딩 중...</div></div>
           <!-- Tag 신규 폼 -->
           <div id="tagForm" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
@@ -1225,9 +1740,14 @@
               <button class="btn btn-outline btn-sm" onclick="loadKeywords()">↻</button>
             </div>
           </div>
-          <div class="api-hint" style="font-size:10px;color:var(--muted);margin-bottom:12px">
-            GET /api/admin/keywords &nbsp;|&nbsp; POST /api/admin/keywords &nbsp;|&nbsp; POST /api/admin/rag-source/keywords/extract
-          </div>
+          <details class="api-hint-details">
+            <summary>API 경로</summary>
+            <div class="api-hint-body">
+              GET /api/admin/keywords<br>
+              POST /api/admin/keywords<br>
+              POST /api/admin/rag-source/keywords/extract
+            </div>
+          </details>
           <div id="keywordList"><div class="empty">로딩 중...</div></div>
           <!-- Keyword 신규 폼 -->
           <div id="keywordForm" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
@@ -2370,6 +2890,9 @@
     if (name === 'ragsource') loadRagSourceFiles();
     if (name === 'collection') loadCollections();
     if (name === 'tagkeyword') { loadTags(); _currentTagType = 'document_group'; }
+    if (name === 'dashboard') loadDashboard();
+    if (name === 'wizard') renderWizardProgressBar();
+    if (name === 'docsource') loadDocSources();
   }
 
   // ── Knowledge Source 탭 ──────────────────────────────────────────────────
@@ -4204,13 +4727,27 @@
     setDefaultSnapshot();
     refreshAll();
     renderBmHistoryList();
+    loadDashboard();
+    renderWizardProgressBar();
+    _initCtxBar();
   }
 
-  // Dev Mode 토글: API 힌트 텍스트 표시/숨김
-  function toggleDevMode() {
-    const on = document.body.classList.toggle('dev-mode');
-    const btn = document.getElementById('devModeBtn');
-    if (btn) { btn.style.opacity = on ? '1' : '.5'; btn.style.color = on ? 'var(--amber)' : ''; }
+  async function _initCtxBar() {
+    // Knowledge Source 목록으로 Source 셀렉트 채우기
+    try {
+      const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      if (!r.ok) return;
+      const d = await r.json();
+      const sources = d.sources || [];
+      if (sources.length > 0) {
+        const sel = document.getElementById('ctxSource');
+        if (sel) {
+          sel.innerHTML = sources.map(s =>
+            `<option value="${esc(s.id || s.name)}">${esc(s.name || s.source_name || s.id)}</option>`
+          ).join('');
+        }
+      }
+    } catch { /* 실패 시 기본값 유지 */ }
   }
 
   // 인덱스 오버플로우 메뉴 토글
@@ -4231,6 +4768,299 @@
     const dot = document.getElementById(id);
     if (!dot) return;
     dot.className = 'card-status-dot ' + (ok ? 'ok' : 'err');
+  }
+
+  // ────────────────────────────────────────────────────
+  // Source/Dataset 컨텍스트 바
+  // ────────────────────────────────────────────────────
+  function onCtxChange() {
+    const src = document.getElementById('ctxSource').value;
+    const ds  = document.getElementById('ctxDataset').value;
+    console.log('[CTX] Source:', src, '| Dataset:', ds);
+    // 향후 각 탭 데이터를 재로드할 때 이 값을 참조
+  }
+
+  function getCtx() {
+    return {
+      client:  document.getElementById('ctxClient')?.value  || 'weeslee',
+      source:  document.getElementById('ctxSource')?.value  || 'rag_source',
+      dataset: document.getElementById('ctxDataset')?.value || 'current',
+    };
+  }
+
+  // ────────────────────────────────────────────────────
+  // Document Source Manager
+  // ────────────────────────────────────────────────────
+  async function loadDocSources() {
+    const el = document.getElementById('docSourceList');
+    if (!el) return;
+    try {
+      const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+
+      // knowledge-sources/status 응답을 테이블로 표시
+      const sources = d.sources || (d.status ? [d] : []);
+      if (!sources.length) {
+        el.innerHTML = `<div class="empty-state">
+          <div class="empty-icon">📂</div>
+          <div class="empty-title">등록된 Document Source가 없습니다</div>
+          <div class="empty-sub">새 문서 위치를 등록하세요.</div>
+          <div class="empty-actions"><button class="btn btn-primary btn-sm" onclick="openDocSourceForm()">+ 신규 Source 등록</button></div>
+        </div>`;
+        return;
+      }
+
+      el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">Source 이름</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">원본 경로</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">상태</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">스캔 파일</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">관리</th>
+        </tr></thead>
+        <tbody>
+        ${sources.map(s => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;font-weight:600">${esc(s.name || s.source_name || '-')}</td>
+          <td style="padding:6px 8px;color:var(--muted);word-break:break-all;max-width:220px">${esc(s.path || s.root || '-')}</td>
+          <td style="padding:6px 8px">
+            <span class="pill ${s.status === 'ok' || s.accessible ? 'green' : 'red'}">
+              ${s.status === 'ok' || s.accessible ? '연결됨' : '오류'}
+            </span>
+          </td>
+          <td style="padding:6px 8px">${s.file_count ?? s.total_files ?? '-'}</td>
+          <td style="padding:6px 8px">
+            <button class="btn btn-outline btn-sm" onclick="switchTab('wizard')">Dataset 생성</button>
+          </td>
+        </tr>`).join('')}
+        </tbody>
+      </table>`;
+    } catch (e) {
+      el.innerHTML = `<div class="empty-state err">
+        <div class="empty-icon">⚠️</div>
+        <div class="empty-title">${esc(e.message)}</div>
+        <div class="empty-actions">
+          <button class="btn btn-outline btn-sm" onclick="loadDocSources()">↻ 재시도</button>
+        </div>
+      </div>`;
+    }
+  }
+
+  function openDocSourceForm() {
+    document.getElementById('docSourceForm').style.display = '';
+    document.getElementById('docSourceScanPreview').style.display = 'none';
+  }
+
+  function closeDocSourceForm() {
+    document.getElementById('docSourceForm').style.display = 'none';
+  }
+
+  async function testDocSource() {
+    const path = document.getElementById('dsOrigPath').value.trim();
+    const res  = document.getElementById('dsTestResult');
+    if (!path) { res.innerHTML = '<span style="color:var(--red)">원본 경로를 입력하세요.</span>'; return; }
+    res.innerHTML = '접근 테스트 중...';
+    try {
+      const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      const d = await r.json();
+      const ok = r.ok && (d.status === 'ok' || d.accessible);
+      res.innerHTML = ok
+        ? '<span style="color:var(--green)">✅ 접근 가능</span>'
+        : '<span style="color:var(--red)">❌ 접근 불가 — 경로 또는 마운트를 확인하세요.</span>';
+    } catch { res.innerHTML = '<span style="color:var(--red)">❌ 서버 오류</span>'; }
+  }
+
+  async function previewDocSourceScan() {
+    const preview = document.getElementById('docSourceScanPreview');
+    const result  = document.getElementById('docSourceScanResult');
+    preview.style.display = '';
+    result.innerHTML = '스캔 중...';
+    try {
+      const r = await fetch('/api/knowledge-sources/scan?limit=20', { headers: authHeaders() });
+      const d = await r.json();
+      const files = d.files || d.results || [];
+      result.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">미리보기: ${files.length}개 파일 감지됨 (최대 20개 표시)</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+        ${files.slice(0, 20).map(f => `<div style="font-size:11px;padding:3px 6px;background:var(--surface2);border-radius:4px">${esc(f.name || f.filename || f.path || f)}</div>`).join('')}
+        </div>`;
+    } catch (e) {
+      result.innerHTML = `<span style="color:var(--red);font-size:12px">스캔 오류: ${esc(e.message)}</span>`;
+    }
+  }
+
+  function saveDocSource() {
+    const name = document.getElementById('dsName').value.trim();
+    if (!name) { alert('Source 이름을 입력하세요.'); return; }
+    // 실제 POST API가 구현되면 연결 — 지금은 안내만
+    alert(`"${name}" Source 등록 요청이 준비되었습니다.\nAPI: POST /api/admin/document-sources`);
+  }
+
+  function confirmDocSourceScan() {
+    saveDocSource();
+    switchTab('wizard');
+  }
+
+  // ────────────────────────────────────────────────────
+  // Dashboard 로드
+  // ────────────────────────────────────────────────────
+  async function loadDashboard() {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // FAISS 상태
+    try {
+      const r = await fetch('/api/admin/faiss/status', { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const snap = d.active_index || d.snapshot || null;
+        setText('dash-faiss', snap ? '활성' : '없음');
+        _setStatusDot('dot-faiss', !!snap);
+      } else throw new Error();
+    } catch { setText('dash-faiss', '오류'); _setStatusDot('dot-faiss', false); }
+
+    // Collection 상태
+    try {
+      const r = await fetch('/api/collections', { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const list = Array.isArray(d) ? d : (d.collections || []);
+        setText('dash-col', list.length + '개');
+        _setStatusDot('dot-col', list.length > 0);
+      } else throw new Error();
+    } catch { setText('dash-col', '오류'); _setStatusDot('dot-col', false); }
+
+    // Graph 상태
+    try {
+      const r = await fetch('/api/graph/summary', { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const nodes = d.node_count || d.nodes || 0;
+        const edges = d.edge_count || d.edges || 0;
+        setText('dash-graph', nodes + ' / ' + edges);
+        _setStatusDot('dot-graph', nodes > 0);
+      } else throw new Error();
+    } catch { setText('dash-graph', '오류'); _setStatusDot('dot-graph', false); }
+
+    // RAG Source 상태 (파일 수, metadata)
+    try {
+      const r = await fetch('/api/admin/rag-source/status', { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const total = d.total_files || d.total || 0;
+        const meta = d.metadata_done || d.metadata_confirmed || 0;
+        setText('dash-files', total + '개');
+        setText('dash-meta', meta + ' / ' + total);
+        _setStatusDot('dot-files', total > 0);
+        _setStatusDot('dot-meta', total > 0 && meta >= total);
+      } else throw new Error();
+    } catch {
+      setText('dash-files', '-'); setText('dash-meta', '-');
+    }
+
+    // 문서소스 상태
+    try {
+      const r = await fetch('/api/knowledge-sources/status', { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const ok = d.status === 'ok' || d.connected || (d.sources && d.sources.length > 0);
+        setText('dash-docsource', ok ? '연결됨' : '오류');
+        _setStatusDot('dot-docsource', ok);
+      } else throw new Error();
+    } catch { setText('dash-docsource', '오류'); _setStatusDot('dot-docsource', false); }
+
+    // 다음 작업 결정
+    _updateDashNextAction();
+  }
+
+  function _updateDashNextAction() {
+    const dotFaiss = document.getElementById('dot-faiss');
+    const dotMeta  = document.getElementById('dot-meta');
+    const dotCol   = document.getElementById('dot-col');
+    const dotFiles = document.getElementById('dot-files');
+    const nextText = document.getElementById('dashNextText');
+    const nextBtn  = document.getElementById('dashNextBtn');
+
+    const isOk = el => el && el.classList.contains('ok');
+
+    let msg = '모든 단계가 준비되었습니다.';
+    if (!isOk(dotFiles))  msg = '파일 스캔이 필요합니다.';
+    else if (!isOk(dotCol))   msg = 'Collection 생성이 필요합니다.';
+    else if (!isOk(dotMeta))  msg = 'Metadata 생성이 필요합니다.';
+    else if (!isOk(dotFaiss)) msg = 'FAISS 인덱스 생성이 필요합니다.';
+
+    if (nextText) nextText.textContent = msg;
+    if (nextBtn) nextBtn.style.display = msg !== '모든 단계가 준비되었습니다.' ? '' : 'none';
+  }
+
+  // ────────────────────────────────────────────────────
+  // RAG Build Wizard
+  // ────────────────────────────────────────────────────
+  const WIZARD_STEPS = [
+    null, // 인덱스 1부터
+    { name: '파일 스캔',           api: '/api/admin/rag-source/scan',                       method: 'POST' },
+    { name: 'Collection 생성',     api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST' },
+    { name: 'Metadata 생성',       api: '/api/admin/rag-source/metadata/build',              method: 'POST' },
+    { name: 'Tag/Keyword 생성',    api: '/api/admin/rag-source/tags/bootstrap',              method: 'POST' },
+    { name: '텍스트→Chunk',        api: null, method: null },   // FAISS 잡 두 단계 — 탭 안내
+    { name: 'FAISS 생성',          api: null, method: null },   // FAISS 잡 — 탭 안내
+    { name: 'Graph 생성',          api: '/api/graph/build',                                  method: 'POST' },
+    { name: 'LLM Wiki 생성',       api: '/api/wiki/build',                                   method: 'POST' },
+    { name: '검색 테스트',         api: null, method: null },
+    { name: 'FAISS 인덱스 활성화', api: null, method: null },
+  ];
+
+  function renderWizardProgressBar() {
+    const bar = document.getElementById('wizardProgressBar');
+    if (!bar) return;
+    bar.innerHTML = WIZARD_STEPS.slice(1).map((s, i) => {
+      const n = i + 1;
+      const el = document.querySelector(`.wizard-step[data-step="${n}"]`);
+      const cls = el && el.classList.contains('done') ? 'done' :
+                  el && el.classList.contains('active-step') ? 'active-step' : '';
+      return `<div class="wizard-progress-dot ${cls}" title="Step ${n}: ${s.name}"></div>`;
+    }).join('');
+  }
+
+  function wizardToggle(btn) {
+    const detail = btn.closest('.wizard-step').querySelector('.wizard-detail');
+    const open = detail.style.display === 'block';
+    detail.style.display = open ? 'none' : 'block';
+    btn.textContent = open ? '▼' : '▲';
+  }
+
+  async function wizardRun(step) {
+    const cfg = WIZARD_STEPS[step];
+    if (!cfg || !cfg.api) {
+      alert(`Step ${step}은 해당 탭에서 직접 실행해주세요.`);
+      return;
+    }
+    const statusEl = document.getElementById('wstatus-' + step);
+    const logEl = document.getElementById('wlog-' + step);
+    const stepEl = document.querySelector(`.wizard-step[data-step="${step}"]`);
+
+    if (statusEl) { statusEl.textContent = '실행 중...'; statusEl.className = 'wizard-step-status running'; }
+    if (logEl) { logEl.classList.add('show'); logEl.textContent = `POST ${cfg.api} ...\n`; }
+    if (stepEl) stepEl.classList.add('active-step');
+
+    try {
+      const r = await fetch(cfg.api, {
+        method: cfg.method,
+        headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' }
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        if (statusEl) { statusEl.textContent = '완료'; statusEl.className = 'wizard-step-status ok'; }
+        if (logEl) logEl.textContent += JSON.stringify(data, null, 2).slice(0, 400);
+        if (stepEl) { stepEl.classList.remove('active-step'); stepEl.classList.add('done'); }
+      } else {
+        throw new Error(data.detail || data.message || r.status);
+      }
+    } catch (e) {
+      if (statusEl) { statusEl.textContent = '오류'; statusEl.className = 'wizard-step-status err'; }
+      if (logEl) logEl.textContent += '오류: ' + e.message;
+      if (stepEl) stepEl.classList.remove('active-step');
+    }
+    renderWizardProgressBar();
   }
 
   checkAuth().then(() => {
