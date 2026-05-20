@@ -5312,9 +5312,9 @@
   // ────────────────────────────────────────────────────
   const WIZARD_STEPS = [
     null, // 인덱스 1부터
-    { name: '파일 스캔',           api: '/api/admin/rag-source/scan',                       method: 'POST' },
-    { name: 'Collection 생성',     api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST' },
-    { name: 'Metadata 생성',       api: '/api/admin/rag-source/metadata/build',              method: 'POST' },
+    { name: '파일 스캔',           api: '/api/admin/rag-source/scan',                       method: 'POST', body: { source_id: 'rag_source', overwrite: false } },
+    { name: 'Collection 생성',     api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST', body: { client_id: 'weeslee', overwrite: false } },
+    { name: 'Metadata 생성',       api: '/api/admin/rag-source/metadata/build',              method: 'POST', body: { client_id: 'weeslee', source_id: 'rag_source', inventory_ids: [], overwrite: false, only_missing: true, dry_run: false } },
     { name: 'Tag/Keyword 생성',    api: '/api/admin/rag-source/tags/bootstrap',              method: 'POST' },
     { name: '텍스트→Chunk',        api: null, method: null },   // FAISS 잡 두 단계 — 탭 안내
     { name: 'FAISS 생성',          api: null, method: null },   // FAISS 잡 — 탭 안내
@@ -5343,6 +5343,23 @@
     btn.textContent = open ? '▼' : '▲';
   }
 
+  function formatWizardErrorDetail(detail, fallback) {
+    if (!detail) return fallback;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map(item => {
+        if (!item || typeof item !== 'object') return String(item);
+        const loc = Array.isArray(item.loc) ? item.loc.join('.') : '';
+        const msg = item.msg || item.message || JSON.stringify(item);
+        return loc ? `${loc}: ${msg}` : msg;
+      }).join(' | ');
+    }
+    if (typeof detail === 'object') {
+      return detail.detail || detail.message || JSON.stringify(detail);
+    }
+    return String(detail);
+  }
+
   async function wizardRun(step) {
     const cfg = WIZARD_STEPS[step];
     if (!cfg || !cfg.api) {
@@ -5363,7 +5380,8 @@
         : cfg.api;
       const r = await fetch(apiUrl, {
         method: cfg.method,
-        headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' }
+        headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+        body: cfg.body ? JSON.stringify(cfg.body) : undefined,
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok) {
@@ -5371,7 +5389,7 @@
         if (logEl) logEl.textContent += JSON.stringify(data, null, 2).slice(0, 400);
         if (stepEl) { stepEl.classList.remove('active-step'); stepEl.classList.add('done'); }
       } else {
-        throw new Error(data.detail || data.message || r.status);
+        throw new Error(formatWizardErrorDetail(data.detail || data.message || data, `HTTP ${r.status}`));
       }
     } catch (e) {
       if (statusEl) { statusEl.textContent = '오류'; statusEl.className = 'wizard-step-status err'; }
