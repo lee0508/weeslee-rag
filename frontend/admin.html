@@ -5158,7 +5158,8 @@
     let missingDeployDetected = false;
 
     const safeFetch = async (url) => {
-      const r = await fetch(`${API_BASE}${url}`, { headers: h });
+      const normalizedUrl = url.startsWith('/api/') ? url.slice(4) : url;
+      const r = await fetch(`${API_BASE}${normalizedUrl}`, { headers: h });
       if (r.status === 404) throw createRoute404Error(url);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
