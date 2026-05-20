@@ -4976,6 +4976,14 @@
     `).join('');
   }
 
+  function _fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    return fetch(url, { ...options, signal: ctrl.signal })
+      .then(r => { clearTimeout(timer); return r; })
+      .catch(e => { clearTimeout(timer); throw e.name === 'AbortError' ? new Error('요청 시간 초과 (10초) — 백엔드 서버 응답 없음') : e; });
+  }
+
   async function loadDocSourceFolders(subpath = null) {
     const listEl = document.getElementById('dsFolderList');
     const rootEl = document.getElementById('dsBrowseRoot');
@@ -4983,8 +4991,17 @@
     const nextSubpath = subpath === null ? _docSourceBrowse.currentSubpath : subpath;
     if (listEl) listEl.innerHTML = '<div class="empty">폴더 목록을 불러오는 중...</div>';
     try {
-      const statusResp = await fetch(`${API_BASE}/knowledge-sources/status`, { headers: authHeaders() });
-      if (!statusResp.ok) throw new Error(`상태 조회 실패 (${statusResp.status})`);
+      const statusResp = await _fetchWithTimeout(
+        `${API_BASE}/knowledge-sources/status`,
+        { headers: authHeaders() }
+      );
+      if (!statusResp.ok) {
+        const txt = await statusResp.text();
+        const isHtml = txt.trim().startsWith('<');
+        throw new Error(isHtml
+          ? `백엔드 서버가 응답하지 않습니다 (${statusResp.status}) — 서버 배포·재시작을 확인하세요`
+          : `상태 조회 실패 (${statusResp.status})`);
+      }
       const statusData = await statusResp.json();
       _docSourceBrowse.rootPath = statusData.root_path || '';
 
@@ -5005,17 +5022,24 @@
 
       if (rootEl) rootEl.textContent = `루트 경로: ${_docSourceBrowse.rootPath}`;
       const qs = nextSubpath ? `?subpath=${encodeURIComponent(nextSubpath)}` : '';
-      const folderResp = await fetch(`${API_BASE}/knowledge-sources/folders${qs}`, { headers: authHeaders() });
+      const folderResp = await _fetchWithTimeout(
+        `${API_BASE}/knowledge-sources/folders${qs}`,
+        { headers: authHeaders() },
+        20000  // NAS 탐색은 최대 20초 허용
+      );
       if (!folderResp.ok) {
         const errBody = await folderResp.json().catch(() => ({}));
-        throw new Error(errBody.detail || `폴더 조회 실패 (${folderResp.status})`);
+        const detail = errBody.detail || '';
+        if (folderResp.status === 503)
+          throw new Error(`파일 서버 접근 불가 (503)${detail ? ': ' + detail : ''} — NAS 마운트를 확인하세요`);
+        throw new Error(detail || `폴더 조회 실패 (${folderResp.status})`);
       }
       const folders = await folderResp.json();
       _docSourceBrowse.currentSubpath = nextSubpath || '';
       if (pathEl) pathEl.textContent = _docSourceBrowse.currentSubpath || '/';
       _renderDocSourceFolders(Array.isArray(folders) ? folders : []);
     } catch (e) {
-      if (listEl) listEl.innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
+      if (listEl) listEl.innerHTML = `<div class="empty" style="color:var(--red);font-size:12px">❌ ${esc(e.message)}</div>`;
       _setDocSourceAutoStatus('루트 조회 실패', 'red');
     }
   }
