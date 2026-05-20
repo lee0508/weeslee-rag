@@ -585,16 +585,18 @@
     <div class="login-logo">🔐</div>
     <div class="login-title">WEESLEE RAG Admin</div>
     <div class="login-sub">관리자 계정으로 로그인하세요.</div>
-    <div class="login-field">
-      <label>아이디</label>
-      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
-    </div>
-    <div class="login-field">
-      <label>비밀번호</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="login-btn" id="loginBtn" onclick="submitLogin()">로그인</button>
-    <div class="login-error" id="loginError"></div>
+    <form onsubmit="submitLogin(event)">
+      <div class="login-field">
+        <label>아이디</label>
+        <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
+      </div>
+      <div class="login-field">
+        <label>비밀번호</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button type="submit" class="login-btn" id="loginBtn">로그인</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
   </div>
 </div>
 
@@ -2144,7 +2146,8 @@
     document.getElementById('loginOverlay').classList.add('hidden');
   }
 
-  async function submitLogin() {
+  async function submitLogin(event) {
+    event?.preventDefault();
     const btn = document.getElementById('loginBtn');
     const errEl = document.getElementById('loginError');
     const username = document.getElementById('loginUsername').value.trim();
@@ -4764,7 +4767,7 @@
   async function _initCtxBar() {
     // Knowledge Source 목록으로 Source 셀렉트 채우기
     try {
-      const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      const r = await fetch(`${API_BASE}/knowledge-sources/status`, { headers: authHeaders() });
       if (r.status === 404) {
         notifyMissingRoute('/api/knowledge-sources/status', 'Context Bar');
         const sel = document.getElementById('ctxSource');
@@ -4864,7 +4867,7 @@
     const el = document.getElementById('docSourceList');
     if (!el) return;
     try {
-      const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      const r = await fetch(`${API_BASE}/knowledge-sources/status`, { headers: authHeaders() });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
 
@@ -4989,7 +4992,7 @@
     const nextSubpath = subpath === null ? _docSourceBrowse.currentSubpath : subpath;
     if (listEl) listEl.innerHTML = '<div class="empty">폴더 목록을 불러오는 중...</div>';
     try {
-      const statusResp = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      const statusResp = await fetch(`${API_BASE}/knowledge-sources/status`, { headers: authHeaders() });
       if (!statusResp.ok) throw new Error(`상태 조회 실패 (${statusResp.status})`);
       const statusData = await statusResp.json();
       _docSourceBrowse.rootPath = statusData.root_path || '';
@@ -4998,7 +5001,7 @@
         : '루트 경로를 확인할 수 없습니다.';
 
       const qs = nextSubpath ? `?subpath=${encodeURIComponent(nextSubpath)}` : '';
-      const folderResp = await fetch(`/api/knowledge-sources/folders${qs}`, { headers: authHeaders() });
+      const folderResp = await fetch(`${API_BASE}/knowledge-sources/folders${qs}`, { headers: authHeaders() });
       if (!folderResp.ok) throw new Error(`폴더 조회 실패 (${folderResp.status})`);
       const folders = await folderResp.json();
       _docSourceBrowse.currentSubpath = nextSubpath || '';
@@ -5080,7 +5083,7 @@
     if (!path) { res.innerHTML = '<span style="color:var(--red)">원본 경로를 입력하세요.</span>'; return; }
     res.innerHTML = '접근 테스트 중...';
     try {
-      const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
+      const r = await fetch(`${API_BASE}/knowledge-sources/status`, { headers: authHeaders() });
       if (!r.ok) {
         const text = await r.text();
         const isHtml = text.trim().startsWith('<');
@@ -5111,7 +5114,7 @@
         recursive: 'true',
         max_depth: '3',
       });
-      const r = await fetch(`/api/knowledge-sources/scan?${qs.toString()}`, { headers: authHeaders() });
+      const r = await fetch(`${API_BASE}/knowledge-sources/scan?${qs.toString()}`, { headers: authHeaders() });
       if (!r.ok) {
         const text = await r.text();
         const isHtml = text.trim().startsWith('<');
@@ -5155,7 +5158,7 @@
     let missingDeployDetected = false;
 
     const safeFetch = async (url) => {
-      const r = await fetch(url, { headers: h });
+      const r = await fetch(`${API_BASE}${url}`, { headers: h });
       if (r.status === 404) throw createRoute404Error(url);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
