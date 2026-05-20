@@ -903,7 +903,14 @@
   </div>
 
   <!-- 진행 바 -->
-  <div style="display:flex;gap:4px;margin-bottom:24px;flex-wrap:wrap" id="wizardProgressBar"></div>
+  <div style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap" id="wizardProgressBar"></div>
+
+  <!-- 전체 순차 실행 -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px">
+    <button class="btn btn-primary btn-sm" onclick="wizardRunAll()">▶ 전체 순차 실행</button>
+    <button class="btn btn-outline btn-sm" id="wizardStopBtn" onclick="wizardStop()" style="display:none">■ 중단</button>
+    <span id="wizardAutoStatus" style="font-size:12px;color:var(--muted)"></span>
+  </div>
 
   <!-- 단계 목록 -->
   <div style="display:flex;flex-direction:column;gap:12px" id="wizardStepList">
@@ -1102,6 +1109,7 @@
           <div style="font-size:11px;color:var(--muted)">생성된 인덱스를 검색 서버에 적용합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-10">대기</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizardRun(10)">실행</button>
         <button class="btn btn-outline btn-sm" onclick="switchTab('faiss')">FAISS 탭으로 →</button>
         <button class="wizard-expand-btn" onclick="wizardToggle(this)">▼</button>
       </div>
@@ -2929,11 +2937,26 @@
 
   // ── Knowledge Source 탭 ──────────────────────────────────────────────────
 
+  async function _ksFetch(url, timeoutMs = 15000) {
+    const fullUrl = url.startsWith('/api/') ? `${API_BASE}${url.slice(4)}` : url;
+    const r = await _fetchWithTimeout(fullUrl, { headers: authHeaders() }, timeoutMs);
+    if (!r.ok) {
+      const text = await r.text();
+      if (text.trim().startsWith('<'))
+        throw new Error(`백엔드 응답 없음 (${r.status}) — 서버 배포·재시작을 확인하세요`);
+      let detail = '';
+      try { detail = JSON.parse(text).detail || ''; } catch {}
+      if (r.status === 503)
+        throw new Error(`파일 서버 접근 불가 — NAS 마운트를 확인하세요${detail ? ': ' + detail : ''}`);
+      throw new Error(detail || `오류 (${r.status})`);
+    }
+    return r.json();
+  }
+
   async function loadKsStatus() {
     const el = document.getElementById('ksStatusInfo');
     try {
-      const r = await fetch('/api/knowledge-sources/status', { headers: authHeaders() });
-      const d = await r.json();
+      const d = await _ksFetch('/api/knowledge-sources/status');
       el.innerHTML = `
         <div style="font-size:13px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -2952,27 +2975,27 @@
           <div style="font-size:10px;color:var(--muted);margin-top:6px;word-break:break-all">${esc(d.root_path || '')}</div>
         </div>`;
     } catch (e) {
-      el.innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      el.innerHTML = `<div class="empty" style="color:var(--red);font-size:12px">❌ ${esc(e.message)}</div>`;
     }
   }
 
   async function loadKsFolders() {
     const subpath = document.getElementById('ksSubpath').value.trim();
     const el = document.getElementById('ksFolderTree');
+    el.innerHTML = '<div class="empty">불러오는 중...</div>';
     try {
-      const url = `/api/knowledge-sources/folders${subpath ? '?subpath=' + encodeURIComponent(subpath) : ''}`;
-      const r = await fetch(url, { headers: authHeaders() });
-      const d = await r.json();
-      const folders = d.folders || d;
-      if (!folders.length) { el.innerHTML = '<div class="empty">폴더 없음</div>'; return; }
-      el.innerHTML = folders.map(f => `
+      const qs = subpath ? '?subpath=' + encodeURIComponent(subpath) : '';
+      const folders = await _ksFetch(`/api/knowledge-sources/folders${qs}`);
+      const list = Array.isArray(folders) ? folders : (folders.folders || []);
+      if (!list.length) { el.innerHTML = '<div class="empty">폴더 없음</div>'; return; }
+      el.innerHTML = list.map(f => `
         <div style="padding:4px 6px;cursor:pointer;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:5px"
              onclick="document.getElementById('ksSubpath').value='${esc(f.path)}';scanKsPath()"
              title="${esc(f.full_path || '')}">
           📁 ${esc(f.name)}
         </div>`).join('');
     } catch (e) {
-      el.innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      el.innerHTML = `<div class="empty" style="color:var(--red);font-size:12px">❌ ${esc(e.message)}</div>`;
     }
   }
 
@@ -2981,10 +3004,10 @@
     const el = document.getElementById('ksFileList');
     const sumEl = document.getElementById('ksScanSummary');
     el.innerHTML = '<div class="empty">스캔 중...</div>';
+    sumEl.innerHTML = '';
     try {
-      const url = `/api/knowledge-sources/scan?recursive=true&max_depth=5${subpath ? '&subpath=' + encodeURIComponent(subpath) : ''}`;
-      const r = await fetch(url, { headers: authHeaders() });
-      const d = await r.json();
+      const qs = `recursive=true&max_depth=5${subpath ? '&subpath=' + encodeURIComponent(subpath) : ''}`;
+      const d = await _ksFetch(`/api/knowledge-sources/scan?${qs}`, 30000);
       const files = d.files || [];
       const summary = d.summary || {};
       sumEl.innerHTML = `
@@ -2994,7 +3017,7 @@
         ).join('')}`;
       _renderKsFiles(files, el);
     } catch (e) {
-      el.innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      el.innerHTML = `<div class="empty" style="color:var(--red);font-size:12px">❌ ${esc(e.message)}</div>`;
     }
   }
 
@@ -3005,15 +3028,15 @@
     const el = document.getElementById('ksFileList');
     el.innerHTML = '<div class="empty">검색 중...</div>';
     try {
-      let url = `/api/knowledge-sources/search?q=${encodeURIComponent(q)}`;
-      if (subpath) url += `&subpath=${encodeURIComponent(subpath)}`;
-      const r = await fetch(url, { headers: authHeaders() });
-      const d = await r.json();
-      const files = d.results || d.files || d;
-      document.getElementById('ksScanSummary').innerHTML = `<div class="bm-stat"><div class="val">${Array.isArray(files) ? files.length : 0}</div><div class="lbl">검색 결과</div></div>`;
-      _renderKsFiles(Array.isArray(files) ? files : [], el);
+      let qs = `q=${encodeURIComponent(q)}`;
+      if (subpath) qs += `&subpath=${encodeURIComponent(subpath)}`;
+      const d = await _ksFetch(`/api/knowledge-sources/search?${qs}`);
+      const files = Array.isArray(d) ? d : (d.results || d.files || []);
+      document.getElementById('ksScanSummary').innerHTML =
+        `<div class="bm-stat"><div class="val">${files.length}</div><div class="lbl">검색 결과</div></div>`;
+      _renderKsFiles(files, el);
     } catch (e) {
-      el.innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      el.innerHTML = `<div class="empty" style="color:var(--red);font-size:12px">❌ ${esc(e.message)}</div>`;
     }
   }
 
@@ -5384,12 +5407,12 @@
     { name: 'Collection 생성',     api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST', body: { client_id: 'weeslee', overwrite: false } },
     { name: 'Metadata 생성',       api: '/api/admin/rag-source/metadata/build',              method: 'POST', body: { client_id: 'weeslee', source_id: 'rag_source', inventory_ids: [], overwrite: false, only_missing: true, dry_run: false } },
     { name: 'Tag/Keyword 생성',    api: '/api/admin/rag-source/tags/bootstrap',              method: 'POST' },
-    { name: '텍스트→Chunk',        api: null, method: null },   // FAISS 잡 두 단계 — 탭 안내
-    { name: 'FAISS 생성',          api: null, method: null },   // FAISS 잡 — 탭 안내
+    { name: '텍스트→Chunk',        api: '/api/admin/faiss/jobs',                             method: 'POST', special: 'faiss_start' },
+    { name: 'FAISS 생성',          api: null,                                                method: null,   special: 'faiss_poll' },
     { name: 'Graph 생성',          api: '/api/graph/build',                                  method: 'POST' },
     { name: 'LLM Wiki 생성',       api: '/api/wiki/build',                                   method: 'POST' },
-    { name: '검색 테스트',         api: null, method: null },
-    { name: 'FAISS 인덱스 활성화', api: null, method: null },
+    { name: '검색 테스트',         api: null,                                                method: null,   special: 'interactive' },
+    { name: 'FAISS 인덱스 활성화', api: '/api/admin/faiss/activate',                         method: 'POST', special: 'faiss_activate' },
   ];
 
   function renderWizardProgressBar() {
@@ -5442,44 +5465,207 @@
     return body;
   }
 
+  // ── Wizard 상태 변수 ────────────────────────────────────────────────────────
+  let _wizardFaissJobId    = null;
+  let _wizardFaissSnapshot = null;
+  let _wizardAutoRunning   = false;
+  let _wizardAutoStop      = false;
+
+  function _wizardSetStatus(step, text, cls) {
+    const el = document.getElementById('wstatus-' + step);
+    if (el) { el.textContent = text; el.className = 'wizard-step-status' + (cls ? ' ' + cls : ''); }
+  }
+
+  function _wizardAppendLog(step, msg) {
+    const el = document.getElementById('wlog-' + step);
+    if (!el) return;
+    el.classList.add('show');
+    el.textContent += msg + '\n';
+  }
+
+  function _wizardMarkDone(step) {
+    _wizardSetStatus(step, '완료', 'ok');
+    const el = document.querySelector(`.wizard-step[data-step="${step}"]`);
+    if (el) { el.classList.remove('active-step'); el.classList.add('done'); }
+    renderWizardProgressBar();
+  }
+
+  function _wizardMarkError(step, msg) {
+    _wizardSetStatus(step, '오류', 'err');
+    _wizardAppendLog(step, '오류: ' + msg);
+    const el = document.querySelector(`.wizard-step[data-step="${step}"]`);
+    if (el) el.classList.remove('active-step');
+    renderWizardProgressBar();
+  }
+
+  function _wizardSseStream(step, jobId) {
+    return new Promise((resolve, reject) => {
+      const url = `${API_BASE}/admin/faiss/jobs/${jobId}/stream?token=${encodeURIComponent(getToken() || '')}`;
+      const sse = new EventSource(url);
+      let lastStage = '';
+      sse.onmessage = (e) => {
+        try {
+          const ev = JSON.parse(e.data);
+          if (ev.heartbeat) return;
+          if (ev.log) _wizardAppendLog(step, ev.log);
+          if (ev.stage && ev.stage !== lastStage) {
+            lastStage = ev.stage;
+            _wizardAppendLog(step, `[${ev.progress || 0}%] ${ev.stage}`);
+          }
+          if (ev.done) {
+            sse.close();
+            if (ev.error) reject(new Error(ev.error));
+            else resolve();
+          }
+        } catch (_) {}
+      };
+      sse.onerror = () => { sse.close(); reject(new Error('SSE 연결 오류')); };
+    });
+  }
+
   async function wizardRun(step) {
-    const cfg = WIZARD_STEPS[step];
-    if (!cfg || !cfg.api) {
-      alert(`Step ${step}은 해당 탭에서 직접 실행해주세요.`);
-      return;
-    }
-    const statusEl = document.getElementById('wstatus-' + step);
-    const logEl = document.getElementById('wlog-' + step);
+    const cfg    = WIZARD_STEPS[step];
     const stepEl = document.querySelector(`.wizard-step[data-step="${step}"]`);
-
-    if (statusEl) { statusEl.textContent = '실행 중...'; statusEl.className = 'wizard-step-status running'; }
-    if (logEl) { logEl.classList.add('show'); logEl.textContent = `POST ${cfg.api} ...\n`; }
+    const logEl  = document.getElementById('wlog-' + step);
     if (stepEl) stepEl.classList.add('active-step');
+    if (logEl)  { logEl.classList.add('show'); logEl.textContent = ''; }
 
+    // ── faiss_start: FAISS 파이프라인 잡 시작 (Step 5) ─────────────────────
+    if (cfg?.special === 'faiss_start') {
+      _wizardSetStatus(step, '잡 시작...', 'running');
+      try {
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const src   = (document.getElementById('ctxSource')?.value?.trim() || 'rag_source').replace(/[^a-zA-Z0-9_-]/g, '_');
+        _wizardFaissSnapshot = `snapshot_${today}_${src}`;
+        _wizardAppendLog(step, `스냅샷: ${_wizardFaissSnapshot}`);
+        _wizardAppendLog(step, 'POST /api/admin/faiss/jobs ...');
+        const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ snapshot: _wizardFaissSnapshot }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+        _wizardFaissJobId = d.job_id;
+        _wizardSetStatus(step, '파이프라인 실행 중...', 'running');
+        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId}`);
+        await _wizardSseStream(step, _wizardFaissJobId);
+        _wizardMarkDone(step);
+        _wizardMarkDone(6); // 같은 파이프라인이 chunk+faiss 모두 수행
+        return true;
+      } catch (e) { _wizardMarkError(step, e.message); return false; }
+    }
+
+    // ── faiss_poll: Step 5 잡 완료 확인 (Step 6) ───────────────────────────
+    if (cfg?.special === 'faiss_poll') {
+      if (!_wizardFaissJobId) {
+        _wizardMarkError(step, 'Step 5 (텍스트→Chunk)를 먼저 실행하세요.');
+        return false;
+      }
+      try {
+        const data = await fetch(`${API_BASE}/admin/faiss/jobs`, {
+          headers: { Authorization: 'Bearer ' + getToken() },
+        }).then(r => r.json()).catch(() => ({ jobs: [] }));
+        const job = (data.jobs || []).find(j => j.job_id === _wizardFaissJobId);
+        if (job?.status === 'completed') { _wizardMarkDone(step); return true; }
+        if (job?.status === 'running') {
+          _wizardSetStatus(step, 'FAISS 생성 중...', 'running');
+          await _wizardSseStream(step, _wizardFaissJobId);
+          _wizardMarkDone(step); return true;
+        }
+        _wizardMarkError(step, job ? `잡 상태: ${job.status}` : '잡을 찾을 수 없습니다.');
+        return false;
+      } catch (e) { _wizardMarkError(step, e.message); return false; }
+    }
+
+    // ── interactive: 건너뜀 (Step 9) ───────────────────────────────────────
+    if (cfg?.special === 'interactive') {
+      _wizardSetStatus(step, '건너뜀', '');
+      if (stepEl) { stepEl.classList.remove('active-step'); stepEl.classList.add('done'); }
+      renderWizardProgressBar();
+      return true;
+    }
+
+    // ── faiss_activate: 스냅샷 활성화 (Step 10) ────────────────────────────
+    if (cfg?.special === 'faiss_activate') {
+      const snapshot = _wizardFaissSnapshot;
+      if (!snapshot) {
+        _wizardMarkError(step, 'FAISS 스냅샷이 없습니다. Step 5를 먼저 실행하세요.');
+        return false;
+      }
+      _wizardSetStatus(step, '실행 중...', 'running');
+      _wizardAppendLog(step, `POST /api/admin/faiss/activate\n스냅샷: ${snapshot}`);
+      try {
+        const r = await fetch(`${API_BASE}/admin/faiss/activate`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ snapshot }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+        _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 400));
+        _wizardMarkDone(step); return true;
+      } catch (e) { _wizardMarkError(step, e.message); return false; }
+    }
+
+    // ── API 미설정 ──────────────────────────────────────────────────────────
+    if (!cfg?.api) {
+      _wizardMarkError(step, `Step ${step} API가 설정되지 않았습니다.`);
+      return false;
+    }
+
+    // ── 일반 API 호출 ────────────────────────────────────────────────────────
+    _wizardSetStatus(step, '실행 중...', 'running');
+    _wizardAppendLog(step, `${cfg.method} ${cfg.api} ...`);
     try {
-      const apiUrl = cfg.api.startsWith('/api/')
-        ? `${API_BASE}${cfg.api.slice(4)}`
-        : cfg.api;
-      const body = buildWizardRequestBody(step, cfg);
+      const apiUrl = cfg.api.startsWith('/api/') ? `${API_BASE}${cfg.api.slice(4)}` : cfg.api;
+      const body   = buildWizardRequestBody(step, cfg);
       const r = await fetch(apiUrl, {
         method: cfg.method,
-        headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+        headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
       });
-      const data = await r.json().catch(() => ({}));
+      const d = await r.json().catch(() => ({}));
       if (r.ok) {
-        if (statusEl) { statusEl.textContent = '완료'; statusEl.className = 'wizard-step-status ok'; }
-        if (logEl) logEl.textContent += JSON.stringify(data, null, 2).slice(0, 400);
-        if (stepEl) { stepEl.classList.remove('active-step'); stepEl.classList.add('done'); }
-      } else {
-        throw new Error(formatWizardErrorDetail(data.detail || data.message || data, `HTTP ${r.status}`));
+        _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 400));
+        _wizardMarkDone(step); return true;
       }
-    } catch (e) {
-      if (statusEl) { statusEl.textContent = '오류'; statusEl.className = 'wizard-step-status err'; }
-      if (logEl) logEl.textContent += '오류: ' + e.message;
-      if (stepEl) stepEl.classList.remove('active-step');
+      throw new Error(formatWizardErrorDetail(d.detail || d.message || d, `HTTP ${r.status}`));
+    } catch (e) { _wizardMarkError(step, e.message); return false; }
+  }
+
+  async function wizardRunAll() {
+    if (_wizardAutoRunning) return;
+    _wizardAutoRunning = true;
+    _wizardAutoStop    = false;
+    const statusEl = document.getElementById('wizardAutoStatus');
+    const stopBtn  = document.getElementById('wizardStopBtn');
+    if (stopBtn) stopBtn.style.display = '';
+    for (const step of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      if (_wizardAutoStop) {
+        if (statusEl) statusEl.textContent = '사용자가 중단했습니다.';
+        break;
+      }
+      const cfg = WIZARD_STEPS[step];
+      if (statusEl) statusEl.textContent = `Step ${step}: ${cfg?.name || ''} 실행 중...`;
+      const ok = await wizardRun(step);
+      if (!ok && cfg?.special !== 'interactive') {
+        if (statusEl) statusEl.textContent = `Step ${step} 실패 — 순차 실행 중단.`;
+        _wizardAutoRunning = false;
+        if (stopBtn) stopBtn.style.display = 'none';
+        return;
+      }
+      if (step < 10) await new Promise(r => setTimeout(r, 300));
     }
-    renderWizardProgressBar();
+    _wizardAutoRunning = false;
+    if (stopBtn) stopBtn.style.display = 'none';
+    if (!_wizardAutoStop && statusEl) statusEl.textContent = '전체 실행 완료.';
+  }
+
+  function wizardStop() {
+    _wizardAutoStop = true;
+    const el = document.getElementById('wizardAutoStatus');
+    if (el) el.textContent = '중단 중...';
   }
 
   checkAuth().then(() => {
