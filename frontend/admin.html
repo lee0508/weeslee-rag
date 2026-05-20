@@ -493,6 +493,42 @@
       font-size: 12px; text-align: center; display: none;
     }
     .login-error.show { display: block; }
+
+    /* ── API 힌트 (Dev Mode에서만 표시) ─────────────────────────────── */
+    .api-hint { display: none; }
+    body.dev-mode .api-hint { display: block; }
+
+    /* ── 인덱스 오버플로우 메뉴 ─────────────────────────────────────── */
+    .idx-menu-wrap { position: relative; }
+    .idx-dropdown {
+      display: none; position: absolute; right: 0; top: calc(100% + 4px);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; z-index: 200; min-width: 110px;
+      padding: 4px 0; box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    }
+    .idx-dropdown button {
+      width: 100%; padding: 7px 12px; text-align: left;
+      background: none; border: none; font-size: 12px; cursor: pointer; color: var(--text);
+    }
+    .idx-dropdown button:hover { background: var(--surface2); }
+    .idx-dropdown button.danger { color: var(--red); }
+
+    /* ── 플랫폼 카드 상태 점 ─────────────────────────────────────────── */
+    .card-status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); display: inline-block; margin-left: 6px; flex-shrink: 0;
+    }
+    .card-status-dot.ok  { background: var(--green); }
+    .card-status-dot.err { background: var(--red); }
+
+    /* ── 빈 상태 CTA ─────────────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 36px 20px; }
+    .empty-state .empty-icon { font-size: 40px; margin-bottom: 10px; }
+    .empty-state .empty-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .empty-state .empty-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+    .empty-state .empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .empty-state.err .empty-icon { font-size: 28px; }
+    .empty-state.err .empty-title { color: var(--red); }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
@@ -527,6 +563,7 @@
       <span id="apiStatusText">연결 확인 중...</span>
     </span>
     <button class="btn btn-outline btn-sm" onclick="refreshAll()">↻ 새로고침</button>
+    <button class="btn btn-outline btn-sm" id="devModeBtn" onclick="toggleDevMode()" style="font-size:10px;opacity:.5">DEV</button>
   </div>
 </header>
 
@@ -1084,7 +1121,7 @@
         <button class="btn btn-outline btn-sm" onclick="loadCollections()">↻</button>
       </div>
     </div>
-    <div style="font-size:10px;color:var(--muted);margin-bottom:12px">
+    <div class="api-hint" style="font-size:10px;color:var(--muted);margin-bottom:12px">
       GET /api/collections &nbsp;|&nbsp; POST /api/collections &nbsp;|&nbsp; PUT /api/collections/{id} &nbsp;|&nbsp; DELETE /api/collections/{id}
       &nbsp;|&nbsp; POST /api/admin/rag-source/collections/bootstrap
     </div>
@@ -1147,7 +1184,7 @@
               <button class="btn btn-outline btn-sm" onclick="loadTags()">↻</button>
             </div>
           </div>
-          <div style="font-size:10px;color:var(--muted);margin-bottom:12px">
+          <div class="api-hint" style="font-size:10px;color:var(--muted);margin-bottom:12px">
             GET /api/admin/tags &nbsp;|&nbsp; POST /api/admin/tags &nbsp;|&nbsp; PUT /api/admin/tags/{id} &nbsp;|&nbsp; DELETE /api/admin/tags/{id}
             &nbsp;|&nbsp; POST /api/admin/rag-source/tags/bootstrap
           </div>
@@ -1188,7 +1225,7 @@
               <button class="btn btn-outline btn-sm" onclick="loadKeywords()">↻</button>
             </div>
           </div>
-          <div style="font-size:10px;color:var(--muted);margin-bottom:12px">
+          <div class="api-hint" style="font-size:10px;color:var(--muted);margin-bottom:12px">
             GET /api/admin/keywords &nbsp;|&nbsp; POST /api/admin/keywords &nbsp;|&nbsp; POST /api/admin/rag-source/keywords/extract
           </div>
           <div id="keywordList"><div class="empty">로딩 중...</div></div>
@@ -1229,7 +1266,7 @@
   <!-- Client Manager -->
   <div class="card" id="clientManagerCard">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-      <span>🏢 Client Manager</span>
+      <span>🏢 Client Manager<span class="card-status-dot" id="clientStatusDot"></span></span>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" onclick="openClientForm()">+ 신규 고객사</button>
         <button class="btn btn-outline btn-sm" onclick="loadClients()">↻</button>
@@ -1257,7 +1294,7 @@
   <!-- Document Source Manager -->
   <div class="card" id="sourceManagerCard">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-      <span>📂 Document Source Manager</span>
+      <span>📂 Document Source Manager<span class="card-status-dot" id="sourceStatusDot"></span></span>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" onclick="openSourceForm()">+ 문서 위치 등록</button>
         <button class="btn btn-outline btn-sm" onclick="loadSources()">↻</button>
@@ -1304,7 +1341,7 @@
   <!-- Mount Manager -->
   <div class="card" id="mountManagerCard">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-      <span>🔌 Mount Manager</span>
+      <span>🔌 Mount Manager<span class="card-status-dot" id="mountStatusDot"></span></span>
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary btn-sm" onclick="checkAllMounts()">마운트 상태 전체 확인</button>
         <button class="btn btn-outline btn-sm" onclick="loadMountStatus()">↻</button>
@@ -1718,11 +1755,15 @@
           </span>
         </div>
         ${!idx.is_active && idx.index_exists ? `
-        <div class="index-actions">
+        <div class="index-actions" style="display:flex;align-items:center;gap:6px">
           <button class="btn btn-secondary btn-sm"
             onclick="activateIndex('${esc(idx.snapshot)}')">Activate</button>
-          <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;"
-            onclick="deleteIndex('${esc(idx.snapshot)}')">삭제</button>
+          <div class="idx-menu-wrap">
+            <button class="btn btn-outline btn-sm" onclick="toggleIdxMenu(this)">⋮</button>
+            <div class="idx-dropdown">
+              <button class="danger" onclick="deleteIndex('${esc(idx.snapshot)}');closeAllIdxMenus()">🗑️ 삭제</button>
+            </div>
+          </div>
         </div>` : ''}
         <div class="index-toggle">
           <button class="index-toggle-btn" onclick="toggleIndexDetail('${esc(idx.snapshot)}', this)">▶ 카테고리 상세</button>
@@ -2622,13 +2663,16 @@
       _collections = Array.isArray(d) ? d : (d.collections || d.items || []);
       _renderCollections(_collections);
     } catch (e) {
-      document.getElementById('colManagerList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      document.getElementById('colManagerList').innerHTML = `<div class="empty-state err"><div class="empty-icon">⚠️</div><div class="empty-title">${esc(e.message)}</div><div class="empty-actions"><button class="btn btn-outline btn-sm" onclick="loadCollections()">↻ 재시도</button></div></div>`;
     }
   }
 
   function _renderCollections(data) {
     const el = document.getElementById('colManagerList');
-    if (!data.length) { el.innerHTML = '<div class="empty">등록된 Collection이 없습니다. "기본 Collection 자동 생성"을 눌러 생성하세요.</div>'; return; }
+    if (!data.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-title">등록된 Collection이 없습니다</div><div class="empty-sub">기본 Collection을 자동 생성하거나 직접 추가하세요.</div><div class="empty-actions"><button class="btn btn-secondary btn-sm" onclick="bootstrapCollections()">🚀 기본 자동 생성</button><button class="btn btn-outline btn-sm" onclick="openColManagerForm()">+ 직접 추가</button></div></div>`;
+      return;
+    }
     el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead><tr style="border-bottom:1px solid var(--border);color:var(--muted)">
         <th style="text-align:left;padding:5px 8px">Collection Name</th>
@@ -2992,7 +3036,11 @@
       _clients = await platformFetch('/admin/clients');
       renderClients(_clients);
       _populateClientSelects();
-    } catch (e) { document.getElementById('clientList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`; }
+      _setStatusDot('clientStatusDot', true);
+    } catch (e) {
+      document.getElementById('clientList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      _setStatusDot('clientStatusDot', false);
+    }
   }
 
   function renderClients(data) {
@@ -3089,7 +3137,11 @@
     try {
       _sources = await platformFetch('/admin/document-sources');
       renderSources(_sources);
-    } catch (e) { document.getElementById('sourceList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`; }
+      _setStatusDot('sourceStatusDot', true);
+    } catch (e) {
+      document.getElementById('sourceList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      _setStatusDot('sourceStatusDot', false);
+    }
   }
 
   function renderSources(data) {
@@ -3208,7 +3260,11 @@
     try {
       const r = await platformFetch('/admin/mounts/status');
       renderMountStatus(r.sources);
-    } catch (e) { document.getElementById('mountStatusList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`; }
+      _setStatusDot('mountStatusDot', true);
+    } catch (e) {
+      document.getElementById('mountStatusList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+      _setStatusDot('mountStatusDot', false);
+    }
   }
 
   async function checkAllMounts() {
@@ -4148,6 +4204,33 @@
     setDefaultSnapshot();
     refreshAll();
     renderBmHistoryList();
+  }
+
+  // Dev Mode 토글: API 힌트 텍스트 표시/숨김
+  function toggleDevMode() {
+    const on = document.body.classList.toggle('dev-mode');
+    const btn = document.getElementById('devModeBtn');
+    if (btn) { btn.style.opacity = on ? '1' : '.5'; btn.style.color = on ? 'var(--amber)' : ''; }
+  }
+
+  // 인덱스 오버플로우 메뉴 토글
+  function toggleIdxMenu(btn) {
+    const wrap = btn.closest('.idx-menu-wrap');
+    const dd = wrap.querySelector('.idx-dropdown');
+    const isOpen = dd.style.display === 'block';
+    closeAllIdxMenus();
+    if (!isOpen) dd.style.display = 'block';
+  }
+  function closeAllIdxMenus() {
+    document.querySelectorAll('.idx-dropdown').forEach(d => d.style.display = 'none');
+  }
+  document.addEventListener('click', e => { if (!e.target.closest('.idx-menu-wrap')) closeAllIdxMenus(); });
+
+  // 플랫폼 카드 상태 점 업데이트 헬퍼
+  function _setStatusDot(id, ok) {
+    const dot = document.getElementById(id);
+    if (!dot) return;
+    dot.className = 'card-status-dot ' + (ok ? 'ok' : 'err');
   }
 
   checkAuth().then(() => {
