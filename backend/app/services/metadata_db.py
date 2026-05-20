@@ -174,6 +174,14 @@ class MetadataDBService:
             """)
             stats["by_type"] = {row["document_type"]: row["count"] for row in cursor.fetchall()}
 
+            # 메타 상태별 수 (pending, auto_suggested, confirmed)
+            cursor = conn.execute("""
+                SELECT meta_status, COUNT(*) as count
+                FROM documents
+                GROUP BY meta_status
+            """)
+            stats["by_meta_status"] = {row["meta_status"] or "pending": row["count"] for row in cursor.fetchall()}
+
             return stats
 
     def create_document(self, data: Dict) -> int:

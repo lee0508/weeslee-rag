@@ -169,3 +169,108 @@ _RFP_EXPANSIONS: dict[str, list[str]] = {
 def expand_rfp_query(query: str) -> str:
     """Expand an RFP / 과업지시서 query with proposal strategy terms for better recall."""
     return _apply_expansions(query, _RFP_EXPANSIONS)
+
+
+# ── 모드 자동 감지 (개선방안 3) ─────────────────────────────────────────────────
+
+# 그래프 기반 검색이 필요한 키워드 (유사 사업, 관련 문서, 연계 등)
+_GRAPH_KEYWORDS = [
+    "유사", "비슷한", "관련", "연계", "후속", "연관",
+    "같은 사업", "같은 프로젝트", "동일 기관", "동일 발주",
+    "문서 체인", "프로젝트 문서", "사업 문서",
+    "의 착수", "의 제안", "의 최종", "의 결과",  # "A의 B" 패턴
+]
+
+# RFP 분석 모드 키워드
+_RFP_KEYWORDS = [
+    "rfp", "제안요청서", "과업지시서", "입찰공고", "요구사항",
+    "과업내용", "과업범위", "요구분석", "제안요청",
+]
+
+# 입찰 프로젝트 검색 모드 키워드
+_BID_KEYWORDS = [
+    "나라장터", "입찰", "공고", "조달", "g2b",
+    "사업명", "프로젝트명", "사업 검색", "프로젝트 검색",
+]
+
+
+def detect_best_mode(query: str) -> str:
+    """
+    질문 분석을 통해 최적 검색 모드 자동 결정.
+
+    Args:
+        query: 사용자 질의
+
+    Returns:
+        "graph_rag" | "rfp_analysis" | "bid_project" | "general"
+
+    예시:
+        - "K-water ISP 제안서의 착수보고서" → graph_rag (문서 간 관계)
+        - "이 사업과 유사한 프로젝트" → graph_rag
+        - "제안요청서 요구사항 분석" → rfp_analysis
+        - "나라장터 AI 사업 검색" → bid_project
+        - "정보화전략계획 수립 방법론" → general
+    """
+    query_lower = query.lower()
+
+    # 1. 그래프 기반 검색 (문서 관계, 유사 사업 등)
+    for kw in _GRAPH_KEYWORDS:
+        if kw in query_lower:
+            return "graph_rag"
+
+    # 2. RFP 분석 모드 (제안요청서, 과업지시서 분석)
+    for kw in _RFP_KEYWORDS:
+        if kw in query_lower:
+            return "rfp_analysis"
+
+    # 3. 입찰 프로젝트 검색 (나라장터, 조달 등)
+    for kw in _BID_KEYWORDS:
+        if kw in query_lower:
+            return "bid_project"
+
+    # 4. 기본 모드
+    return "general"
+
+
+def detect_mode_with_reason(query: str) -> dict:
+    """
+    모드 감지 결과와 이유를 함께 반환.
+
+    Returns:
+        {
+            "mode": "graph_rag" | "rfp_analysis" | "bid_project" | "general",
+            "reason": "감지 이유 설명",
+            "matched_keyword": "매칭된 키워드" | None
+        }
+    """
+    query_lower = query.lower()
+
+    for kw in _GRAPH_KEYWORDS:
+        if kw in query_lower:
+            return {
+                "mode": "graph_rag",
+                "reason": "문서 간 관계 또는 유사 사업 검색 의도 감지",
+                "matched_keyword": kw,
+            }
+
+    for kw in _RFP_KEYWORDS:
+        if kw in query_lower:
+            return {
+                "mode": "rfp_analysis",
+                "reason": "제안요청서/과업지시서 분석 의도 감지",
+                "matched_keyword": kw,
+            }
+
+    for kw in _BID_KEYWORDS:
+        if kw in query_lower:
+            return {
+                "mode": "bid_project",
+                "reason": "입찰 사업 검색 의도 감지",
+                "matched_keyword": kw,
+            }
+
+    return {
+        "mode": "general",
+        "reason": "일반 문서 검색",
+        "matched_keyword": None,
+    }

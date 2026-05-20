@@ -21,6 +21,13 @@ from app.api.faiss_admin import router as faiss_admin_router, sse_router as fais
 from app.api.graph import router as graph_router
 from app.api.wiki import router as wiki_router
 from app.api.review import router as review_router
+from app.api.clients import router as clients_router
+from app.api.document_sources import router as document_sources_router
+from app.api.mounts import router as mounts_router
+from app.api.templates import router as templates_router
+from app.api.rag_source_admin import router as rag_source_admin_router
+from app.api.tags import router as tags_router
+from app.api.keywords import router as keywords_router
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -81,6 +88,13 @@ app.include_router(faiss_sse_router, prefix="/api", tags=["FAISS Admin SSE"])
 app.include_router(graph_router, prefix="/api", tags=["Graph"])
 app.include_router(wiki_router, prefix="/api", tags=["Wiki"])
 app.include_router(review_router, prefix="/api", tags=["Review"])
+app.include_router(clients_router, prefix="/api", tags=["Platform - Clients"])
+app.include_router(document_sources_router, prefix="/api", tags=["Platform - Document Sources"])
+app.include_router(mounts_router, prefix="/api", tags=["Platform - Mounts"])
+app.include_router(templates_router, prefix="/api", tags=["Platform - Templates"])
+app.include_router(rag_source_admin_router, prefix="/api", tags=["RAG Source Admin"])
+app.include_router(tags_router, prefix="/api", tags=["Platform - Tags"])
+app.include_router(keywords_router, prefix="/api", tags=["Platform - Keywords"])
 
 # Serve the assistant UI under the requested path pattern:
 # /weeslee-rag/frontend/rag-assistant.html

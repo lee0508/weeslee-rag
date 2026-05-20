@@ -19,6 +19,7 @@ from app.services.document_pipeline import (
 from app.services.knowledge_source import knowledge_source_service
 from app.services.metadata_db import metadata_db_service
 from app.services.metadata_auto_generator import metadata_auto_generator
+from app.services.admin_stats_service import get_snapshot_stats
 from app.core.config import settings
 
 
@@ -500,6 +501,45 @@ async def system_check():
         "ollama":         {"ok": ollama_ok,  "detail": ollama_msg},
         "faiss_index":    {"ok": faiss_ok,   "detail": faiss_msg},
         "staged_texts":   {"count": text_count, "dir": str(text_dir)},
+    }
+
+
+@router.get("/stats")
+async def get_admin_stats_cached():
+    """Get cached admin dashboard statistics backed by snapshot artifacts."""
+    import json
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[3]
+    active_index_path = project_root / "data" / "active_index.json"
+
+    snapshot = ""
+    if active_index_path.exists():
+        try:
+            snapshot = json.loads(active_index_path.read_text(encoding="utf-8")).get("snapshot", "")
+        except Exception:
+            pass
+
+    stats = get_snapshot_stats(snapshot)
+
+    ollama_ok = False
+    try:
+        import httpx
+        r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
+        ollama_ok = r.status_code == 200
+    except Exception:
+        pass
+
+    return {
+        "snapshot": stats["snapshot"],
+        "index": stats["index"],
+        "categories": stats["categories"],
+        "graph": stats["graph"],
+        "ollama": {"status": "ok" if ollama_ok else "unavailable"},
+        "knowledge_source": {
+            "accessible": knowledge_source_service.is_accessible(),
+            "root_path": knowledge_source_service.get_root_path(),
+        },
     }
 
 

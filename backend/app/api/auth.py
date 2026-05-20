@@ -41,3 +41,9 @@ async def login(req: LoginRequest):
 @router.get("/verify", response_model=VerifyResponse)
 async def verify(username: str = Depends(require_admin_token)):
     return VerifyResponse(valid=True, username=username)
+
+
+@router.post("/logout")
+async def logout():
+    """로그아웃 (클라이언트에서 토큰을 폐기하도록 유도)"""
+    return {"detail": "Successfully logged out"}

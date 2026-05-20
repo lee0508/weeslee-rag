@@ -483,3 +483,234 @@ async def get_statistics():
     from app.services.graph_traversal import get_graph_statistics as _stats
 
     return _stats()
+
+
+# ── Cytoscape 시각화 API ─────────────────────────────────────────────────────
+
+
+def _to_cytoscape_elements(
+    nodes: list[dict],
+    edges: list[dict],
+    center_id: Optional[str] = None,
+) -> dict:
+    """
+    노드/엣지를 Cytoscape.js 포맷으로 변환.
+
+    노드 타입별 색상/크기 지정, 엣지 관계별 스타일 지정.
+    """
+    NODE_COLORS = {
+        "project": "#E8971F",
+        "document": "#3b82f6",
+        "category": "#6b7280",
+        "organization": "#22c55e",
+        "technology": "#8b5cf6",
+        "methodology": "#ef4444",
+        "domain": "#f59e0b",
+    }
+    NODE_SIZES = {
+        "project": 70,
+        "document": 44,
+        "category": 32,
+        "organization": 60,
+        "technology": 50,
+        "methodology": 50,
+        "domain": 45,
+    }
+
+    cy_nodes = []
+    for n in nodes:
+        node_type = n.get("type", "unknown")
+        is_center = center_id and n.get("id") == center_id
+        cy_nodes.append({
+            "data": {
+                "id": n.get("id"),
+                "label": n.get("label", n.get("id", "")),
+                "type": node_type,
+                "color": NODE_COLORS.get(node_type, "#6b7280"),
+                "size": NODE_SIZES.get(node_type, 40),
+                "isCenter": is_center,
+                **{k: v for k, v in n.items() if k not in ("id", "label", "type")},
+            }
+        })
+
+    cy_edges = []
+    for e in edges:
+        cy_edges.append({
+            "data": {
+                "id": e.get("id"),
+                "source": e.get("source"),
+                "target": e.get("target"),
+                "relation": e.get("relation", ""),
+                "label": e.get("label", e.get("relation", "")),
+                "weight": e.get("weight", 1),
+            }
+        })
+
+    return {
+        "nodes": cy_nodes,
+        "edges": cy_edges,
+        "nodeCount": len(cy_nodes),
+        "edgeCount": len(cy_edges),
+    }
+
+
+@router.get("/cytoscape/organization")
+async def cytoscape_by_organization(
+    org_name: str,
+    depth: int = 2,
+):
+    """
+    기관 중심 Cytoscape 그래프 반환.
+
+    기관 → 프로젝트 → 문서/기술/방법론 관계를 시각화.
+    """
+    from app.services.knowledge_graph import normalize_organization
+
+    _load_graph()
+    canonical = normalize_organization(org_name)
+    org_id = f"org:{canonical}"
+
+    visited_nodes: set[str] = set()
+    visited_edges: set[str] = set()
+    result_nodes = []
+    result_edges = []
+
+    # BFS로 depth만큼 탐색
+    queue = [(org_id, 0)]
+    visited_nodes.add(org_id)
+
+    while queue:
+        current_id, current_depth = queue.pop(0)
+        node = next((n for n in _cache["nodes"] if n["id"] == current_id), None)
+        if node:
+            result_nodes.append(node)
+
+        if current_depth >= depth:
+            continue
+
+        # 연결된 엣지 탐색
+        for edge in _cache["edges"]:
+            if edge["source"] == current_id or edge["target"] == current_id:
+                edge_id = edge.get("id", f"{edge['source']}->{edge['target']}")
+                if edge_id in visited_edges:
+                    continue
+                visited_edges.add(edge_id)
+                result_edges.append(edge)
+
+                # 다음 노드
+                next_id = edge["target"] if edge["source"] == current_id else edge["source"]
+                if next_id not in visited_nodes:
+                    visited_nodes.add(next_id)
+                    queue.append((next_id, current_depth + 1))
+
+    return _to_cytoscape_elements(result_nodes, result_edges, center_id=org_id)
+
+
+@router.get("/cytoscape/methodology")
+async def cytoscape_by_methodology(method_name: str, depth: int = 2):
+    """
+    방법론 중심 Cytoscape 그래프 반환.
+    """
+    from app.services.knowledge_graph import normalize_methodology
+
+    _load_graph()
+    canonical = normalize_methodology(method_name)
+    method_id = f"method:{canonical}"
+
+    visited_nodes: set[str] = set()
+    visited_edges: set[str] = set()
+    result_nodes = []
+    result_edges = []
+
+    queue = [(method_id, 0)]
+    visited_nodes.add(method_id)
+
+    while queue:
+        current_id, current_depth = queue.pop(0)
+        node = next((n for n in _cache["nodes"] if n["id"] == current_id), None)
+        if node:
+            result_nodes.append(node)
+
+        if current_depth >= depth:
+            continue
+
+        for edge in _cache["edges"]:
+            if edge["source"] == current_id or edge["target"] == current_id:
+                edge_id = edge.get("id", f"{edge['source']}->{edge['target']}")
+                if edge_id in visited_edges:
+                    continue
+                visited_edges.add(edge_id)
+                result_edges.append(edge)
+
+                next_id = edge["target"] if edge["source"] == current_id else edge["source"]
+                if next_id not in visited_nodes:
+                    visited_nodes.add(next_id)
+                    queue.append((next_id, current_depth + 1))
+
+    return _to_cytoscape_elements(result_nodes, result_edges, center_id=method_id)
+
+
+@router.get("/cytoscape/technology")
+async def cytoscape_by_technology(tech_name: str, depth: int = 2):
+    """
+    기술 중심 Cytoscape 그래프 반환.
+    """
+    from app.services.knowledge_graph import normalize_technology
+
+    _load_graph()
+    canonical = normalize_technology(tech_name)
+    tech_id = f"tech:{canonical}"
+
+    visited_nodes: set[str] = set()
+    visited_edges: set[str] = set()
+    result_nodes = []
+    result_edges = []
+
+    queue = [(tech_id, 0)]
+    visited_nodes.add(tech_id)
+
+    while queue:
+        current_id, current_depth = queue.pop(0)
+        node = next((n for n in _cache["nodes"] if n["id"] == current_id), None)
+        if node:
+            result_nodes.append(node)
+
+        if current_depth >= depth:
+            continue
+
+        for edge in _cache["edges"]:
+            if edge["source"] == current_id or edge["target"] == current_id:
+                edge_id = edge.get("id", f"{edge['source']}->{edge['target']}")
+                if edge_id in visited_edges:
+                    continue
+                visited_edges.add(edge_id)
+                result_edges.append(edge)
+
+                next_id = edge["target"] if edge["source"] == current_id else edge["source"]
+                if next_id not in visited_nodes:
+                    visited_nodes.add(next_id)
+                    queue.append((next_id, current_depth + 1))
+
+    return _to_cytoscape_elements(result_nodes, result_edges, center_id=tech_id)
+
+
+@router.get("/cytoscape/full")
+async def cytoscape_full_graph(limit: int = 200):
+    """
+    전체 Knowledge Graph를 Cytoscape 형식으로 반환 (노드 수 제한).
+    """
+    _load_graph()
+
+    # 노드 타입 우선순위 (중요한 노드 먼저)
+    priority = {"organization": 0, "methodology": 1, "technology": 2, "project": 3, "domain": 4, "document": 5}
+    sorted_nodes = sorted(_cache["nodes"], key=lambda n: priority.get(n.get("type"), 99))
+    limited_nodes = sorted_nodes[:limit]
+    node_ids = {n["id"] for n in limited_nodes}
+
+    # 해당 노드들만 연결하는 엣지
+    limited_edges = [
+        e for e in _cache["edges"]
+        if e["source"] in node_ids and e["target"] in node_ids
+    ]
+
+    return _to_cytoscape_elements(limited_nodes, limited_edges)

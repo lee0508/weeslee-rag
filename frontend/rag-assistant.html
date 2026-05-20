@@ -1102,6 +1102,91 @@
       .rv-detail-wrap { min-height: 300px; }
       .rv-rating { flex-wrap: wrap; }
     }
+
+    /* ── Knowledge Graph Visualization ── */
+    #graphPanel {
+      height: 100%;
+      min-height: 300px;
+      flex-direction: column;
+    }
+    #graphPanel.active {
+      display: flex;
+    }
+    #graphCanvas {
+      flex: 1;
+      min-height: 280px;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      border: 1px solid var(--gray-200);
+    }
+    .graph-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .graph-controls select, .graph-controls input {
+      padding: 5px 10px;
+      font-size: 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      background: var(--white);
+      color: var(--text);
+    }
+    .graph-controls button {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--amber);
+      background: var(--amber-l);
+      color: var(--amber-d);
+      border-radius: 6px;
+    }
+    .graph-controls button:hover {
+      background: var(--amber);
+      color: var(--white);
+    }
+    .graph-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 11px;
+      color: var(--text-s);
+    }
+    .graph-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .graph-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .graph-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-s);
+      font-size: 13px;
+      text-align: center;
+      padding: 40px;
+    }
+    .graph-empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+    /* ── Weight sliders ── */
+    .weight-sliders { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
+    .weight-row { display: flex; align-items: center; gap: 6px; }
+    .weight-label { font-size: 10px; color: var(--text-s); min-width: 38px; }
+    .weight-val { font-size: 10px; font-weight: 600; color: var(--amber); min-width: 32px; text-align: right; }
+    input[type="range"] { flex: 1; accent-color: var(--amber); cursor: pointer; height: 3px; }
+    .sidebar-section-sep { margin: 6px 0; border-top: 1px solid rgba(255,255,255,.06); }
   </style>
 </head>
 <body>
@@ -1205,6 +1290,48 @@
               <option value="gemma4:latest">gemma4:latest</option>
             </select>
           </div>
+          <div class="sidebar-section-sep"></div>
+          <div>
+            <label for="collection" data-i18n="collection_filter">Collection</label>
+            <select id="collection">
+              <option value="" data-i18n="col_all">전체 Collection</option>
+            </select>
+          </div>
+          <div>
+            <label for="documentGroup" data-i18n="doc_group_filter">문서 그룹</label>
+            <select id="documentGroup">
+              <option value="">전체</option>
+              <option value="rfp">RFP</option>
+              <option value="proposal">제안서</option>
+              <option value="deliverable">산출물</option>
+            </select>
+          </div>
+          <div class="sidebar-section-sep"></div>
+          <div class="weight-section">
+            <label data-i18n="search_weights">검색 비율</label>
+            <div class="weight-sliders">
+              <div class="weight-row">
+                <span class="weight-label">Vector</span>
+                <input id="vectorWeight" type="range" min="0" max="100" value="100" oninput="onWeightChange()">
+                <span class="weight-val" id="vectorWeightVal">100%</span>
+              </div>
+              <div class="weight-row">
+                <span class="weight-label">Graph</span>
+                <input id="graphWeight" type="range" min="0" max="100" value="0" oninput="onWeightChange()">
+                <span class="weight-val" id="graphWeightVal">0%</span>
+              </div>
+              <div class="weight-row">
+                <span class="weight-label">Wiki</span>
+                <input id="wikiWeight" type="range" min="0" max="100" value="0" oninput="onWeightChange()">
+                <span class="weight-val" id="wikiWeightVal">0%</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label for="temperature" data-i18n="temperature">Temperature: <span id="tempDisplay">0.20</span></label>
+            <input id="temperature" type="range" min="0" max="200" value="20" step="1"
+              oninput="document.getElementById('tempDisplay').textContent = (this.value/100).toFixed(2)" style="width:100%">
+          </div>
         </div>
       </div>
       <div class="sidebar-section">
@@ -1288,23 +1415,42 @@
     <aside class="right-panel">
       <div class="card answer-card">
         <div class="card-header">
-          <div class="card-title" data-i18n="answer_panel">Answer Panel</div>
+          <div class="card-title" data-i18n="result_panel">결과 패널</div>
           <div class="panel-tabs">
-            <button class="panel-tab active" type="button" data-tab="draft" onclick="switchAnswerTab('draft')" data-i18n="draft_answer">Draft Answer</button>
-            <button class="panel-tab" type="button" data-tab="result" onclick="switchAnswerTab('result')" data-i18n="result">Result</button>
+            <button class="panel-tab active" type="button" data-tab="graph" onclick="switchAnswerTab('graph')" data-i18n="tab_graph">그래프</button>
+            <button class="panel-tab" type="button" data-tab="answer" onclick="switchAnswerTab('answer')" data-i18n="tab_answer_interpret">답변해석</button>
+            <button class="panel-tab" type="button" data-tab="files" onclick="switchAnswerTab('files')" data-i18n="tab_related_files">관련파일</button>
           </div>
         </div>
-        <div class="card-body panel-view answer active" id="draftPanel" data-i18n="no_answer">No answer yet.</div>
-        <div class="card-body panel-view result-view" id="resultPanel">
-          <div class="result-summary" id="resultSummary">
-            <div class="result-metric">
-              <div class="label" data-i18n="result_status">Status</div>
-              <div class="value" data-i18n="result_no_result">No result yet.</div>
+        <!-- 그래프 탭 -->
+        <div class="card-body panel-view active" id="graphPanel">
+          <div class="graph-legend">
+            <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#22c55e"></div>기관</div>
+            <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#E8971F"></div>프로젝트</div>
+            <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#3b82f6"></div>문서</div>
+            <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#8b5cf6"></div>기술</div>
+            <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#ef4444"></div>방법론</div>
+            <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#f59e0b"></div>도메인</div>
+          </div>
+          <div id="graphCanvas">
+            <div class="graph-empty">
+              <div class="graph-empty-icon">🔗</div>
+              <div data-i18n="graph_empty">RAG를 실행하면 관계 그래프가 표시됩니다.</div>
             </div>
           </div>
-          <div class="result-view-note" id="resultViewNote">Open/Download uses the backend files API. The file must exist in the server's <code>data/raw/</code> directory. Copy Path copies the original source path to clipboard.</div>
+        </div>
+        <!-- 답변해석 탭 -->
+        <div class="card-body panel-view answer" id="answerPanel" data-i18n="no_answer">아직 답변이 없습니다.</div>
+        <!-- 관련파일 탭 -->
+        <div class="card-body panel-view result-view" id="filesPanel">
+          <div class="result-summary" id="resultSummary">
+            <div class="result-metric">
+              <div class="label" data-i18n="result_status">상태</div>
+              <div class="value" data-i18n="result_no_result">결과 없음</div>
+            </div>
+          </div>
           <div class="result-docs" id="resultDocs">
-            <div class="result-json" id="resultPayload" data-i18n="result_run_hint">Run a query to inspect the result payload.</div>
+            <div class="result-json" id="resultPayload" data-i18n="result_run_hint">쿼리를 실행하면 결과를 확인할 수 있습니다.</div>
           </div>
         </div>
       </div>
@@ -1448,6 +1594,7 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
+  <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
   <script src="config.js"></script>
   <script>
     // ── i18n ──────────────────────────────────────────────────────────────
@@ -1522,6 +1669,14 @@
         rfp_extract_fail:'추출 실패',
         rfp_remove:'✕ 제거',
         rfp_active_notice:'RFP 첨부 파일 포함 — rfp_analysis 모드로 실행합니다.',
+        result_panel:'결과 패널', tab_graph:'그래프', tab_answer_interpret:'답변해석', tab_related_files:'관련파일',
+        graph_empty:'RAG를 실행하면 관계 그래프가 표시됩니다.',
+        graph_loading:'그래프 로드 중...', graph_error:'그래프 로드 실패',
+        graph_nodes:'{n}개 노드', graph_edges:'{e}개 엣지',
+        graph_nodes_short:'노드', graph_edges_short:'엣지',
+        collection_filter:'Collection', col_all:'전체 Collection',
+        doc_group_filter:'문서 그룹',
+        search_weights:'검색 비율', temperature:'Temperature',
       },
       en: {
         tab_rag:'RAG Assistant', tab_knowledge:'Knowledge Search', tab_review:'Answer Review', tab_proposal:'Proposal Draft',
@@ -1593,6 +1748,14 @@
         rfp_extract_fail:'Extraction failed',
         rfp_remove:'✕ Remove',
         rfp_active_notice:'RFP file attached — running in rfp_analysis mode.',
+        result_panel:'Result Panel', tab_graph:'Graph', tab_answer_interpret:'Answer', tab_related_files:'Files',
+        graph_empty:'Run RAG to display the relationship graph.',
+        graph_loading:'Loading graph...', graph_error:'Failed to load graph',
+        graph_nodes:'{n} nodes', graph_edges:'{e} edges',
+        graph_nodes_short:'nodes', graph_edges_short:'edges',
+        collection_filter:'Collection', col_all:'All Collections',
+        doc_group_filter:'Document Group',
+        search_weights:'Search Weights', temperature:'Temperature',
       },
     };
 
@@ -1627,7 +1790,7 @@
       document.getElementById('langKo').classList.toggle('active', _lang === 'ko');
       document.getElementById('langEn').classList.toggle('active', _lang === 'en');
       // dynamic elements (only update when in initial state)
-      if (!_hasAnswer) document.getElementById('draftPanel').textContent = t('no_answer');
+      if (!_hasAnswer) document.getElementById('answerPanel').textContent = t('no_answer');
       if (!_queryRan) document.getElementById('queryStatus').textContent = t('ready');
       syncAnswerModeLabel();
       onSearchModeChange();
@@ -1675,6 +1838,36 @@
       } catch (_) {}
     }
 
+    // ── Collection dynamic load ───────────────────────────────────────────
+    async function loadCollections() {
+      try {
+        const r = await fetch(`${API_BASE}/collections`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const cols = Array.isArray(data) ? data : (data.collections || data.items || []);
+        if (!cols.length) return;
+        const sel = document.getElementById('collection');
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = `<option value="">${t('col_all')}</option>` +
+          cols.map(c => {
+            const key = c.collection_key || c.name || '';
+            const label = c.name || c.display_name || key;
+            return `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`;
+          }).join('');
+        if (cur) sel.value = cur;
+      } catch (_) {}
+    }
+
+    function onWeightChange() {
+      const vw = parseInt(document.getElementById('vectorWeight').value);
+      const gw = parseInt(document.getElementById('graphWeight').value);
+      const ww = parseInt(document.getElementById('wikiWeight').value);
+      document.getElementById('vectorWeightVal').textContent = vw + '%';
+      document.getElementById('graphWeightVal').textContent = gw + '%';
+      document.getElementById('wikiWeightVal').textContent = ww + '%';
+    }
+
     // ── Category dynamic load ─────────────────────────────────────────────
     async function loadCategories() {
       try {
@@ -1712,15 +1905,230 @@
       const provider = document.getElementById('answerProvider').value;
       document.getElementById('heroAnswerMode').textContent =
         provider === 'none' ? t('search_only_short') : t('generate_short');
-      if (provider === 'none') switchAnswerTab('result');
+      if (provider === 'none') switchAnswerTab('files');
     }
 
     function switchAnswerTab(tabName) {
       document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === tabName);
       });
-      document.getElementById('draftPanel').classList.toggle('active', tabName === 'draft');
-      document.getElementById('resultPanel').classList.toggle('active', tabName === 'result');
+      document.getElementById('graphPanel').classList.toggle('active', tabName === 'graph');
+      document.getElementById('answerPanel').classList.toggle('active', tabName === 'answer');
+      document.getElementById('filesPanel').classList.toggle('active', tabName === 'files');
+      if (tabName === 'graph' && _kgCy) {
+        setTimeout(() => _kgCy.resize(), 50);
+      }
+    }
+
+    // ── Knowledge Graph Visualization ─────────────────────────────────────
+    let _kgCy = null;
+
+    function initKnowledgeGraphCy() {
+      if (_kgCy) { _kgCy.destroy(); _kgCy = null; }
+      const container = document.getElementById('graphCanvas');
+      container.innerHTML = '';
+      _kgCy = cytoscape({
+        container: container,
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'background-color': 'data(color)',
+              'label': 'data(label)',
+              'width': 'data(size)',
+              'height': 'data(size)',
+              'font-size': '9px',
+              'color': '#1E2D4A',
+              'text-valign': 'bottom',
+              'text-halign': 'center',
+              'text-wrap': 'wrap',
+              'text-max-width': '80px',
+              'text-margin-y': 4,
+            }
+          },
+          {
+            selector: 'node[?isCenter]',
+            style: {
+              'border-width': 4,
+              'border-color': '#E8971F',
+            }
+          },
+          {
+            selector: 'node[type="project"]',
+            style: {
+              'font-weight': 'bold',
+              'text-valign': 'center',
+              'text-halign': 'center',
+              'color': '#fff',
+            }
+          },
+          {
+            selector: 'node[type="organization"]',
+            style: {
+              'shape': 'roundrectangle',
+            }
+          },
+          {
+            selector: 'node[type="methodology"]',
+            style: {
+              'shape': 'diamond',
+            }
+          },
+          {
+            selector: 'node[type="technology"]',
+            style: {
+              'shape': 'hexagon',
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 1.5,
+              'line-color': '#8FA3C8',
+              'target-arrow-color': '#8FA3C8',
+              'target-arrow-shape': 'triangle',
+              'curve-style': 'bezier',
+              'opacity': 0.7,
+              'label': 'data(label)',
+              'font-size': '8px',
+              'color': '#4A6A9A',
+              'text-rotation': 'autorotate',
+            }
+          },
+          {
+            selector: ':selected',
+            style: {
+              'border-width': 3,
+              'border-color': '#E8971F',
+              'opacity': 1,
+            }
+          },
+        ],
+        layout: { name: 'cose', padding: 30, nodeRepulsion: 8000, idealEdgeLength: 80 },
+        minZoom: 0.3,
+        maxZoom: 3,
+      });
+
+      _kgCy.on('tap', 'node', (evt) => {
+        const data = evt.target.data();
+        showToast(`${data.type}: ${data.label}`, 'success');
+      });
+    }
+
+    async function loadKnowledgeGraph() {
+      const searchType = document.getElementById('graphSearchType').value;
+      const query = document.getElementById('graphSearchQuery').value.trim();
+
+      if (searchType !== 'full' && !query) {
+        showToast(t('ks_enter'), 'error');
+        return;
+      }
+
+      const container = document.getElementById('graphCanvas');
+      container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">⏳</div><div>${t('graph_loading')}</div></div>`;
+
+      try {
+        let url;
+        if (searchType === 'organization') {
+          url = `${API_BASE}/graph/cytoscape/organization?org_name=${encodeURIComponent(query)}&depth=2`;
+        } else if (searchType === 'methodology') {
+          url = `${API_BASE}/graph/cytoscape/methodology?method_name=${encodeURIComponent(query)}&depth=2`;
+        } else if (searchType === 'technology') {
+          url = `${API_BASE}/graph/cytoscape/technology?tech_name=${encodeURIComponent(query)}&depth=2`;
+        } else {
+          url = `${API_BASE}/graph/cytoscape/full?limit=100`;
+        }
+
+        const response = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        if (!data.nodes || data.nodes.length === 0) {
+          container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">🔍</div><div>${t('ks_none')}</div></div>`;
+          return;
+        }
+
+        initKnowledgeGraphCy();
+
+        const elements = [
+          ...data.nodes.map(n => ({ data: n.data })),
+          ...data.edges.map(e => ({ data: e.data })),
+        ];
+        _kgCy.add(elements);
+        _kgCy.layout({ name: 'cose', padding: 30, nodeRepulsion: 8000, idealEdgeLength: 80, animate: false }).run();
+        _kgCy.fit(undefined, 30);
+
+        showToast(`${t('graph_nodes', { n: data.nodeCount })} · ${t('graph_edges', { e: data.edgeCount })}`, 'success');
+
+      } catch (err) {
+        console.error('Graph load error:', err);
+        container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">❌</div><div>${t('graph_error')}<br>${escapeHtml(err.message)}</div></div>`;
+      }
+    }
+
+    // Graph RAG 모드에서 쿼리 기반 자동 그래프 로드
+    async function loadGraphFromQuery(query, documents = []) {
+      const container = document.getElementById('graphCanvas');
+      container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">⏳</div><div>${t('graph_loading')}</div></div>`;
+
+      try {
+        // 1. 문서 결과에서 기관명 추출 (우선)
+        const orgsFromDocs = documents
+          .map(d => d.organization)
+          .filter(Boolean)
+          .filter((v, i, a) => a.indexOf(v) === i);
+
+        // 2. 쿼리에서 기관명 패턴 추출
+        const orgPatterns = [
+          /(\S+공사)/g, /(\S+공단)/g, /(\S+진흥원)/g, /(\S+연구원)/g,
+          /(\S+부)/g, /(\S+청)/g, /(\S+처)/g, /(\S+원)/g, /(\S+회)/g,
+          /(\S+센터)/g, /(\S+재단)/g, /(\S+조합)/g, /(\S+은행)/g
+        ];
+        let orgsFromQuery = [];
+        for (const pattern of orgPatterns) {
+          const matches = query.match(pattern);
+          if (matches) orgsFromQuery.push(...matches);
+        }
+
+        // 기관명 결정 (문서 > 쿼리 순으로 우선)
+        const targetOrg = orgsFromDocs[0] || orgsFromQuery[0];
+
+        let url;
+        if (targetOrg) {
+          url = `${API_BASE}/graph/cytoscape/organization?org_name=${encodeURIComponent(targetOrg)}&depth=2`;
+        } else {
+          // 기관명이 없으면 full 그래프 (제한적)
+          url = `${API_BASE}/graph/cytoscape/full?limit=50`;
+        }
+
+        const response = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        if (!data.nodes || data.nodes.length === 0) {
+          container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">🔍</div><div>${t('ks_none')}</div></div>`;
+          return;
+        }
+
+        initKnowledgeGraphCy();
+
+        const elements = [
+          ...data.nodes.map(n => ({ data: n.data })),
+          ...data.edges.map(e => ({ data: e.data })),
+        ];
+        _kgCy.add(elements);
+        _kgCy.layout({ name: 'cose', padding: 30, nodeRepulsion: 8000, idealEdgeLength: 80, animate: false }).run();
+        _kgCy.fit(undefined, 30);
+
+        const graphInfo = targetOrg
+          ? `${targetOrg}: ${data.nodeCount} ${t('graph_nodes_short')} · ${data.edgeCount} ${t('graph_edges_short')}`
+          : `${data.nodeCount} ${t('graph_nodes_short')} · ${data.edgeCount} ${t('graph_edges_short')}`;
+        showToast(graphInfo, 'success');
+
+      } catch (err) {
+        console.error('Auto graph load error:', err);
+        container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">❌</div><div>${t('graph_error')}<br>${escapeHtml(err.message)}</div></div>`;
+      }
     }
 
     function renderResultPanel(data) {
@@ -1755,18 +2163,30 @@
       }
 
       // 작성일: 2026-05-12 | 기능: graph_rag 모드 — 프로젝트 문서 체인 섹션 렌더링
+      // 작성일: 2026-05-14 | 수정: chain 구조 지원 (category별 문서 배열)
       let graphSection = '';
       if (data.graph_context?.length) {
         const CAT_LABEL = { rfp:'RFP', proposal:'제안서', kickoff:'착수보고', final_report:'최종보고', presentation:'발표' };
         const CAT_COLOR = { rfp:'#ef4444', proposal:'#3b82f6', kickoff:'#f59e0b', final_report:'#22c55e', presentation:'#8b5cf6' };
         const chains = data.graph_context.map(ctx => {
-          const docs = ctx.related_docs.map(d => {
-            const color = CAT_COLOR[d.category] || '#6b7280';
-            const label = CAT_LABEL[d.category] || d.category;
-            const ragUrl = `/weeslee-rag/frontend/rag-assistant.html?q=${encodeURIComponent(ctx.project_name)}&mode=bid_project`;
-            return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.06);border:1px solid ${color}44;border-radius:5px;padding:3px 8px;font-size:11px;color:${color}">${label}</span>`;
-          }).join(' → ');
-          return `<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px">${escapeHtml(ctx.project_name)}</div><div>${docs}</div></div>`;
+          // chain 구조: [{category, documents: [...]}] 또는 related_docs: [...]
+          let chainItems = [];
+          if (ctx.chain?.length) {
+            chainItems = ctx.chain.map(c => {
+              const color = CAT_COLOR[c.category] || '#6b7280';
+              const label = CAT_LABEL[c.category] || c.category;
+              const count = c.documents?.length || 0;
+              return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.06);border:1px solid ${color}44;border-radius:5px;padding:3px 8px;font-size:11px;color:${color}">${label} (${count})</span>`;
+            });
+          } else if (ctx.related_docs?.length) {
+            chainItems = ctx.related_docs.map(d => {
+              const color = CAT_COLOR[d.category] || '#6b7280';
+              const label = CAT_LABEL[d.category] || d.category;
+              return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.06);border:1px solid ${color}44;border-radius:5px;padding:3px 8px;font-size:11px;color:${color}">${label}</span>`;
+            });
+          }
+          const docsHtml = chainItems.join(' → ');
+          return `<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px">${escapeHtml(ctx.project_name)}</div><div>${docsHtml}</div></div>`;
         }).join('');
         graphSection = `<div style="margin-bottom:12px;padding:10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px"><div style="font-size:11px;font-weight:700;color:#93c5fd;margin-bottom:8px">🔗 ${t('graph_context_title')}</div>${chains}</div>`;
       }
@@ -1850,6 +2270,13 @@
       const answerProvider = document.getElementById('answerProvider').value;
       const answerModel = document.getElementById('answerModel').value.trim() || 'gemma4:latest';
       const searchMode = document.getElementById('searchMode').value;
+      const collection = document.getElementById('collection')?.value || '';
+      const documentGroup = document.getElementById('documentGroup')?.value || '';
+      const temperature = parseFloat((parseInt(document.getElementById('temperature')?.value || 20)) / 100);
+      const vw = parseInt(document.getElementById('vectorWeight')?.value ?? 100);
+      const gw = parseInt(document.getElementById('graphWeight')?.value ?? 0);
+      const ww = parseInt(document.getElementById('wikiWeight')?.value ?? 0);
+      const wTotal = (vw + gw + ww) || 1;
       const status = document.getElementById('queryStatus');
 
       syncAnswerModeLabel();
@@ -1858,7 +2285,7 @@
 
       _queryRan = true;
       status.textContent = t('running');
-      document.getElementById('draftPanel').textContent = t('generating');
+      document.getElementById('answerPanel').textContent = t('generating');
       document.getElementById('results').innerHTML = '';
 
       const runBtn = document.querySelector('button[onclick="runQuery()"]');
@@ -1870,20 +2297,27 @@
         : query;
       const effectiveMode = _rfpExtractedText ? 'rfp_analysis' : searchMode;
       if (_rfpExtractedText) status.textContent = t('rfp_active_notice');
+      const searchPayload = {
+        query: effectiveQuery, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
+        answer_provider: 'none',
+        answer_model: '',
+        mode: effectiveMode,
+        temperature,
+        vector_weight: vw / wTotal,
+        graph_weight: gw / wTotal,
+        wiki_weight: ww / wTotal,
+        ...(category      ? { category }                         : {}),
+        ...(collection    ? { collection }                       : {}),
+        ...(documentGroup ? { document_group: documentGroup }    : {}),
+        ...(filterOrg     ? { organization: filterOrg }          : {}),
+        ...(filterYear    ? { year: filterYear }                 : {})
+      };
 
       try {
         const response = await fetch(`${API_BASE}/rag/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: effectiveQuery, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
-            answer_provider: answerProvider,
-            answer_model: answerProvider === 'none' ? '' : answerModel,
-            mode: effectiveMode,
-            ...(category   ? { category }              : {}),
-            ...(filterOrg  ? { organization: filterOrg } : {}),
-            ...(filterYear ? { year: filterYear }       : {})
-          })
+          body: JSON.stringify(searchPayload)
         });
 
         if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
@@ -1892,22 +2326,51 @@
         if (!data.success) {
           status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
           renderResultPanel(data);
-          switchAnswerTab('result');
+          switchAnswerTab('files');
           return;
         }
 
         const expandedNote = data.expanded_query
           ? ` (${_lang === 'ko' ? '확장' : 'expanded'}: ${data.expanded_query.slice(0, 60)}...)` : '';
         status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote;
-        _hasAnswer = true;
-        document.getElementById('draftPanel').textContent = data.draft_answer || `(${t('no_docs')})`;
+        _hasAnswer = answerProvider === 'none';
+        document.getElementById('answerPanel').textContent =
+          answerProvider === 'none' ? `(${t('no_docs')})` : t('generating');
         renderResultPanel(data);
         renderResults(data.documents || []);
-        pushHistory(query, data);
-        switchAnswerTab('draft');
+
+        // Graph RAG 모드일 때 자동으로 그래프 로드
+        const isGraphMode = effectiveMode === 'graph_rag';
+        if (isGraphMode) {
+          loadGraphFromQuery(query, data.documents || []);
+          switchAnswerTab('graph');
+        } else {
+          switchAnswerTab(answerProvider === 'none' ? 'files' : 'answer');
+        }
+
+        if (answerProvider === 'none') {
+          pushHistory(query, data);
+        } else {
+          const answerResponse = await fetch(`${API_BASE}/rag/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...searchPayload,
+              answer_provider: answerProvider,
+              answer_model: answerModel,
+            })
+          });
+          if (!answerResponse.ok) throw new Error(`HTTP ${answerResponse.status} ${answerResponse.statusText}`);
+          const answerData = await answerResponse.json();
+          if (!answerData.success) throw new Error(answerData.error || 'answer generation failed');
+          _hasAnswer = true;
+          document.getElementById('answerPanel').textContent = answerData.draft_answer || `(${t('no_docs')})`;
+          pushHistory(query, { ...data, draft_answer: answerData.draft_answer || '' });
+          if (!isGraphMode) switchAnswerTab('answer');
+        }
       } catch (error) {
         status.textContent = `${t('query_failed')}: ${error.message}`;
-        document.getElementById('draftPanel').textContent = '';
+        document.getElementById('answerPanel').textContent = '';
         showToast(`${t('query_failed')}: ${error.message}`, 'error');
       } finally {
         runBtn.disabled = false;
@@ -1977,21 +2440,29 @@
     }
 
     function renderDocumentCards(documents, compact) {
-      return documents.map(doc => `
+      return documents.map(doc => {
+        const subLabel = doc.proposal_section || doc.deliverable_section || '';
+        const metaTags = [
+          doc.collection ? `<span class="chip" style="background:rgba(232,151,31,.12);color:var(--amber-d)">${escapeHtml(doc.collection)}</span>` : '',
+          doc.document_group ? `<span class="chip">${escapeHtml(doc.document_group)}</span>` : '',
+          subLabel ? `<span class="chip" style="font-size:10px">${escapeHtml(subLabel)}</span>` : '',
+        ].filter(Boolean).join('');
+        return `
         <div class="doc">
           <div class="doc-head">
             <div>
               <div class="doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</div>
               <div class="meta">
-                <span>${doc.document_id}</span>
-                <span>${doc.category}</span>
+                <span>${escapeHtml(doc.document_id)}</span>
+                <span>${escapeHtml(doc.category || '')}</span>
                 <span>best: ${Number(doc.best_score).toFixed(4)}</span>
                 <span>rank: ${Number(doc.ranking_score).toFixed(4)}</span>
                 <span>hits: ${doc.hit_count}</span>
               </div>
             </div>
-            <div class="badge">${doc.category}</div>
+            <div class="badge">${escapeHtml(doc.category || '')}</div>
           </div>
+          ${metaTags ? `<div class="chips" style="margin:4px 0">${metaTags}</div>` : ''}
           <div class="meta">${renderSourcePathLink(doc.source_path, doc.input_path)}</div>
           <div>${(doc.reasons || []).map(r => `- ${escapeHtml(r)}`).join('<br>')}</div>
           <div class="chips">
@@ -1999,7 +2470,7 @@
           </div>
           ${renderOpenFileAction(doc.source_path, doc.input_path, doc.document_id)}
         </div>
-      `).join('');
+      `}).join('');
     }
 
     function escapeHtml(text) {
@@ -2156,12 +2627,19 @@
     function renderKsCard(doc) {
       const dlPath = doc.input_path || doc.source_path;
       const downloadUrl = dlPath ? `${API_BASE}/files/download?path=${encodeURIComponent(dlPath)}` : null;
+      const subLabel = doc.proposal_section || doc.deliverable_section || '';
+      const metaTags = [
+        doc.collection ? `<span class="ks-doc-chip" style="background:rgba(232,151,31,.12);color:var(--amber-d)">${escapeHtml(doc.collection)}</span>` : '',
+        doc.document_group ? `<span class="ks-doc-chip">${escapeHtml(doc.document_group)}</span>` : '',
+        subLabel ? `<span class="ks-doc-chip" style="font-size:10px">${escapeHtml(subLabel)}</span>` : '',
+      ].filter(Boolean).join('');
       return `
         <div class="ks-doc-card">
           <div class="ks-doc-head">
-            <div class="ks-doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</div>
+            <div class="ks-doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : escapeHtml(doc.document_id)}</div>
             <span class="ks-doc-chip">${escapeHtml(doc.category || '-')}</span>
           </div>
+          ${metaTags ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0">${metaTags}</div>` : ''}
           <div class="ks-doc-meta">
             <span>${escapeHtml(doc.document_id)}</span>
             <span>score: ${Number(doc.best_score).toFixed(4)}</span>
@@ -2421,6 +2899,7 @@
     loadHealth();
     loadOllamaModels();
     loadCategories();
+    loadCollections();
 
     // ── File Preview Modal ────────────────────────────────────────────
     function _fileExt(sourcePath) {
