@@ -1,2 +1,16 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile backend/app/api/admin.py)",
+      "Bash(python -m py_compile backend/scripts/run_quality_eval.py)",
+      "Bash(git -c commit.gpgsign=false commit -m \"feat: 검색 모드 전환 시 쿼리 입력란에 예시 텍스트 자동 채우기 \\(bid/rfp/graph\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"from pathlib import Path; p = Path\\('c:/xampp/htdocs/weeslee-rag/backend/app/services/platform_store.py'\\).resolve\\(\\); print\\(p.parents[3]\\)\")",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(Get-Item \"c:\\\\xampp\\\\htdocs\\\\weeslee-rag\\\\frontend\\\\admin.html\")",
+      "Bash(Select-Object Length,LastWriteTime)"
+    ]
+  }
 }

@@ -75,9 +75,10 @@ class Settings(BaseSettings):
     max_upload_size: int = 52428800  # 50MB
 
     # Knowledge Sources (Network Drive)
-    # Use mapped drive letter (W:) or UNC path
+    # Windows: mapped drive (W:) or UNC path / Linux: mount point
     knowledge_source_root: str = "W:\\"
     knowledge_source_unc: str = "\\\\diskstation\\W2_프로젝트폴더"
+    knowledge_source_mount: str = "/mnt/w2_project"
 
     # CORS
     cors_origins: list[str] = [

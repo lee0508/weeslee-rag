@@ -36,11 +36,16 @@ class KnowledgeSourceService:
         if root_path:
             self.root_path = root_path
         else:
-            # Try mapped drive first, then UNC path
-            if os.path.exists(settings.knowledge_source_root):
-                self.root_path = settings.knowledge_source_root
-            elif hasattr(settings, 'knowledge_source_unc') and os.path.exists(settings.knowledge_source_unc):
-                self.root_path = settings.knowledge_source_unc
+            # Try paths in priority order: configured root → UNC → Linux mount
+            candidates = [
+                settings.knowledge_source_root,
+                getattr(settings, 'knowledge_source_unc', None),
+                getattr(settings, 'knowledge_source_mount', None),
+            ]
+            for candidate in candidates:
+                if candidate and os.path.exists(candidate):
+                    self.root_path = candidate
+                    break
             else:
                 self.root_path = settings.knowledge_source_root
 

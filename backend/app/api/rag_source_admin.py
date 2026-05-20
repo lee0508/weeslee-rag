@@ -188,12 +188,18 @@ async def list_rag_source_files(
 @router.post("/scan")
 async def scan_rag_source(body: ScanRequest):
     """마운트 경로를 스캔해 파일 목록을 SQLite DB에 저장한다."""
+    from app.services.knowledge_source import knowledge_source_service
+
     mount_path = _get_source_mount_path(body.source_id)
+    # source_id 레코드가 없으면 knowledge_source_service의 루트 경로를 fallback으로 사용
     if not mount_path:
-        raise HTTPException(
-            status_code=404,
-            detail=f"source_id '{body.source_id}' not found or has no mount_path",
-        )
+        if knowledge_source_service.is_accessible():
+            mount_path = knowledge_source_service.get_root_path()
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=f"source_id '{body.source_id}' not found and fallback knowledge source is not accessible",
+            )
     if not os.path.exists(mount_path):
         raise HTTPException(
             status_code=422,
@@ -397,6 +403,50 @@ async def bootstrap_collections(body: CollectionsBootstrapRequest):
         "created": created,
         "skipped": skipped,
         "items": items,
+    }
+
+
+@router.post("/tags/bootstrap")
+async def bootstrap_tags(overwrite: bool = False):
+    """기본 Tag 목록을 seed한다. 이미 존재하는 태그는 overwrite=True 일 때만 덮어씀."""
+    from app.services.platform_store import list_records, create_record, update_record
+
+    _DEFAULT_TAGS = [
+        {"tag_id": "tag_ai",          "tag_type": "technology",       "tag_name": "AI",       "keywords": ["AI", "인공지능", "생성형", "LLM"],    "enabled": True},
+        {"tag_id": "tag_isp",         "tag_type": "project_type",     "tag_name": "ISP",      "keywords": ["ISP", "정보화전략계획"],               "enabled": True},
+        {"tag_id": "tag_ismp",        "tag_type": "project_type",     "tag_name": "ISMP",     "keywords": ["ISMP"],                               "enabled": True},
+        {"tag_id": "tag_bprisp",      "tag_type": "project_type",     "tag_name": "BPR/ISP",  "keywords": ["BPRISP", "BPR/ISP"],                  "enabled": True},
+        {"tag_id": "tag_bigdata",     "tag_type": "technology",       "tag_name": "빅데이터", "keywords": ["빅데이터", "데이터 플랫폼", "데이터허브"], "enabled": True},
+        {"tag_id": "tag_cloud",       "tag_type": "technology",       "tag_name": "클라우드", "keywords": ["클라우드", "Cloud", "SaaS"],            "enabled": True},
+        {"tag_id": "tag_gis",         "tag_type": "technology",       "tag_name": "공간정보", "keywords": ["공간정보", "GIS", "지리정보"],           "enabled": True},
+        {"tag_id": "tag_health",      "tag_type": "business_domain",  "tag_name": "보건의료", "keywords": ["보건의료", "의료", "병원"],              "enabled": True},
+        {"tag_id": "tag_education",   "tag_type": "business_domain",  "tag_name": "교육",     "keywords": ["교육", "학교", "대학"],                 "enabled": True},
+        {"tag_id": "tag_public_safety","tag_type": "business_domain", "tag_name": "소방/치안","keywords": ["소방", "119", "경찰청"],                "enabled": True},
+    ]
+
+    STORE = "tags"
+    ID_FIELD = "tag_id"
+    existing_ids = {r.get(ID_FIELD) for r in list_records(STORE)}
+
+    created = skipped = updated = 0
+    for tag in _DEFAULT_TAGS:
+        tid = tag[ID_FIELD]
+        if tid in existing_ids:
+            if overwrite:
+                update_record(STORE, ID_FIELD, tid, tag)
+                updated += 1
+            else:
+                skipped += 1
+        else:
+            create_record(STORE, tag, id_field=ID_FIELD)
+            created += 1
+
+    return {
+        "success": True,
+        "total": len(_DEFAULT_TAGS),
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
     }
 
 

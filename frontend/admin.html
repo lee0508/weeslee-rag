@@ -4996,13 +4996,29 @@
       if (!statusResp.ok) throw new Error(`상태 조회 실패 (${statusResp.status})`);
       const statusData = await statusResp.json();
       _docSourceBrowse.rootPath = statusData.root_path || '';
-      if (rootEl) rootEl.textContent = _docSourceBrowse.rootPath
-        ? `루트 경로: ${_docSourceBrowse.rootPath}`
-        : '루트 경로를 확인할 수 없습니다.';
 
+      if (!statusData.accessible) {
+        const configuredPath = esc(statusData.root_path || '(경로 미설정)');
+        if (rootEl) rootEl.textContent = `루트 경로: ${statusData.root_path || '(미설정)'}`;
+        if (listEl) listEl.innerHTML = `
+          <div style="padding:16px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;line-height:1.8">
+            <div style="font-weight:700;color:var(--red);margin-bottom:6px">⚠️ 파일 서버에 접근할 수 없습니다</div>
+            <div style="color:var(--muted)">설정 경로: <code style="color:var(--text)">${configuredPath}</code></div>
+            <div style="color:var(--muted);margin-top:8px">서버에서 NAS 마운트 상태를 확인하세요.</div>
+            <div style="color:var(--muted)">예: <code>sudo mount -t cifs //diskstation/W2_프로젝트폴더 /mnt/nas ...</code></div>
+            <div style="color:var(--muted)">또는 .env의 <code>KNOWLEDGE_SOURCE_ROOT</code> 값을 서버 마운트 경로로 변경하세요.</div>
+          </div>`;
+        _setDocSourceAutoStatus('파일 서버 연결 안됨', 'red');
+        return;
+      }
+
+      if (rootEl) rootEl.textContent = `루트 경로: ${_docSourceBrowse.rootPath}`;
       const qs = nextSubpath ? `?subpath=${encodeURIComponent(nextSubpath)}` : '';
       const folderResp = await fetch(`${API_BASE}/knowledge-sources/folders${qs}`, { headers: authHeaders() });
-      if (!folderResp.ok) throw new Error(`폴더 조회 실패 (${folderResp.status})`);
+      if (!folderResp.ok) {
+        const errBody = await folderResp.json().catch(() => ({}));
+        throw new Error(errBody.detail || `폴더 조회 실패 (${folderResp.status})`);
+      }
       const folders = await folderResp.json();
       _docSourceBrowse.currentSubpath = nextSubpath || '';
       if (pathEl) pathEl.textContent = _docSourceBrowse.currentSubpath || '/';
@@ -5096,7 +5112,7 @@
       const selectedSubpath = document.getElementById('dsSelectedSubpath').value.trim();
       res.innerHTML = d.accessible
         ? `<span style="color:var(--green)">✅ 접근 가능 — ${esc(selectedSubpath || d.root_path || path)}</span>`
-        : '<span style="color:var(--red)">❌ 접근 불가 — 경로 또는 마운트를 확인하세요.</span>';
+        : `<span style="color:var(--red)">❌ 접근 불가 — 서버 경로 <code>${esc(d.root_path || '미설정')}</code> 에 접근할 수 없습니다. NAS 마운트 또는 .env의 KNOWLEDGE_SOURCE_ROOT를 확인하세요.</span>`;
     } catch (e) {
       res.innerHTML = `<span style="color:var(--red)">❌ 네트워크 오류: ${esc(e.message)}</span>`;
     }
@@ -5118,9 +5134,15 @@
       if (!r.ok) {
         const text = await r.text();
         const isHtml = text.trim().startsWith('<');
-        result.innerHTML = isHtml
-          ? '<span style="color:var(--red);font-size:12px">❌ 백엔드 서버가 응답하지 않습니다. (API 서버 실행 여부 확인)</span>'
-          : `<span style="color:var(--red);font-size:12px">❌ 스캔 실패 (${r.status})</span>`;
+        if (isHtml) {
+          result.innerHTML = '<span style="color:var(--red);font-size:12px">❌ 백엔드 서버가 응답하지 않습니다. (API 서버 실행 여부 확인)</span>';
+        } else if (r.status === 503) {
+          let detail = '';
+          try { detail = JSON.parse(text).detail || ''; } catch {}
+          result.innerHTML = `<span style="color:var(--red);font-size:12px">❌ 파일 서버 접근 불가 — NAS 마운트 상태를 확인하세요.${detail ? ' (' + esc(detail) + ')' : ''}</span>`;
+        } else {
+          result.innerHTML = `<span style="color:var(--red);font-size:12px">❌ 스캔 실패 (${r.status})</span>`;
+        }
         return;
       }
       const d = await r.json();

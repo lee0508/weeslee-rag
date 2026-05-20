@@ -1,0 +1,1244 @@
+<!-- 관리자용 데이터셋 빌더와 운영 상태를 보여주는 개편 시안 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weeslee RAG Dataset Console</title>
+  <style>
+    :root {
+      --ink: #0e1726;
+      --ocean: #12355b;
+      --ocean-2: #194876;
+      --sky: #5aa9e6;
+      --amber: #f2a541;
+      --mint: #53c8b6;
+      --rose: #f06a6a;
+      --sand: #f4efe6;
+      --paper: #fbf8f2;
+      --card: #fffdfa;
+      --line: rgba(18, 53, 91, 0.12);
+      --line-strong: rgba(18, 53, 91, 0.22);
+      --text: #17263a;
+      --muted: #65758b;
+      --good: #1f9d7a;
+      --warn: #d68a23;
+      --bad: #cf4d4d;
+      --shadow: 0 18px 50px rgba(17, 37, 63, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(90, 169, 230, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(242, 165, 65, 0.14), transparent 24%),
+        linear-gradient(180deg, #f7f2e8 0%, #f8fafc 48%, #eef3f8 100%);
+      color: var(--text);
+      font-family: "Pretendard Variable", "SUIT Variable", "Segoe UI", sans-serif;
+    }
+
+    body {
+      padding: 24px;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 48px);
+    }
+
+    .sidebar {
+      background: linear-gradient(180deg, var(--ocean) 0%, #0f2a47 100%);
+      color: #eef6ff;
+      border-radius: 30px;
+      padding: 28px 22px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .brand-badge {
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      color: #cfe7ff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.1;
+      font-weight: 800;
+    }
+
+    .brand p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: rgba(238, 246, 255, 0.72);
+    }
+
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .nav-group-label {
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: rgba(238, 246, 255, 0.52);
+      padding: 0 8px;
+    }
+
+    .nav-btn {
+      border: 0;
+      border-radius: 16px;
+      background: transparent;
+      color: #edf5ff;
+      padding: 14px 14px;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font: inherit;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .nav-btn:hover,
+    .nav-btn.active {
+      background: rgba(255,255,255,0.1);
+      transform: translateX(2px);
+    }
+
+    .nav-btn small {
+      color: rgba(238,246,255,0.58);
+      font-size: 11px;
+    }
+
+    .sidebar-note {
+      margin-top: auto;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      padding: 16px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #dcecff;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .context-bar {
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .context-item {
+      background: rgba(18, 53, 91, 0.04);
+      border: 1px solid rgba(18, 53, 91, 0.08);
+      border-radius: 16px;
+      padding: 12px 14px;
+      min-width: 0;
+    }
+
+    .context-label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+
+    .context-value {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .context-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #0f8f6d, #2bbf96);
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+      justify-content: center;
+      min-height: 100%;
+    }
+
+    .panel {
+      display: none;
+      gap: 18px;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .panel.active {
+      display: grid;
+    }
+
+    .hero {
+      background:
+        linear-gradient(135deg, rgba(18, 53, 91, 0.98), rgba(24, 72, 118, 0.96)),
+        linear-gradient(90deg, rgba(255,255,255,0.05), transparent);
+      color: white;
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(242,165,65,0.24), transparent 70%);
+    }
+
+    .hero-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: 34px;
+      line-height: 1.05;
+      letter-spacing: -.02em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 760px;
+      color: rgba(255,255,255,0.82);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--amber);
+      color: #1e2c3d;
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.12);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card,
+    .wide-card,
+    .table-card,
+    .step-card {
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(255,255,255,0.86);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      padding: 18px;
+    }
+
+    .metric-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .metric-value {
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1;
+      margin-top: 6px;
+    }
+
+    .metric-note {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.good { background: var(--good); }
+    .dot.warn { background: var(--warn); }
+    .dot.bad { background: var(--bad); }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.25fr .95fr;
+      gap: 18px;
+    }
+
+    .wide-card,
+    .table-card {
+      padding: 20px 22px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ink);
+      margin: 0;
+    }
+
+    .section-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .status-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .status-item {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(18, 53, 91, 0.04);
+      border: 1px solid rgba(18, 53, 91, 0.08);
+    }
+
+    .status-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(90,169,230,0.16), rgba(242,165,65,0.18));
+      font-size: 20px;
+    }
+
+    .status-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .status-item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(31,157,122,0.1);
+      color: var(--good);
+    }
+
+    .badge.warn {
+      background: rgba(214,138,35,0.12);
+      color: var(--warn);
+    }
+
+    .badge.bad {
+      background: rgba(207,77,77,0.1);
+      color: var(--bad);
+    }
+
+    .wizard-grid {
+      display: grid;
+      grid-template-columns: 1.3fr .9fr;
+      gap: 18px;
+    }
+
+    .step-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step-card {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .step-no {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--ocean);
+      color: white;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .step-card h4 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+
+    .step-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .step-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn-mini {
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      background: white;
+      color: var(--ocean);
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .rail {
+      display: grid;
+      gap: 12px;
+    }
+
+    .rail-card {
+      border-radius: 20px;
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(18,53,91,0.06), rgba(18,53,91,0.02));
+      border: 1px solid rgba(18,53,91,0.08);
+    }
+
+    .rail-card h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .rail-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 14px 10px;
+      border-bottom: 1px solid rgba(18,53,91,0.08);
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .mono {
+      font-family: "Consolas", "SFMono-Regular", monospace;
+      font-size: 12px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(18,53,91,0.06);
+      color: var(--ocean);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .publish-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+    }
+
+    .check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(18,53,91,0.04);
+      border: 1px solid rgba(18,53,91,0.08);
+    }
+
+    .check-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: #d7e8f5;
+      color: var(--ocean);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .check p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .empty-state {
+      padding: 22px;
+      border-radius: 20px;
+      border: 1px dashed rgba(18,53,91,0.2);
+      background: rgba(18,53,91,0.03);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      text-align: center;
+    }
+
+    @media (max-width: 1280px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { min-height: auto; }
+      .context-bar { grid-template-columns: 1fr 1fr; }
+      .card-grid,
+      .split,
+      .wizard-grid,
+      .publish-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 14px; }
+      .context-bar { grid-template-columns: 1fr; }
+      .hero-row,
+      .step-card { grid-template-columns: 1fr; }
+      .step-actions { justify-content: flex-start; }
+      .card-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-badge">Design Preview</span>
+        <h1>Weeslee RAG Console 2</h1>
+        <p>기존 `admin.html`을 건드리지 않고 데이터셋 중심 운영 흐름을 검토하는 로컬 시안입니다.</p>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Overview</div>
+        <button class="nav-btn active" data-panel="dashboard">
+          <span>Dashboard</span>
+          <small>상태판</small>
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Build Flow</div>
+        <button class="nav-btn" data-panel="source">
+          <span>Document Source</span>
+          <small>원본 연결</small>
+        </button>
+        <button class="nav-btn" data-panel="builder">
+          <span>Dataset Builder</span>
+          <small>마법사</small>
+        </button>
+        <button class="nav-btn" data-panel="metadata">
+          <span>Collection / Metadata</span>
+          <small>검수</small>
+        </button>
+        <button class="nav-btn" data-panel="pipeline">
+          <span>Pipeline</span>
+          <small>인덱싱</small>
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Serve</div>
+        <button class="nav-btn" data-panel="graphwiki">
+          <span>Graph / Wiki</span>
+          <small>확장 결과</small>
+        </button>
+        <button class="nav-btn" data-panel="publish">
+          <span>Publish</span>
+          <small>공개 설정</small>
+        </button>
+      </div>
+
+      <div class="sidebar-note">
+        <strong>시안 의도</strong><br>
+        기존 데이터와 신규 데이터가 섞이지 않게 `Client`, `Source`, `Dataset`, `Snapshot` 컨텍스트를 항상 드러내는 방향으로 설계했습니다.
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="context-bar">
+        <div class="context-item">
+          <span class="context-label">Client</span>
+          <span class="context-value">weeslee / 위즐리앤컴퍼니</span>
+        </div>
+        <div class="context-item">
+          <span class="context-label">Document Source</span>
+          <span class="context-value">00. RAG 소스</span>
+        </div>
+        <div class="context-item">
+          <span class="context-label">Dataset</span>
+          <span class="context-value">rag_source_20260520</span>
+        </div>
+        <div class="context-item">
+          <span class="context-label">Snapshot</span>
+          <span class="context-value mono">snapshot_2026-05-20_rag_source_v1</span>
+        </div>
+        <div class="context-pill">Active Dataset</div>
+      </section>
+
+      <section class="panel active" id="panel-dashboard">
+        <div class="hero">
+          <div class="hero-row">
+            <div>
+              <h2>운영자가 다음 작업을 바로 알 수 있는 관리자 화면</h2>
+              <p>
+                기존 콘솔 기능은 유지하되, 문서소스 연결부터 Dataset 생성, Metadata 검수, Snapshot 활성화, 사용자 공개까지
+                한 흐름으로 이어 보이도록 재구성한 시안입니다.
+              </p>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn-primary" data-jump="builder">다음 작업 시작</button>
+              <button class="btn btn-ghost" data-jump="publish">공개 설정 보기</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <article class="card">
+            <div class="metric-top">
+              <div>
+                <div class="metric-label">Source Status</div>
+                <div class="metric-value">1</div>
+              </div>
+              <span class="dot good"></span>
+            </div>
+            <div class="metric-note">활성 문서소스 1개. NAS 마운트와 원본 경로 모두 접근 가능.</div>
+          </article>
+          <article class="card">
+            <div class="metric-top">
+              <div>
+                <div class="metric-label">Inventory</div>
+                <div class="metric-value">250</div>
+              </div>
+              <span class="dot good"></span>
+            </div>
+            <div class="metric-note">마지막 스캔 기준 색인 대상 파일 250건. 오류 0건.</div>
+          </article>
+          <article class="card">
+            <div class="metric-top">
+              <div>
+                <div class="metric-label">Metadata</div>
+                <div class="metric-value">218<span style="font-size:16px;color:var(--muted)">/250</span></div>
+              </div>
+              <span class="dot warn"></span>
+            </div>
+            <div class="metric-note">32건이 아직 검수 대기. 규칙 기반 생성은 완료, 관리자 확정 필요.</div>
+          </article>
+          <article class="card">
+            <div class="metric-top">
+              <div>
+                <div class="metric-label">Active Snapshot</div>
+                <div class="metric-value" style="font-size:20px">v1</div>
+              </div>
+              <span class="dot good"></span>
+            </div>
+            <div class="metric-note">`snapshot_2026-05-20_rag_source_v1` 이 사용자 검색 기본 인덱스로 사용 중.</div>
+          </article>
+        </div>
+
+        <div class="split">
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">다음 작업 안내</h3>
+                <div class="section-sub">운영자가 지금 무엇을 해야 하는지 상태에 따라 보여주는 블록입니다.</div>
+              </div>
+              <span class="badge warn"><span class="dot warn"></span>검수 대기</span>
+            </div>
+            <div class="status-list">
+              <div class="status-item">
+                <div class="status-icon">🧾</div>
+                <div>
+                  <strong>Metadata 검수 32건이 남아 있습니다.</strong>
+                  <p>Collection 매핑과 문서그룹은 생성되었지만, 일부 프로젝트명과 제안서 파트가 관리자 확정을 기다리고 있습니다.</p>
+                </div>
+                <button class="btn-mini" data-jump="metadata">검수 화면 열기</button>
+              </div>
+              <div class="status-item">
+                <div class="status-icon">⚡</div>
+                <div>
+                  <strong>새 Snapshot 생성 전에 Chunk 파이프라인 재실행이 필요합니다.</strong>
+                  <p>신규 문서 18건이 추가되어 임베딩과 FAISS Build를 다시 수행해야 합니다.</p>
+                </div>
+                <button class="btn-mini" data-jump="pipeline">파이프라인 보기</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">시작 가이드</h3>
+                <div class="section-sub">첫 접속 운영자를 위한 접이식 체크리스트 위치 예시입니다.</div>
+              </div>
+            </div>
+            <div class="checklist">
+              <div class="check">
+                <div class="check-box">1</div>
+                <div><strong>Document Source 연결</strong><p>원본 경로와 마운트 경로를 등록하고 접근 테스트를 통과합니다.</p></div>
+              </div>
+              <div class="check">
+                <div class="check-box">2</div>
+                <div><strong>Dataset 생성</strong><p>기존 데이터는 유지한 채 새 Source를 기준으로 독립 Dataset을 만듭니다.</p></div>
+              </div>
+              <div class="check">
+                <div class="check-box">3</div>
+                <div><strong>Metadata / Snapshot 검증</strong><p>규칙 기반 생성과 관리자 검수를 마친 뒤 Active Snapshot을 전환합니다.</p></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-source">
+        <div class="hero">
+          <div class="hero-row">
+            <div>
+              <h2>Document Source Manager</h2>
+              <p>문서 원본 위치를 등록하고, 원본 경로와 마운트 경로, 서비스 데이터 경로의 관계를 한 화면에서 확인하는 구간입니다.</p>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn-primary">신규 Source 등록</button>
+              <button class="btn btn-ghost">접근 테스트</button>
+            </div>
+          </div>
+        </div>
+
+        <article class="table-card">
+          <div class="section-head">
+            <div>
+              <h3 class="section-title">등록된 문서소스</h3>
+              <div class="section-sub">새 문서 위치가 생겨도 기존 데이터를 덮어쓰지 않고 별도 Dataset을 생성하는 전제입니다.</div>
+            </div>
+            <span class="badge"><span class="dot good"></span>Source 2개</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Source Name</th>
+                <th>Original Path</th>
+                <th>Mount Path</th>
+                <th>Status</th>
+                <th>Last Scan</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>weeslee</td>
+                <td><strong>00. RAG 소스</strong></td>
+                <td class="mono">\\diskstation\W2_프로젝트폴더\00. RAG 소스</td>
+                <td class="mono">/mnt/w2_project/00. RAG 소스</td>
+                <td><span class="badge"><span class="dot good"></span>accessible</span></td>
+                <td>2026-05-20 10:48</td>
+                <td><button class="btn-mini">Dataset 생성</button></td>
+              </tr>
+              <tr>
+                <td>weeslee</td>
+                <td><strong>01. 국내사업폴더</strong></td>
+                <td class="mono">\\diskstation\W2_프로젝트폴더\01. 국내사업폴더</td>
+                <td class="mono">/mnt/w2_project/01. 국내사업폴더</td>
+                <td><span class="badge warn"><span class="dot warn"></span>preview only</span></td>
+                <td>2026-05-20 09:12</td>
+                <td><button class="btn-mini">스캔 미리보기</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="panel" id="panel-builder">
+        <div class="wizard-grid">
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">Dataset Builder</h3>
+                <div class="section-sub">새 문서 위치를 기존 데이터와 분리된 Dataset으로 생성하는 마법사 시안입니다.</div>
+              </div>
+              <span class="badge warn"><span class="dot warn"></span>Step 4 / 10</span>
+            </div>
+
+            <div class="step-stack">
+              <div class="step-card">
+                <div class="step-no">1</div>
+                <div>
+                  <h4>Source 선택</h4>
+                  <p>현재 대상 Source는 `00. RAG 소스`입니다. 원본 경로와 서비스 데이터 경로를 함께 고정합니다.</p>
+                </div>
+                <div class="step-actions">
+                  <button class="btn-mini">상세 보기</button>
+                </div>
+              </div>
+              <div class="step-card">
+                <div class="step-no">2</div>
+                <div>
+                  <h4>Scan 실행</h4>
+                  <p>스캔된 파일 250건. RFP 47건, 제안서 147건, 산출물 56건.</p>
+                </div>
+                <div class="step-actions">
+                  <button class="btn-mini">미리보기</button>
+                  <button class="btn-mini">재스캔</button>
+                </div>
+              </div>
+              <div class="step-card">
+                <div class="step-no">3</div>
+                <div>
+                  <h4>Collection 생성</h4>
+                  <p>템플릿 기반으로 12개 Collection을 생성하고, 실제 DB Collection과 매핑합니다.</p>
+                </div>
+                <div class="step-actions">
+                  <button class="btn-mini">Template 보기</button>
+                  <button class="btn-mini">자동 생성</button>
+                </div>
+              </div>
+              <div class="step-card">
+                <div class="step-no">4</div>
+                <div>
+                  <h4>Metadata 생성</h4>
+                  <p>규칙 기반 생성 완료 218건, 검수 대기 32건. 필요 시 AI 추천을 추가 실행합니다.</p>
+                </div>
+                <div class="step-actions">
+                  <button class="btn-mini">규칙 기반 실행</button>
+                  <button class="btn-mini">AI 추천</button>
+                  <button class="btn-mini">검수 열기</button>
+                </div>
+              </div>
+              <div class="step-card">
+                <div class="step-no">5</div>
+                <div>
+                  <h4>Text / Chunk / Embedding</h4>
+                  <p>파일별 처리 상태를 단계별로 노출하고, 실패 건은 즉시 재실행할 수 있게 구성합니다.</p>
+                </div>
+                <div class="step-actions">
+                  <button class="btn-mini">로그 보기</button>
+                  <button class="btn-mini">전체 실행</button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <aside class="rail">
+            <div class="rail-card">
+              <h4>현재 실행 대상</h4>
+              <p class="mono">Client: weeslee<br>Source: rag_source<br>Dataset: rag_source_20260520<br>Snapshot: pending</p>
+            </div>
+            <div class="rail-card">
+              <h4>실행 로그 요약</h4>
+              <p>2026-05-20 10:44 Scan 완료<br>2026-05-20 10:46 Collection 12개 생성<br>2026-05-20 10:49 Metadata 218건 완료</p>
+            </div>
+            <div class="rail-card">
+              <h4>다음 단계 가이드</h4>
+              <p>Metadata 검수를 마친 뒤에만 Chunk / Embedding과 Snapshot 활성화를 진행하도록 안내합니다.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-metadata">
+        <div class="split">
+          <article class="table-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">Collection Template + 실제 Collection</h3>
+                <div class="section-sub">자동 생성 규칙과 실제 생성 결과를 분리해서 보여주는 구성입니다.</div>
+              </div>
+            </div>
+            <div class="chips" style="margin-bottom:16px">
+              <span class="chip">rag_source_all</span>
+              <span class="chip">rag_source_rfp</span>
+              <span class="chip">rag_source_proposal</span>
+              <span class="chip">rag_source_deliverable</span>
+              <span class="chip">proposal_strategy</span>
+              <span class="chip">deliverable_plan</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Collection</th>
+                  <th>Display</th>
+                  <th>Document</th>
+                  <th>Vector</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">rag_source_all</td>
+                  <td>전체</td>
+                  <td>250</td>
+                  <td>15,200</td>
+                  <td><span class="badge"><span class="dot good"></span>ready</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">rag_source_rfp</td>
+                  <td>RFP</td>
+                  <td>47</td>
+                  <td>2,840</td>
+                  <td><span class="badge warn"><span class="dot warn"></span>build pending</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </article>
+
+          <article class="table-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">Metadata 검수 대기</h3>
+                <div class="section-sub">규칙 기반 생성, AI 추천, 관리자 확정을 상태 뱃지로 분리합니다.</div>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>파일명</th>
+                  <th>프로젝트명</th>
+                  <th>문서그룹</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>제안발표_v2.pptx</td>
+                  <td>차세대 AI-NEXT ISP</td>
+                  <td>proposal</td>
+                  <td><span class="badge warn"><span class="dot warn"></span>검수 대기</span></td>
+                </tr>
+                <tr>
+                  <td>최종보고서.pdf</td>
+                  <td>K-water 데이터허브 플랫폼</td>
+                  <td>deliverable</td>
+                  <td><span class="badge"><span class="dot good"></span>확정 완료</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-pipeline">
+        <div class="split">
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">Pipeline Progress</h3>
+                <div class="section-sub">텍스트 추출 -> Chunk -> Embedding -> FAISS Build를 단계형으로 보여주는 예시입니다.</div>
+              </div>
+            </div>
+            <div class="status-list">
+              <div class="status-item">
+                <div class="status-icon">📄</div>
+                <div>
+                  <strong>Text Extract</strong>
+                  <p>218 / 250 완료. HWP/HWPX 변환 실패 3건은 재처리 큐에 있습니다.</p>
+                </div>
+                <span class="badge"><span class="dot good"></span>87%</span>
+              </div>
+              <div class="status-item">
+                <div class="status-icon">✂️</div>
+                <div>
+                  <strong>Chunking</strong>
+                  <p>15,200개 Chunk 생성 완료. 신규 문서 추가분 반영이 남아 있습니다.</p>
+                </div>
+                <span class="badge warn"><span class="dot warn"></span>부분 완료</span>
+              </div>
+              <div class="status-item">
+                <div class="status-icon">🧠</div>
+                <div>
+                  <strong>Embedding / FAISS</strong>
+                  <p>활성 Snapshot은 존재하지만 현재 Dataset 기준 재생성 전 단계입니다.</p>
+                </div>
+                <span class="badge bad"><span class="dot bad"></span>재빌드 필요</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">실행 로그</h3>
+                <div class="section-sub">실제 구현에서는 스트림 로그 패널로 연결될 위치입니다.</div>
+              </div>
+            </div>
+            <div class="empty-state">
+              10:49 Metadata build completed.<br>
+              10:53 3 files need OCR retry.<br>
+              10:57 Snapshot build queued for `rag_source_20260520`.<br>
+              11:01 Publish blocked until metadata review is complete.
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-graphwiki">
+        <div class="split">
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">Graph / Wiki 상태판</h3>
+                <div class="section-sub">둘 다 “지식 확장 결과물”로 묶어서 관리하는 방향입니다.</div>
+              </div>
+              <span class="badge"><span class="dot good"></span>Ready to Preview</span>
+            </div>
+            <div class="card-grid" style="grid-template-columns:repeat(2, minmax(0,1fr))">
+              <div class="card">
+                <div class="metric-label">Graph Nodes</div>
+                <div class="metric-value">128</div>
+                <div class="metric-note">프로젝트, 기관, 기술, 문서 간 관계 시각화.</div>
+              </div>
+              <div class="card">
+                <div class="metric-label">Wiki Pages</div>
+                <div class="metric-value">35</div>
+                <div class="metric-note">프로젝트, 기관, 기술별 위키 페이지 생성.</div>
+              </div>
+            </div>
+          </article>
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">생성 액션</h3>
+                <div class="section-sub">위험한 삭제보다 재생성, 미리보기, 로그 보기 위주로 배치합니다.</div>
+              </div>
+            </div>
+            <div class="chips">
+              <span class="chip">Graph 재생성</span>
+              <span class="chip">Wiki 재생성</span>
+              <span class="chip">미리보기</span>
+              <span class="chip">결과 로그</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-publish">
+        <div class="publish-grid">
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">Active Dataset Publish</h3>
+                <div class="section-sub">사용자 페이지에 어떤 Dataset과 Snapshot을 기본값으로 공개할지 결정합니다.</div>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>항목</th>
+                  <th>현재 값</th>
+                  <th>후보 값</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Active Dataset</td>
+                  <td class="mono">rag_source_20260514</td>
+                  <td class="mono">rag_source_20260520</td>
+                </tr>
+                <tr>
+                  <td>Active Snapshot</td>
+                  <td class="mono">snapshot_2026-05-14_v3</td>
+                  <td class="mono">snapshot_2026-05-20_rag_source_v1</td>
+                </tr>
+                <tr>
+                  <td>공개 Collection</td>
+                  <td>전체 / RFP</td>
+                  <td>전체 / RFP / 제안서</td>
+                </tr>
+              </tbody>
+            </table>
+          </article>
+
+          <article class="wide-card">
+            <div class="section-head">
+              <div>
+                <h3 class="section-title">공개 전 체크리스트</h3>
+                <div class="section-sub">운영자가 Snapshot 활성화 전에 확인해야 하는 항목입니다.</div>
+              </div>
+            </div>
+            <div class="checklist">
+              <div class="check">
+                <div class="check-box">✓</div>
+                <div><strong>Source 접근 가능</strong><p>NAS 마운트와 원본 경로 확인 완료.</p></div>
+              </div>
+              <div class="check">
+                <div class="check-box">✓</div>
+                <div><strong>Metadata 검수 완료</strong><p>검수 대기 문서 0건일 때만 활성화 가능.</p></div>
+              </div>
+              <div class="check">
+                <div class="check-box">!</div>
+                <div><strong>Snapshot 회귀 테스트 필요</strong><p>rag-assistant 검색 결과 샘플 5건 검증 전까지는 Publish 보류.</p></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const navButtons = [...document.querySelectorAll('.nav-btn')];
+    const panels = [...document.querySelectorAll('.panel')];
+
+    function activatePanel(name) {
+      navButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.panel === name);
+      });
+      panels.forEach((panel) => {
+        panel.classList.toggle('active', panel.id === `panel-${name}`);
+      });
+    }
+
+    navButtons.forEach((button) => {
+      button.addEventListener('click', () => activatePanel(button.dataset.panel));
+    });
+
+    document.querySelectorAll('[data-jump]').forEach((button) => {
+      button.addEventListener('click', () => activatePanel(button.dataset.jump));
+    });
+  </script>
+</body>
+</html>
