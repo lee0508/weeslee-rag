@@ -3437,7 +3437,7 @@ POST /api/admin/faiss/activate</code>
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      showToast(`Metadata 생성 완료: 처리 ${d.updated}, 건너뜀 ${d.skipped}, 실패 ${d.failed}`, 'success');
+      showToast(`Metadata 생성 완료: ${_formatMetadataBuildSummary(d)}`, 'success');
       loadRagSourceFiles();
     } catch (e) {
       showToast('Metadata 생성 실패: ' + e.message, 'error');
@@ -3579,8 +3579,8 @@ POST /api/admin/faiss/activate</code>
     if (!confirm('기본 Collection 14개를 자동 생성합니다. 계속하시겠습니까?')) return;
     showToast('기본 Collection 생성 중...', 'info');
     try {
-      await platformFetch('/admin/rag-source/collections/bootstrap', { method: 'POST' });
-      showToast('기본 Collection 생성 완료.', 'success');
+      const result = await platformFetch('/admin/rag-source/collections/bootstrap', { method: 'POST' });
+      showToast(`기본 Collection 생성 완료: ${_formatCollectionBootstrapSummary(result)}`, 'success');
       loadCollections();
     } catch (e) {
       // Codex API 미완성 시 template 기반으로 대체
@@ -5737,6 +5737,47 @@ POST /api/admin/faiss/activate</code>
     return `Step ${step} ${cfg?.name || ''} — ${text}`;
   }
 
+  function _wizardSampleNames(items, keys, limit = 3) {
+    if (!Array.isArray(items) || !items.length) return '';
+    const names = [];
+    items.forEach(item => {
+      if (!item || typeof item !== 'object') return;
+      const value = keys.map(key => item[key]).find(Boolean);
+      if (!value || names.includes(value) || names.length >= limit) return;
+      names.push(String(value));
+    });
+    return names.join(', ');
+  }
+
+  function _formatCollectionBootstrapSummary(data) {
+    const created = Number(data?.created || 0);
+    const skipped = Number(data?.skipped || 0);
+    const names = _wizardSampleNames(data?.items, ['name', 'collection_key']);
+    let text = `생성 ${created}건, 건너뜀 ${skipped}건`;
+    if (!created && !skipped && data?.message) text = String(data.message);
+    if (names) text += ` (${names})`;
+    return text;
+  }
+
+  function _formatMetadataBuildSummary(data) {
+    const updated = Number(data?.updated || 0);
+    const skipped = Number(data?.skipped || 0);
+    const failed = Number(data?.failed || 0);
+    const names = _wizardSampleNames(data?.items, ['project_name', 'file_name']);
+    let text = `처리 ${updated}건, 건너뜀 ${skipped}건, 실패 ${failed}건`;
+    if (data?.dry_run) text += ' [dry-run]';
+    if (names) text += ` (${names})`;
+    return text;
+  }
+
+  function _wizardFormatResponseSummary(step, data) {
+    if (step === 2) return _formatCollectionBootstrapSummary(data);
+    if (step === 3) return _formatMetadataBuildSummary(data);
+    if (step === 1) return `생성 ${Number(data?.created || 0)}건, 업데이트 ${Number(data?.updated || 0)}건, 건너뜀 ${Number(data?.skipped || 0)}건`;
+    if (step === 7 || step === 8) return data?.message || '요청이 정상 처리되었습니다.';
+    return '요청이 정상 처리되었습니다.';
+  }
+
   function _wizardSetStatus(step, text, cls) {
     const el = document.getElementById('wstatus-' + step);
     if (el) { el.textContent = text; el.className = 'wizard-step-status' + (cls ? ' ' + cls : ''); }
@@ -5771,6 +5812,7 @@ POST /api/admin/faiss/activate</code>
       { label: 'Keyword extract', api: '/api/admin/rag-source/keywords/extract', body: {} },
     ];
     _wizardSetStatus(step, '실행 중...', 'running');
+    const results = [];
     for (const req of requests) {
       _wizardAppendLog(step, `POST ${req.api} ...`);
       const response = await fetch(apiUrl(req.api), {
@@ -5782,11 +5824,17 @@ POST /api/admin/faiss/activate</code>
       if (!response.ok) {
         throw new Error(`[${req.label}] ` + formatWizardErrorDetail(data.detail || data.message || data, `HTTP ${response.status}`));
       }
+      results.push({ label: req.label, data });
       _wizardAppendLog(step, `[${req.label}] ` + JSON.stringify(data, null, 2).slice(0, 400));
     }
     loadTags();
     loadKeywords();
     _wizardMarkDone(step);
+    const summary = results.map(result => {
+      if (result.label === 'Tag bootstrap') return `Tag 생성 ${Number(result.data?.created || 0)}건`;
+      return `Keyword 생성 ${Number(result.data?.created || 0)}건`;
+    }).join(', ');
+    _wizardSetRunSummary(_wizardBuildSummary(step, summary || 'Tag와 Keyword 생성이 완료되었습니다.'), 'ok');
     return true;
   }
 
@@ -5937,7 +5985,7 @@ POST /api/admin/faiss/activate</code>
       if (r.ok) {
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 400));
         _wizardMarkDone(step);
-        _wizardSetRunSummary(_wizardBuildSummary(step, '요청이 정상 처리되었습니다.'), 'ok');
+        _wizardSetRunSummary(_wizardBuildSummary(step, _wizardFormatResponseSummary(step, d)), 'ok');
         return true;
       }
       throw new Error(formatWizardErrorDetail(d.detail || d.message || d, `HTTP ${r.status}`));
