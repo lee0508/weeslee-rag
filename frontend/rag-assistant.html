@@ -281,6 +281,17 @@
       margin-bottom: 8px;
     }
     .doc-title { font-weight: 700; font-size: 13px; }
+    .doc-title-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+    }
+    .doc-title-btn:hover { text-decoration: underline; }
     .badge {
       display: inline-flex;
       padding: 4px 8px;
@@ -795,6 +806,28 @@
       flex: 1;
       overflow: hidden;
       position: relative;
+    }
+    .preview-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 18px 0;
+      border-bottom: 1px solid var(--gray-100);
+      background: var(--white);
+      flex-shrink: 0;
+    }
+    .preview-tab {
+      border: 1px solid var(--gray-200);
+      background: var(--gray-50);
+      color: var(--text-s);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .preview-tab.active {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: var(--white);
     }
     .preview-body iframe {
       width: 100%;
@@ -1626,7 +1659,7 @@
         result_view_note:'열기/다운로드는 백엔드 파일 API를 사용합니다. 서버의 <code>data/raw/</code> 디렉토리에 파일이 있어야 합니다.',
         result_run_hint:'쿼리를 실행하면 결과를 확인할 수 있습니다.',
         result_success:'성공', result_failed:'실패',
-        view_file:'보기', download:'다운로드', copy_path:'경로 복사', copied:'복사됨!',
+        view_file:'보기', download:'다운로드', print:'출력', copy_path:'경로 복사', copied:'복사됨!',
         filter_org:'기관명 필터', filter_org_placeholder:'예: 행정안전부',
         filter_year:'연도 필터', filter_year_placeholder:'예: 2024',
         prop_settings:'제안서 설정', prop_project_name:'사업명', prop_project_name_ph:'예: 차세대 행정업무시스템 ISMP',
@@ -1705,7 +1738,7 @@
         result_view_note:'Open/Download uses the backend files API. The file must exist in the server\'s <code>data/raw/</code> directory. Copy Path copies the original source path to clipboard.',
         result_run_hint:'Run a query to inspect the result payload.',
         result_success:'Success', result_failed:'Failed',
-        view_file:'View', download:'Download', copy_path:'Copy Path', copied:'Copied!',
+        view_file:'View', download:'Download', print:'Print', copy_path:'Copy Path', copied:'Copied!',
         filter_org:'Organization Filter', filter_org_placeholder:'e.g. MOIS',
         filter_year:'Year Filter', filter_year_placeholder:'e.g. 2024',
         prop_settings:'Proposal Settings', prop_project_name:'Project Name', prop_project_name_ph:'e.g. Next-Gen Admin System ISMP',
@@ -2506,7 +2539,8 @@
         <div class="doc">
           <div class="doc-head">
             <div>
-              <div class="doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</div>
+              <div class="doc-title"><button class="doc-title-btn" type="button"
+                onclick="openFilePreview('${escapeHtml(doc.source_path||'')}','${escapeHtml(doc.input_path||'')}','${escapeHtml(doc.document_id||'')}')">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</button></div>
               <div class="meta">
                 <span>${escapeHtml(doc.document_id)}</span>
                 <span>${escapeHtml(doc.category || '')}</span>
@@ -2692,7 +2726,8 @@
       return `
         <div class="ks-doc-card">
           <div class="ks-doc-head">
-            <div class="ks-doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : escapeHtml(doc.document_id)}</div>
+            <div class="ks-doc-title"><button class="doc-title-btn" type="button"
+              onclick="openFilePreview('${escapeHtml(doc.source_path||'')}','${escapeHtml(doc.input_path||'')}','${escapeHtml(doc.document_id||'')}')">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : escapeHtml(doc.document_id)}</button></div>
             <span class="ks-doc-chip">${escapeHtml(doc.category || '-')}</span>
           </div>
           ${metaTags ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0">${metaTags}</div>` : ''}
@@ -2842,7 +2877,8 @@
         return `
           <div class="ks-doc-card">
             <div class="ks-doc-head">
-              <div class="ks-doc-title">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</div>
+              <div class="ks-doc-title"><button class="doc-title-btn" type="button"
+                onclick="openFilePreview('${escapeHtml(doc.source_path||'')}','${escapeHtml(doc.input_path||'')}','${escapeHtml(doc.document_id||'')}')">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</button></div>
               <span class="ks-doc-chip">${escapeHtml(doc.category || '-')}</span>
             </div>
             <div class="ks-doc-meta">
@@ -2947,42 +2983,152 @@
       return m ? m[1].toLowerCase() : '';
     }
 
-    function openFilePreview(sourcePath, inputPath, docId) {
+    const _previewState = {
+      docId: '',
+      sourcePath: '',
+      inputPath: '',
+      fileName: '',
+      formats: [],
+      format: '',
+      content: '',
+      mode: 'text',
+    };
+
+    function _previewFormats(detail) {
+      const formats = [];
+      if (detail?.available_formats?.html) formats.push({ id: 'html', label: 'HTML' });
+      if (detail?.available_formats?.md) formats.push({ id: 'md', label: 'Markdown' });
+      if (detail?.available_formats?.txt) formats.push({ id: 'txt', label: 'TXT' });
+      return formats;
+    }
+
+    function _previewDownloadUrl(docId, format, fallbackPath) {
+      if (docId) return `${API_BASE}/documents/${encodeURIComponent(docId)}/download?format=${encodeURIComponent(format)}`;
+      return `${API_BASE}/files/download?path=${encodeURIComponent(fallbackPath || '')}`;
+    }
+
+    function _renderPreviewTabs(formats, active) {
+      const bar = document.getElementById('previewTabs');
+      if (!bar) return;
+      if (!formats.length) {
+        bar.innerHTML = '';
+        bar.style.display = 'none';
+        return;
+      }
+      bar.style.display = '';
+      bar.innerHTML = formats.map(fmt => `
+        <button class="preview-tab ${fmt.id === active ? 'active' : ''}" type="button"
+          onclick="loadPreviewFormat('${fmt.id}')">${fmt.label}</button>
+      `).join('');
+    }
+
+    async function openFilePreview(sourcePath, inputPath, docId) {
       const resolvedPath = inputPath || sourcePath;
       const ext = _fileExt(resolvedPath);
-      const fileName = (resolvedPath || '').split(/[/\\]/).pop() || docId;
       const modal = document.getElementById('previewOverlay');
       const title = document.getElementById('previewTitle');
       const body  = document.getElementById('previewBody');
       const dlBtn = document.getElementById('previewDlBtn');
+      const printBtn = document.getElementById('previewPrintBtn');
 
-      title.textContent = fileName;
+      _previewState.docId = docId || '';
+      _previewState.sourcePath = sourcePath || '';
+      _previewState.inputPath = inputPath || '';
+      _previewState.fileName = (resolvedPath || '').split(/[/\\]/).pop() || docId || '';
+      _previewState.formats = [];
+      _previewState.format = '';
+      _previewState.content = '';
+      _previewState.mode = 'text';
+
+      title.textContent = _previewState.fileName;
       body.innerHTML = `<div class="preview-loading">불러오는 중...</div>`;
-      dlBtn.href = `${API_BASE}/files/download?path=${encodeURIComponent(resolvedPath)}`;
+      dlBtn.href = _previewDownloadUrl(docId, 'original', resolvedPath);
+      printBtn.style.display = 'none';
+      _renderPreviewTabs([], '');
       modal.classList.add('open');
       document.body.style.overflow = 'hidden';
 
-      if (ext === 'pdf') {
-        const viewUrl = `${API_BASE}/files/view?path=${encodeURIComponent(resolvedPath)}`;
-        body.innerHTML = `<iframe src="${escapeHtml(viewUrl)}" title="${escapeHtml(fileName)}"></iframe>`;
-      } else {
-        _loadTextPreview(body, docId, fileName);
+      if (!docId) {
+        if (ext === 'pdf') {
+          const viewUrl = `${API_BASE}/files/view?path=${encodeURIComponent(resolvedPath)}`;
+          body.innerHTML = `<iframe src="${escapeHtml(viewUrl)}" title="${escapeHtml(_previewState.fileName)}"></iframe>`;
+          _previewState.mode = 'iframe';
+          printBtn.style.display = '';
+          return;
+        }
+        body.innerHTML = `<div class="preview-text">문서 ID가 없어 추출 파일을 불러올 수 없습니다.\n\n원본 다운로드만 가능합니다.</div>`;
+        return;
+      }
+
+      try {
+        const detailRes = await fetch(`${API_BASE}/documents/${encodeURIComponent(docId)}`);
+        if (!detailRes.ok) throw new Error(`HTTP ${detailRes.status}`);
+        const detail = await detailRes.json();
+        title.textContent = detail.file_name || _previewState.fileName;
+        _previewState.formats = _previewFormats(detail);
+        const initialFormat = _previewState.formats.find(item => item.id === 'html')?.id || _previewState.formats[0]?.id || 'txt';
+        _renderPreviewTabs(_previewState.formats, initialFormat);
+        await loadPreviewFormat(initialFormat);
+      } catch (err) {
+        body.innerHTML = `<div class="preview-text" style="color:var(--bad)">문서 미리보기를 불러오지 못했습니다: ${escapeHtml(err.message)}</div>`;
       }
     }
 
-    async function _loadTextPreview(body, docId, fileName) {
-      if (!docId) {
-        body.innerHTML = `<div class="preview-text">문서 ID가 없어 텍스트를 불러올 수 없습니다.</div>`;
-        return;
-      }
+    async function loadPreviewFormat(format) {
+      const body = document.getElementById('previewBody');
+      const dlBtn = document.getElementById('previewDlBtn');
+      const printBtn = document.getElementById('previewPrintBtn');
+      const docId = _previewState.docId;
+      if (!docId) return;
+
+      _previewState.format = format;
+      _renderPreviewTabs(_previewState.formats, format);
+      body.innerHTML = `<div class="preview-loading">불러오는 중...</div>`;
+      dlBtn.href = _previewDownloadUrl(docId, format, _previewState.inputPath || _previewState.sourcePath);
+
+      const endpoint = format === 'html'
+        ? `${API_BASE}/documents/${encodeURIComponent(docId)}/html`
+        : format === 'md'
+          ? `${API_BASE}/documents/${encodeURIComponent(docId)}/markdown`
+          : `${API_BASE}/documents/${encodeURIComponent(docId)}/text`;
+
       try {
-        const res = await fetch(`${API_BASE}/files/text?doc_id=${encodeURIComponent(docId)}`);
+        const res = await fetch(endpoint);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        body.innerHTML = `<div class="preview-text">${escapeHtml(data.text)}</div>`;
+        if (format === 'html') {
+          _previewState.mode = 'iframe';
+          _previewState.content = data.html || '';
+          body.innerHTML = `<iframe id="previewFrame" srcdoc="${escapeHtml(_previewState.content)}" title="${escapeHtml(_previewState.fileName)}"></iframe>`;
+        } else {
+          _previewState.mode = 'text';
+          _previewState.content = format === 'md' ? (data.markdown || '') : (data.text || '');
+          body.innerHTML = `<div class="preview-text">${escapeHtml(_previewState.content)}</div>`;
+        }
+        printBtn.style.display = '';
       } catch (err) {
-        body.innerHTML = `<div class="preview-text" style="color:var(--bad)">텍스트를 불러오지 못했습니다: ${escapeHtml(err.message)}\n\n파일을 다운로드해서 확인하세요.</div>`;
+        printBtn.style.display = 'none';
+        body.innerHTML = `<div class="preview-text" style="color:var(--bad)">미리보기를 불러오지 못했습니다: ${escapeHtml(err.message)}</div>`;
       }
+    }
+
+    function printPreview() {
+      if (!_previewState.content) return;
+      if (_previewState.mode === 'iframe') {
+        const frame = document.getElementById('previewFrame');
+        if (frame && frame.contentWindow) {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        }
+        return;
+      }
+
+      const printWindow = window.open('', '_blank', 'width=1000,height=800');
+      if (!printWindow) return;
+      printWindow.document.write(`<html><head><meta charset="UTF-8"><title>${escapeHtml(_previewState.fileName)}</title></head><body><pre style="white-space:pre-wrap;font-family:Consolas,'Courier New',monospace;">${escapeHtml(_previewState.content)}</pre></body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
     }
 
     function closePreview() {
@@ -2990,6 +3136,9 @@
       modal.classList.remove('open');
       document.body.style.overflow = '';
       document.getElementById('previewBody').innerHTML = '';
+      document.getElementById('previewTabs').innerHTML = '';
+      document.getElementById('previewTabs').style.display = 'none';
+      document.getElementById('previewPrintBtn').style.display = 'none';
     }
 
     document.getElementById('previewOverlay').addEventListener('click', e => {
@@ -3007,8 +3156,10 @@
         <div class="preview-title" id="previewTitle"></div>
         <button class="preview-close" type="button" onclick="closePreview()" aria-label="닫기">✕</button>
       </div>
+      <div class="preview-tabs" id="previewTabs" style="display:none"></div>
       <div class="preview-body" id="previewBody"></div>
       <div class="preview-footer">
+        <button id="previewPrintBtn" class="doc-link" type="button" onclick="printPreview()" style="display:none">출력</button>
         <a id="previewDlBtn" class="doc-link" href="#" download>다운로드</a>
         <button class="doc-link" type="button" onclick="closePreview()">닫기</button>
       </div>

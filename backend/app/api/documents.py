@@ -159,8 +159,26 @@ def _summary_path(document_id: int) -> Path:
     return SUMMARIES_DIR / str(document_id) / "summary.md"
 
 
+def _raw_text_path(document_id: int) -> Path:
+    return EXTRACTED_TEXT_DIR / str(document_id) / "raw_text.txt"
+
+
 def _text_path(document_id: int) -> Path:
     return STAGED_TEXT_DIR / f"{document_id}.txt"
+
+
+def _build_text(document_id: int) -> tuple[str, str, Optional[Path]]:
+    raw_text_path = _raw_text_path(document_id)
+    raw_text = _read_text(raw_text_path)
+    if raw_text is not None:
+        return raw_text, "file", raw_text_path
+
+    staged_text_path = _text_path(document_id)
+    staged_text = _read_text(staged_text_path)
+    if staged_text is not None:
+        return staged_text, "staged_text", staged_text_path
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text file not found")
 
 
 def _download_filename(base_name: str, suffix: str) -> str:
@@ -223,10 +241,11 @@ def _build_markdown(document_id: int, record: dict[str, Any], metadata_payload: 
     if markdown is not None:
         return markdown, "file", markdown_path
 
-    text_path = _text_path(document_id)
-    raw_text = _read_text(text_path)
-    if raw_text is not None:
-        return raw_text, "generated_from_text", text_path
+    try:
+        raw_text, source, text_path = _build_text(document_id)
+        return raw_text, f"generated_from_{source}", text_path
+    except HTTPException:
+        pass
 
     summary = record.get("summary") or metadata_payload.get("summary") or ""
     if summary:
@@ -272,9 +291,9 @@ def _available_formats(document_id: int, record: dict[str, Any], orm_doc: Option
     summary_text = record.get("summary") or metadata_payload.get("summary")
     return {
         "original": original_path is not None,
-        "txt": _text_path(document_id).is_file(),
-        "md": _content_path(document_id, "document.md").is_file() or _text_path(document_id).is_file() or bool(summary_text),
-        "html": _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _text_path(document_id).is_file() or bool(summary_text),
+        "txt": _raw_text_path(document_id).is_file() or _text_path(document_id).is_file(),
+        "md": _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or bool(summary_text),
+        "html": _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or bool(summary_text),
         "summary": _summary_path(document_id).is_file() or bool(summary_text),
         "json": metadata_path is not None or bool(metadata_payload),
         "docx": original_path is not None and original_path.suffix.lower() == ".docx",
@@ -289,7 +308,11 @@ def _document_detail_payload(document_id: int, record: dict[str, Any], orm_doc: 
         summary_text, _, _ = _build_summary(document_id, record, metadata_payload)
     except HTTPException:
         summary_text = record.get("summary") or metadata_payload.get("summary") or ""
-    raw_text = _read_text(_text_path(document_id)) or ""
+    try:
+        raw_text, _, text_path = _build_text(document_id)
+    except HTTPException:
+        raw_text = ""
+        text_path = _text_path(document_id)
     suggestion = metadata_db_service.get_suggestion(document_id)
 
     return {
@@ -311,7 +334,7 @@ def _document_detail_payload(document_id: int, record: dict[str, Any], orm_doc: 
         "html_path": str(_content_path(document_id, "document.html")),
         "markdown_path": str(_content_path(document_id, "document.md")),
         "summary_path": str(_summary_path(document_id)),
-        "text_path": str(_text_path(document_id)),
+        "text_path": str(text_path),
         "metadata_path": str(_find_metadata_file(document_id) or ""),
         "available_formats": _available_formats(document_id, record, orm_doc, metadata_payload),
         "metadata": metadata_payload,
@@ -419,6 +442,19 @@ async def get_document(document_id: int, db: Session = Depends(get_db)):
     return _document_detail_payload(document_id, record, orm_doc)
 
 
+@router.get("/documents/{document_id}/text")
+async def get_document_text(document_id: int, db: Session = Depends(get_db)):
+    record, orm_doc = _resolve_document(document_id, db)
+    metadata_payload = _load_metadata_payload(document_id)
+    text, source, _ = _build_text(document_id)
+    return {
+        "document_id": document_id,
+        "text": text,
+        "source": source,
+        "available_formats": _available_formats(document_id, record, orm_doc, metadata_payload),
+    }
+
+
 @router.get("/documents/{document_id}/html")
 async def get_document_html(document_id: int, db: Session = Depends(get_db)):
     record, orm_doc = _resolve_document(document_id, db)
@@ -499,9 +535,7 @@ async def download_document(document_id: int, format: str, db: Session = Depends
         return FileResponse(path=str(original_path), media_type=media_type, headers=headers)
 
     if requested == "txt":
-        text = _read_text(_text_path(document_id))
-        if text is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text file not found")
+        text, _, _ = _build_text(document_id)
         return Response(content=text, media_type=_MIME[".txt"], headers=_attachment_headers(_download_filename(file_name, ".txt")))
 
     if requested == "md":

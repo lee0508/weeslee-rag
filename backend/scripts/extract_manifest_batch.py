@@ -22,6 +22,7 @@ import re
 import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
+from html import escape
 from pathlib import Path
 
 
@@ -37,6 +38,7 @@ from app.services.metadata_enricher import enrich_confidence  # noqa: E402
 
 SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx", ".hwpx", ".hwp"}
 UNSUPPORTED_FOR_PHASE1 = {".doc", ".ppt", ".xls"}
+EXTRACTED_TEXT_DIR = PROJECT_ROOT / "data" / "extracted_text"
 
 
 def _detect_ocr() -> bool:
@@ -116,6 +118,27 @@ def build_output_paths(text_dir: Path, metadata_dir: Path, document_id: str) -> 
 def _preferred_value(row: dict[str, str], key: str, fallback: str = "") -> str:
     value = (row.get(key) or "").strip()
     return value or fallback
+
+
+def _derived_output_dir(document_id: str) -> Path:
+    path = EXTRACTED_TEXT_DIR / str(document_id)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _write_derived_outputs(document_id: str, content: str, metadata: dict) -> None:
+    derived_dir = _derived_output_dir(document_id)
+    (derived_dir / "raw_text.txt").write_text(content, encoding="utf-8")
+    (derived_dir / "document.md").write_text(content, encoding="utf-8")
+    html = (
+        "<html><head><meta charset=\"UTF-8\"></head><body>"
+        f"<pre>{escape(content)}</pre></body></html>"
+    )
+    (derived_dir / "document.html").write_text(html, encoding="utf-8")
+    (derived_dir / "metadata.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 async def run_batch(args: argparse.Namespace) -> int:
@@ -225,6 +248,7 @@ async def run_batch(args: argparse.Namespace) -> int:
                     json.dumps(metadata, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
+                _write_derived_outputs(document_id, content, metadata)
                 results.append(
                     ExtractionRow(
                         document_id=document_id,
