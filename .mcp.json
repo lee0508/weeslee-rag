@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "weeslee-rag": {
+      "command": "python",
+      "args": ["c:\\xampp\\htdocs\\weeslee-rag\\backend\\mcp_server.py"]
+    },
+    "playwright": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y","@playwright/mcp@latest"]
+    },
+    "context7": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@upstash/context7-mcp@latest"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git"]
+    },
+    "github": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"]
+    }
+  }
+}
