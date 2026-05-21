@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -63,6 +64,11 @@ class MetadataBuildRequest(BaseModel):
 class CollectionsBootstrapRequest(BaseModel):
     client_id: str = "weeslee"
     overwrite: bool = False
+
+
+class KeywordsExtractRequest(BaseModel):
+    overwrite: bool = False
+    limit: int = 1000
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -128,6 +134,10 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
         "search_priority": "high",
         "confidential_level": "internal",
     }
+
+
+def _normalize_keyword_value(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -447,6 +457,80 @@ async def bootstrap_tags(overwrite: bool = False):
         "created": created,
         "updated": updated,
         "skipped": skipped,
+    }
+
+
+@router.post("/keywords/extract")
+async def extract_keywords(body: KeywordsExtractRequest = KeywordsExtractRequest()):
+    """문서 메타데이터를 기준으로 Keyword 저장소를 자동 보강한다."""
+    from app.services.platform_store import list_records, create_record, update_record
+
+    docs = metadata_db_service.list_documents(limit=max(1, min(body.limit, 10000)))
+    existing = list_records("keywords")
+    existing_by_keyword = {
+        _normalize_keyword_value(item.get("keyword", "")).lower(): item
+        for item in existing
+        if _normalize_keyword_value(item.get("keyword", ""))
+    }
+
+    candidates: dict[str, dict] = {}
+
+    def add_candidate(keyword: str, category: str, weight: float) -> None:
+        normalized = _normalize_keyword_value(keyword)
+        if len(normalized) < 2:
+            return
+        key = normalized.lower()
+        current = candidates.get(key)
+        if current and current["weight"] >= weight:
+            return
+        candidates[key] = {
+            "keyword": normalized,
+            "category": category,
+            "weight": weight,
+            "enabled": True,
+        }
+
+    for doc in docs:
+        if not doc:
+            continue
+        project_name = doc.get("project_name") or ""
+        organization = doc.get("organization") or ""
+        document_type = doc.get("document_type") or ""
+
+        if project_name:
+            add_candidate(project_name, "project_name", 2.0)
+        if organization:
+            add_candidate(organization, "organization", 1.5)
+        if document_type and document_type != "unknown":
+            add_candidate(document_type, "document_type", 0.8)
+
+    created = updated = skipped = 0
+    items = []
+
+    for key, candidate in candidates.items():
+        existing_item = existing_by_keyword.get(key)
+        if existing_item:
+            if body.overwrite:
+                update_record("keywords", "keyword_id", existing_item["keyword_id"], candidate)
+                updated += 1
+                items.append({"keyword": candidate["keyword"], "action": "updated"})
+            else:
+                skipped += 1
+            continue
+
+        create_record("keywords", candidate, id_field="keyword_id")
+        created += 1
+        items.append({"keyword": candidate["keyword"], "action": "created"})
+
+    return {
+        "success": True,
+        "source": "metadata_documents",
+        "total_documents": len(docs),
+        "candidate_count": len(candidates),
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
+        "items": items[:50],
     }
 
 
