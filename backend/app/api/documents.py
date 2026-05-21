@@ -1,23 +1,56 @@
+# 문서 상세 조회와 파생 파일 다운로드를 제공하는 API
 """
-Document management API endpoints
+Document management API endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel
-from datetime import datetime
+from __future__ import annotations
+
+import json
+import mimetypes
 import os
 import shutil
+from datetime import datetime
+from html import escape
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.document import Document, DocumentStatus, FileType
 from app.models.collection import Collection
+from app.models.document import Document, DocumentStatus, FileType, ProcessingLog
+from app.services.metadata_db import metadata_db_service
 
 router = APIRouter()
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DATA_DIR = PROJECT_ROOT / "data"
+EXTRACTED_TEXT_DIR = DATA_DIR / "extracted_text"
+STAGED_TEXT_DIR = DATA_DIR / "staged" / "text"
+STAGED_METADATA_DIR = DATA_DIR / "staged" / "metadata"
+SUMMARIES_DIR = DATA_DIR / "summaries"
 
-# Pydantic schemas
+_MIME = {
+    ".json": "application/json; charset=utf-8",
+    ".md": "text/markdown; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8",
+    ".html": "text/html; charset=utf-8",
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc": "application/msword",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xls": "application/vnd.ms-excel",
+    ".hwp": "application/x-hwp",
+    ".hwpx": "application/x-hwpx",
+}
+
+
 class DocumentResponse(BaseModel):
     id: int
     collection_id: int
@@ -36,7 +69,7 @@ class DocumentResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     total: int
-    items: List[DocumentResponse]
+    items: list[DocumentResponse]
 
 
 class ProcessingStatusResponse(BaseModel):
@@ -47,9 +80,24 @@ class ProcessingStatusResponse(BaseModel):
     message: Optional[str]
 
 
-# Helper functions
+class DocumentEditRequest(BaseModel):
+    markdown: Optional[str] = None
+    summary: Optional[str] = None
+
+
+def _settings_path(path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    relative = path_value[2:] if path_value.startswith("./") else path_value
+    return (PROJECT_ROOT / "backend" / relative).resolve()
+
+
+def _upload_metadata_dir() -> Path:
+    return _settings_path(settings.upload_dir) / "metadata"
+
+
 def get_file_type(filename: str) -> Optional[FileType]:
-    """Get FileType enum from filename extension"""
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     type_map = {
         "ppt": FileType.PPT,
@@ -59,9 +107,228 @@ def get_file_type(filename: str) -> Optional[FileType]:
         "hwp": FileType.HWP,
         "hwpx": FileType.HWPX,
         "pdf": FileType.PDF,
-        "xlsx": FileType.XLSX
+        "xlsx": FileType.XLSX,
     }
     return type_map.get(ext)
+
+
+def _read_text(path: Path) -> Optional[str]:
+    if not path or not path.is_file():
+        return None
+    encodings = ("utf-8", "utf-8-sig", "cp949")
+    for encoding in encodings:
+        try:
+            return path.read_text(encoding=encoding)
+        except UnicodeDecodeError:
+            continue
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _find_metadata_file(document_id: int) -> Optional[Path]:
+    patterns = (f"{document_id}_*_meta.json", f"{document_id}.json")
+    for base_dir in (_upload_metadata_dir(), STAGED_METADATA_DIR):
+        if not base_dir.exists():
+            continue
+        for pattern in patterns:
+            matches = sorted(base_dir.glob(pattern))
+            if matches:
+                return matches[0]
+    return None
+
+
+def _load_metadata_payload(document_id: int) -> dict[str, Any]:
+    file_path = _find_metadata_file(document_id)
+    if not file_path:
+        return {}
+    try:
+        return json.loads(file_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _content_path(document_id: int, name: str) -> Path:
+    return EXTRACTED_TEXT_DIR / str(document_id) / name
+
+
+def _summary_path(document_id: int) -> Path:
+    return SUMMARIES_DIR / str(document_id) / "summary.md"
+
+
+def _text_path(document_id: int) -> Path:
+    return STAGED_TEXT_DIR / f"{document_id}.txt"
+
+
+def _download_filename(base_name: str, suffix: str) -> str:
+    stem = Path(base_name).stem or "document"
+    return f"{stem}{suffix}"
+
+
+def _document_from_sqlalchemy(document: Document) -> dict[str, Any]:
+    return {
+        "id": document.id,
+        "file_name": document.filename,
+        "file_path": document.original_path,
+        "file_type": document.file_type.value if hasattr(document.file_type, "value") else str(document.file_type),
+        "file_size": document.file_size,
+        "status": document.status.value if hasattr(document.status, "value") else str(document.status),
+        "summary": "",
+        "chunk_count": document.chunk_count,
+        "created_at": document.created_at.isoformat() if document.created_at else None,
+        "updated_at": document.updated_at.isoformat() if document.updated_at else None,
+    }
+
+
+def _resolve_document(document_id: int, db: Session) -> tuple[dict[str, Any], Optional[Document]]:
+    metadata_doc = metadata_db_service.get_document(document_id)
+    orm_doc = db.query(Document).filter(Document.id == document_id).first()
+    if metadata_doc:
+        return metadata_doc, orm_doc
+    if orm_doc:
+        return _document_from_sqlalchemy(orm_doc), orm_doc
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+
+def _resolve_original_path(record: dict[str, Any], orm_doc: Optional[Document]) -> Optional[Path]:
+    candidates = [
+        record.get("file_path"),
+        record.get("original_path"),
+        orm_doc.original_path if orm_doc else None,
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path = Path(str(candidate))
+        if path.is_file():
+            return path
+        if not path.is_absolute():
+            resolved = (PROJECT_ROOT / "backend" / path).resolve()
+            if resolved.is_file():
+                return resolved
+            resolved = (PROJECT_ROOT / path).resolve()
+            if resolved.is_file():
+                return resolved
+        elif path.is_file():
+            return path
+    return None
+
+
+def _build_markdown(document_id: int, record: dict[str, Any], metadata_payload: dict[str, Any]) -> tuple[str, str, Optional[Path]]:
+    markdown_path = _content_path(document_id, "document.md")
+    markdown = _read_text(markdown_path)
+    if markdown is not None:
+        return markdown, "file", markdown_path
+
+    text_path = _text_path(document_id)
+    raw_text = _read_text(text_path)
+    if raw_text is not None:
+        return raw_text, "generated_from_text", text_path
+
+    summary = record.get("summary") or metadata_payload.get("summary") or ""
+    if summary:
+        content = f"# {record.get('project_name') or record.get('file_name') or f'Document {document_id}'}\n\n{summary}"
+        return content, "generated_from_summary", None
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Markdown not found")
+
+
+def _build_html(document_id: int, record: dict[str, Any], metadata_payload: dict[str, Any]) -> tuple[str, str, Optional[Path]]:
+    html_path = _content_path(document_id, "document.html")
+    html = _read_text(html_path)
+    if html is not None:
+        return html, "file", html_path
+
+    markdown, source, source_path = _build_markdown(document_id, record, metadata_payload)
+    html = f"<html><body><pre>{escape(markdown)}</pre></body></html>"
+    return html, f"generated_from_{source}", source_path
+
+
+def _build_summary(document_id: int, record: dict[str, Any], metadata_payload: dict[str, Any]) -> tuple[str, str, Optional[Path]]:
+    summary_path = _summary_path(document_id)
+    summary = _read_text(summary_path)
+    if summary is not None:
+        return summary, "file", summary_path
+
+    summary_text = record.get("summary") or metadata_payload.get("summary") or ""
+    if summary_text:
+        return summary_text, "generated_from_metadata", None
+
+    markdown, source, source_path = _build_markdown(document_id, record, metadata_payload)
+    lines = [line.strip() for line in markdown.splitlines() if line.strip()]
+    generated = "\n".join(lines[:3]).strip()
+    if generated:
+        return generated, f"generated_from_{source}", source_path
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Summary not found")
+
+
+def _available_formats(document_id: int, record: dict[str, Any], orm_doc: Optional[Document], metadata_payload: dict[str, Any]) -> dict[str, bool]:
+    original_path = _resolve_original_path(record, orm_doc)
+    metadata_path = _find_metadata_file(document_id)
+    summary_text = record.get("summary") or metadata_payload.get("summary")
+    return {
+        "original": original_path is not None,
+        "txt": _text_path(document_id).is_file(),
+        "md": _content_path(document_id, "document.md").is_file() or _text_path(document_id).is_file() or bool(summary_text),
+        "html": _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _text_path(document_id).is_file() or bool(summary_text),
+        "summary": _summary_path(document_id).is_file() or bool(summary_text),
+        "json": metadata_path is not None or bool(metadata_payload),
+        "docx": original_path is not None and original_path.suffix.lower() == ".docx",
+        "hwpx": original_path is not None and original_path.suffix.lower() == ".hwpx",
+    }
+
+
+def _document_detail_payload(document_id: int, record: dict[str, Any], orm_doc: Optional[Document]) -> dict[str, Any]:
+    metadata_payload = _load_metadata_payload(document_id)
+    original_path = _resolve_original_path(record, orm_doc)
+    try:
+        summary_text, _, _ = _build_summary(document_id, record, metadata_payload)
+    except HTTPException:
+        summary_text = record.get("summary") or metadata_payload.get("summary") or ""
+    raw_text = _read_text(_text_path(document_id)) or ""
+    suggestion = metadata_db_service.get_suggestion(document_id)
+
+    return {
+        "document_id": document_id,
+        "id": document_id,
+        "file_name": record.get("file_name") or record.get("filename") or (original_path.name if original_path else ""),
+        "file_path": record.get("file_path") or record.get("original_path") or (str(original_path) if original_path else ""),
+        "file_type": record.get("file_type") or (original_path.suffix.lstrip(".") if original_path else ""),
+        "file_size": record.get("file_size"),
+        "status": record.get("status"),
+        "meta_status": record.get("meta_status"),
+        "project_name": record.get("project_name"),
+        "organization": record.get("organization"),
+        "project_year": record.get("project_year"),
+        "business_domain": record.get("business_domain"),
+        "chunk_count": record.get("chunk_count") or (orm_doc.chunk_count if orm_doc else 0),
+        "summary": summary_text,
+        "raw_text": raw_text,
+        "html_path": str(_content_path(document_id, "document.html")),
+        "markdown_path": str(_content_path(document_id, "document.md")),
+        "summary_path": str(_summary_path(document_id)),
+        "text_path": str(_text_path(document_id)),
+        "metadata_path": str(_find_metadata_file(document_id) or ""),
+        "available_formats": _available_formats(document_id, record, orm_doc, metadata_payload),
+        "metadata": metadata_payload,
+        "suggestion": suggestion,
+        "download_urls": {
+            fmt: f"/api/documents/{document_id}/download?format={fmt}"
+            for fmt in ("original", "txt", "md", "html", "summary", "json", "docx", "hwpx")
+        },
+    }
+
+
+def _attachment_headers(filename: str) -> dict[str, str]:
+    encoded_name = quote(filename, safe="")
+    return {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
+        "Cache-Control": "no-store",
+    }
 
 
 @router.get("/documents", response_model=DocumentListResponse)
@@ -72,9 +339,8 @@ async def list_documents(
     search: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """List documents with filtering"""
     query = db.query(Document)
 
     if collection_id:
@@ -88,7 +354,6 @@ async def list_documents(
 
     total = query.count()
     items = query.order_by(Document.created_at.desc()).offset(skip).limit(limit).all()
-
     return DocumentListResponse(total=total, items=items)
 
 
@@ -97,159 +362,225 @@ async def upload_document(
     file: UploadFile = File(...),
     collection_id: int = Form(...),
     auto_process: bool = Form(True),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """Upload a document"""
-    # Validate collection exists
     collection = db.query(Collection).filter(Collection.id == collection_id).first()
     if not collection:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Collection not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
 
-    # Validate file type
     file_type = get_file_type(file.filename)
     if not file_type:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type. Supported: ppt, pptx, doc, docx, hwp, hwpx, pdf, xlsx"
+            detail="Unsupported file type. Supported: ppt, pptx, doc, docx, hwp, hwpx, pdf, xlsx",
         )
 
-    # Validate file size
-    file.file.seek(0, 2)  # Seek to end
+    file.file.seek(0, 2)
     file_size = file.file.tell()
-    file.file.seek(0)  # Seek back to start
+    file.file.seek(0)
 
     if file_size > settings.max_upload_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File too large. Maximum size: {settings.max_upload_size / 1024 / 1024}MB"
+            detail=f"File too large. Maximum size: {settings.max_upload_size / 1024 / 1024}MB",
         )
 
-    # Ensure upload directory exists
     upload_dir = os.path.join(settings.upload_dir, str(collection_id))
     os.makedirs(upload_dir, exist_ok=True)
 
-    # Save file
     file_path = os.path.join(upload_dir, file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Create document record
     document = Document(
         collection_id=collection_id,
         filename=file.filename,
         original_path=file_path,
         file_type=file_type,
         file_size=file_size,
-        status=DocumentStatus.PENDING
+        status=DocumentStatus.PENDING,
     )
     db.add(document)
     db.commit()
     db.refresh(document)
 
-    # Update collection document count
     collection.document_count += 1
     db.commit()
 
-    # TODO: If auto_process, trigger Celery task
+    if auto_process:
+        pass
 
     return document
 
 
-@router.get("/documents/{document_id}", response_model=DocumentResponse)
-async def get_document(
-    document_id: int,
-    db: Session = Depends(get_db)
-):
-    """Get a document by ID"""
-    document = db.query(Document).filter(Document.id == document_id).first()
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
+@router.get("/documents/{document_id}")
+async def get_document(document_id: int, db: Session = Depends(get_db)):
+    record, orm_doc = _resolve_document(document_id, db)
+    return _document_detail_payload(document_id, record, orm_doc)
+
+
+@router.get("/documents/{document_id}/html")
+async def get_document_html(document_id: int, db: Session = Depends(get_db)):
+    record, orm_doc = _resolve_document(document_id, db)
+    metadata_payload = _load_metadata_payload(document_id)
+    html, source, _ = _build_html(document_id, record, metadata_payload)
+    return {
+        "document_id": document_id,
+        "html": html,
+        "source": source,
+        "available_formats": _available_formats(document_id, record, orm_doc, metadata_payload),
+    }
+
+
+@router.get("/documents/{document_id}/markdown")
+async def get_document_markdown(document_id: int, db: Session = Depends(get_db)):
+    record, orm_doc = _resolve_document(document_id, db)
+    metadata_payload = _load_metadata_payload(document_id)
+    markdown, source, _ = _build_markdown(document_id, record, metadata_payload)
+    return {
+        "document_id": document_id,
+        "markdown": markdown,
+        "source": source,
+        "available_formats": _available_formats(document_id, record, orm_doc, metadata_payload),
+    }
+
+
+@router.get("/documents/{document_id}/summary")
+async def get_document_summary(document_id: int, db: Session = Depends(get_db)):
+    record, orm_doc = _resolve_document(document_id, db)
+    metadata_payload = _load_metadata_payload(document_id)
+    summary, source, _ = _build_summary(document_id, record, metadata_payload)
+    return {
+        "document_id": document_id,
+        "summary": summary,
+        "source": source,
+        "available_formats": _available_formats(document_id, record, orm_doc, metadata_payload),
+    }
+
+
+@router.post("/documents/{document_id}/edit")
+async def edit_document(document_id: int, payload: DocumentEditRequest, db: Session = Depends(get_db)):
+    record, _ = _resolve_document(document_id, db)
+    updated = []
+
+    if payload.markdown is not None:
+        _write_text(_content_path(document_id, "document.md"), payload.markdown)
+        updated.append("markdown")
+
+    if payload.summary is not None:
+        _write_text(_summary_path(document_id), payload.summary)
+        metadata_db_service.update_document(document_id, {"summary": payload.summary})
+        updated.append("summary")
+
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No editable content provided")
+
+    return {
+        "success": True,
+        "document_id": document_id,
+        "updated": updated,
+        "file_name": record.get("file_name") or record.get("filename") or "",
+    }
+
+
+@router.get("/documents/{document_id}/download")
+async def download_document(document_id: int, format: str, db: Session = Depends(get_db)):
+    requested = format.lower().strip()
+    record, orm_doc = _resolve_document(document_id, db)
+    metadata_payload = _load_metadata_payload(document_id)
+    file_name = record.get("file_name") or record.get("filename") or f"document-{document_id}"
+    original_path = _resolve_original_path(record, orm_doc)
+
+    if requested == "original":
+        if not original_path:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Original file not found")
+        headers = _attachment_headers(original_path.name)
+        media_type = _MIME.get(original_path.suffix.lower()) or mimetypes.guess_type(original_path.name)[0] or "application/octet-stream"
+        return FileResponse(path=str(original_path), media_type=media_type, headers=headers)
+
+    if requested == "txt":
+        text = _read_text(_text_path(document_id))
+        if text is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text file not found")
+        return Response(content=text, media_type=_MIME[".txt"], headers=_attachment_headers(_download_filename(file_name, ".txt")))
+
+    if requested == "md":
+        markdown, _, _ = _build_markdown(document_id, record, metadata_payload)
+        return Response(content=markdown, media_type=_MIME[".md"], headers=_attachment_headers(_download_filename(file_name, ".md")))
+
+    if requested == "html":
+        html, _, _ = _build_html(document_id, record, metadata_payload)
+        return Response(content=html, media_type=_MIME[".html"], headers=_attachment_headers(_download_filename(file_name, ".html")))
+
+    if requested == "summary":
+        summary, _, _ = _build_summary(document_id, record, metadata_payload)
+        return Response(content=summary, media_type=_MIME[".md"], headers=_attachment_headers(_download_filename(file_name, "-summary.md")))
+
+    if requested == "json":
+        payload = _document_detail_payload(document_id, record, orm_doc)
+        return Response(
+            content=json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type=_MIME[".json"],
+            headers=_attachment_headers(_download_filename(file_name, ".json")),
         )
-    return document
+
+    if requested in {"docx", "hwpx"}:
+        if not original_path or original_path.suffix.lower() != f".{requested}":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{requested.upper()} file not found")
+        return FileResponse(
+            path=str(original_path),
+            media_type=_MIME[f".{requested}"],
+            headers=_attachment_headers(original_path.name),
+        )
+
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported format: {format}")
 
 
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_document(
-    document_id: int,
-    db: Session = Depends(get_db)
-):
-    """Delete a document"""
+async def delete_document(document_id: int, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    # Delete file if exists
     if document.original_path and os.path.exists(document.original_path):
         os.remove(document.original_path)
 
-    # Update collection count
     collection = db.query(Collection).filter(Collection.id == document.collection_id).first()
     if collection:
         collection.document_count = max(0, collection.document_count - 1)
 
-    # TODO: Delete from VectorDB
-
-    # Delete from database
     db.delete(document)
     db.commit()
 
 
 @router.post("/documents/{document_id}/reprocess", status_code=status.HTTP_202_ACCEPTED)
-async def reprocess_document(
-    document_id: int,
-    db: Session = Depends(get_db)
-):
-    """Trigger document reprocessing"""
+async def reprocess_document(document_id: int, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    # Reset status
     document.status = DocumentStatus.PENDING
     document.error_message = None
     db.commit()
 
-    # TODO: Trigger Celery task
-
     return {
         "message": f"Reprocessing started for document '{document.filename}'",
-        "document_id": document.id
+        "document_id": document.id,
     }
 
 
 @router.get("/documents/{document_id}/status", response_model=ProcessingStatusResponse)
-async def get_document_status(
-    document_id: int,
-    db: Session = Depends(get_db)
-):
-    """Get document processing status"""
+async def get_document_status(document_id: int, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    # Get latest processing log
-    from app.models.document import ProcessingLog
     latest_log = db.query(ProcessingLog).filter(
         ProcessingLog.document_id == document_id
     ).order_by(ProcessingLog.created_at.desc()).first()
 
     progress = 0
     message = None
-
     if latest_log:
         progress = latest_log.progress
         message = latest_log.message
@@ -264,5 +595,5 @@ async def get_document_status(
         filename=document.filename,
         status=document.status.value,
         progress=progress,
-        message=message
+        message=message,
     )

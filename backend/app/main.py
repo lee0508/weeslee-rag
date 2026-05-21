@@ -21,6 +21,7 @@ from app.api.faiss_admin import router as faiss_admin_router, sse_router as fais
 from app.api.graph import router as graph_router
 from app.api.wiki import router as wiki_router
 from app.api.review import router as review_router
+from app.api.documents import router as documents_router
 from app.api.clients import router as clients_router
 from app.api.document_sources import router as document_sources_router
 from app.api.mounts import router as mounts_router
@@ -89,6 +90,7 @@ app.include_router(ocr_router, prefix="/api", tags=["OCR"])
 app.include_router(knowledge_sources_router, prefix="/api", tags=["Knowledge Sources"])
 app.include_router(rag_router, prefix="/api", tags=["RAG"])
 app.include_router(files_router, prefix="/api", tags=["Files"])
+app.include_router(documents_router, prefix="/api", tags=["Documents"])
 app.include_router(faiss_admin_router, prefix="/api", tags=["FAISS Admin"])
 app.include_router(faiss_sse_router, prefix="/api", tags=["FAISS Admin SSE"])
 app.include_router(graph_router, prefix="/api", tags=["Graph"])
