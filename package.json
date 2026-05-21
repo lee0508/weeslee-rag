@@ -1,0 +1,18 @@
+{
+  "name": "weeslee-rag",
+  "version": "1.0.0",
+  "description": "아래 다이어그램은 문서 중앙화 시스템의 전체 구조입니다.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.1"
+  }
+}
