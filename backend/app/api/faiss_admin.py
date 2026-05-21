@@ -31,6 +31,7 @@ from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
 from app.services import faiss_job_runner as runner
+from app.services.incremental_rag_service import add_documents_to_active_snapshot
 
 router = APIRouter(
     prefix="/admin/faiss",
@@ -186,6 +187,12 @@ class StartJobRequest(BaseModel):
     source_id: str = "rag_source"
 
 
+class AddDocumentsRequest(BaseModel):
+    document_ids: list[int]
+    snapshot: str = ""
+    collection_key: str = ""
+
+
 @router.post("/jobs")
 async def start_job(req: StartJobRequest):
     """파이프라인 잡 시작 (extract → chunk → faiss → category)."""
@@ -198,6 +205,36 @@ async def start_job(req: StartJobRequest):
 async def list_jobs():
     """최근 잡 목록."""
     return {"jobs": runner.list_jobs()}
+
+
+@router.post("/documents/add")
+async def add_documents(req: AddDocumentsRequest):
+    """선택 문서를 기존 active snapshot에 증분 추가한다."""
+    if not req.document_ids:
+        raise HTTPException(status_code=400, detail="document_ids is required")
+    try:
+        result = await add_documents_to_active_snapshot(
+            document_ids=req.document_ids,
+            snapshot=req.snapshot,
+            collection_key=req.collection_key,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return {
+        "success": True,
+        "snapshot": result.snapshot,
+        "document_ids": result.document_ids,
+        "processed": result.processed,
+        "skipped": result.skipped,
+        "chunk_count": result.chunk_count,
+        "category_counts": result.category_counts,
+        "embedding_provider": result.embedding_provider,
+    }
 
 
 

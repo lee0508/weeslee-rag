@@ -1499,7 +1499,10 @@ POST /api/admin/faiss/activate</code>
     <div class="graph-projects">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <h3 style="margin-bottom:0">프로젝트</h3>
-        <button class="btn btn-outline btn-sm" onclick="buildGraph()" id="buildBtn">⚙ Build</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="buildGraphFromSelection()" id="buildSelectionBtn">➕ 선택 반영 Build</button>
+          <button class="btn btn-outline btn-sm" onclick="buildGraph()" id="buildBtn">⚙ Build</button>
+        </div>
       </div>
       <div id="graphSummary" style="font-size:11px;color:var(--muted);margin-bottom:8px"></div>
       <input class="proj-search" id="projSearch" type="text" placeholder="프로젝트 검색..." oninput="filterProjects(this.value)">
@@ -1602,6 +1605,9 @@ POST /api/admin/faiss/activate</code>
             <input type="checkbox" id="selectAllDocs" onchange="toggleSelectAllDocs()"> 전체 선택
           </label>
           <button class="btn btn-secondary btn-sm" onclick="autoGenerateSelectedMetadata()">✨ 선택 자동 메타</button>
+          <button class="btn btn-primary btn-sm" onclick="runSelectedDocsRagAdd()">⚙️ 선택 RAG 추가</button>
+          <button class="btn btn-outline btn-sm" onclick="switchTab('pipeline')">→ RAG 처리</button>
+          <button class="btn btn-outline btn-sm" onclick="buildGraphFromSelection()">🔗 선택 Graph 반영</button>
         </div>
 
         <!-- 문서 목록 테이블 -->
@@ -1658,8 +1664,41 @@ POST /api/admin/faiss/activate</code>
       <div class="card">
         <div class="card-title">⚙️ RAG 처리 파이프라인</div>
         <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
-          문서 처리 파이프라인을 실행합니다. 현재 FAISS Index 탭의 파이프라인 기능을 사용하세요.
+          선택한 문서를 기존 active snapshot에 증분 추가합니다. 전처리, 청킹, 임베이딩, FAISS 반영까지 순서대로 진행됩니다.
         </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+          <div style="background:var(--surface2);padding:14px;border-radius:8px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">선택 문서 수</div>
+            <div id="pipelineSelectedDocs" style="font-size:22px;font-weight:700">0건</div>
+          </div>
+          <div style="background:var(--surface2);padding:14px;border-radius:8px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">현재 active snapshot</div>
+            <div id="pipelineActiveSnapshot" style="font-size:14px;font-weight:700;word-break:break-all">-</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div>
+            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">대상 Collection</label>
+            <select id="pipelineCollectionKey" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              <option value="">경로 기준 자동 선택</option>
+              <option value="rag_source_rfp">RFP</option>
+              <option value="rag_source_proposal">제안서</option>
+              <option value="rag_source_deliverable">산출물</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">대상 Snapshot</label>
+            <input id="pipelineSnapshotInput" type="text" placeholder="비워두면 active snapshot 사용" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <button class="btn btn-primary" onclick="runSelectedDocsRagAdd()">선택 문서 RAG 추가</button>
+          <button class="btn btn-outline" onclick="switchTab('documents')">문서 관리로 이동</button>
+          <button class="btn btn-outline" onclick="buildGraphFromSelection()">Graph Build 실행</button>
+        </div>
+        <div id="pipelineSelectionHint" style="font-size:12px;color:var(--muted);margin-bottom:16px">
+          문서 관리 탭에서 파일을 선택한 뒤 실행하세요.
+        </div>
         <div style="display:flex;flex-direction:column;gap:12px">
           <div style="background:var(--surface2);padding:14px;border-radius:8px;display:flex;align-items:center;gap:12px">
             <span style="font-size:20px">1️⃣</span>
@@ -2507,6 +2546,8 @@ POST /api/admin/faiss/activate</code>
   function renderStatus({ active, stats }) {
     const tag = document.getElementById('activeTag');
     const el  = document.getElementById('activeContent');
+    _currentActiveSnapshot = active?.snapshot || '';
+    syncPipelineSelectionState();
 
     if (!active) {
       tag.textContent = '없음';
@@ -2590,12 +2631,10 @@ POST /api/admin/faiss/activate</code>
 
   // 작성일: 2026-05-12 | 기능: 인덱스 카드 accordion — 카테고리별 크기·청크 수 표시
   const _CAT_COLORS = {
-    rfp: '#ef4444', proposal: '#3b82f6', kickoff: '#f59e0b',
-    final_report: '#22c55e', presentation: '#8b5cf6',
+    rfp: '#ef4444', proposal: '#3b82f6', deliverable: '#22c55e',
   };
   const _CAT_LABELS = {
-    rfp: 'RFP', proposal: '제안서', kickoff: '착수보고',
-    final_report: '최종보고', presentation: '발표',
+    rfp: 'RFP', proposal: '제안서', deliverable: '산출물',
   };
 
   async function toggleIndexDetail(snapshot, btn) {
@@ -2631,6 +2670,7 @@ POST /api/admin/faiss/activate</code>
   }
 
   let _confirmResolve = null;
+  let _currentActiveSnapshot = '';
 
   function showConfirm({ icon = '⚠️', title, body, okLabel = '확인' } = {}) {
     document.getElementById('confirmIcon').textContent = icon;
@@ -4695,6 +4735,7 @@ POST /api/admin/faiss/activate</code>
     _selectedDocIds.clear();
     document.getElementById('selectAllDocs').checked = false;
     document.getElementById('headerCheckDoc').checked = false;
+    syncPipelineSelectionState();
 
     tbody.innerHTML = documents.map(doc => {
       const typeColor = DOC_TYPE_COLORS[doc.document_type] || '#6b7280';
@@ -4722,6 +4763,7 @@ POST /api/admin/faiss/activate</code>
   function toggleDocSelect(id) {
     if (_selectedDocIds.has(id)) _selectedDocIds.delete(id);
     else _selectedDocIds.add(id);
+    syncPipelineSelectionState();
   }
 
   function toggleSelectAllDocs() {
@@ -4734,6 +4776,69 @@ POST /api/admin/faiss/activate</code>
       if (allChecked) _selectedDocIds.add(id);
       else _selectedDocIds.delete(id);
     });
+    syncPipelineSelectionState();
+  }
+
+  function selectedDocIds() {
+    return Array.from(_selectedDocIds);
+  }
+
+  function syncPipelineSelectionState() {
+    const count = selectedDocIds().length;
+    const selectedEl = document.getElementById('pipelineSelectedDocs');
+    const snapshotEl = document.getElementById('pipelineActiveSnapshot');
+    const hintEl = document.getElementById('pipelineSelectionHint');
+    const snapshotInput = document.getElementById('pipelineSnapshotInput');
+    if (selectedEl) selectedEl.textContent = `${count}건`;
+    if (snapshotEl) snapshotEl.textContent = _currentActiveSnapshot || '-';
+    if (hintEl) {
+      hintEl.textContent = count
+        ? `${count}개 문서가 선택되어 있습니다. Collection을 확인한 뒤 증분 추가를 실행하세요.`
+        : '문서 관리 탭에서 파일을 선택한 뒤 실행하세요.';
+    }
+    if (snapshotInput && !snapshotInput.value && _currentActiveSnapshot) {
+      snapshotInput.placeholder = _currentActiveSnapshot;
+    }
+  }
+
+  async function runSelectedDocsRagAdd() {
+    const ids = selectedDocIds();
+    if (!ids.length) { alert('문서를 선택하세요.'); return; }
+    const collectionKey = document.getElementById('pipelineCollectionKey')?.value || '';
+    const snapshot = document.getElementById('pipelineSnapshotInput')?.value.trim() || _currentActiveSnapshot || '';
+    const ok = await showConfirm({
+      icon: '⚙️',
+      title: '선택 문서 RAG 추가',
+      body: `선택한 ${ids.length}개 문서를 기존 snapshot에 증분 반영합니다.<br><br><strong>Snapshot</strong>: ${esc(snapshot || '(active)')}<br><strong>Collection</strong>: ${esc(collectionKey || '자동 선택')}`,
+      okLabel: '실행',
+    });
+    if (!ok) return;
+    showToast(`선택 문서 ${ids.length}건 RAG 추가 시작...`, 'info', 5000);
+    try {
+      const data = await api('/admin/faiss/documents/add', {
+        method: 'POST',
+        body: JSON.stringify({ document_ids: ids, snapshot, collection_key: collectionKey }),
+      });
+      showToast(`RAG 추가 완료: ${data.processed}건, ${data.chunk_count}청크`, 'success', 5000);
+      await loadDocuments();
+      await loadStatus();
+      await loadIndexes();
+    } catch (e) {
+      showToast('RAG 추가 실패: ' + e.message, 'error', 6000);
+    }
+  }
+
+  async function buildGraphFromSelection() {
+    const ids = selectedDocIds();
+    if (!ids.length) { alert('문서를 선택하세요.'); return; }
+    const ok = await showConfirm({
+      icon: '🔗',
+      title: '선택 문서 Graph 반영',
+      body: `선택 문서 ${ids.length}건이 포함되도록 active snapshot 기준 Graph를 다시 빌드합니다.<br><br>선행 조건: 선택 문서가 먼저 RAG 인덱스에 반영되어 있어야 합니다.`,
+      okLabel: 'Build',
+    });
+    if (!ok) return;
+    await buildGraph();
   }
 
   // ── Upload Modal ────────────────────────────────────────────────────────
@@ -5024,6 +5129,7 @@ POST /api/admin/faiss/activate</code>
     if (name === 'documents') loadDocuments();
     if (name === 'metadata') loadDocumentStats();
     if (name === 'wiki') loadWikiStats();
+    if (name === 'pipeline') syncPipelineSelectionState();
   };
 
   // Init — 인증 확인 후 페이지 초기화
