@@ -2361,7 +2361,15 @@ POST /api/admin/faiss/activate</code>
     if (window.__API_BASE__) return window.__API_BASE__;
     return `${window.location.origin}/api`;
   }
-  const API_BASE = detectApiBase();
+  const API_BASE = String(detectApiBase()).replace(/\/+$/, '');
+
+  function apiUrl(path = '') {
+    const value = String(path || '');
+    if (/^https?:\/\//i.test(value)) return value;
+    if (!value || value === '/api') return API_BASE;
+    if (value.startsWith('/api/')) return `${API_BASE}${value.slice(4)}`;
+    return `${API_BASE}${value.startsWith('/') ? value : '/' + value}`;
+  }
 
   // ── 인증 ─────────────────────────────────────────────────────────────────
 
@@ -2452,7 +2460,7 @@ POST /api/admin/faiss/activate</code>
   // ── API ──────────────────────────────────────────────────────────────────
 
   async function api(path, opts = {}) {
-    const r = await fetch(API_BASE + path, {
+    const r = await fetch(apiUrl(path), {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       ...opts,
     });
@@ -3172,8 +3180,7 @@ POST /api/admin/faiss/activate</code>
   // ── Knowledge Source 탭 ──────────────────────────────────────────────────
 
   async function _ksFetch(url, timeoutMs = 15000) {
-    const fullUrl = url.startsWith('/api/') ? `${API_BASE}${url.slice(4)}` : url;
-    const r = await _fetchWithTimeout(fullUrl, { headers: authHeaders() }, timeoutMs);
+    const r = await _fetchWithTimeout(apiUrl(url), { headers: authHeaders() }, timeoutMs);
     if (!r.ok) {
       const text = await r.text();
       if (text.trim().startsWith('<'))
@@ -3301,7 +3308,7 @@ POST /api/admin/faiss/activate</code>
   async function scanRagSource() {
     showToast('RAG Source 스캔 중...', 'info');
     try {
-      const r = await fetch('/api/admin/rag-source/scan', {
+      const r = await fetch(apiUrl('/api/admin/rag-source/scan'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ source_id: 'rag_source', overwrite: false }),
@@ -3317,7 +3324,7 @@ POST /api/admin/faiss/activate</code>
 
   async function loadRagSourceFiles() {
     try {
-      const r = await fetch('/api/admin/rag-source/files?limit=500', { headers: authHeaders() });
+      const r = await fetch(apiUrl('/api/admin/rag-source/files?limit=500'), { headers: authHeaders() });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       _rsAllFiles = d.files || [];
@@ -3412,7 +3419,7 @@ POST /api/admin/faiss/activate</code>
   async function buildRagSourceMetadata() {
     showToast('Metadata 규칙 기반 생성 중...', 'info');
     try {
-      const r = await fetch('/api/admin/rag-source/metadata/build', {
+      const r = await fetch(apiUrl('/api/admin/rag-source/metadata/build'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ only_missing: true, overwrite: false }),
@@ -3434,7 +3441,7 @@ POST /api/admin/faiss/activate</code>
   async function buildRagSourceGraph() {
     showToast('Graph 생성 요청 중...', 'info');
     try {
-      const r = await fetch('/api/graph/build', {
+      const r = await fetch(apiUrl('/api/graph/build'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -3450,7 +3457,7 @@ POST /api/admin/faiss/activate</code>
   async function buildRagSourceWiki() {
     showToast('Wiki 생성 요청 중...', 'info');
     try {
-      const r = await fetch('/api/wiki/build', {
+      const r = await fetch(apiUrl('/api/wiki/build'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -3470,7 +3477,7 @@ POST /api/admin/faiss/activate</code>
 
   async function loadCollections() {
     try {
-      const r = await fetch('/api/collections', { headers: authHeaders() });
+      const r = await fetch(apiUrl('/api/collections'), { headers: authHeaders() });
       const d = await r.json();
       _collections = Array.isArray(d) ? d : (d.collections || d.items || []);
       _renderCollections(_collections);
@@ -3758,7 +3765,7 @@ POST /api/admin/faiss/activate</code>
   async function loadKeywords() {
     const el = document.getElementById('keywordList');
     try {
-      const r = await fetch('/api/admin/keywords', { headers: authHeaders() });
+      const r = await fetch(apiUrl('/api/admin/keywords'), { headers: authHeaders() });
       if (!r.ok) throw new Error(r.statusText);
       const data = await r.json();
       _renderKeywordTable(Array.isArray(data) ? data : (data.keywords || []));
@@ -3824,7 +3831,7 @@ POST /api/admin/faiss/activate</code>
 
   // ── Platform Settings ────────────────────────────────────────────────────
 
-  const API = (path) => `${API_BASE}${path}`;
+  const API = apiUrl;
 
   async function platformFetch(path, options = {}) {
     const res = await fetch(API(path), {
@@ -5505,8 +5512,7 @@ POST /api/admin/faiss/activate</code>
     let missingDeployDetected = false;
 
     const safeFetch = async (url) => {
-      const normalizedUrl = url.startsWith('/api/') ? url.slice(4) : url;
-      const r = await fetch(`${API_BASE}${normalizedUrl}`, { headers: h });
+      const r = await fetch(apiUrl(url), { headers: h });
       if (r.status === 404) throw createRoute404Error(url);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
@@ -5852,9 +5858,8 @@ POST /api/admin/faiss/activate</code>
     _wizardSetStatus(step, '실행 중...', 'running');
     _wizardAppendLog(step, `${cfg.method} ${cfg.api} ...`);
     try {
-      const apiUrl = cfg.api.startsWith('/api/') ? `${API_BASE}${cfg.api.slice(4)}` : cfg.api;
       const body   = buildWizardRequestBody(step, cfg);
-      const r = await fetch(apiUrl, {
+      const r = await fetch(apiUrl(cfg.api), {
         method: cfg.method,
         headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
