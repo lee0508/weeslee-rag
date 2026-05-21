@@ -1144,6 +1144,16 @@ POST /api/admin/faiss/activate</code>
     <span id="wizardAutoStatus" style="font-size:12px;color:var(--muted)"></span>
   </div>
 
+  <div class="card" style="margin-bottom:24px;padding:14px 16px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+      <div>
+        <div style="font-size:12px;font-weight:700">최근 실행 요약</div>
+        <div id="wizardResultSummary" style="font-size:12px;color:var(--muted);margin-top:4px">아직 실행한 단계가 없습니다.</div>
+      </div>
+      <div id="wizardResultStamp" style="font-size:11px;color:var(--muted)"></div>
+    </div>
+  </div>
+
   <!-- 단계 목록 -->
   <div style="display:flex;flex-direction:column;gap:12px" id="wizardStepList">
 
@@ -5709,6 +5719,24 @@ POST /api/admin/faiss/activate</code>
   let _wizardAutoRunning   = false;
   let _wizardAutoStop      = false;
 
+  function _wizardSetRunSummary(text, cls = '') {
+    const summaryEl = document.getElementById('wizardResultSummary');
+    const stampEl = document.getElementById('wizardResultStamp');
+    if (summaryEl) {
+      summaryEl.textContent = text;
+      summaryEl.style.color = cls === 'err' ? 'var(--red)' : cls === 'ok' ? 'var(--green)' : 'var(--muted)';
+    }
+    if (stampEl) {
+      const now = new Date();
+      stampEl.textContent = `업데이트 ${now.toLocaleTimeString('ko-KR', { hour12: false })}`;
+    }
+  }
+
+  function _wizardBuildSummary(step, text) {
+    const cfg = WIZARD_STEPS[step];
+    return `Step ${step} ${cfg?.name || ''} — ${text}`;
+  }
+
   function _wizardSetStatus(step, text, cls) {
     const el = document.getElementById('wstatus-' + step);
     if (el) { el.textContent = text; el.className = 'wizard-step-status' + (cls ? ' ' + cls : ''); }
@@ -5731,6 +5759,7 @@ POST /api/admin/faiss/activate</code>
   function _wizardMarkError(step, msg) {
     _wizardSetStatus(step, '오류', 'err');
     _wizardAppendLog(step, '오류: ' + msg);
+    _wizardSetRunSummary(_wizardBuildSummary(step, msg), 'err');
     const el = document.querySelector(`.wizard-step[data-step="${step}"]`);
     if (el) el.classList.remove('active-step');
     renderWizardProgressBar();
@@ -5815,6 +5844,7 @@ POST /api/admin/faiss/activate</code>
         await _wizardSseStream(step, _wizardFaissJobId);
         _wizardMarkDone(step);
         _wizardMarkDone(6); // 같은 파이프라인이 chunk+faiss 모두 수행
+        _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 파이프라인 잡 ${_wizardFaissJobId} 실행 완료.`), 'ok');
         return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }
@@ -5830,11 +5860,17 @@ POST /api/admin/faiss/activate</code>
           headers: { Authorization: 'Bearer ' + getToken() },
         }).then(r => r.json()).catch(() => ({ jobs: [] }));
         const job = (data.jobs || []).find(j => j.job_id === _wizardFaissJobId);
-        if (job?.status === 'completed') { _wizardMarkDone(step); return true; }
+        if (job?.status === 'completed') {
+          _wizardMarkDone(step);
+          _wizardSetRunSummary(_wizardBuildSummary(step, `잡 ${_wizardFaissJobId} 완료가 확인됐습니다.`), 'ok');
+          return true;
+        }
         if (job?.status === 'running') {
           _wizardSetStatus(step, 'FAISS 생성 중...', 'running');
           await _wizardSseStream(step, _wizardFaissJobId);
-          _wizardMarkDone(step); return true;
+          _wizardMarkDone(step);
+          _wizardSetRunSummary(_wizardBuildSummary(step, `잡 ${_wizardFaissJobId} 스트림 완료.`), 'ok');
+          return true;
         }
         _wizardMarkError(step, job ? `잡 상태: ${job.status}` : '잡을 찾을 수 없습니다.');
         return false;
@@ -5845,6 +5881,7 @@ POST /api/admin/faiss/activate</code>
     if (cfg?.special === 'interactive') {
       _wizardSetStatus(step, '건너뜀', '');
       if (stepEl) { stepEl.classList.remove('active-step'); stepEl.classList.add('done'); }
+      _wizardSetRunSummary(_wizardBuildSummary(step, '대화형 확인 단계로 수동 점검이 필요합니다.'), '');
       renderWizardProgressBar();
       return true;
     }
@@ -5874,7 +5911,9 @@ POST /api/admin/faiss/activate</code>
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 400));
-        _wizardMarkDone(step); return true;
+        _wizardMarkDone(step);
+        _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${snapshot} 활성화 완료.`), 'ok');
+        return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }
 
@@ -5897,7 +5936,9 @@ POST /api/admin/faiss/activate</code>
       const d = await r.json().catch(() => ({}));
       if (r.ok) {
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 400));
-        _wizardMarkDone(step); return true;
+        _wizardMarkDone(step);
+        _wizardSetRunSummary(_wizardBuildSummary(step, '요청이 정상 처리되었습니다.'), 'ok');
+        return true;
       }
       throw new Error(formatWizardErrorDetail(d.detail || d.message || d, `HTTP ${r.status}`));
     } catch (e) { _wizardMarkError(step, e.message); return false; }
