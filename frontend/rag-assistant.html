@@ -1383,7 +1383,7 @@
             <!-- RFP 파일 업로드 바 -->
             <div class="rfp-bar" id="rfpBar">
               <input type="file" id="rfpFileInput"
-                accept=".pdf,.docx,.hwpx,.hwp,.pptx"
+                accept=".pdf,.docx,.txt,.hwpx,.hwp"
                 style="display:none"
                 onchange="onRfpFileSelected(event)">
               <button class="btn-rfp" type="button"
@@ -1394,7 +1394,7 @@
                 <span class="rfp-file-status" id="rfpFileStatus"></span>
                 <button class="rfp-clear" type="button" onclick="clearRfp()" data-i18n="rfp_remove">✕ 제거</button>
               </div>
-              <span style="font-size:12px;color:var(--text-s);" id="rfpHint" data-i18n="rfp_hint">PDF · HWP · HWPX · DOCX 첨부 시 RAG 실행에 내용이 반영됩니다.</span>
+              <span style="font-size:12px;color:var(--text-s);" id="rfpHint" data-i18n="rfp_hint">PDF · DOCX · TXT를 업로드해 RFP 분석 검색을 실행합니다. HWP · HWPX는 후속 지원 예정입니다.</span>
             </div>
             <div class="form-grid">
               <div class="form-group full">
@@ -1663,9 +1663,9 @@
         rv_copy_answer:'답변 복사', rv_search_only:'검색 전용 모드 — 답변 없음',
         rv_count:'{n}개', rv_rating_label:'품질 평점',
         rfp_attach:'📎 RFP 파일 첨부',
-        rfp_hint:'PDF · HWP · HWPX · DOCX 첨부 시 RAG 실행에 내용이 반영됩니다.',
-        rfp_extracting:'텍스트 추출 중...',
-        rfp_extracted:'추출 완료 ({n}자)',
+        rfp_hint:'PDF · DOCX · TXT를 업로드해 RFP 분석 검색을 실행합니다. HWP · HWPX는 후속 지원 예정입니다.',
+        rfp_selected:'파일 선택됨',
+        rfp_uploading:'RFP 파일 업로드 중...',
         rfp_extract_fail:'추출 실패',
         rfp_remove:'✕ 제거',
         rfp_active_notice:'RFP 첨부 파일 포함 — rfp_analysis 모드로 실행합니다.',
@@ -1742,9 +1742,9 @@
         rv_copy_answer:'Copy Answer', rv_search_only:'Search-only mode — no answer generated',
         rv_count:'{n}', rv_rating_label:'Quality Rating',
         rfp_attach:'📎 Attach RFP File',
-        rfp_hint:'Attach PDF · HWP · HWPX · DOCX — content will be included in the RAG query.',
-        rfp_extracting:'Extracting text...',
-        rfp_extracted:'Extracted ({n} chars)',
+        rfp_hint:'Upload PDF, DOCX, or TXT to run RFP analysis search. HWP and HWPX are planned later.',
+        rfp_selected:'File selected',
+        rfp_uploading:'Uploading RFP file...',
         rfp_extract_fail:'Extraction failed',
         rfp_remove:'✕ Remove',
         rfp_active_notice:'RFP file attached — running in rfp_analysis mode.',
@@ -1813,6 +1813,37 @@
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
       }, duration);
+    }
+
+    async function readApiError(response) {
+      const fallback = `HTTP ${response.status} ${response.statusText}`.trim();
+      const rawText = await response.text().catch(() => '');
+      if (!rawText) return fallback;
+
+      let payload;
+      try {
+        payload = JSON.parse(rawText);
+      } catch (_) {
+        return rawText || fallback;
+      }
+
+      const detail = payload?.detail ?? payload?.error ?? payload?.message ?? payload;
+      if (typeof detail === 'string') return detail || fallback;
+      if (Array.isArray(detail)) {
+        return detail.map(item => item?.msg || item?.message || JSON.stringify(item)).join(' | ') || fallback;
+      }
+      if (detail && typeof detail === 'object') {
+        const parts = [];
+        if (detail.message) parts.push(detail.message);
+        if (Array.isArray(detail.supported_types) && detail.supported_types.length) {
+          parts.push(`supported: ${detail.supported_types.join(', ')}`);
+        }
+        if (Array.isArray(detail.planned_types) && detail.planned_types.length) {
+          parts.push(`planned: ${detail.planned_types.join(', ')}`);
+        }
+        return parts.join(' | ') || fallback;
+      }
+      return fallback;
     }
 
     // ── Model dropdown ────────────────────────────────────────────────────
@@ -2281,7 +2312,7 @@
 
       syncAnswerModeLabel();
 
-      if (!query && !_rfpExtractedText) { status.textContent = t('enter_query'); return; }
+      if (!query && !_rfpSelectedFile) { status.textContent = t('enter_query'); return; }
 
       _queryRan = true;
       status.textContent = t('running');
@@ -2292,11 +2323,9 @@
       runBtn.disabled = true;
       runBtn.textContent = t('running_btn');
 
-      const effectiveQuery = _rfpExtractedText
-        ? `${query || '유사 사업 관련 문서'}\n\n[RFP 내용]\n${_rfpExtractedText.slice(0, 2000)}`
-        : query;
-      const effectiveMode = _rfpExtractedText ? 'rfp_analysis' : searchMode;
-      if (_rfpExtractedText) status.textContent = t('rfp_active_notice');
+      const effectiveQuery = query;
+      const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
+      if (_rfpSelectedFile) status.textContent = t('rfp_active_notice');
       const searchPayload = {
         query: effectiveQuery, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
         answer_provider: 'none',
@@ -2314,15 +2343,35 @@
       };
 
       try {
-        const response = await fetch(`${API_BASE}/rag/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(searchPayload)
-        });
+        let data;
+        if (_rfpSelectedFile) {
+          status.textContent = t('rfp_uploading');
+          const formData = new FormData();
+          formData.append('file', _rfpSelectedFile);
+          formData.append('top_k', String(topK));
+          formData.append('top_docs', String(topDocs));
+          formData.append('mode', effectiveMode);
+          formData.append('max_chunks_per_doc', String(maxChunks));
+          formData.append('answer_provider', answerProvider);
+          formData.append('answer_model', answerProvider === 'none' ? '' : answerModel);
+          if (category) formData.append('category', category);
 
-        if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+          const response = await fetch(`${API_BASE}/rag/query-with-rfp`, {
+            method: 'POST',
+            body: formData,
+          });
+          if (!response.ok) throw new Error(await readApiError(response));
+          data = await response.json();
+        } else {
+          const response = await fetch(`${API_BASE}/rag/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(searchPayload)
+          });
+          if (!response.ok) throw new Error(await readApiError(response));
+          data = await response.json();
+        }
 
-        const data = await response.json();
         if (!data.success) {
           status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
           renderResultPanel(data);
@@ -2348,7 +2397,13 @@
           switchAnswerTab(answerProvider === 'none' ? 'files' : 'answer');
         }
 
-        if (answerProvider === 'none') {
+        if (_rfpSelectedFile) {
+          _hasAnswer = answerProvider !== 'none' && Boolean(data.draft_answer);
+          document.getElementById('answerPanel').textContent =
+            answerProvider === 'none' ? `(${t('no_docs')})` : (data.draft_answer || `(${t('no_docs')})`);
+          pushHistory(query || _rfpSelectedFile.name, data);
+          if (!isGraphMode && answerProvider !== 'none') switchAnswerTab('answer');
+        } else if (answerProvider === 'none') {
           pushHistory(query, data);
         } else {
           const answerResponse = await fetch(`${API_BASE}/rag/answer`, {
@@ -2360,7 +2415,7 @@
               answer_model: answerModel,
             })
           });
-          if (!answerResponse.ok) throw new Error(`HTTP ${answerResponse.status} ${answerResponse.statusText}`);
+          if (!answerResponse.ok) throw new Error(await readApiError(answerResponse));
           const answerData = await answerResponse.json();
           if (!answerData.success) throw new Error(answerData.error || 'answer generation failed');
           _hasAnswer = true;
@@ -2598,17 +2653,18 @@
       searchBtn.textContent = t('searching_btn');
 
       try {
-        const response = await fetch(`${API_BASE}/rag/query`, {
+        const response = await fetch(`${API_BASE}/rag/similar-files`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             query, top_k: topK, top_docs: topDocs, max_chunks_per_doc: 3,
-            answer_provider: 'none', answer_model: '', mode: kMode,
+            mode: kMode,
             ...(category ? { category } : {})
           })
         });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(await readApiError(response));
         const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'search failed');
         const docs = data.documents || [];
         status.textContent = docs.length ? t('ks_found', { n: docs.length }) : t('ks_none');
         results.innerHTML = docs.length
@@ -2695,12 +2751,13 @@
     let _selectedReviewIdx = -1;
 
     // ── RFP 파일 업로드 ───────────────────────────────────────────────
-    let _rfpExtractedText = '';
+    let _rfpSelectedFile = null;
     let _rfpFileName = '';
 
-    async function onRfpFileSelected(event) {
+    function onRfpFileSelected(event) {
       const file = event.target.files[0];
       if (!file) return;
+      _rfpSelectedFile = file;
       _rfpFileName = file.name;
 
       const bar       = document.getElementById('rfpBar');
@@ -2710,34 +2767,16 @@
       const statusEl  = document.getElementById('rfpFileStatus');
 
       nameEl.textContent   = file.name;
-      statusEl.textContent = t('rfp_extracting');
+      statusEl.textContent = t('rfp_selected');
       info.style.display   = 'flex';
       hint.style.display   = 'none';
-      bar.className        = 'rfp-bar extracting';
-
-      const fd = new FormData();
-      fd.append('file', file);
-
-      try {
-        const resp = await fetch(`${API_BASE}/ocr/extract`, { method: 'POST', body: fd });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        if (!data.success || !data.content) throw new Error(data.error || 'empty content');
-        _rfpExtractedText    = data.content;
-        statusEl.textContent = t('rfp_extracted', { n: _rfpExtractedText.length.toLocaleString() });
-        bar.className        = 'rfp-bar has-file';
-      } catch (err) {
-        _rfpExtractedText    = '';
-        statusEl.textContent = `${t('rfp_extract_fail')}: ${err.message}`;
-        bar.className        = 'rfp-bar rfp-error';
-        showToast(`${t('rfp_extract_fail')}: ${err.message}`, 'error');
-      }
+      bar.className        = 'rfp-bar has-file';
       // 동일 파일 재선택 가능하도록 input 초기화
       event.target.value = '';
     }
 
     function clearRfp() {
-      _rfpExtractedText = '';
+      _rfpSelectedFile  = null;
       _rfpFileName      = '';
       const bar  = document.getElementById('rfpBar');
       const info = document.getElementById('rfpFileInfo');
