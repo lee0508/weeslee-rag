@@ -47,22 +47,18 @@ from app.services.knowledge_graph import (  # noqa: E402
 
 # ── Category config ───────────────────────────────────────────────────────────
 
-CATEGORY_ORDER = ["rfp", "proposal", "kickoff", "presentation", "final_report"]
+CATEGORY_ORDER = ["rfp", "proposal", "deliverable"]
 
 CATEGORY_LABELS = {
     "rfp":          "RFP (제안요청서)",
     "proposal":     "제안서",
-    "kickoff":      "착수보고",
-    "presentation": "발표자료",
-    "final_report": "최종보고",
+    "deliverable":  "산출물",
 }
 
 CATEGORY_COLORS = {
     "rfp":          "#ef4444",
     "proposal":     "#3b82f6",
-    "kickoff":      "#f59e0b",
-    "presentation": "#8b5cf6",
-    "final_report": "#22c55e",
+    "deliverable":  "#22c55e",
 }
 
 _DATE_PREFIX = re.compile(r"^\d+\.\s*")
@@ -231,7 +227,7 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
             if cat_node_id in node_ids:
                 add_edge(doc_id, cat_node_id, "has_category")
 
-        # related_sequence edges: rfp→proposal→kickoff→presentation→final_report
+        # related_sequence edges: rfp→proposal→deliverable
         ordered: list[dict] = []
         for cat in CATEGORY_ORDER:
             ordered.extend(d for d in proj_docs if d["category"] == cat)

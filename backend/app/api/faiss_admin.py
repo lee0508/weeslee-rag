@@ -81,7 +81,7 @@ def _list_snapshots() -> list[str]:
         stem = f.name[: -len("_ollama.index")]
         # exclude category sub-indexes (they contain an extra underscore segment after snapshot)
         parts = stem.rsplit("_", 1)
-        if len(parts) == 2 and parts[1] in {"rfp", "proposal", "kickoff", "final_report", "presentation"}:
+        if len(parts) == 2 and parts[1] in {"rfp", "proposal", "deliverable"}:
             continue
         names.add(stem)
     return sorted(names, reverse=True)
@@ -121,7 +121,7 @@ async def list_indexes():
 
 
 _CATEGORY_SUFFIXES = [
-    "rfp", "proposal", "kickoff", "final_report", "presentation",
+    "rfp", "proposal", "deliverable",
 ]
 
 
@@ -183,14 +183,15 @@ async def delete_snapshot(snapshot: str):
 
 class StartJobRequest(BaseModel):
     snapshot: str
+    source_id: str = "rag_source"
 
 
 @router.post("/jobs")
 async def start_job(req: StartJobRequest):
     """파이프라인 잡 시작 (extract → chunk → faiss → category)."""
-    job_id = runner.create_job(req.snapshot)
+    job_id = runner.create_job(req.snapshot, source_id=req.source_id)
     asyncio.create_task(runner.run_pipeline(job_id))
-    return {"job_id": job_id, "snapshot": req.snapshot, "status": "running"}
+    return {"job_id": job_id, "snapshot": req.snapshot, "source_id": req.source_id, "status": "running"}
 
 
 @router.get("/jobs")
@@ -220,7 +221,7 @@ async def activate_index(req: ActivateRequest):
 
 # ── Category status ───────────────────────────────────────────────────────────
 
-_CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
+_CATEGORIES = ["rfp", "proposal", "deliverable"]
 
 
 @router.get("/category-status")

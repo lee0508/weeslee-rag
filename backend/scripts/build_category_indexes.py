@@ -31,7 +31,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 
-CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
+CATEGORIES = ["rfp", "proposal", "deliverable"]
 
 
 def parse_args() -> argparse.Namespace:

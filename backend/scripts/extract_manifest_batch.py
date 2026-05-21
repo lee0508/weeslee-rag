@@ -113,6 +113,11 @@ def build_output_paths(text_dir: Path, metadata_dir: Path, document_id: str) -> 
     return text_dir / f"{document_id}.txt", metadata_dir / f"{document_id}.json"
 
 
+def _preferred_value(row: dict[str, str], key: str, fallback: str = "") -> str:
+    value = (row.get(key) or "").strip()
+    return value or fallback
+
+
 async def run_batch(args: argparse.Namespace) -> int:
     manifest_csv = Path(args.manifest_csv).resolve()
     text_dir = Path(args.text_dir).resolve()
@@ -183,19 +188,27 @@ async def run_batch(args: argparse.Namespace) -> int:
                 content = result.get("content", "")
                 project_meta = enrich_project_metadata(row.get("folder_name", ""))
                 res_meta = result.get("metadata", {})
+                project_name = _preferred_value(row, "project_name", project_meta["project_name"])
+                organization = _preferred_value(row, "organization", project_meta["organization"])
+                folder_year = _preferred_value(row, "project_year", project_meta["folder_year"])
                 metadata = {
                     "document_id": document_id,
                     "category": category,
+                    "document_group": row.get("document_group", ""),
+                    "document_type": row.get("document_type", ""),
+                    "proposal_section": row.get("proposal_section", ""),
+                    "deliverable_section": row.get("deliverable_section", ""),
+                    "collection_key": row.get("collection_key", ""),
                     "source_path": str(source_path),
                     "input_path": str(input_path),
                     "snapshot_path": row.get("snapshot_path", ""),
                     "extension": extension,
-                    "project_name": project_meta["project_name"],
+                    "project_name": project_name,
                     "project_confidence": project_meta["project_confidence"],
-                    "organization": project_meta["organization"],
+                    "organization": organization,
                     "organization_confidence": project_meta["organization_confidence"],
-                    "folder_year": project_meta["folder_year"],
-                    "folder_name": project_meta["folder_name"],
+                    "folder_year": folder_year,
+                    "folder_name": row.get("folder_name", project_meta["folder_name"]),
                     "extraction_method": result.get("method", ""),
                     "is_scanned": res_meta.get("is_scanned", False),
                     "content_length": len(content),

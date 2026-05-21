@@ -5882,7 +5882,7 @@ POST /api/admin/faiss/activate</code>
         const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ snapshot: _wizardFaissSnapshot }),
+          body: JSON.stringify({ snapshot: _wizardFaissSnapshot, source_id: src }),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);

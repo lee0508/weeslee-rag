@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 FAISS_DIR = PROJECT_ROOT / "data" / "indexes" / "faiss"
 GRAPH_DIR = PROJECT_ROOT / "data" / "indexes" / "graph"
 
-_CATEGORIES = ["rfp", "proposal", "kickoff", "final_report", "presentation"]
+_CATEGORIES = ["rfp", "proposal", "deliverable"]
 
 
 def _stats_path(snapshot: str) -> Path:

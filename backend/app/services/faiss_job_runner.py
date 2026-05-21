@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from app.services.rag_source_pipeline import build_manifest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 DATA_DIR = PROJECT_ROOT / "data"
@@ -24,11 +26,12 @@ ACTIVE_INDEX_PATH = DATA_DIR / "active_index.json"
 _jobs: dict[str, dict] = {}
 
 
-def create_job(snapshot: str) -> str:
+def create_job(snapshot: str, source_id: str = "rag_source") -> str:
     job_id = uuid.uuid4().hex[:8]
     _jobs[job_id] = {
         "job_id": job_id,
         "snapshot": snapshot,
+        "source_id": source_id,
         "status": "pending",
         "progress": 0,
         "stage": "",
@@ -98,6 +101,7 @@ async def run_pipeline(job_id: str) -> None:
     job = _jobs[job_id]
     q: asyncio.Queue = job["queue"]
     snapshot = job["snapshot"]
+    source_id = job.get("source_id", "rag_source")
     p = _paths(snapshot)
 
     def emit(pct: int, stage: str, log: str = "") -> None:
@@ -114,9 +118,14 @@ async def run_pipeline(job_id: str) -> None:
         # ── Stage 1: manifest CSV 확인 (5%) ───────────────────────────────
         emit(5, "manifest CSV 확인")
         if not p["manifest_csv"].exists():
+            emit(5, "manifest CSV 생성", f"source_id={source_id}")
+            manifest = build_manifest(snapshot_name=snapshot, source_id=source_id, overwrite=True)
+            p = _paths(snapshot)
+            emit(5, "manifest CSV 생성", f"생성 완료: {Path(manifest['manifest_csv']).name} ({manifest['total']}건)")
+        if not p["manifest_csv"].exists():
             raise FileNotFoundError(
                 f"Manifest CSV 없음: {p['manifest_csv']}\n"
-                f"data/staged/manifest/ 에 {snapshot}_manifest.csv 또는 {snapshot}_*.csv 를 먼저 준비하세요."
+                f"data/staged/manifest/ 에 {snapshot}_manifest.csv 를 생성하지 못했습니다."
             )
         emit(5, "manifest CSV 확인", f"OK: {p['manifest_csv'].name}")
 
@@ -201,7 +210,7 @@ async def run_pipeline(job_id: str) -> None:
     except Exception as exc:
         job["status"] = "failed"
         job["error"] = str(exc)
-        emit(job["progress"], f"오류", str(exc))
+        emit(job["progress"], "오류", str(exc))
 
     finally:
         q.put_nowait({"done": True})
