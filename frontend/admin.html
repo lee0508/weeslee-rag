@@ -5644,7 +5644,7 @@ POST /api/admin/faiss/activate</code>
     { name: '파일 스캔',           api: '/api/admin/rag-source/scan',                       method: 'POST', body: { source_id: 'rag_source', overwrite: false } },
     { name: 'Collection 생성',     api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST', body: { client_id: 'weeslee', overwrite: false } },
     { name: 'Metadata 생성',       api: '/api/admin/rag-source/metadata/build',              method: 'POST', body: { client_id: 'weeslee', source_id: 'rag_source', inventory_ids: [], overwrite: false, only_missing: true, dry_run: false } },
-    { name: 'Tag/Keyword 생성',    api: '/api/admin/rag-source/tags/bootstrap',              method: 'POST' },
+    { name: 'Tag/Keyword 생성',    api: '/api/admin/rag-source/tags/bootstrap',              method: 'POST', special: 'tag_keyword_bootstrap' },
     { name: '텍스트→Chunk',        api: '/api/admin/faiss/jobs',                             method: 'POST', special: 'faiss_start' },
     { name: 'FAISS 생성',          api: null,                                                method: null,   special: 'faiss_poll' },
     { name: 'Graph 생성',          api: '/api/graph/build',                                  method: 'POST' },
@@ -5736,6 +5736,31 @@ POST /api/admin/faiss/activate</code>
     renderWizardProgressBar();
   }
 
+  async function _wizardRunTagKeywordBootstrap(step) {
+    const requests = [
+      { label: 'Tag bootstrap', api: '/api/admin/rag-source/tags/bootstrap' },
+      { label: 'Keyword extract', api: '/api/admin/rag-source/keywords/extract', body: {} },
+    ];
+    _wizardSetStatus(step, '실행 중...', 'running');
+    for (const req of requests) {
+      _wizardAppendLog(step, `POST ${req.api} ...`);
+      const response = await fetch(apiUrl(req.api), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+        body: req.body ? JSON.stringify(req.body) : undefined,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(`[${req.label}] ` + formatWizardErrorDetail(data.detail || data.message || data, `HTTP ${response.status}`));
+      }
+      _wizardAppendLog(step, `[${req.label}] ` + JSON.stringify(data, null, 2).slice(0, 400));
+    }
+    loadTags();
+    loadKeywords();
+    _wizardMarkDone(step);
+    return true;
+  }
+
   function _wizardSseStream(step, jobId) {
     return new Promise((resolve, reject) => {
       const url = `${API_BASE}/admin/faiss/jobs/${jobId}/stream?token=${encodeURIComponent(getToken() || '')}`;
@@ -5822,6 +5847,13 @@ POST /api/admin/faiss/activate</code>
       if (stepEl) { stepEl.classList.remove('active-step'); stepEl.classList.add('done'); }
       renderWizardProgressBar();
       return true;
+    }
+
+    // ── tag_keyword_bootstrap: Tag/Keyword 일괄 생성 (Step 4) ───────────────
+    if (cfg?.special === 'tag_keyword_bootstrap') {
+      try {
+        return await _wizardRunTagKeywordBootstrap(step);
+      } catch (e) { _wizardMarkError(step, e.message); return false; }
     }
 
     // ── faiss_activate: 스냅샷 활성화 (Step 10) ────────────────────────────
