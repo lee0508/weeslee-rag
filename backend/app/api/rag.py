@@ -13,13 +13,15 @@ import re
 import subprocess
 import tempfile
 import sys
+import time
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import settings
+from app.services.query_log_service import query_log_service
 
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
@@ -205,6 +207,57 @@ class RagAnswerResponse(BaseModel):
     error: Optional[str] = None
 
 
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").strip()
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
+def _log_query_event(
+    *,
+    request: Request,
+    endpoint: str,
+    query_text: str,
+    prompt_source: str,
+    effective_mode: str,
+    category: Optional[str],
+    organization: Optional[str],
+    year: Optional[str],
+    top_k: int,
+    top_docs: int,
+    success: bool,
+    duration_ms: int,
+    payload: Optional[dict] = None,
+    error_message: str = "",
+    extra_json: Optional[dict] = None,
+) -> None:
+    documents = (payload or {}).get("documents", []) or []
+    query_log_service.log_query(
+        {
+            "endpoint": endpoint,
+            "query_text": query_text,
+            "prompt_source": prompt_source,
+            "effective_mode": effective_mode,
+            "category_filter": category or "",
+            "organization_filter": organization or "",
+            "year_filter": year or "",
+            "top_k": top_k,
+            "top_docs": top_docs,
+            "result_count": len(documents),
+            "success": success,
+            "error_message": error_message,
+            "duration_ms": duration_ms,
+            "client_ip": _client_ip(request),
+            "user_agent": request.headers.get("user-agent", ""),
+            "top_document_ids": [doc.get("document_id") for doc in documents[:5] if doc.get("document_id")],
+            "top_categories": [doc.get("category") for doc in documents[:5] if doc.get("category")],
+            "top_source_paths": [doc.get("source_path") for doc in documents[:5] if doc.get("source_path")],
+            "extra_json": extra_json or {},
+        }
+    )
+
+
 def _resolve_query_request(request: RagQueryRequest) -> tuple[str, str, Optional[dict]]:
     from app.services.query_expander import (
         detect_mode_with_reason,
@@ -276,24 +329,76 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
 
 
 @router.post("/query")
-async def query_rag(request: RagQueryRequest):
+async def query_rag(request: RagQueryRequest, http_request: Request):
+    started = time.perf_counter()
     try:
         payload, _, _ = _run_query(
             request,
             request.answer_provider,
             request.answer_model,
         )
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/query",
+            query_text=request.query,
+            prompt_source="user",
+            effective_mode=payload.get("effective_mode", ""),
+            category=request.category,
+            organization=request.organization,
+            year=request.year,
+            top_k=request.top_k,
+            top_docs=request.top_docs,
+            success=True,
+            duration_ms=duration_ms,
+            payload=payload,
+            extra_json={"has_answer": bool(payload.get("draft_answer"))},
+        )
         return payload
     except Exception as exc:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/query",
+            query_text=request.query,
+            prompt_source="user",
+            effective_mode=request.mode,
+            category=request.category,
+            organization=request.organization,
+            year=request.year,
+            top_k=request.top_k,
+            top_docs=request.top_docs,
+            success=False,
+            duration_ms=duration_ms,
+            error_message=str(exc),
+        )
         return {"success": False, "error": str(exc)}
 
 
 @router.post("/answer", response_model=RagAnswerResponse)
-async def answer_rag(request: RagQueryRequest):
+async def answer_rag(request: RagQueryRequest, http_request: Request):
+    started = time.perf_counter()
     try:
         provider = request.answer_provider or "ollama"
         model = request.answer_model or "gemma4:latest"
         payload, effective_mode, _ = _run_query(request, provider, model)
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/answer",
+            query_text=request.query,
+            prompt_source="user",
+            effective_mode=effective_mode,
+            category=request.category,
+            organization=request.organization,
+            year=request.year,
+            top_k=request.top_k,
+            top_docs=request.top_docs,
+            success=True,
+            duration_ms=duration_ms,
+            payload=payload,
+            extra_json={"has_answer": bool(payload.get("draft_answer"))},
+        )
         return RagAnswerResponse(
             success=True,
             draft_answer=payload.get("draft_answer", ""),
@@ -301,6 +406,22 @@ async def answer_rag(request: RagQueryRequest):
             document_count=len(payload.get("documents", []) or []),
         )
     except Exception as exc:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/answer",
+            query_text=request.query,
+            prompt_source="user",
+            effective_mode=request.mode,
+            category=request.category,
+            organization=request.organization,
+            year=request.year,
+            top_k=request.top_k,
+            top_docs=request.top_docs,
+            success=False,
+            duration_ms=duration_ms,
+            error_message=str(exc),
+        )
         return RagAnswerResponse(success=False, error=str(exc))
 
 
@@ -311,15 +432,37 @@ class SearchRequest(BaseModel):
 
 
 @router.post("/search")
-async def search_documents(request: SearchRequest):
+async def search_documents(request: SearchRequest, http_request: Request):
     from app.services.query_expander import expand_bid_query, expand_rfp_query
+    started = time.perf_counter()
 
     if request.mode == "wiki":
-        return {
+        result = {
             "results": _search_wiki_projects(request.query, request.top_k),
             "query": request.query,
             "mode": request.mode,
         }
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        query_log_service.log_query(
+            {
+                "endpoint": "/api/rag/search",
+                "query_text": request.query,
+                "prompt_source": "user",
+                "effective_mode": request.mode,
+                "top_k": request.top_k,
+                "top_docs": 0,
+                "result_count": len(result["results"]),
+                "success": True,
+                "duration_ms": duration_ms,
+                "client_ip": _client_ip(http_request),
+                "user_agent": http_request.headers.get("user-agent", ""),
+                "top_document_ids": [item.get("document_id") for item in result["results"][:5]],
+                "top_categories": [item.get("category") for item in result["results"][:5]],
+                "top_source_paths": [item.get("source") for item in result["results"][:5]],
+                "extra_json": {"search_mode": request.mode},
+            }
+        )
+        return result
 
     snapshot = _active_snapshot()
     default_index, default_meta = _index_paths(snapshot, None)
@@ -358,6 +501,24 @@ async def search_documents(request: SearchRequest):
             chunks_jsonl=chunks_jsonl,
         )
     except Exception as exc:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        query_log_service.log_query(
+            {
+                "endpoint": "/api/rag/search",
+                "query_text": request.query,
+                "prompt_source": "user",
+                "effective_mode": request.mode,
+                "top_k": request.top_k,
+                "top_docs": 5,
+                "result_count": 0,
+                "success": False,
+                "duration_ms": duration_ms,
+                "client_ip": _client_ip(http_request),
+                "user_agent": http_request.headers.get("user-agent", ""),
+                "error_message": str(exc),
+                "extra_json": {"search_mode": request.mode},
+            }
+        )
         return {"results": [], "error": str(exc)}
 
     results = []
@@ -372,7 +533,28 @@ async def search_documents(request: SearchRequest):
                     "score": doc.get("score", 0),
                 }
             )
-    return {"results": results[: request.top_k], "query": request.query, "mode": request.mode}
+    output = {"results": results[: request.top_k], "query": request.query, "mode": request.mode}
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    query_log_service.log_query(
+        {
+            "endpoint": "/api/rag/search",
+            "query_text": request.query,
+            "prompt_source": "user",
+            "effective_mode": rag_mode,
+            "top_k": request.top_k,
+            "top_docs": 5,
+            "result_count": len(output["results"]),
+            "success": True,
+            "duration_ms": duration_ms,
+            "client_ip": _client_ip(http_request),
+            "user_agent": http_request.headers.get("user-agent", ""),
+            "top_document_ids": [item.get("document_id") for item in output["results"][:5]],
+            "top_categories": [item.get("category") for item in output["results"][:5]],
+            "top_source_paths": [item.get("source") for item in output["results"][:5]],
+            "extra_json": {"search_mode": request.mode},
+        }
+    )
+    return output
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -432,7 +614,16 @@ def _to_similar_file_doc(doc: dict, rank: int, max_chunks_per_doc: int) -> dict:
         "project_name": doc.get("project_name") or doc.get("title") or "",
         "category": doc.get("category") or doc.get("document_type") or "unknown",
         "source_path": doc.get("source_path") or doc.get("source") or "",
+        "original_source_path": doc.get("original_source_path") or doc.get("source_path") or doc.get("source") or "",
         "input_path": doc.get("input_path") or "",
+        "relative_path": doc.get("relative_path") or "",
+        "root_group": doc.get("root_group") or "",
+        "sub_group": doc.get("sub_group") or "",
+        "section_label": doc.get("section_label") or "",
+        "proposal_section": doc.get("proposal_section") or "",
+        "deliverable_section": doc.get("deliverable_section") or "",
+        "collection_key": doc.get("collection_key") or "",
+        "search_keywords": doc.get("search_keywords") or [],
         "best_score": best_score,
         "ranking_score": ranking_score,
         "hit_count": doc.get("hit_count", len(content_snippets)),
@@ -443,8 +634,9 @@ def _to_similar_file_doc(doc: dict, rank: int, max_chunks_per_doc: int) -> dict:
 
 
 @router.post("/similar-files")
-async def similar_files(request: SimilarFilesRequest):
+async def similar_files(request: SimilarFilesRequest, http_request: Request):
     """검색어와 유사한 파일 목록과 본문 일부를 반환한다."""
+    started = time.perf_counter()
     try:
         rag_request = RagQueryRequest(
             query=request.query,
@@ -468,7 +660,7 @@ async def similar_files(request: SimilarFilesRequest):
             _to_similar_file_doc(doc, idx, request.max_chunks_per_doc)
             for idx, doc in enumerate(raw_documents[: request.top_docs], start=1)
         ]
-        return {
+        result = {
             "success": True,
             "query": request.query,
             "effective_mode": effective_mode,
@@ -477,7 +669,40 @@ async def similar_files(request: SimilarFilesRequest):
             "documents": documents,
             "graph_context": payload.get("graph_context", []),
         }
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/similar-files",
+            query_text=request.query,
+            prompt_source="user",
+            effective_mode=effective_mode,
+            category=request.category,
+            organization=request.organization,
+            year=request.year,
+            top_k=request.top_k,
+            top_docs=request.top_docs,
+            success=True,
+            duration_ms=duration_ms,
+            payload={"documents": documents},
+        )
+        return result
     except Exception as exc:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/similar-files",
+            query_text=request.query,
+            prompt_source="user",
+            effective_mode=request.mode,
+            category=request.category,
+            organization=request.organization,
+            year=request.year,
+            top_k=request.top_k,
+            top_docs=request.top_docs,
+            success=False,
+            duration_ms=duration_ms,
+            error_message=str(exc),
+        )
         return {
             "success": False,
             "query": request.query,
@@ -512,6 +737,7 @@ def _extract_text_from_upload(file_content: bytes, filename: str) -> str:
 
 @router.post("/query-with-rfp")
 async def query_with_rfp(
+    http_request: Request,
     file: UploadFile = File(...),
     top_k: int = Form(20),
     top_docs: int = Form(5),
@@ -522,6 +748,7 @@ async def query_with_rfp(
     max_chunks_per_doc: int = Form(3),
 ):
     """RFP 파일을 업로드하면 유사 문서를 검색하고 답변을 생성한다. (PDF/DOCX/TXT 지원)"""
+    started = time.perf_counter()
     filename = file.filename or ""
     suffix = Path(filename).suffix.lower()
 
@@ -574,8 +801,47 @@ async def query_with_rfp(
         payload["rfp_filename"] = filename
         payload["rfp_file_type"] = suffix.lstrip(".")
         payload["extracted_text_length"] = len(extracted_text)
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/query-with-rfp",
+            query_text=query_text,
+            prompt_source="upload",
+            effective_mode=effective_mode,
+            category=category,
+            organization=None,
+            year=None,
+            top_k=top_k,
+            top_docs=top_docs,
+            success=True,
+            duration_ms=duration_ms,
+            payload=payload,
+            extra_json={
+                "rfp_filename": filename,
+                "rfp_file_type": suffix.lstrip("."),
+                "extracted_text_length": len(extracted_text),
+                "mode_detection": mode_detection or {},
+            },
+        )
         return payload
     except Exception as exc:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _log_query_event(
+            request=http_request,
+            endpoint="/api/rag/query-with-rfp",
+            query_text=query_text,
+            prompt_source="upload",
+            effective_mode=mode,
+            category=category,
+            organization=None,
+            year=None,
+            top_k=top_k,
+            top_docs=top_docs,
+            success=False,
+            duration_ms=duration_ms,
+            error_message=str(exc),
+            extra_json={"rfp_filename": filename, "rfp_file_type": suffix.lstrip(".")},
+        )
         return {
             "success": False,
             "error": str(exc),

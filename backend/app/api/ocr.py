@@ -2,7 +2,6 @@
 OCR API endpoints
 """
 import os
-import shutil
 from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from pydantic import BaseModel

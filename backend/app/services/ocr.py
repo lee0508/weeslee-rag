@@ -3,11 +3,9 @@ OCR Service using olmOCR
 Converts scanned PDFs and images to markdown/text
 """
 import os
-import tempfile
 import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-import httpx
 
 from app.core.config import settings
 
@@ -271,7 +269,7 @@ class OCRService:
                         "source_file": file_path,
                         "method": "pdfplumber"
                     }
-                except Exception as e:
+                except Exception:
                     # Fall back to OCR
                     return await self.process_pdf(file_path, output_format)
 

@@ -4,7 +4,6 @@ Document Processing Pipeline Service
 Complete RAG pipeline: Extract → Chunk → Embed → Store
 """
 import os
-import uuid
 import json
 from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
@@ -17,7 +16,7 @@ from app.core.database import SessionLocal
 from app.models.document import Document, DocumentChunk, ProcessingLog, DocumentStatus, FileType
 from app.models.collection import Collection
 from app.extractors.extractor import document_extractor
-from app.services.chunking import chunking_service, TextChunk
+from app.services.chunking import chunking_service
 from app.services.metadata_extractor import metadata_extractor_service, DocumentMetadata
 from app.services.ollama import ollama_service
 from app.services.vectordb import vectordb_service

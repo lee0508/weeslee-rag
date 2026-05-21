@@ -29,6 +29,7 @@ from app.api.templates import router as templates_router
 from app.api.rag_source_admin import router as rag_source_admin_router
 from app.api.tags import router as tags_router
 from app.api.keywords import router as keywords_router
+from app.api.query_logs import router as query_logs_router
 try:
     from app.api.collections import router as collections_router
     _collections_available = True
@@ -103,6 +104,7 @@ app.include_router(templates_router, prefix="/api", tags=["Platform - Templates"
 app.include_router(rag_source_admin_router, prefix="/api", tags=["RAG Source Admin"])
 app.include_router(tags_router, prefix="/api", tags=["Platform - Tags"])
 app.include_router(keywords_router, prefix="/api", tags=["Platform - Keywords"])
+app.include_router(query_logs_router, prefix="/api", tags=["Admin Query Logs"])
 if _collections_available and collections_router is not None:
     app.include_router(collections_router, prefix="/api", tags=["Collections"])
 

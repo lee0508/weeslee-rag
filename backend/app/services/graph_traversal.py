@@ -45,10 +45,10 @@ def _load_graph() -> None:
     if mtime == _cache["mtime"]:
         return
 
-    nodes = [json.loads(l) for l in nodes_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    nodes = [json.loads(line) for line in nodes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     edges = []
     if edges_path.exists():
-        edges = [json.loads(l) for l in edges_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+        edges = [json.loads(line) for line in edges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
     _cache["nodes"] = nodes
     _cache["edges"] = edges
@@ -336,8 +336,6 @@ def search_with_graph(
             related = get_related_documents(proj)
 
         for rel in related:
-            # 그래프 노드에서 추가 정보 조회
-            doc_node = _cache["by_id"].get(f"doc:{rel['document_id']}", {})
             result_docs.append({
                 "document_id": rel["document_id"],
                 "category": rel["category"],

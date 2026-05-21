@@ -185,6 +185,7 @@ def _build_hits(bundle: dict[str, Any], chunk_map: dict[str, dict], args: Simple
             continue
         row = metadata_rows[idx]
         chunk = chunk_map.get(row.get("chunk_id", ""), {})
+        meta = row.get("metadata", {}) or {}
         hits.append(
             assembler.SearchHit(
                 rank=rank,
@@ -196,8 +197,18 @@ def _build_hits(bundle: dict[str, Any], chunk_map: dict[str, dict], args: Simple
                 source_path=row.get("source_path", ""),
                 input_path=row.get("input_path", ""),
                 chunk_text=chunk.get("text", ""),
-                organization=row.get("organization", ""),
-                folder_year=row.get("folder_year", ""),
+                organization=row.get("organization", "") or meta.get("organization", ""),
+                folder_year=row.get("folder_year", "") or meta.get("folder_year", ""),
+                root_group=meta.get("root_group", ""),
+                sub_group=meta.get("sub_group", ""),
+                section_label=meta.get("section_label", ""),
+                proposal_section=meta.get("proposal_section", ""),
+                deliverable_section=meta.get("deliverable_section", ""),
+                collection_key=meta.get("collection_key", ""),
+                relative_path=meta.get("relative_path", ""),
+                original_source_path=meta.get("original_source_path", meta.get("source_path", "")),
+                file_name=meta.get("file_name", ""),
+                search_keywords=assembler.normalize_search_keywords(meta.get("search_keywords", [])),
             )
         )
     return hits
@@ -234,6 +245,11 @@ def _build_payload(
                 "snippet": (doc.get("evidence_snippets") or [""])[0],
                 "reason": "; ".join(doc.get("reasons", [])),
                 "source_path": doc.get("source_path", ""),
+                "original_source_path": doc.get("original_source_path", ""),
+                "relative_path": doc.get("relative_path", ""),
+                "root_group": doc.get("root_group", ""),
+                "sub_group": doc.get("sub_group", ""),
+                "section_label": doc.get("section_label", ""),
             }
             for doc in documents
         ],

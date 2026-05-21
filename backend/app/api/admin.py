@@ -14,7 +14,6 @@ from app.core.auth import require_admin_token
 from app.services.document_pipeline import (
     document_pipeline_service,
     PipelineProgress,
-    PipelineStage
 )
 from app.services.knowledge_source import knowledge_source_service
 from app.services.metadata_db import metadata_db_service
@@ -586,7 +585,7 @@ async def get_admin_stats():
         if cat_meta and cat_meta.exists():
             try:
                 category_stats[cat] = sum(
-                    1 for l in cat_meta.read_text(encoding="utf-8").splitlines() if l.strip()
+                    1 for line in cat_meta.read_text(encoding="utf-8").splitlines() if line.strip()
                 )
             except Exception:
                 category_stats[cat] = 0
@@ -1042,7 +1041,6 @@ async def upload_multiple_documents(
 ):
     """다중 문서 업로드 및 SQLite DB 등록."""
     from pathlib import Path
-    import shutil
 
     allowed_extensions = ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.hwp', '.hwpx', '.txt']
     project_root = Path(__file__).resolve().parents[3]

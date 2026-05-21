@@ -3,7 +3,6 @@ HWPX Extractor
 """
 import os
 import zipfile
-from io import BytesIO
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from xml.etree import ElementTree as ET

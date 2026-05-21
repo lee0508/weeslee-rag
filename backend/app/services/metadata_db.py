@@ -9,7 +9,6 @@ CRUD 및 쿼리 기능을 제공한다.
 import sqlite3
 import json
 from pathlib import Path
-from datetime import datetime
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 

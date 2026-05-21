@@ -4,7 +4,6 @@ Knowledge Source Service
 Scans network drives for documents and manages knowledge sources
 """
 import os
-from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 

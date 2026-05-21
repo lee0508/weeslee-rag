@@ -51,6 +51,12 @@ ROOT_GROUP_MAP = {
     },
 }
 
+ROOT_GROUP_KEY_MAP = {
+    "01. RFP": "rfp",
+    "02. 제안서": "proposal",
+    "03. 산출물": "deliverable",
+}
+
 # 2차 폴더 (sub_group) 매핑 - 제안서
 PROPOSAL_SECTION_MAP = {
     "01. 전략및방법론": ("strategy_methodology", "proposal_strategy"),
@@ -73,6 +79,25 @@ DELIVERABLE_SECTION_MAP = {
     "06. 감리": ("audit_report", "deliverable_audit"),
     "07. PMO": ("pmo_report", "deliverable_pmo"),
     "08. PoC": ("poc_report", "deliverable_poc"),
+}
+
+SECTION_LABEL_MAP = {
+    "strategy_methodology": "전략및방법론",
+    "technology_function": "기술및기능",
+    "project_management": "프로젝트관리",
+    "project_support": "프로젝트지원",
+    "research": "연구과제",
+    "audit": "감리",
+    "pmo": "PMO",
+    "poc": "PoC",
+    "environment_analysis": "환경분석",
+    "current_state_analysis": "현황분석",
+    "target_model": "목표모델",
+    "implementation_plan": "이행계획",
+    "research_report": "연구과제",
+    "audit_report": "감리",
+    "pmo_report": "PMO",
+    "poc_report": "PoC",
 }
 
 # 태그 자동 추출용 키워드 맵
@@ -184,6 +209,27 @@ def detect_document_metadata(root_group: str, sub_group: str) -> Dict:
     return result
 
 
+def root_group_key(root_group: Optional[str]) -> str:
+    return ROOT_GROUP_KEY_MAP.get(root_group or "", "unknown")
+
+
+def section_label(doc_meta: Dict) -> str:
+    proposal_section = doc_meta.get("proposal_section") or ""
+    deliverable_section = doc_meta.get("deliverable_section") or ""
+    section_key = proposal_section or deliverable_section
+    return SECTION_LABEL_MAP.get(section_key, "")
+
+
+def sub_group_key(root_group: Optional[str], sub_group: Optional[str], doc_meta: Optional[Dict] = None) -> str:
+    if not sub_group:
+        return ""
+    if doc_meta is None:
+        doc_meta = detect_document_metadata(root_group or "", sub_group or "")
+    proposal_section = doc_meta.get("proposal_section") or ""
+    deliverable_section = doc_meta.get("deliverable_section") or ""
+    return proposal_section or deliverable_section or ""
+
+
 def detect_project_type(project_name: str) -> str:
     """프로젝트명에서 ISP, ISMP, BPRISP, 연구과제 유형을 추정한다."""
     upper = project_name.upper()
@@ -253,6 +299,49 @@ def detect_year(project_name: str, file_path: str) -> Optional[str]:
     return None
 
 
+def build_search_keywords(
+    *,
+    root_group: Optional[str],
+    sub_group: Optional[str],
+    project_name: str,
+    document_group: str,
+    proposal_section: Optional[str],
+    deliverable_section: Optional[str],
+    tags: Optional[List[str]] = None,
+    organization: Optional[str] = None,
+    file_name: str = "",
+) -> List[str]:
+    values = [
+        "00. RAG 소스",
+        root_group or "",
+        sub_group or "",
+        document_group or "",
+        proposal_section or "",
+        deliverable_section or "",
+        section_label({
+            "proposal_section": proposal_section or "",
+            "deliverable_section": deliverable_section or "",
+        }),
+        project_name,
+        organization or "",
+        file_name,
+    ]
+    if tags:
+        values.extend(tags)
+    keywords: List[str] = []
+    seen: set[str] = set()
+    for value in values:
+        cleaned = str(value or "").strip()
+        if not cleaned:
+            continue
+        lower = cleaned.lower()
+        if lower in seen:
+            continue
+        seen.add(lower)
+        keywords.append(cleaned)
+    return keywords
+
+
 def build_metadata():
     """rag_filelist.txt를 읽어서 metadata JSONL을 생성한다."""
 
@@ -307,12 +396,15 @@ def build_metadata():
                 "source_root": "00. RAG 소스",
                 "collection": "rag_source",
                 "source_path": windows_path,
+                "original_source_path": source_path,
                 "linux_path": source_path,
+                "relative_path": "/".join(parts[parts.index(root_group):]) if root_group in parts else file_name,
                 "file_name": file_name,
                 "file_ext": file_ext,
 
                 # 폴더 구조 정보
                 "root_group": root_group,
+                "root_group_key": root_group_key(root_group),
                 "sub_group": sub_group,
 
                 # 프로젝트 정보
@@ -323,9 +415,22 @@ def build_metadata():
 
                 # 문서 분류
                 **doc_meta,
+                "section_label": section_label(doc_meta),
+                "sub_group_key": sub_group_key(root_group, sub_group, doc_meta),
 
                 # 태그
                 "tags": detect_tags(project_name),
+                "search_keywords": build_search_keywords(
+                    root_group=root_group,
+                    sub_group=sub_group,
+                    project_name=project_name,
+                    document_group=doc_meta["document_group"],
+                    proposal_section=doc_meta.get("proposal_section"),
+                    deliverable_section=doc_meta.get("deliverable_section"),
+                    tags=detect_tags(project_name),
+                    organization=detect_organization(project_name),
+                    file_name=file_name,
+                ),
 
                 # RAG 정책
                 "index_policy": "index",

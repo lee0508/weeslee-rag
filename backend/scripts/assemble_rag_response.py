@@ -51,6 +51,16 @@ class SearchHit:
     chunk_text: str
     organization: str = ""
     folder_year: str = ""
+    root_group: str = ""
+    sub_group: str = ""
+    section_label: str = ""
+    proposal_section: str = ""
+    deliverable_section: str = ""
+    collection_key: str = ""
+    relative_path: str = ""
+    original_source_path: str = ""
+    file_name: str = ""
+    search_keywords: list[str] | None = None
 
 
 def load_env_file(path: Path) -> None:
@@ -196,6 +206,39 @@ def detect_category_intents(query: str) -> set[str]:
     return intents
 
 
+def normalize_search_keywords(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str):
+        if "|" in value:
+            return [part.strip() for part in value.split("|") if part.strip()]
+        cleaned = value.strip()
+        return [cleaned] if cleaned else []
+    return []
+
+
+def detect_structure_intents(query: str) -> set[str]:
+    lowered = query.lower()
+    intents: set[str] = set()
+    mapping = {
+        "01. rfp": ["01. rfp", "rfp", "제안요청서", "과업지시서"],
+        "02. 제안서": ["02. 제안서", "제안서", "proposal"],
+        "03. 산출물": ["03. 산출물", "산출물", "deliverable"],
+        "01. 전략및방법론": ["01. 전략및방법론", "전략및방법론", "방법론", "strategy"],
+        "02. 기술및기능": ["02. 기술및기능", "기술및기능", "기술", "기능"],
+        "03. 프로젝트관리": ["03. 프로젝트관리", "프로젝트관리", "project management", "pm"],
+        "04. 프로젝트지원": ["04. 프로젝트지원", "프로젝트지원", "support"],
+        "01. 환경분석": ["01. 환경분석", "환경분석"],
+        "02. 현황분석": ["02. 현황분석", "현황분석", "as-is"],
+        "03. 목표모델": ["03. 목표모델", "목표모델", "to-be"],
+        "04. 이행계획": ["04. 이행계획", "이행계획", "로드맵"],
+    }
+    for key, keywords in mapping.items():
+        if any(keyword in lowered for keyword in keywords):
+            intents.add(key)
+    return intents
+
+
 def lexical_match_score(query: str, terms: list[str], texts: list[str]) -> float:
     corpus = " ".join(texts).lower()
     score = 0.0
@@ -327,6 +370,7 @@ def build_hits(index_path: Path, metadata_path: Path, chunks_path: Path, args: a
             continue
         row = metadata_rows[idx]
         chunk = chunk_rows.get(row.get("chunk_id", ""), {})
+        meta = row.get("metadata", {}) or {}
         hits.append(
             SearchHit(
                 rank=rank,
@@ -338,8 +382,18 @@ def build_hits(index_path: Path, metadata_path: Path, chunks_path: Path, args: a
                 source_path=row.get("source_path", ""),
                 input_path=row.get("input_path", ""),
                 chunk_text=chunk.get("text", ""),
-                organization=row.get("organization", ""),
-                folder_year=row.get("folder_year", ""),
+                organization=row.get("organization", "") or meta.get("organization", ""),
+                folder_year=row.get("folder_year", "") or meta.get("folder_year", ""),
+                root_group=meta.get("root_group", ""),
+                sub_group=meta.get("sub_group", ""),
+                section_label=meta.get("section_label", ""),
+                proposal_section=meta.get("proposal_section", ""),
+                deliverable_section=meta.get("deliverable_section", ""),
+                collection_key=meta.get("collection_key", ""),
+                relative_path=meta.get("relative_path", ""),
+                original_source_path=meta.get("original_source_path", meta.get("source_path", "")),
+                file_name=meta.get("file_name", ""),
+                search_keywords=normalize_search_keywords(meta.get("search_keywords", [])),
             )
         )
     return hits
@@ -362,15 +416,22 @@ def reason_list(query: str, group: dict) -> list[str]:
         reasons.append("질의 핵심어와 일치: " + ", ".join(sorted(matched_terms)[:5]))
     if group.get("category_intent_match"):
         reasons.append(f"질의 의도와 문서 유형 일치: {group['category']}")
+    if group.get("structure_match_terms"):
+        reasons.append("폴더 구조 키와 일치: " + ", ".join(group["structure_match_terms"][:4]))
     if group.get("source_path_match"):
         reasons.append("파일명/경로에 질의 핵심 문자열이 포함됨")
     reasons.append(f"문서 유형: {group['category'] or 'unknown'}")
+    if group.get("root_group"):
+        reasons.append(f"대분류: {group['root_group']}")
+    if group.get("sub_group"):
+        reasons.append(f"세부 분류: {group['sub_group']}")
     return reasons
 
 
 def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str = "general") -> list[dict]:
     grouped: dict[str, dict] = {}
     intents = detect_category_intents(query)
+    structure_intents = detect_structure_intents(query)
     term_list = query_terms(query)
     compact_query = compact_text(query)
     is_bid = (mode == "bid_project")
@@ -390,6 +451,17 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "snippets": [],
                 "source_path_match": False,
                 "category_intent_match": False,
+                "root_group": hit.root_group,
+                "sub_group": hit.sub_group,
+                "section_label": hit.section_label,
+                "proposal_section": hit.proposal_section,
+                "deliverable_section": hit.deliverable_section,
+                "collection_key": hit.collection_key,
+                "relative_path": hit.relative_path,
+                "original_source_path": hit.original_source_path or hit.source_path,
+                "file_name": hit.file_name or Path(hit.source_path).name,
+                "search_keywords": list(hit.search_keywords or []),
+                "structure_match_terms": [],
             },
         )
         group["best_score"] = max(group["best_score"], hit.score)
@@ -404,6 +476,22 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
             group["source_path_match"] = True
         if intents and hit.category in intents:
             group["category_intent_match"] = True
+        searchable_structure = [
+            hit.root_group,
+            hit.sub_group,
+            hit.section_label,
+            hit.proposal_section,
+            hit.deliverable_section,
+            hit.collection_key,
+            *(hit.search_keywords or []),
+        ]
+        matched_structure = [
+            value for value in searchable_structure
+            if value and any(token in value.lower() for token in query.lower().split())
+        ]
+        for value in matched_structure:
+            if value not in group["structure_match_terms"]:
+                group["structure_match_terms"].append(value)
 
     for group in grouped.values():
         project_name = extract_project_name(group["source_path"])
@@ -411,11 +499,35 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
         lexical = lexical_match_score(
             query,
             term_list,
-            [group["source_path"], *group["sections"], *group["snippets"]],
+            [
+                group["source_path"],
+                group["relative_path"],
+                group["root_group"],
+                group["sub_group"],
+                group["section_label"],
+                *group["search_keywords"],
+                *group["sections"],
+                *group["snippets"],
+            ],
         )
         category_bonus = 2.0 if group["category_intent_match"] else 0.0
         path_bonus = 2.5 if group["source_path_match"] else 0.0
         hit_bonus = min(group["hit_count"], 5) * 0.15
+        structure_bonus = 0.0
+        if structure_intents:
+            matched = 0
+            structure_values = {
+                group["root_group"],
+                group["sub_group"],
+                group["section_label"],
+                *group["search_keywords"],
+            }
+            for intent in structure_intents:
+                if any(intent.lower() == str(value).lower() for value in structure_values if value):
+                    matched += 1
+            structure_bonus += matched * 1.5
+        if group["structure_match_terms"]:
+            structure_bonus += min(len(group["structure_match_terms"]), 4) * 0.4
 
         if is_bid:
             type_bonus = _BID_CATEGORY_PRIORITY.get(group["category"], 0.0)
@@ -433,7 +545,7 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
         group["ranking_score"] = (
             (group["best_score"] * 5.0)
             + lexical + category_bonus + path_bonus
-            + hit_bonus + type_bonus + project_bonus + kw_bonus
+            + hit_bonus + type_bonus + project_bonus + kw_bonus + structure_bonus
         )
 
     ranked = sorted(
@@ -451,7 +563,17 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "category": group["category"],
                 "project_name": group.get("project_name", ""),
                 "source_path": group["source_path"],
+                "original_source_path": group["original_source_path"],
                 "input_path": group["input_path"],
+                "relative_path": group["relative_path"],
+                "file_name": group["file_name"],
+                "root_group": group["root_group"],
+                "sub_group": group["sub_group"],
+                "section_label": group["section_label"],
+                "proposal_section": group["proposal_section"],
+                "deliverable_section": group["deliverable_section"],
+                "collection_key": group["collection_key"],
+                "search_keywords": group["search_keywords"],
                 "best_score": group["best_score"],
                 "ranking_score": group["ranking_score"],
                 "hit_count": group["hit_count"],
@@ -485,6 +607,11 @@ def build_prompt(query: str, documents: list[dict]) -> str:
         )
         if doc["section_headings"]:
             lines.append("  관련 섹션: " + " | ".join(doc["section_headings"][:3]))
+        if doc.get("root_group") or doc.get("sub_group"):
+            lines.append(
+                "  구조: "
+                + " > ".join([value for value in [doc.get("root_group", ""), doc.get("sub_group", "")] if value])
+            )
         for snippet in doc["evidence_snippets"][:2]:
             lines.append("  근거: " + snippet)
         lines.append("  추천사유: " + " / ".join(doc["reasons"]))
@@ -604,6 +731,8 @@ def write_markdown(path: Path, query: str, documents: list[dict], answer: str) -
         lines.append(f"- ranking_score: `{doc['ranking_score']:.4f}`")
         lines.append(f"- hit_count: `{doc['hit_count']}`")
         lines.append(f"- source_path: `{doc['source_path']}`")
+        if doc.get("root_group") or doc.get("sub_group"):
+            lines.append("- structure: " + " > ".join([value for value in [doc.get("root_group", ""), doc.get("sub_group", "")] if value]))
         if doc["section_headings"]:
             lines.append("- section_headings: " + " | ".join(doc["section_headings"]))
         for reason in doc["reasons"]:

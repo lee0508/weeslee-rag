@@ -19,9 +19,6 @@ Knowledge Graph schema definitions and synonym mappings.
 """
 from __future__ import annotations
 
-import re
-from typing import Optional
-
 # ── 기관 동의어 매핑 ─────────────────────────────────────────────────────────
 
 ORGANIZATION_SYNONYMS: dict[str, list[str]] = {

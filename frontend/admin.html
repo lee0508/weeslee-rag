@@ -195,6 +195,28 @@
     .job-row:last-child { border-bottom: none; }
     .job-id { font-family: monospace; color: var(--muted); }
 
+    .ql-summary-grid {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .ql-stat {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px;
+    }
+    .ql-stat-val { font-size: 24px; font-weight: 700; color: var(--amber); }
+    .ql-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .ql-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .ql-table th, .ql-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    .ql-table th { color: var(--muted); font-size: 11px; font-weight: 700; }
+    .ql-query { font-weight: 600; color: var(--text); }
+    .ql-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .ql-bad { color: var(--red); font-weight: 700; }
+    .ql-good { color: var(--green); font-weight: 700; }
+    .ql-code {
+      font-family: Consolas, monospace; font-size: 11px; color: var(--muted);
+      word-break: break-all;
+    }
+
     .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0; }
 
     .icon-btn {
@@ -414,6 +436,7 @@
       .bm-stat { min-width: 70px; }
       .tab-btn { font-size: 12px; padding: 8px 10px; }
       .index-item { flex-direction: column; align-items: flex-start; }
+      .ql-summary-grid { grid-template-columns: 1fr 1fr; }
     }
 
     /* ── Staged Summary ──────────────────────────────────────────── */
@@ -633,6 +656,7 @@
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">Data Build</h2>
           <button class="wr-nav-link" type="button" data-wr-page="source-documents">Source Documents</button>
+          <button class="wr-nav-link" type="button" data-wr-page="rag-build-wizard">RAG Build Wizard</button>
           <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS Index</button>
         </div>
         <div class="wr-nav-section">
@@ -642,6 +666,7 @@
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">RAG Agent</h2>
           <button class="wr-nav-link" type="button" data-wr-page="jobs">Jobs</button>
+          <button class="wr-nav-link" type="button" data-wr-page="logs">Logs</button>
         </div>
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">Graph RAG</h2>
@@ -659,6 +684,7 @@
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">Operations</h2>
           <button class="wr-nav-link" type="button" data-wr-page="settings">Settings</button>
+          <button class="wr-nav-link" type="button" data-wr-page="search-quality">Search Quality</button>
           <button class="wr-nav-link" type="button" data-wr-legacy-tab="platform">Legacy Platform</button>
         </div>
       </nav>
@@ -718,6 +744,52 @@
           <div class="wr-field"><label>Default source path</label><input value="/data/weeslee/source_documents" readonly></div>
           <div class="wr-field"><label>Default client</label><input value="weeslee" readonly></div>
         </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="rag-build-wizard">
+        <div class="wr-eyebrow">Data Build</div>
+        <h1 class="wr-page-title" id="wr-wizard-title" data-wr-anchor>RAG Build Wizard</h1>
+        <p class="wr-page-lead">설계 문서의 단계형 위저드와 현재 구현된 실행 단계를 연결해 보여 주는 운영 화면입니다. 실제 실행은 기존 Wizard 탭을 사용하고, 이 페이지는 단계 개요와 최신 상태를 요약합니다.</p>
+        <div class="wr-callout">설계 문서의 Storage Check, Folder Scan, Preprocess 분리는 아직 현재 실행 단계와 1:1로 맞지 않습니다. 그래서 새 레이아웃에서는 현재 실행 가능한 단계를 우선 노출하고 Legacy Wizard로 직접 이동할 수 있게 연결합니다.</div>
+        <div class="wr-inline-actions">
+          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="wizard">Open Legacy Wizard</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="faiss">Open Legacy FAISS</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">Open Search Quality</button>
+        </div>
+        <h2 class="wr-section-title" id="wr-wizard-summary-title" data-wr-anchor>Latest Run Summary</h2>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Current Summary</div>
+            <div class="wr-summary-value" id="wrWizardSummary">아직 실행 요약을 읽지 못했습니다.</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Execution Model</div>
+            <div class="wr-summary-value">Legacy wizard driven</div>
+          </div>
+        </div>
+        <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>Current Step Map</h2>
+        <div class="wr-stepper" id="wrWizardStepper">
+          <div class="wr-step"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">Scan</div><div class="wr-step-meta">문서 파일 스캔과 목록 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">Collections</div><div class="wr-step-meta">기본 Collection 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">Metadata</div><div class="wr-step-meta">문서 메타데이터 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">Tag / Keyword</div><div class="wr-step-meta">태그와 키워드 자동 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">Extract / Chunk</div><div class="wr-step-meta">텍스트 추출과 청킹 실행</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">FAISS Build</div><div class="wr-step-meta">임베딩과 인덱스 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">Graph Build</div><div class="wr-step-meta">Graph RAG 데이터 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM Wiki</div><div class="wr-step-meta">Wiki 문서 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">Search Quality</div><div class="wr-step-meta">품질 검증과 벤치마크 확인</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">Activate</div><div class="wr-step-meta">FAISS 인덱스 활성화</div></div></div>
+        </div>
+        <h2 class="wr-section-title" id="wr-wizard-api-title" data-wr-anchor>Execution APIs</h2>
+        <code class="wr-code-block">POST /api/admin/rag-source/scan
+POST /api/admin/rag-source/collections/bootstrap
+POST /api/admin/rag-source/metadata/build
+POST /api/admin/rag-source/tags/bootstrap
+POST /api/admin/rag-source/keywords/extract
+POST /api/admin/faiss/jobs
+POST /api/graph/build
+POST /api/wiki/build
+POST /api/admin/faiss/activate</code>
       </section>
 
       <section class="wr-page" data-wr-page-panel="faiss-index">
@@ -789,6 +861,54 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-callout">Job API가 아직 연결되지 않았습니다. 백엔드 구현 후 이 영역에 실제 Job 상태가 표시됩니다.</div>
       </section>
 
+      <section class="wr-page" data-wr-page-panel="logs">
+        <div class="wr-eyebrow">RAG Agent</div>
+        <h1 class="wr-page-title" id="wr-logs-title" data-wr-anchor>Logs</h1>
+        <p class="wr-page-lead">처리 로그와 질의 로그를 문서형 화면에서 요약해 보여 주고, 상세 분석은 기존 Query Logs 탭으로 연결합니다.</p>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Recent Queries</div>
+            <div class="wr-summary-value" id="wrLogSummaryRecent">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Failure Count</div>
+            <div class="wr-summary-value" id="wrLogSummaryFailures">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Avg Duration</div>
+            <div class="wr-summary-value" id="wrLogSummaryDuration">Loading...</div>
+          </div>
+        </div>
+        <div class="wr-callout">실시간 상세 로그, 필터, 개별 질의 내용은 Legacy Query Logs 탭에서 계속 확인합니다.</div>
+        <div class="wr-inline-actions">
+          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="querylogs">Open Legacy Query Logs</button>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="search-quality">
+        <div class="wr-eyebrow">Operations</div>
+        <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Search Quality</h1>
+        <p class="wr-page-lead">검색 품질 검증과 벤치마크 이력을 새 레이아웃에서 요약하고, 실제 실행은 기존 Search Quality 탭으로 연결합니다.</p>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">History Count</div>
+            <div class="wr-summary-value" id="wrDocsBenchmarkCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Latest Score</div>
+            <div class="wr-summary-value" id="wrDocsBenchmarkScore">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Latest Snapshot</div>
+            <div class="wr-summary-value" id="wrDocsBenchmarkSnapshot">Loading...</div>
+          </div>
+        </div>
+        <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
+        <div class="wr-inline-actions">
+          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">Open Legacy Search Quality</button>
+        </div>
+      </section>
+
       <section class="wr-page" data-wr-page-panel="settings">
         <div class="wr-eyebrow">Operations</div>
         <h1 class="wr-page-title" id="wr-settings-title" data-wr-anchor>Settings</h1>
@@ -857,6 +977,7 @@ POST /api/admin/faiss/activate</code>
   <button class="tab-btn" onclick="switchTab('wiki')">📚 LLM-Wiki</button>
   <button class="tab-btn" onclick="switchTab('graph')">🔗 Graph View</button>
   <button class="tab-btn" onclick="switchTab('benchmark')">🔍 검색 품질</button>
+  <button class="tab-btn" onclick="switchTab('querylogs')">📝 Query Logs</button>
   <button class="tab-btn" onclick="switchTab('knowledgesource')">🗄️ Knowledge Source</button>
   <button class="tab-btn" onclick="switchTab('ragsource')">📋 RAG Source</button>
   <button class="tab-btn" onclick="switchTab('collection')">🗂️ Collection</button>
@@ -1733,6 +1854,53 @@ POST /api/admin/faiss/activate</code>
           <button class="btn btn-primary" onclick="switchTab('faiss')">FAISS Index 탭으로 이동</button>
         </div>
       </div>
+      <!-- duplicate docs search-quality block removed from legacy pipeline
+        <div class="wr-eyebrow">Operations</div>
+        <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Search Quality</h1>
+        <p class="wr-page-lead">검색 품질 검증과 벤치마크 이력을 새 레이아웃에서 요약하고, 실제 실행은 기존 Search Quality 탭으로 연결합니다.</p>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">History Count</div>
+            <div class="wr-summary-value" id="wrBenchmarkCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Latest Score</div>
+            <div class="wr-summary-value" id="wrBenchmarkScore">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Latest Snapshot</div>
+            <div class="wr-summary-value" id="wrBenchmarkSnapshot">Loading...</div>
+          </div>
+        </div>
+        <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
+        <div class="wr-inline-actions">
+          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">Open Legacy Search Quality</button>
+        </div>
+      </section>
+      <section class="wr-page" data-wr-page-panel="search-quality">
+        <div class="wr-eyebrow">Operations</div>
+        <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Search Quality</h1>
+        <p class="wr-page-lead">검색 품질 검증과 벤치마크 이력을 새 레이아웃에서 요약하고, 실제 실행은 기존 Search Quality 탭으로 연결합니다.</p>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">History Count</div>
+            <div class="wr-summary-value" id="wrBenchmarkCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Latest Score</div>
+            <div class="wr-summary-value" id="wrBenchmarkScore">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Latest Snapshot</div>
+            <div class="wr-summary-value" id="wrBenchmarkSnapshot">Loading...</div>
+          </div>
+        </div>
+        <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
+        <div class="wr-inline-actions">
+          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">Open Legacy Search Quality</button>
+        </div>
+      </section>
+      -->
     </main>
   </div>
 </div><!-- /tab-pipeline -->
@@ -1809,6 +1977,84 @@ POST /api/admin/faiss/activate</code>
     </main>
   </div>
 </div><!-- /tab-benchmark -->
+
+<!-- 📝 Query Log 탭 -->
+<div id="tab-querylogs" class="tab-panel">
+  <div class="layout" style="grid-template-columns: 1fr;">
+    <main class="main" style="max-width:1400px;margin:0 auto">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <span>📝 사용자 Prompt / 결과 로그</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="qlDays" onchange="loadQueryLogsDashboard()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              <option value="1">최근 1일</option>
+              <option value="7" selected>최근 7일</option>
+              <option value="30">최근 30일</option>
+            </select>
+            <select id="qlEndpoint" onchange="loadQueryLogs()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              <option value="">전체 endpoint</option>
+              <option value="/api/rag/query">/api/rag/query</option>
+              <option value="/api/rag/answer">/api/rag/answer</option>
+              <option value="/api/rag/search">/api/rag/search</option>
+              <option value="/api/rag/similar-files">/api/rag/similar-files</option>
+              <option value="/api/rag/query-with-rfp">/api/rag/query-with-rfp</option>
+            </select>
+            <select id="qlSuccess" onchange="loadQueryLogs()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              <option value="">전체 상태</option>
+              <option value="success">성공</option>
+              <option value="failed">실패</option>
+            </select>
+            <input type="text" id="qlSearch" placeholder="query 검색" oninput="scheduleQueryLogSearch()" style="min-width:220px">
+            <button class="btn btn-outline btn-sm" onclick="loadQueryLogsDashboard()">↻ 새로고침</button>
+          </div>
+        </div>
+
+        <div class="ql-summary-grid" id="queryLogSummaryGrid" style="margin-bottom:20px">
+          <div class="ql-stat"><div class="ql-stat-val">-</div><div class="ql-stat-lbl">총 질의 수</div></div>
+          <div class="ql-stat"><div class="ql-stat-val">-</div><div class="ql-stat-lbl">성공률</div></div>
+          <div class="ql-stat"><div class="ql-stat-val">-</div><div class="ql-stat-lbl">평균 응답시간</div></div>
+          <div class="ql-stat"><div class="ql-stat-val">-</div><div class="ql-stat-lbl">무응답 질의</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:20px">
+          <div>
+            <h4 style="font-size:13px;font-weight:600;margin-bottom:10px">최근 Prompt 로그</h4>
+            <div style="overflow:auto">
+              <table class="ql-table">
+                <thead>
+                  <tr>
+                    <th>시간 / endpoint</th>
+                    <th>Prompt</th>
+                    <th>결과</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody id="queryLogRows">
+                  <tr><td colspan="4" class="empty">불러오는 중...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div>
+              <h4 style="font-size:13px;font-weight:600;margin-bottom:10px">반복 질의</h4>
+              <div id="queryLogTopQueries" class="empty">불러오는 중...</div>
+            </div>
+            <div>
+              <h4 style="font-size:13px;font-weight:600;margin-bottom:10px">최근 실패</h4>
+              <div id="queryLogFailures" class="empty">불러오는 중...</div>
+            </div>
+            <div>
+              <h4 style="font-size:13px;font-weight:600;margin-bottom:10px">모드 분포</h4>
+              <div id="queryLogModes" class="empty">불러오는 중...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div><!-- /tab-querylogs -->
 
 <!-- ───────────────────────────────────────────────────────────── -->
 <!-- 🗄️ Knowledge Source 탭 -->
@@ -2777,6 +3023,126 @@ POST /api/admin/faiss/activate</code>
     `).join('');
   }
 
+  // ── Query Logs ────────────────────────────────────────────────────────────
+
+  let _queryLogSearchTimer = null;
+
+  function scheduleQueryLogSearch() {
+    if (_queryLogSearchTimer) clearTimeout(_queryLogSearchTimer);
+    _queryLogSearchTimer = setTimeout(loadQueryLogs, 300);
+  }
+
+  async function loadQueryLogsDashboard() {
+    await Promise.all([loadQueryLogSummary(), loadQueryLogs()]);
+  }
+
+  async function loadQueryLogSummary() {
+    const days = document.getElementById('qlDays')?.value || '7';
+    try {
+      const data = await api(`/admin/query-logs/summary?days=${encodeURIComponent(days)}`);
+      renderQueryLogSummary(data || {});
+    } catch (e) {
+      document.getElementById('queryLogSummaryGrid').innerHTML =
+        `<div class="empty" style="color:var(--red);grid-column:1/-1">${esc(e.message)}</div>`;
+    }
+  }
+
+  function renderQueryLogSummary(data) {
+    const total = Number(data.total || 0);
+    const successRate = Number(data.success_rate || 0).toFixed(1) + '%';
+    const avgDuration = Math.round(Number(data.avg_duration_ms || 0)) + 'ms';
+    const zeroCount = Number(data.zero_result_count || 0);
+    document.getElementById('queryLogSummaryGrid').innerHTML = `
+      <div class="ql-stat"><div class="ql-stat-val">${total}</div><div class="ql-stat-lbl">총 질의 수</div></div>
+      <div class="ql-stat"><div class="ql-stat-val">${successRate}</div><div class="ql-stat-lbl">성공률</div></div>
+      <div class="ql-stat"><div class="ql-stat-val">${avgDuration}</div><div class="ql-stat-lbl">평균 응답시간</div></div>
+      <div class="ql-stat"><div class="ql-stat-val">${zeroCount}</div><div class="ql-stat-lbl">무응답 질의</div></div>
+    `;
+
+    const topQueries = data.top_queries || [];
+    document.getElementById('queryLogTopQueries').innerHTML = topQueries.length
+      ? topQueries.map(item => `
+          <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);margin-bottom:8px">
+            <div class="ql-query">${esc(item.query_preview || '')}</div>
+            <div class="ql-meta">반복 ${Number(item.count || 0)}회</div>
+          </div>
+        `).join('')
+      : '<div class="empty">반복 질의 없음</div>';
+
+    const failures = data.recent_failures || [];
+    document.getElementById('queryLogFailures').innerHTML = failures.length
+      ? failures.map(item => `
+          <div style="padding:8px 10px;border:1px solid rgba(239,68,68,.2);border-radius:8px;background:rgba(239,68,68,.08);margin-bottom:8px">
+            <div class="ql-query">${esc(item.query_preview || '')}</div>
+            <div class="ql-meta">${esc(item.endpoint || '')} · ${esc(item.created_at || '')}</div>
+            <div class="ql-meta" style="color:#fca5a5">${esc(item.error_message || '')}</div>
+          </div>
+        `).join('')
+      : '<div class="empty">최근 실패 없음</div>';
+
+    const modeCounts = data.mode_counts || {};
+    const modeEntries = Object.entries(modeCounts);
+    document.getElementById('queryLogModes').innerHTML = modeEntries.length
+      ? modeEntries.map(([name, count]) => `
+          <div class="stat-row"><span>${esc(name)}</span><span class="stat-val">${Number(count || 0)}</span></div>
+        `).join('')
+      : '<div class="empty">모드 데이터 없음</div>';
+  }
+
+  async function loadQueryLogs() {
+    const days = document.getElementById('qlDays')?.value || '7';
+    const endpoint = document.getElementById('qlEndpoint')?.value || '';
+    const success = document.getElementById('qlSuccess')?.value || '';
+    const search = document.getElementById('qlSearch')?.value?.trim() || '';
+    const params = new URLSearchParams({ days, limit: '100' });
+    if (endpoint) params.set('endpoint', endpoint);
+    if (success) params.set('success', success);
+    if (search) params.set('search', search);
+    try {
+      const data = await api(`/admin/query-logs?${params.toString()}`);
+      renderQueryLogs(data.logs || []);
+    } catch (e) {
+      document.getElementById('queryLogRows').innerHTML =
+        `<tr><td colspan="4" class="empty" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  function renderQueryLogs(logs) {
+    const el = document.getElementById('queryLogRows');
+    if (!logs.length) {
+      el.innerHTML = '<tr><td colspan="4" class="empty">로그 없음</td></tr>';
+      return;
+    }
+    el.innerHTML = logs.map(log => {
+      const docs = (log.top_document_ids || []).slice(0, 3).join(', ');
+      const cats = (log.top_categories || []).slice(0, 3).join(', ');
+      const paths = (log.top_source_paths || []).slice(0, 2);
+      return `
+        <tr>
+          <td>
+            <div class="ql-code">${esc(log.created_at || '')}</div>
+            <div class="ql-meta">${esc(log.endpoint || '')}</div>
+            <div class="ql-meta">${esc(log.effective_mode || '')}</div>
+          </td>
+          <td>
+            <div class="ql-query">${esc(log.query_preview || log.query_text || '')}</div>
+            <div class="ql-meta">source=${esc(log.prompt_source || 'user')} · ip=${esc(log.client_ip || '-')}</div>
+            ${paths.map(path => `<div class="ql-code">${esc(path)}</div>`).join('')}
+          </td>
+          <td>
+            <div>${Number(log.result_count || 0)}건 · ${Number(log.duration_ms || 0)}ms</div>
+            <div class="ql-meta">docs: ${esc(docs || '-')}</div>
+            <div class="ql-meta">cats: ${esc(cats || '-')}</div>
+          </td>
+          <td>
+            <div class="${log.success ? 'ql-good' : 'ql-bad'}">${log.success ? '성공' : '실패'}</div>
+            ${log.error_message ? `<div class="ql-meta" style="color:#fca5a5">${esc(log.error_message)}</div>` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   // ── Pipeline ──────────────────────────────────────────────────────────────
 
   let _sseSource = null;
@@ -3226,6 +3592,7 @@ POST /api/admin/faiss/activate</code>
     if (name === 'dashboard') loadDashboard();
     if (name === 'wizard') renderWizardProgressBar();
     if (name === 'docsource') loadDocSources();
+    if (name === 'querylogs') loadQueryLogsDashboard();
   }
 
   // ── Knowledge Source 탭 ──────────────────────────────────────────────────
@@ -5130,6 +5497,7 @@ POST /api/admin/faiss/activate</code>
     if (name === 'metadata') loadDocumentStats();
     if (name === 'wiki') loadWikiStats();
     if (name === 'pipeline') syncPipelineSelectionState();
+    if (name === 'querylogs') loadQueryLogsDashboard();
   };
 
   // Init — 인증 확인 후 페이지 초기화

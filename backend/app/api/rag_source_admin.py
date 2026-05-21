@@ -216,7 +216,6 @@ async def scan_rag_source(body: ScanRequest):
             detail=f"마운트 경로에 접근할 수 없습니다: {mount_path}",
         )
 
-    now = _now()
     created = updated = skipped = failed = 0
     items = []
 
@@ -262,7 +261,7 @@ async def scan_rag_source(body: ScanRequest):
         "success": True,
         "source_id": body.source_id,
         "mount_path": mount_path,
-        "scanned_at": now,
+        "scanned_at": _now(),
         "total": created + updated + skipped,
         "created": created,
         "updated": updated,
@@ -291,8 +290,7 @@ async def build_metadata(body: MetadataBuildRequest):
     if body.collection:
         docs = [d for d in docs if d]
 
-    now = _now()
-    created = updated = skipped = failed = 0
+    updated = skipped = failed = 0
     result_items = []
     jsonl_rows = []
 
@@ -373,8 +371,6 @@ async def build_metadata(body: MetadataBuildRequest):
 @router.post("/collections/bootstrap")
 async def bootstrap_collections(body: CollectionsBootstrapRequest):
     """Collection Template 기반으로 기본 Collection을 자동 생성한다."""
-    from app.services.platform_store import seed_if_empty
-
     templates = list_records("collection_templates")
     if body.client_id:
         templates = [t for t in templates if t.get("client_id") == body.client_id]

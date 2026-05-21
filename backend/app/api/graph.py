@@ -57,10 +57,10 @@ def _load_graph() -> None:
     mtime = nodes_path.stat().st_mtime
     if mtime == _cache["mtime"]:
         return
-    nodes = [json.loads(l) for l in nodes_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    nodes = [json.loads(line) for line in nodes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     edges = []
     if edges_path.exists():
-        edges = [json.loads(l) for l in edges_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+        edges = [json.loads(line) for line in edges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     _cache["nodes"] = nodes
     _cache["edges"] = edges
     _cache["mtime"] = mtime

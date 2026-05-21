@@ -77,8 +77,6 @@ class ChunkingService:
 
         # Count Korean characters
         korean_chars = len(re.findall(r'[가-힣]', text))
-        # Count other characters (English, numbers, symbols)
-        other_chars = len(text) - korean_chars
 
         # Estimate tokens
         korean_tokens = korean_chars / self.KOREAN_CHARS_PER_TOKEN

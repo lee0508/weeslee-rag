@@ -1,7 +1,6 @@
 # 선택 문서를 기존 active snapshot에 증분 반영하는 RAG 처리 서비스
 from __future__ import annotations
 
-import asyncio
 import dataclasses
 import datetime
 import json
@@ -126,9 +125,12 @@ def _detect_category(file_path: str, collection_key: str = "") -> tuple[str, dic
     doc_meta = rag_meta_rules.detect_document_metadata(root_group or "", sub_group or "")
     return category, {
         "root_group": root_group or "",
+        "root_group_key": rag_meta_rules.root_group_key(root_group),
         "sub_group": sub_group or "",
+        "sub_group_key": rag_meta_rules.sub_group_key(root_group, sub_group, doc_meta),
         "proposal_section": doc_meta.get("proposal_section") or "",
         "deliverable_section": doc_meta.get("deliverable_section") or "",
+        "section_label": rag_meta_rules.section_label(doc_meta),
         "collection_key": collection_key or CATEGORY_TO_COLLECTION.get(category, ""),
     }
 
@@ -164,24 +166,49 @@ async def _extract_document(doc: dict[str, Any], collection_key: str) -> tuple[s
     text = result.get("content", "")
     category, derived = _detect_category(file_path, collection_key)
     project_name = doc.get("project_name") or rag_meta_rules.extract_project_name(Path(file_path).stem)
+    organization = doc.get("organization") or rag_meta_rules.detect_organization(project_name) or ""
+    relative_path = ""
+    if "/00. RAG 소스/" in rag_meta_rules.normalize_path(file_path):
+        relative_path = rag_meta_rules.normalize_path(file_path).split("/00. RAG 소스/", 1)[1]
+    search_keywords = rag_meta_rules.build_search_keywords(
+        root_group=derived["root_group"],
+        sub_group=derived["sub_group"],
+        project_name=project_name,
+        document_group=category,
+        proposal_section=derived["proposal_section"],
+        deliverable_section=derived["deliverable_section"],
+        tags=[],
+        organization=organization,
+        file_name=Path(file_path).name,
+    )
     metadata = {
         "document_id": int(doc["id"]),
         "category": category,
         "document_group": category,
         "document_type": doc.get("document_type") or category,
+        "root_group": derived["root_group"],
+        "root_group_key": derived["root_group_key"],
+        "sub_group": derived["sub_group"],
+        "sub_group_key": derived["sub_group_key"],
         "proposal_section": derived["proposal_section"],
         "deliverable_section": derived["deliverable_section"],
+        "section_label": derived["section_label"],
         "collection_key": derived["collection_key"],
+        "source_root": "00. RAG 소스" if derived["root_group"] else "",
         "source_path": file_path,
+        "original_source_path": file_path,
         "input_path": file_path,
+        "relative_path": relative_path,
         "snapshot_path": "",
         "extension": Path(file_path).suffix.lower(),
+        "file_name": Path(file_path).name,
         "project_name": project_name,
         "project_confidence": 1.0,
-        "organization": doc.get("organization") or rag_meta_rules.detect_organization(project_name) or "",
+        "organization": organization,
         "organization_confidence": 0.8,
         "folder_year": doc.get("project_year") or rag_meta_rules.detect_year(project_name, file_path) or "",
         "folder_name": project_name,
+        "search_keywords": search_keywords,
         "extraction_method": result.get("method", ""),
         "is_scanned": (result.get("metadata") or {}).get("is_scanned", False),
         "content_length": len(text),
@@ -220,6 +247,8 @@ def _embed_rows(rows: list[dict], provider: str) -> tuple[np.ndarray, list[dict]
             "char_count": row.get("char_count"),
             "source_path": row.get("source_path"),
             "input_path": row.get("input_path"),
+            "organization": (row.get("metadata", {}) or {}).get("organization", ""),
+            "folder_year": (row.get("metadata", {}) or {}).get("folder_year", ""),
             "embedding_text_length": len(embed_text),
             "original_text_length": len(text),
             "metadata": row.get("metadata", {}),

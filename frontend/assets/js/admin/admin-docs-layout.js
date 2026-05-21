@@ -50,6 +50,7 @@
     });
 
     renderOnThisPage(targetName);
+    refreshPageData(targetName);
   }
 
   function renderOnThisPage(pageName) {
@@ -113,6 +114,50 @@
     }));
   }
 
+  function setText(id, value) {
+    const el = app.querySelector(`#${id}`);
+    if (el) el.textContent = value;
+  }
+
+  function refreshWizardSummary() {
+    const legacySummary = document.getElementById('wizardResultSummary');
+    setText('wrWizardSummary', legacySummary?.textContent?.trim() || '아직 실행 요약이 없습니다.');
+  }
+
+  async function refreshLogSummary() {
+    try {
+      const data = await fetchJson('/admin/query-logs/summary?days=7');
+      setText('wrLogSummaryRecent', String(Number(data.total || 0)));
+      setText('wrLogSummaryFailures', String((data.recent_failures || []).length));
+      setText('wrLogSummaryDuration', `${Math.round(Number(data.avg_duration_ms || 0))}ms`);
+    } catch (_) {
+      setText('wrLogSummaryRecent', 'Not connected');
+      setText('wrLogSummaryFailures', 'Not connected');
+      setText('wrLogSummaryDuration', 'Not connected');
+    }
+  }
+
+  function refreshBenchmarkSummary() {
+    try {
+      const raw = localStorage.getItem('admin_bm_history');
+      const items = raw ? JSON.parse(raw) : [];
+      const latest = Array.isArray(items) && items.length ? items[0] : null;
+      setText('wrDocsBenchmarkCount', String(Array.isArray(items) ? items.length : 0));
+      setText('wrDocsBenchmarkScore', latest ? `${Number(latest.pass_rate || 0).toFixed(1)}%` : 'No data');
+      setText('wrDocsBenchmarkSnapshot', latest?.snapshot || 'No data');
+    } catch (_) {
+      setText('wrDocsBenchmarkCount', 'Unavailable');
+      setText('wrDocsBenchmarkScore', 'Unavailable');
+      setText('wrDocsBenchmarkSnapshot', 'Unavailable');
+    }
+  }
+
+  function refreshPageData(pageName) {
+    if (pageName === 'rag-build-wizard') refreshWizardSummary();
+    if (pageName === 'logs') refreshLogSummary();
+    if (pageName === 'search-quality') refreshBenchmarkSummary();
+  }
+
   function escapeHtml(value) {
     return String(value)
       .replaceAll('&', '&amp;')
@@ -137,6 +182,7 @@
 
   app.querySelector('#wrRefreshStatus')?.addEventListener('click', () => {
     checkApiStatus();
+    refreshPageData(app.querySelector('.wr-page.wr-is-active')?.dataset.wrPagePanel || 'overview');
     showToast('API 상태를 다시 확인했습니다.');
   });
 
@@ -151,4 +197,6 @@
 
   setActivePage('overview');
   checkApiStatus();
+  refreshWizardSummary();
+  refreshBenchmarkSummary();
 })();

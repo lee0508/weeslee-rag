@@ -25,8 +25,10 @@ MANIFEST_FIELDS = [
     "document_type",
     "proposal_section",
     "deliverable_section",
+    "section_label",
     "source_root",
     "source_path",
+    "original_source_path",
     "relative_path",
     "snapshot_name",
     "snapshot_path",
@@ -37,7 +39,10 @@ MANIFEST_FIELDS = [
     "organization",
     "project_year",
     "root_group",
+    "root_group_key",
     "sub_group",
+    "sub_group_key",
+    "search_keywords",
 ]
 
 
@@ -113,8 +118,10 @@ def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: st
         "document_type": doc.get("document_type") or doc_meta.get("document_type", "unknown"),
         "proposal_section": doc_meta.get("proposal_section") or "",
         "deliverable_section": doc_meta.get("deliverable_section") or "",
+        "section_label": rules.section_label(doc_meta),
         "source_root": str(source_root),
         "source_path": str(source_path),
+        "original_source_path": str(source_path),
         "relative_path": relative_path,
         "snapshot_name": snapshot_name,
         "snapshot_path": "",
@@ -125,7 +132,22 @@ def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: st
         "organization": doc.get("organization") or rules.detect_organization(project_name) or "",
         "project_year": doc.get("project_year") or rules.detect_year(project_name, normalized) or "",
         "root_group": root_group or "",
+        "root_group_key": rules.root_group_key(root_group),
         "sub_group": sub_group or "",
+        "sub_group_key": rules.sub_group_key(root_group, sub_group, doc_meta),
+        "search_keywords": "|".join(
+            rules.build_search_keywords(
+                root_group=root_group,
+                sub_group=sub_group,
+                project_name=project_name,
+                document_group=document_group,
+                proposal_section=doc_meta.get("proposal_section"),
+                deliverable_section=doc_meta.get("deliverable_section"),
+                tags=[],
+                organization=doc.get("organization") or rules.detect_organization(project_name) or "",
+                file_name=doc.get("file_name") or source_path.name,
+            )
+        ),
     }
 
 

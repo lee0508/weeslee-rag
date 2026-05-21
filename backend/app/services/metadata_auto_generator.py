@@ -10,8 +10,7 @@ metadata_auto_generator.py
 import re
 import json
 import httpx
-from typing import Optional, Dict, List, Any
-from pathlib import Path
+from typing import Dict, List, Any
 
 
 class MetadataAutoGenerator:
@@ -298,7 +297,7 @@ JSON만 출력하세요:"""
                             # 규칙 기반 결과와 병합 (LLM 결과 우선)
                             merged = {**rule_result, **llm_result}
                             merged["confidence"] = min(rule_result["confidence"] + 0.2, 1.0)
-                            merged["reason"] = f"LLM 기반 추출 + 규칙 기반 보정"
+                            merged["reason"] = "LLM 기반 추출 + 규칙 기반 보정"
                             return merged
                     except json.JSONDecodeError:
                         pass
