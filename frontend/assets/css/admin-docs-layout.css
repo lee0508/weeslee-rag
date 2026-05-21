@@ -1,0 +1,540 @@
+/* Laravel Docs 스타일 관리자 레이아웃을 정의하는 스타일 */
+#wrAdminDocsApp {
+  --wr-primary: #dc2626;
+  --wr-primary-soft: #fef2f2;
+  --wr-primary-hover: #b91c1c;
+  --wr-bg: #f8fafc;
+  --wr-surface: #ffffff;
+  --wr-surface-muted: #f1f5f9;
+  --wr-border: #e2e8f0;
+  --wr-border-strong: #cbd5e1;
+  --wr-text: #111827;
+  --wr-muted: #64748b;
+  --wr-soft-text: #334155;
+  --wr-green: #16a34a;
+  --wr-amber: #d97706;
+  --wr-red: #dc2626;
+  min-height: 100vh;
+  background: var(--wr-bg);
+  color: var(--wr-text);
+  font-family: Inter, "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+}
+
+#wrAdminDocsApp * {
+  box-sizing: border-box;
+}
+
+#wrAdminDocsApp .wr-docs-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 280px minmax(320px, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  min-height: 64px;
+  padding: 0 28px;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--wr-border);
+  backdrop-filter: blur(14px);
+}
+
+#wrAdminDocsApp .wr-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+#wrAdminDocsApp .wr-brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wr-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+#wrAdminDocsApp .wr-brand-text {
+  min-width: 0;
+}
+
+#wrAdminDocsApp .wr-brand-title {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--wr-text);
+}
+
+#wrAdminDocsApp .wr-brand-subtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--wr-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#wrAdminDocsApp .wr-search-wrap {
+  display: flex;
+  align-items: center;
+  max-width: 620px;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--wr-border);
+  border-radius: 8px;
+  background: var(--wr-surface);
+}
+
+#wrAdminDocsApp .wr-search-icon {
+  color: var(--wr-muted);
+  font-size: 13px;
+  margin-right: 8px;
+}
+
+#wrAdminDocsApp .wr-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--wr-text);
+  font-size: 13px;
+}
+
+#wrAdminDocsApp .wr-search-input::placeholder {
+  color: #94a3b8;
+}
+
+#wrAdminDocsApp .wr-kbd {
+  flex-shrink: 0;
+  border: 1px solid var(--wr-border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--wr-muted);
+  font-size: 11px;
+  line-height: 18px;
+  background: #f8fafc;
+}
+
+#wrAdminDocsApp .wr-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+#wrAdminDocsApp .wr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid var(--wr-border);
+  background: var(--wr-surface);
+  color: var(--wr-soft-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#wrAdminDocsApp .wr-btn:hover {
+  border-color: var(--wr-border-strong);
+  background: #f8fafc;
+}
+
+#wrAdminDocsApp .wr-btn-primary {
+  border-color: var(--wr-primary);
+  background: var(--wr-primary);
+  color: #fff;
+}
+
+#wrAdminDocsApp .wr-btn-primary:hover {
+  border-color: var(--wr-primary-hover);
+  background: var(--wr-primary-hover);
+}
+
+#wrAdminDocsApp .wr-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  min-height: calc(100vh - 64px);
+}
+
+#wrAdminDocsApp .wr-sidebar {
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 22px 18px 28px 28px;
+  border-right: 1px solid var(--wr-border);
+  background: var(--wr-surface);
+}
+
+#wrAdminDocsApp .wr-nav-section {
+  margin-bottom: 22px;
+}
+
+#wrAdminDocsApp .wr-nav-heading {
+  margin: 0 0 7px;
+  padding: 0 10px;
+  color: var(--wr-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#wrAdminDocsApp .wr-nav-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--wr-soft-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+#wrAdminDocsApp .wr-nav-link:hover {
+  background: var(--wr-surface-muted);
+  color: var(--wr-text);
+}
+
+#wrAdminDocsApp .wr-nav-link.wr-is-active {
+  background: var(--wr-primary-soft);
+  color: var(--wr-primary-hover);
+  font-weight: 800;
+}
+
+#wrAdminDocsApp .wr-nav-link.wr-is-hidden {
+  display: none;
+}
+
+#wrAdminDocsApp .wr-main {
+  min-width: 0;
+  padding: 38px 48px 72px;
+  background: var(--wr-bg);
+}
+
+#wrAdminDocsApp .wr-page {
+  display: none;
+  max-width: 920px;
+}
+
+#wrAdminDocsApp .wr-page.wr-is-active {
+  display: block;
+}
+
+#wrAdminDocsApp .wr-eyebrow {
+  color: var(--wr-primary);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#wrAdminDocsApp .wr-page-title {
+  margin: 8px 0 10px;
+  color: var(--wr-text);
+  font-size: 34px;
+  line-height: 1.18;
+  font-weight: 800;
+}
+
+#wrAdminDocsApp .wr-page-lead {
+  max-width: 760px;
+  margin: 0 0 28px;
+  color: var(--wr-soft-text);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+#wrAdminDocsApp .wr-section-title {
+  margin: 34px 0 12px;
+  color: var(--wr-text);
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+#wrAdminDocsApp .wr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+#wrAdminDocsApp .wr-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#wrAdminDocsApp .wr-card {
+  border: 1px solid var(--wr-border);
+  border-radius: 8px;
+  background: var(--wr-surface);
+  padding: 18px;
+}
+
+#wrAdminDocsApp .wr-card-title {
+  margin: 0 0 8px;
+  color: var(--wr-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+#wrAdminDocsApp .wr-card-text {
+  margin: 0;
+  color: var(--wr-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+#wrAdminDocsApp .wr-stat-value {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--wr-text);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+#wrAdminDocsApp .wr-status-list {
+  display: grid;
+  gap: 8px;
+}
+
+#wrAdminDocsApp .wr-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: var(--wr-soft-text);
+  font-size: 13px;
+}
+
+#wrAdminDocsApp .wr-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--wr-muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#wrAdminDocsApp .wr-status-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: #94a3b8;
+}
+
+#wrAdminDocsApp .wr-status-badge.wr-ok {
+  color: var(--wr-green);
+}
+
+#wrAdminDocsApp .wr-status-badge.wr-ok::before {
+  background: var(--wr-green);
+}
+
+#wrAdminDocsApp .wr-status-badge.wr-warn {
+  color: var(--wr-amber);
+}
+
+#wrAdminDocsApp .wr-status-badge.wr-warn::before {
+  background: var(--wr-amber);
+}
+
+#wrAdminDocsApp .wr-status-badge.wr-error {
+  color: var(--wr-red);
+}
+
+#wrAdminDocsApp .wr-status-badge.wr-error::before {
+  background: var(--wr-red);
+}
+
+#wrAdminDocsApp .wr-callout {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-left: 3px solid var(--wr-primary);
+  border-radius: 0 8px 8px 0;
+  background: var(--wr-primary-soft);
+  color: #7f1d1d;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+#wrAdminDocsApp .wr-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#wrAdminDocsApp .wr-field label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--wr-soft-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#wrAdminDocsApp .wr-field input,
+#wrAdminDocsApp .wr-field select,
+#wrAdminDocsApp .wr-field textarea {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--wr-border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: var(--wr-surface);
+  color: var(--wr-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+#wrAdminDocsApp .wr-field textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+#wrAdminDocsApp .wr-code-block {
+  display: block;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #dbeafe;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-x: auto;
+}
+
+#wrAdminDocsApp .wr-right-panel {
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 28px 28px 28px 18px;
+  border-left: 1px solid var(--wr-border);
+  background: var(--wr-surface);
+}
+
+#wrAdminDocsApp .wr-panel-block {
+  margin-bottom: 28px;
+}
+
+#wrAdminDocsApp .wr-panel-title {
+  margin: 0 0 10px;
+  color: var(--wr-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#wrAdminDocsApp .wr-on-this-page {
+  display: grid;
+  gap: 6px;
+}
+
+#wrAdminDocsApp .wr-on-this-page a {
+  color: var(--wr-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+#wrAdminDocsApp .wr-on-this-page a:hover {
+  color: var(--wr-primary);
+}
+
+#wrAdminDocsApp .wr-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10000;
+  max-width: 320px;
+  padding: 12px 14px;
+  border: 1px solid var(--wr-border);
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.24);
+}
+
+.wr-legacy-admin-tabs[hidden] {
+  display: none !important;
+}
+
+.wr-legacy-admin-tabs {
+  min-height: 100vh;
+}
+
+@media (max-width: 1280px) {
+  #wrAdminDocsApp .wr-shell {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  #wrAdminDocsApp .wr-right-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 920px) {
+  #wrAdminDocsApp .wr-docs-header {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px 18px;
+  }
+
+  #wrAdminDocsApp .wr-header-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #wrAdminDocsApp .wr-shell {
+    grid-template-columns: 1fr;
+  }
+
+  #wrAdminDocsApp .wr-sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--wr-border);
+    padding: 18px;
+  }
+
+  #wrAdminDocsApp .wr-main {
+    padding: 28px 20px 56px;
+  }
+
+  #wrAdminDocsApp .wr-page-title {
+    font-size: 28px;
+  }
+
+  #wrAdminDocsApp .wr-grid,
+  #wrAdminDocsApp .wr-grid-three,
+  #wrAdminDocsApp .wr-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

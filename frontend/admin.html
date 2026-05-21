@@ -575,6 +575,7 @@
     .wizard-progress-dot.done { background: var(--green); }
     .wizard-progress-dot.active-step { background: var(--amber); }
   </style>
+  <link rel="stylesheet" href="assets/css/admin-docs-layout.css">
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
 <body>
@@ -599,6 +600,237 @@
     </form>
   </div>
 </div>
+
+<div id="wrAdminDocsApp" class="wr-admin-docs-app">
+  <header class="wr-docs-header">
+    <div class="wr-brand">
+      <span class="wr-brand-mark">WR</span>
+      <div class="wr-brand-text">
+        <div class="wr-brand-title">WEESLEE RAG Admin</div>
+        <div class="wr-brand-subtitle">Docs style operations console</div>
+      </div>
+    </div>
+    <label class="wr-search-wrap" for="wrDocsSearch">
+      <span class="wr-search-icon">⌕</span>
+      <input id="wrDocsSearch" class="wr-search-input" type="search" placeholder="Search navigation">
+      <span class="wr-kbd">Ctrl K</span>
+    </label>
+    <div class="wr-header-actions">
+      <button class="wr-btn" id="wrRefreshStatus" type="button">Status</button>
+      <button class="wr-btn" id="wrThemeToggle" type="button">Theme</button>
+      <a class="wr-btn" href="/weeslee-rag/frontend/rag-assistant.html" target="_blank" rel="noopener">RAG Assistant</a>
+      <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="dashboard">Legacy Console</button>
+    </div>
+  </header>
+
+  <div class="wr-shell">
+    <aside class="wr-sidebar">
+      <nav aria-label="Admin documentation navigation">
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">Prologue</h2>
+          <button class="wr-nav-link wr-is-active" type="button" data-wr-page="overview">Overview</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">Data Build</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="source-documents">Source Documents</button>
+          <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS Index</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">RAG</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="json-graph">JSON Graph</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">RAG Agent</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="jobs">Jobs</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">Graph RAG</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="json-graph">Graph Build</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">LLM Wiki</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="llm-wiki">LLM Wiki</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">Documents</h2>
+          <button class="wr-nav-link" type="button" data-wr-legacy-tab="documents">Legacy Documents</button>
+          <button class="wr-nav-link" type="button" data-wr-legacy-tab="docsource">Legacy Document Source</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">Operations</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="settings">Settings</button>
+          <button class="wr-nav-link" type="button" data-wr-legacy-tab="platform">Legacy Platform</button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="wr-main">
+      <section class="wr-page wr-is-active" data-wr-page-panel="overview">
+        <div class="wr-eyebrow">Prologue</div>
+        <h1 class="wr-page-title" id="wr-overview-title" data-wr-anchor>Overview</h1>
+        <p class="wr-page-lead">
+          WEESLEE RAG 관리자 화면을 Laravel Docs 스타일 구조로 재배치한 1차 화면입니다.
+          기존 기능은 삭제하지 않고 Legacy Console에 보존하며, 새 화면은 운영 흐름과 상태 확인을 먼저 안정화합니다.
+        </p>
+        <div class="wr-grid wr-grid-three">
+          <div class="wr-card">
+            <span class="wr-stat-value">7</span>
+            <h2 class="wr-card-title">Primary Pages</h2>
+            <p class="wr-card-text">Overview, Source Documents, FAISS Index, JSON Graph, LLM Wiki, Jobs, Settings를 우선 제공합니다.</p>
+          </div>
+          <div class="wr-card">
+            <span class="wr-stat-value">Fallback</span>
+            <h2 class="wr-card-title">API Strategy</h2>
+            <p class="wr-card-text">기존 API가 연결되면 상태를 표시하고, 없거나 실패하면 화면이 깨지지 않도록 미연결 상태를 표시합니다.</p>
+          </div>
+          <div class="wr-card">
+            <span class="wr-stat-value">Legacy</span>
+            <h2 class="wr-card-title">Regression Guard</h2>
+            <p class="wr-card-text">기존 탭 UI와 함수는 숨김 보존합니다. 필요한 경우 Legacy Console 버튼으로 진입합니다.</p>
+          </div>
+        </div>
+        <h2 class="wr-section-title" id="wr-overview-flow" data-wr-anchor>Build Flow</h2>
+        <div class="wr-status-list">
+          <div class="wr-status-row"><span>Source Documents</span><button class="wr-btn" type="button" data-wr-legacy-tab="docsource">Open legacy source manager</button></div>
+          <div class="wr-status-row"><span>Dataset Builder</span><button class="wr-btn" type="button" data-wr-legacy-tab="wizard">Open legacy builder</button></div>
+          <div class="wr-status-row"><span>Search Quality</span><button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">Open legacy benchmark</button></div>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="source-documents">
+        <div class="wr-eyebrow">Data Build</div>
+        <h1 class="wr-page-title" id="wr-source-title" data-wr-anchor>Source Documents</h1>
+        <p class="wr-page-lead">원문 문서 위치, 논리 Source, 스캔 상태를 다루는 화면입니다. 1차에서는 설명과 fallback 상태를 우선 표시합니다.</p>
+        <div class="wr-callout">API가 아직 연결되지 않았습니다. 백엔드 구현 후 이 영역에 실제 데이터가 표시됩니다.</div>
+        <div class="wr-grid">
+          <div class="wr-card">
+            <h2 class="wr-card-title">Source Registry</h2>
+            <p class="wr-card-text">문서 원본 경로, 마운트 경로, 데이터 저장 경로를 관리합니다.</p>
+            <button class="wr-btn" type="button" data-wr-legacy-tab="docsource">Legacy Document Source 열기</button>
+          </div>
+          <div class="wr-card">
+            <h2 class="wr-card-title">Scan Preview</h2>
+            <p class="wr-card-text">스캔 미리보기와 Dataset 생성은 기존 Document Source 탭 기능을 보존해 사용합니다.</p>
+          </div>
+        </div>
+        <h2 class="wr-section-title" id="wr-source-settings" data-wr-anchor>Source Settings</h2>
+        <div class="wr-form-grid">
+          <div class="wr-field"><label>Default source path</label><input value="/data/weeslee/source_documents" readonly></div>
+          <div class="wr-field"><label>Default client</label><input value="weeslee" readonly></div>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="faiss-index">
+        <div class="wr-eyebrow">Data Build</div>
+        <h1 class="wr-page-title" id="wr-faiss-title" data-wr-anchor>FAISS Index</h1>
+        <p class="wr-page-lead">활성 인덱스, 인덱스 생성 Job, 스냅샷 활성화 상태를 확인하는 페이지입니다.</p>
+        <div class="wr-grid">
+          <div class="wr-card">
+            <h2 class="wr-card-title">Active Index</h2>
+            <p class="wr-card-text">연결 가능한 API가 있으면 우측 패널의 FAISS API 상태가 Connected로 표시됩니다.</p>
+          </div>
+          <div class="wr-card">
+            <h2 class="wr-card-title">Pipeline</h2>
+            <p class="wr-card-text">실제 파이프라인 실행은 기존 FAISS Index 탭의 기능을 유지합니다.</p>
+            <button class="wr-btn" type="button" data-wr-legacy-tab="faiss">Legacy FAISS 열기</button>
+          </div>
+        </div>
+        <h2 class="wr-section-title" id="wr-faiss-api" data-wr-anchor>Expected API</h2>
+        <code class="wr-code-block">GET /api/admin/faiss/status
+GET /api/admin/faiss/jobs
+POST /api/admin/faiss/jobs
+POST /api/admin/faiss/activate</code>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="json-graph">
+        <div class="wr-eyebrow">Graph RAG</div>
+        <h1 class="wr-page-title" id="wr-graph-title" data-wr-anchor>JSON Graph</h1>
+        <p class="wr-page-lead">프로젝트, 문서, 카테고리, 관계 데이터를 JSON Graph로 구축하고 Graph RAG에서 활용하는 영역입니다.</p>
+        <div class="wr-callout">Graph API가 없거나 실패해도 이 페이지는 fallback 상태를 유지합니다.</div>
+        <div class="wr-grid">
+          <div class="wr-card">
+            <h2 class="wr-card-title">Graph Summary</h2>
+            <p class="wr-card-text">노드와 엣지 수, 최근 build 결과를 표시할 예정입니다.</p>
+          </div>
+          <div class="wr-card">
+            <h2 class="wr-card-title">Graph View</h2>
+            <p class="wr-card-text">기존 Cytoscape 기반 Graph View는 Legacy 탭에 보존되어 있습니다.</p>
+            <button class="wr-btn" type="button" data-wr-legacy-tab="graph">Legacy Graph 열기</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="llm-wiki">
+        <div class="wr-eyebrow">LLM Wiki</div>
+        <h1 class="wr-page-title" id="wr-wiki-title" data-wr-anchor>LLM Wiki</h1>
+        <p class="wr-page-lead">발주기관, 프로젝트, 기술 키워드 기준으로 자동 생성되는 지식 페이지를 관리합니다.</p>
+        <div class="wr-grid">
+          <div class="wr-card">
+            <h2 class="wr-card-title">Wiki Generation</h2>
+            <p class="wr-card-text">1차 화면에서는 생성 버튼 배치와 fallback 상태를 제공합니다.</p>
+          </div>
+          <div class="wr-card">
+            <h2 class="wr-card-title">Legacy Wiki</h2>
+            <p class="wr-card-text">기존 LLM-Wiki 탭의 생성 함수와 목록 영역은 보존되어 있습니다.</p>
+            <button class="wr-btn" type="button" data-wr-legacy-tab="wiki">Legacy Wiki 열기</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="jobs">
+        <div class="wr-eyebrow">RAG Agent</div>
+        <h1 class="wr-page-title" id="wr-jobs-title" data-wr-anchor>Jobs</h1>
+        <p class="wr-page-lead">문서 처리, FAISS 생성, Graph/Wiki build 같은 백그라운드 작업 상태를 확인합니다.</p>
+        <div class="wr-status-list">
+          <div class="wr-status-row"><span>Current Job</span><span class="wr-status-badge">No running job</span></div>
+          <div class="wr-status-row"><span>Job API</span><span class="wr-status-badge" id="wrJobPageStatus">Not connected</span></div>
+        </div>
+        <h2 class="wr-section-title" id="wr-jobs-fallback" data-wr-anchor>Fallback State</h2>
+        <div class="wr-callout">Job API가 아직 연결되지 않았습니다. 백엔드 구현 후 이 영역에 실제 Job 상태가 표시됩니다.</div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="settings">
+        <div class="wr-eyebrow">Operations</div>
+        <h1 class="wr-page-title" id="wr-settings-title" data-wr-anchor>Settings</h1>
+        <p class="wr-page-lead">관리자 화면에서 필요한 기본 경로, 모델, 운영 설정을 확인하는 페이지입니다. 1차에서는 입력 UI와 안내 상태만 제공합니다.</p>
+        <div class="wr-form-grid">
+          <div class="wr-field"><label>LLM model</label><input value="gemma3:12b" readonly></div>
+          <div class="wr-field"><label>Embedding model</label><input value="nomic-embed-text" readonly></div>
+          <div class="wr-field"><label>Document ID strategy</label><input value="file hash based document_id" readonly></div>
+          <div class="wr-field"><label>Job runner</label><input value="Python Thread based runner" readonly></div>
+        </div>
+        <h2 class="wr-section-title" id="wr-settings-legacy" data-wr-anchor>Platform Settings</h2>
+        <button class="wr-btn" type="button" data-wr-legacy-tab="platform">Legacy Platform 설정 열기</button>
+      </section>
+    </main>
+
+    <aside class="wr-right-panel">
+      <div class="wr-panel-block">
+        <h2 class="wr-panel-title">On This Page</h2>
+        <div class="wr-on-this-page" id="wrOnThisPage"></div>
+      </div>
+      <div class="wr-panel-block">
+        <h2 class="wr-panel-title">Current Job</h2>
+        <div class="wr-status-list">
+          <div class="wr-status-row"><span>No running job</span><span class="wr-status-badge">Fallback</span></div>
+        </div>
+      </div>
+      <div class="wr-panel-block">
+        <h2 class="wr-panel-title">API Status</h2>
+        <div class="wr-status-list">
+          <div class="wr-status-row"><span>Storage API</span><span class="wr-status-badge" id="wrStorageStatus">Not connected</span></div>
+          <div class="wr-status-row"><span>Job API</span><span class="wr-status-badge" id="wrJobStatus">Not connected</span></div>
+          <div class="wr-status-row"><span>FAISS API</span><span class="wr-status-badge" id="wrFaissStatus">Not connected</span></div>
+          <div class="wr-status-row"><span>Graph API</span><span class="wr-status-badge" id="wrGraphStatus">Not connected</span></div>
+          <div class="wr-status-row"><span>Wiki API</span><span class="wr-status-badge" id="wrWikiStatus">Not connected</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <div class="wr-toast" id="wrDocsToast" hidden></div>
+</div>
+
+<section id="legacyAdminTabs" class="wr-legacy-admin-tabs" hidden>
 
 <header>
   <h1>FAISS Index Management Console</h1>
@@ -1957,6 +2189,8 @@
   </div>
 
 </div><!-- /tab-platform -->
+
+</section><!-- /legacyAdminTabs -->
 
 <!-- 그래프 엣지 추가 모달 -->
 <div id="edgeModal" class="confirm-overlay hidden">
@@ -5672,6 +5906,7 @@
     if (getToken()) initPage();
   });
 </script>
+<script src="assets/js/admin/admin-docs-layout.js"></script>
 
 <!-- Confirm modal -->
 <div class="confirm-overlay" id="confirmOverlay">
