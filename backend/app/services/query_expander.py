@@ -285,3 +285,155 @@ def detect_mode_with_reason(query: str) -> dict:
         "reason": "일반 문서 검색",
         "matched_keyword": None,
     }
+
+
+# 발주기관 패턴
+_ORG_PATTERNS = [
+    (r"(과기정통부|과학기술정보통신부)", "과학기술정보통신부"),
+    (r"(법무부|검찰청|법원)", "법무부"),
+    (r"(보건복지부|복지부)", "보건복지부"),
+    (r"(통계청)", "통계청"),
+    (r"(K-water|수자원공사|한국수자원)", "K-water"),
+    (r"(농정원|농림부|농림축산식품부)", "농림축산식품부"),
+    (r"(교육부|KICE|교육과정평가원)", "교육부"),
+    (r"(소방청|소방본부|119)", "소방청"),
+    (r"(국토부|국토교통부|국토지리정보원)", "국토교통부"),
+    (r"(환경부|해양환경)", "환경부"),
+    (r"(심평원|건강보험심사평가원)", "건강보험심사평가원"),
+    (r"(KOFIH|국제보건의료재단)", "한국국제보건의료재단"),
+    (r"(경찰청|경찰)", "경찰청"),
+    (r"(국회|국회사무처)", "국회"),
+    (r"(LH|한국토지주택공사)", "LH"),
+    (r"(한전|한국전력)", "한국전력공사"),
+    (r"(IITP|정보통신기획평가원)", "IITP"),
+    (r"(KITECH|한국생산기술연구원)", "KITECH"),
+]
+
+# 프로젝트 유형 패턴
+_PROJECT_TYPE_PATTERNS = [
+    (r"(BPRISP|BPR/ISP)", "BPRISP"),
+    (r"(ISMP)", "ISMP"),
+    (r"(ISP|정보화전략계획|정보전략계획)", "ISP"),
+    (r"(연구|연구용역|연구과제)", "연구용역"),
+    (r"(컨설팅)", "컨설팅"),
+    (r"(PMO)", "PMO"),
+    (r"(감리)", "감리"),
+    (r"(PoC|개념검증)", "PoC"),
+    (r"(구축|시스템구축)", "시스템구축"),
+]
+
+# 기술 키워드 패턴
+_TECH_PATTERNS = [
+    (r"(AI|인공지능|생성형)", "AI"),
+    (r"(AX|AI전환|인공지능전환)", "AX"),
+    (r"(빅데이터|데이터분석)", "빅데이터"),
+    (r"(클라우드|cloud)", "클라우드"),
+    (r"(디지털트윈|digital twin)", "디지털트윈"),
+    (r"(IoT|사물인터넷)", "IoT"),
+    (r"(블록체인|blockchain)", "블록체인"),
+    (r"(메타버스|metaverse)", "메타버스"),
+]
+
+
+def analyze_prompt(query: str) -> dict:
+    """
+    사용자 쿼리를 분석하여 검색 의도, 키워드, 필터 정보를 추출한다.
+
+    Returns:
+        {
+            "original_query": str,
+            "mode_detection": {...},
+            "extracted_keywords": [...],
+            "detected_organization": str | None,
+            "detected_project_type": str | None,
+            "detected_technologies": [...],
+            "detected_year": str | None,
+            "suggested_filters": {...},
+            "expanded_query": str,
+        }
+    """
+    query_lower = query.lower()
+
+    # 1. 모드 감지
+    mode_detection = detect_mode_with_reason(query)
+
+    # 2. 키워드 추출
+    tokens = _TERM_PATTERN.findall(query)
+    keywords = [t for t in tokens if len(t) >= 2]
+
+    # 3. 발주기관 감지
+    detected_org = None
+    for pattern, org_name in _ORG_PATTERNS:
+        if re.search(pattern, query, re.IGNORECASE):
+            detected_org = org_name
+            break
+
+    # 4. 프로젝트 유형 감지
+    detected_project_type = None
+    for pattern, proj_type in _PROJECT_TYPE_PATTERNS:
+        if re.search(pattern, query, re.IGNORECASE):
+            detected_project_type = proj_type
+            break
+
+    # 5. 기술 키워드 감지
+    detected_techs = []
+    for pattern, tech_name in _TECH_PATTERNS:
+        if re.search(pattern, query, re.IGNORECASE):
+            detected_techs.append(tech_name)
+
+    # 6. 연도 감지
+    year_match = re.search(r"20[12][0-9]", query)
+    detected_year = year_match.group() if year_match else None
+
+    # 7. 문서 분류 감지
+    detected_doc_group = None
+    if re.search(r"(RFP|제안요청서|과업지시서)", query, re.IGNORECASE):
+        detected_doc_group = "RFP"
+    elif re.search(r"(제안서|proposal)", query, re.IGNORECASE):
+        detected_doc_group = "제안서"
+    elif re.search(r"(산출물|deliverable|보고서)", query, re.IGNORECASE):
+        detected_doc_group = "산출물"
+
+    # 8. 문서 카테고리 감지
+    detected_doc_category = None
+    category_patterns = [
+        (r"(전략|방법론|전략및방법론)", "전략및방법론"),
+        (r"(기술|기능|기술및기능)", "기술및기능"),
+        (r"(프로젝트관리|PM)", "프로젝트관리"),
+        (r"(환경분석)", "환경분석"),
+        (r"(현황분석)", "현황분석"),
+        (r"(목표모델)", "목표모델"),
+        (r"(이행계획)", "이행계획"),
+    ]
+    for pattern, category in category_patterns:
+        if re.search(pattern, query, re.IGNORECASE):
+            detected_doc_category = category
+            break
+
+    # 9. 쿼리 확장
+    expanded = expand_bid_query(query)
+
+    # 10. 필터 제안
+    suggested_filters = {}
+    if detected_org:
+        suggested_filters["organization"] = detected_org
+    if detected_year:
+        suggested_filters["year"] = detected_year
+    if detected_doc_group:
+        suggested_filters["document_group"] = detected_doc_group
+    if detected_doc_category:
+        suggested_filters["document_category"] = detected_doc_category
+
+    return {
+        "original_query": query,
+        "mode_detection": mode_detection,
+        "extracted_keywords": keywords,
+        "detected_organization": detected_org,
+        "detected_project_type": detected_project_type,
+        "detected_technologies": detected_techs,
+        "detected_year": detected_year,
+        "detected_document_group": detected_doc_group,
+        "detected_document_category": detected_doc_category,
+        "suggested_filters": suggested_filters,
+        "expanded_query": expanded,
+    }

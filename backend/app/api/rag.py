@@ -958,3 +958,54 @@ async def generate_proposal(request: ProposalRequest):
         payload = json.loads(output_json.read_text(encoding="utf-8"))
         payload["success"] = True
         return payload
+
+
+# ============================================================
+# Prompt Analysis API
+# ============================================================
+
+
+class PromptAnalysisRequest(BaseModel):
+    query: str
+
+
+class PromptAnalysisResponse(BaseModel):
+    success: bool
+    original_query: str
+    mode_detection: dict
+    extracted_keywords: list
+    detected_organization: Optional[str] = None
+    detected_project_type: Optional[str] = None
+    detected_technologies: list = []
+    detected_year: Optional[str] = None
+    detected_document_group: Optional[str] = None
+    detected_document_category: Optional[str] = None
+    suggested_filters: dict = {}
+    expanded_query: str
+
+
+@router.post("/analyze-prompt", response_model=PromptAnalysisResponse)
+async def analyze_prompt_endpoint(request: PromptAnalysisRequest):
+    """
+    사용자 쿼리를 분석하여 검색 의도, 키워드, 필터 정보를 추출한다.
+
+    - 검색 모드 감지 (general, graph_rag, rfp_analysis, bid_project)
+    - 발주기관, 프로젝트 유형, 기술 키워드 추출
+    - 문서 분류(RFP/제안서/산출물), 문서 카테고리 감지
+    - 연도 감지
+    - 필터 제안
+    - 쿼리 확장
+    """
+    from app.services.query_expander import analyze_prompt
+
+    try:
+        result = analyze_prompt(request.query)
+        return PromptAnalysisResponse(success=True, **result)
+    except Exception as exc:
+        return PromptAnalysisResponse(
+            success=False,
+            original_query=request.query,
+            mode_detection={"mode": "general", "reason": "분석 실패", "matched_keyword": None},
+            extracted_keywords=[],
+            expanded_query=request.query,
+        )
