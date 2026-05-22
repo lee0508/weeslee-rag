@@ -569,9 +569,9 @@ async def search_documents(request: SearchRequest, http_request: Request):
                     "original_source_path": doc.get("original_source_path", ""),
                     "relative_path": doc.get("relative_path", ""),
                     "category": doc.get("category", "unknown"),
-                    "collection_key": doc.get("collection_key", ""),
-                    "document_group": doc.get("document_group", ""),
-                    "document_category": doc.get("document_category", ""),
+                    "collection_key": doc.get("collection_key", "") or doc.get("category", ""),
+                    "document_group": doc.get("document_group", "") or doc.get("collection_key", "") or doc.get("category", ""),
+                    "document_category": doc.get("document_category", "") or doc.get("section_label", ""),
                     "content": snippet,
                     "score": doc.get("score", 0),
                 }
