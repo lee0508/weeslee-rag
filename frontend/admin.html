@@ -1422,7 +1422,7 @@ POST /api/admin/faiss/activate</code>
       <div class="wizard-detail" style="display:none">
         <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
           <summary>API 경로</summary>
-          <div class="api-hint-body">POST /api/admin/faiss/jobs (type: text_extract)<br>POST /api/admin/faiss/jobs (type: chunk)</div>
+          <div class="api-hint-body">POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs/{job_id}/stream</div>
         </details>
         <div class="wizard-log" id="wlog-5"></div>
       </div>
@@ -1443,7 +1443,7 @@ POST /api/admin/faiss/activate</code>
       <div class="wizard-detail" style="display:none">
         <details class="api-hint-details" style="margin-top:12px;margin-bottom:0">
           <summary>API 경로</summary>
-          <div class="api-hint-body">POST /api/admin/faiss/jobs (type: build)<br>GET /api/admin/faiss/status</div>
+          <div class="api-hint-body">POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/status</div>
         </details>
         <div class="wizard-log" id="wlog-6"></div>
       </div>
@@ -2212,7 +2212,7 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
         <div style="font-size:10px;color:var(--muted);margin-bottom:8px">
-          POST /api/admin/rag-source/metadata/build &nbsp;|&nbsp; POST /api/admin/rag-source/faiss/build &nbsp;|&nbsp; POST /api/admin/rag-source/graph/build
+          POST /api/admin/rag-source/metadata/build &nbsp;|&nbsp; POST /api/admin/faiss/jobs &nbsp;|&nbsp; GET /api/admin/faiss/jobs &nbsp;|&nbsp; POST /api/graph/build
         </div>
         <div id="rsFileTable"><div class="empty">스캔 버튼을 눌러 파일 목록을 로드하세요.</div></div>
       </div>
@@ -6204,7 +6204,32 @@ POST /api/admin/faiss/activate</code>
     { name: 'FAISS 인덱스 활성화', api: '/api/admin/faiss/activate',                         method: 'POST', special: 'faiss_activate' },
   ];
 
+  WIZARD_STEPS[5].name = 'OCR/청킹 시작';
+  WIZARD_STEPS[6].name = '임베딩/FAISS 진행';
+
+  function syncWizardPipelineCopy() {
+    const step5 = document.querySelector('.wizard-step[data-step="5"]');
+    if (step5) {
+      const title = step5.querySelector('div[style="font-size:13px;font-weight:700"]');
+      const desc = step5.querySelector('div[style="font-size:11px;color:var(--muted)"]');
+      const api = step5.querySelector('.api-hint-body');
+      if (title) title.textContent = 'OCR 작업 + 청킹 시작';
+      if (desc) desc.textContent = '텍스트 추출, OCR fallback, 청킹 작업은 하나의 FAISS job 파이프라인으로 시작됩니다.';
+      if (api) api.innerHTML = 'POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs/{job_id}/stream';
+    }
+    const step6 = document.querySelector('.wizard-step[data-step="6"]');
+    if (step6) {
+      const title = step6.querySelector('div[style="font-size:13px;font-weight:700"]');
+      const desc = step6.querySelector('div[style="font-size:11px;color:var(--muted)"]');
+      const api = step6.querySelector('.api-hint-body');
+      if (title) title.textContent = '임베이딩 + Vector + FAISS 진행';
+      if (desc) desc.textContent = 'Chunk를 임베딩하고 FAISS index와 category index를 이어서 생성합니다.';
+      if (api) api.innerHTML = 'POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/status';
+    }
+  }
+
   function renderWizardProgressBar() {
+    syncWizardPipelineCopy();
     const bar = document.getElementById('wizardProgressBar');
     if (!bar) return;
     bar.innerHTML = WIZARD_STEPS.slice(1).map((s, i) => {
