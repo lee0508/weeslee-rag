@@ -127,8 +127,8 @@ def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: st
     doc_meta = rules.detect_document_metadata(root_group or "", sub_group or "")
     project_name = doc.get("project_name") or rules.extract_project_name(source_path.stem)
     document_group_raw = doc_meta.get("document_group", "unknown")
-    document_group = rules.document_group_display(document_group_raw)
-    collection_key = _collection_key(document_group_raw)
+    document_group = _collection_key(document_group_raw)  # 한글 표시값으로 변환
+    collection_key = document_group  # document_group과 동일한 한글 표시값
     document_category = _document_category(rules, doc_meta)
 
     return {
