@@ -586,46 +586,53 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
 
 
 def build_prompt(query: str, documents: list[dict]) -> str:
+    """Grounded Answer + Citation 형식 프롬프트를 생성한다."""
     lines = [
         "당신은 공공 및 민간 제안, RFP, 산출물 문서를 분석해 관련 근거 문서를 찾는 전문가다.",
-        "아래 검색 결과를 바탕으로 사용자의 질의와 가장 관련 있는 문서를 추천하라.",
-        "과장하거나 추측하지 말고, 검색 결과에 있는 근거만 사용하라.",
-        "반드시 답변 안에 실제로 찾은 근거 파일명과 파일 위치 경로를 적어라.",
-        "근거 파일이 없으면 관련 문서를 찾지 못했다고 명시하라.",
-        "출력 형식.",
-        "1. 요약 답변",
-        "2. 근거 파일 목록",
-        "3. 각 파일의 위치 경로",
-        "4. 추천 이유 또는 활용 포인트",
         "",
-        f"질의: {query}",
+        "## 핵심 원칙 (Grounded Answer)",
+        "1. 반드시 아래 검색 결과에 있는 근거만 사용하라. 추측하거나 과장하지 마라.",
+        "2. 검색 결과에 없는 내용은 답변하지 마라.",
+        "3. 근거가 부족하면 '관련 문서에서 명확한 근거를 찾지 못했습니다'라고 명시하라.",
+        "4. 답변 문장에는 반드시 Citation을 붙여라. 형식: [1], [2], [3]",
         "",
-        "검색 결과:",
+        "## 출력 형식",
+        "### 요약 답변",
+        "(질의에 대한 답변. 각 문장에 Citation 번호를 붙인다.)",
+        "",
+        "### 근거 문서",
+        "[1] 파일명 - 경로",
+        "[2] 파일명 - 경로",
+        "...",
+        "",
+        "### 활용 포인트",
+        "(제안서 작성에 바로 활용할 수 있는 포인트 1-3개)",
+        "",
+        f"## 질의",
+        f"{query}",
+        "",
+        "## 검색 결과",
     ]
-    for doc in documents:
+    for idx, doc in enumerate(documents, start=1):
         file_name = doc.get("file_name") or Path(doc.get("source_path", "")).name
         file_path = doc.get("original_source_path") or doc.get("source_path") or ""
-        lines.append(f"- 문서ID: {doc['document_id']}")
-        lines.append(f"  파일명: {file_name}")
-        lines.append(
-            f"  유형: {doc['category']}, 최고점수: {doc['best_score']:.4f}, "
-            f"재정렬점수: {doc['ranking_score']:.4f}, 히트수: {doc['hit_count']}"
-        )
+        relative_path = doc.get("relative_path") or ""
+        display_path = relative_path if relative_path else file_path
+
+        lines.append(f"[{idx}] {file_name}")
+        lines.append(f"    경로: {display_path}")
         if doc.get("collection_key"):
-            lines.append(f"  collection: {doc['collection_key']}")
-        if doc.get("relative_path"):
-            lines.append(f"  relative_path: {doc['relative_path']}")
-        lines.append(f"  file_path: {file_path}")
+            lines.append(f"    분류: {doc['collection_key']}")
+        if doc.get("document_category"):
+            lines.append(f"    카테고리: {doc['document_category']}")
+        lines.append(
+            f"    점수: {doc['best_score']:.4f}, 히트: {doc['hit_count']}"
+        )
         if doc["section_headings"]:
-            lines.append("  관련 섹션: " + " | ".join(doc["section_headings"][:3]))
-        if doc.get("root_group") or doc.get("sub_group"):
-            lines.append(
-                "  구조: "
-                + " > ".join([value for value in [doc.get("root_group", ""), doc.get("sub_group", "")] if value])
-            )
+            lines.append("    관련 섹션: " + " | ".join(doc["section_headings"][:3]))
         for snippet in doc["evidence_snippets"][:2]:
-            lines.append("  근거: " + snippet)
-        lines.append("  추천사유: " + " / ".join(doc["reasons"]))
+            lines.append(f"    근거: {snippet}")
+        lines.append("")  # 문서 간 빈 줄
     return "\n".join(lines)
 
 
