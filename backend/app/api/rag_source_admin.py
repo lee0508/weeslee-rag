@@ -26,6 +26,7 @@ router = APIRouter(
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 RAG_META_OUTPUT = PROJECT_ROOT / "data" / "rag_source_metadata.jsonl"
+MAIN_COLLECTION_NAME = "weeslee_rag_main"
 
 # 지원 파일 확장자
 _INDEXABLE_EXTENSIONS = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".hwpx", ".hwp", ".xlsx", ".txt"}
@@ -106,7 +107,9 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
     sub_group = rules_mod.detect_sub_group(parts)
     doc_meta = rules_mod.detect_document_metadata(root_group or "", sub_group or "")
     project_name = rules_mod.extract_project_name(file_stem)
-    collection_name = _collection_name_from_file_path(normalized)
+    collection_name = MAIN_COLLECTION_NAME
+    document_group = doc_meta.get("document_group", "unknown")
+    document_category = rules_mod.section_label(doc_meta) or doc_meta.get("document_type", "unknown")
 
     windows_path = normalized.replace(
         "/mnt/w2_project",
@@ -115,7 +118,9 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
 
     return {
         "source_root": "00. RAG 소스",
-        "collection": collection_name or doc_meta.get("category", "rag_source"),
+        "collection": collection_name,
+        "collection_name": collection_name,
+        "collection_key": document_group,
         "source_path": windows_path,
         "linux_path": normalized,
         "file_name": file_name,
@@ -126,7 +131,8 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
         "project_type": rules_mod.detect_project_type(project_name),
         "organization": rules_mod.detect_organization(project_name),
         "project_year": rules_mod.detect_year(project_name, normalized),
-        "document_group": doc_meta.get("document_group", "unknown"),
+        "document_group": document_group,
+        "document_category": document_category,
         "document_type": doc_meta.get("document_type", "unknown"),
         "category": doc_meta.get("category", "unknown"),
         "proposal_section": doc_meta.get("proposal_section"),
@@ -143,10 +149,7 @@ def _normalize_keyword_value(value: str) -> str:
 
 
 def _collection_name_from_file_path(file_path: str) -> str:
-    path = Path(str(file_path or ""))
-    if not path.name:
-        return ""
-    return path.parent.name or path.stem
+    return MAIN_COLLECTION_NAME
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -297,7 +300,7 @@ async def build_metadata(body: MetadataBuildRequest):
         docs = metadata_db_service.list_documents(limit=10000)
 
     if body.collection:
-        docs = [d for d in docs if d]
+        docs = docs if body.collection == MAIN_COLLECTION_NAME else []
 
     updated = skipped = failed = 0
     result_items = []
@@ -346,9 +349,11 @@ async def build_metadata(body: MetadataBuildRequest):
             "file_name": doc.get("file_name", ""),
             "project_name": meta.get("project_name"),
             "document_group": meta.get("document_group"),
+            "document_category": meta.get("document_category"),
             "proposal_section": meta.get("proposal_section"),
             "deliverable_section": meta.get("deliverable_section"),
             "collection": meta.get("collection"),
+            "collection_key": meta.get("collection_key"),
             "status": "dry_run" if body.dry_run else "updated",
         })
 
@@ -379,51 +384,31 @@ async def build_metadata(body: MetadataBuildRequest):
 
 @router.post("/collections/bootstrap")
 async def bootstrap_collections(body: CollectionsBootstrapRequest):
-    from app.services.knowledge_source import knowledge_source_service
     from app.services.platform_store import create_record as ps_create, get_record as ps_get, update_record as ps_update
 
     mount_path = _get_source_mount_path(body.source_id)
-    if not mount_path:
-        try:
-            if knowledge_source_service.is_accessible():
-                mount_path = knowledge_source_service.get_root_path()
-        except Exception:
-            mount_path = None
-
-    docs = metadata_db_service.list_documents(limit=100000)
-    collection_keys: list[str] = []
-    seen: set[str] = set()
-    for doc in docs:
-        coll_key = _collection_name_from_file_path(str(doc.get("file_path") or "")).strip()
-        if not coll_key or coll_key in seen:
-            continue
-        seen.add(coll_key)
-        collection_keys.append(coll_key)
-
-    COLL_STORE = "collections_active"
+    coll_key = MAIN_COLLECTION_NAME
+    record = {
+        "collection_key": coll_key,
+        "collection_name": MAIN_COLLECTION_NAME,
+        "client_id": body.client_id,
+        "name": MAIN_COLLECTION_NAME,
+        "description": "00. RAG 소스 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
+        "source_root": "00. RAG 소스",
+        "mount_path": mount_path or "",
+        "enabled": True,
+    }
+    existing = ps_get("collections_active", "collection_key", coll_key)
     created = skipped = 0
-    items = []
-
-    for coll_key in sorted(collection_keys):
-        existing = ps_get(COLL_STORE, "collection_key", coll_key)
-        record = {
-            "collection_key": coll_key,
-            "client_id": body.client_id,
-            "name": coll_key,
-            "description": f"00. RAG 소스 폴더 '{coll_key}' 기준 자동 생성",
-            "source_root": "00. RAG 소스",
-            "mount_path": mount_path or "",
-            "enabled": True,
-        }
-        if existing:
-            if not body.overwrite:
-                skipped += 1
-                continue
-            ps_update(COLL_STORE, "collection_key", coll_key, record)
+    if existing:
+        if body.overwrite:
+            ps_update("collections_active", "collection_key", coll_key, record)
+            created = 1
         else:
-            ps_create(COLL_STORE, record, id_field="collection_key")
-        created += 1
-        items.append({"collection_key": coll_key, "name": coll_key})
+            skipped = 1
+    else:
+        ps_create("collections_active", record, id_field="collection_key")
+        created = 1
 
     return {
         "success": True,
@@ -431,47 +416,7 @@ async def bootstrap_collections(body: CollectionsBootstrapRequest):
         "source_id": body.source_id,
         "created": created,
         "skipped": skipped,
-        "items": items,
-    }
-    """Collection Template 기반으로 기본 Collection을 자동 생성한다."""
-    templates = list_records("collection_templates")
-    if body.client_id:
-        templates = [t for t in templates if t.get("client_id") == body.client_id]
-
-    if not templates:
-        return {"success": True, "message": "생성할 템플릿이 없습니다.", "created": 0}
-
-    from app.services.platform_store import create_record as ps_create, get_record as ps_get
-
-    COLL_STORE = "collections_active"
-    created = skipped = 0
-    items = []
-
-    for tmpl in templates:
-        coll_key = tmpl.get("collection_key", "")
-        if not coll_key:
-            continue
-        existing = ps_get(COLL_STORE, "collection_key", coll_key)
-        if existing and not body.overwrite:
-            skipped += 1
-            continue
-        record = {
-            "collection_key": coll_key,
-            "client_id": tmpl.get("client_id"),
-            "name": tmpl.get("name"),
-            "description": tmpl.get("description", ""),
-            "enabled": True,
-        }
-        ps_create(COLL_STORE, record, id_field="collection_key")
-        created += 1
-        items.append({"collection_key": coll_key, "name": tmpl.get("name")})
-
-    return {
-        "success": True,
-        "client_id": body.client_id,
-        "created": created,
-        "skipped": skipped,
-        "items": items,
+        "items": [{"collection_key": coll_key, "name": MAIN_COLLECTION_NAME}],
     }
 
 

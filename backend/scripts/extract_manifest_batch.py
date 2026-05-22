@@ -217,7 +217,9 @@ async def run_batch(args: argparse.Namespace) -> int:
                 metadata = {
                     "document_id": document_id,
                     "category": category,
+                    "collection_name": row.get("collection_name", "weeslee_rag_main"),
                     "document_group": row.get("document_group", ""),
+                    "document_category": row.get("document_category", ""),
                     "document_type": row.get("document_type", ""),
                     "proposal_section": row.get("proposal_section", ""),
                     "deliverable_section": row.get("deliverable_section", ""),

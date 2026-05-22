@@ -1866,7 +1866,7 @@
     };
 
     const I18N = {
-      ko: I18N_KO,
+      ko: I18N_KO_SAFE,
       /*
       ko: {
         tab_rag:'RAG Assistant', tab_knowledge:'지식 검색', tab_review:'답변 검토', tab_proposal:'제안서 초안',
@@ -2485,7 +2485,13 @@
         /*
         const CAT_LABEL = { rfp:'RFP', proposal:'제안서', kickoff:'착수보고', final_report:'최종보고', presentation:'발표' };
         */
-        const CAT_LABEL = { rfp:'RFP', proposal:'Proposal', kickoff:'Kickoff', final_report:'Final Report', presentation:'Presentation' };
+        const CAT_LABEL = {
+          rfp: 'RFP',
+          proposal: t('cat_proposal'),
+          kickoff: t('cat_kickoff'),
+          final_report: t('cat_final'),
+          presentation: t('cat_presentation'),
+        };
         const CAT_COLOR = { rfp:'#ef4444', proposal:'#3b82f6', kickoff:'#f59e0b', final_report:'#22c55e', presentation:'#8b5cf6' };
         const chains = data.graph_context.map(ctx => {
           // chain 구조: [{category, documents: [...]}] 또는 related_docs: [...]
@@ -2771,6 +2777,7 @@
             const pathText = doc.original_source_path || doc.source_path || doc.relative_path || '-';
             const meta = [
               doc.collection_key || '',
+              doc.document_category || '',
               doc.category || '',
               doc.relative_path || '',
             ].filter(Boolean).map(v => `<span class="chip">${escapeHtml(v)}</span>`).join('');
@@ -3147,7 +3154,7 @@
       }
       const locale = _lang === 'ko' ? 'ko-KR' : 'en-US';
       list.innerHTML = _queryHistory.map((item, i) => {
-        const stars = item.rating ? '★'.repeat(item.rating) + '☆'.repeat(5 - item.rating) : '';
+        const stars = item.rating ? '\u2605'.repeat(item.rating) + '\u2606'.repeat(5 - item.rating) : '';
         return `
         <div class="rv-item ${i === _selectedReviewIdx ? 'active' : ''}" onclick="selectReviewItem(${i})">
           <div class="rv-item-query">${escapeHtml(item.query)}</div>

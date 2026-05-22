@@ -17,11 +17,14 @@ MANIFEST_DIR = DATA_DIR / "staged" / "manifest"
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 
 SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".hwp", ".hwpx"}
+MAIN_COLLECTION_NAME = "weeslee_rag_main"
 MANIFEST_FIELDS = [
     "document_id",
     "category",
+    "collection_name",
     "collection_key",
     "document_group",
+    "document_category",
     "document_type",
     "proposal_section",
     "deliverable_section",
@@ -93,14 +96,24 @@ def iter_source_documents(source_root: Path, limit: int = 0) -> list[dict[str, A
     return rows
 
 
-def _collection_key(source_path: Path, source_root: Path) -> str:
-    try:
-        relative = source_path.relative_to(source_root)
-        if relative.parent != Path("."):
-            return relative.parent.name
-    except ValueError:
-        pass
-    return source_path.parent.name or source_path.stem
+COLLECTION_KEY_DISPLAY = {
+    "rfp": "RFP",
+    "proposal": "제안서",
+    "deliverable": "산출물",
+}
+
+
+def _collection_key(document_group: str) -> str:
+    """document_group을 한글 collection_key로 변환한다."""
+    group = (document_group or "unknown").strip().lower()
+    return COLLECTION_KEY_DISPLAY.get(group, group)
+
+
+def _document_category(rules_mod, doc_meta: dict[str, Any]) -> str:
+    section_label = rules_mod.section_label(doc_meta)
+    if section_label:
+        return section_label
+    return doc_meta.get("document_type", "unknown")
 
 
 def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: str) -> dict[str, Any]:
@@ -113,14 +126,18 @@ def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: st
     sub_group = rules.detect_sub_group(parts)
     doc_meta = rules.detect_document_metadata(root_group or "", sub_group or "")
     project_name = doc.get("project_name") or rules.extract_project_name(source_path.stem)
-    document_group = doc_meta.get("document_group", "unknown")
-    collection_key = _collection_key(source_path, source_root)
+    document_group_raw = doc_meta.get("document_group", "unknown")
+    document_group = rules.document_group_display(document_group_raw)
+    collection_key = _collection_key(document_group_raw)
+    document_category = _document_category(rules, doc_meta)
 
     return {
         "document_id": str(doc.get("id")),
         "category": document_group,
+        "collection_name": MAIN_COLLECTION_NAME,
         "collection_key": collection_key,
         "document_group": document_group,
+        "document_category": document_category,
         "document_type": doc.get("document_type") or doc_meta.get("document_type", "unknown"),
         "proposal_section": doc_meta.get("proposal_section") or "",
         "deliverable_section": doc_meta.get("deliverable_section") or "",
@@ -146,7 +163,7 @@ def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: st
                 root_group=root_group,
                 sub_group=sub_group,
                 project_name=project_name,
-                document_group=document_group,
+                document_group=document_group,  # 이미 한글 표시값
                 proposal_section=doc_meta.get("proposal_section"),
                 deliverable_section=doc_meta.get("deliverable_section"),
                 tags=[],

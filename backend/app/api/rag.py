@@ -218,6 +218,8 @@ def _answer_evidence_documents(documents: list[dict], limit: int = 5) -> list[di
                 "file_name": doc.get("file_name") or "",
                 "category": doc.get("category") or "",
                 "collection_key": doc.get("collection_key") or "",
+                "document_group": doc.get("document_group") or "",
+                "document_category": doc.get("document_category") or "",
                 "source_root": doc.get("source_root") or "",
                 "source_path": doc.get("source_path") or doc.get("source") or "",
                 "original_source_path": doc.get("original_source_path") or doc.get("source_path") or doc.get("source") or "",
@@ -568,6 +570,8 @@ async def search_documents(request: SearchRequest, http_request: Request):
                     "relative_path": doc.get("relative_path", ""),
                     "category": doc.get("category", "unknown"),
                     "collection_key": doc.get("collection_key", ""),
+                    "document_group": doc.get("document_group", ""),
+                    "document_category": doc.get("document_category", ""),
                     "content": snippet,
                     "score": doc.get("score", 0),
                 }

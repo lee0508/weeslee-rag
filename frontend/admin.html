@@ -1350,7 +1350,7 @@ POST /api/admin/faiss/activate</code>
         <div class="wizard-step-num">2</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700">Collection 메타 동기화</div>
-          <div style="font-size:11px;color:var(--muted)">문서 구조를 기준으로 Collection 메타 정보를 정리합니다. 전체 순차 실행에서는 자동으로 건너뜁니다.</div>
+          <div style="font-size:11px;color:var(--muted)">단일 Collection `weeslee_rag_main` 정보를 동기화합니다. 문서 그룹과 문서 카테고리는 metadata filter로 처리합니다. 전체 순차 실행에서는 자동으로 건너뜁니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-2">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(2)">실행</button>
@@ -1846,10 +1846,8 @@ POST /api/admin/faiss/activate</code>
           <div>
             <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">대상 Collection</label>
             <select id="pipelineCollectionKey" style="width:100%;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
-              <option value="">경로 기준 자동 선택</option>
-              <option value="rag_source_rfp">RFP</option>
-              <option value="rag_source_proposal">제안서</option>
-              <option value="rag_source_deliverable">산출물</option>
+              <option value="">weeslee_rag_main 자동 사용</option>
+              <option value="weeslee_rag_main">weeslee_rag_main</option>
             </select>
           </div>
           <div>
@@ -2231,7 +2229,7 @@ POST /api/admin/faiss/activate</code>
       <span>🗂️ Collection Manager</span>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" onclick="openColManagerForm()">+ 신규 생성</button>
-        <button class="btn btn-secondary btn-sm" onclick="bootstrapCollections()">🚀 기본 Collection 자동 생성</button>
+        <button class="btn btn-secondary btn-sm" onclick="bootstrapCollections()">기본 Collection 동기화</button>
         <button class="btn btn-outline btn-sm" onclick="loadCollections()">↻</button>
       </div>
     </div>
@@ -2250,10 +2248,10 @@ POST /api/admin/faiss/activate</code>
     <!-- 신규/수정 폼 -->
     <div id="colManagerForm" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <div class="form-group"><label>Collection Name (고유 키) *</label><input type="text" id="cmName" placeholder="예: rag_source_proposal_strategy"></div>
-        <div class="form-group"><label>Display Name</label><input type="text" id="cmDisplayName" placeholder="예: 제안서 - 전략및방법론"></div>
+        <div class="form-group"><label>Collection Name (고유 키) *</label><input type="text" id="cmName" placeholder="예: weeslee_rag_main"></div>
+        <div class="form-group"><label>Display Name</label><input type="text" id="cmDisplayName" placeholder="예: Weeslee RAG Main"></div>
         <div class="form-group"><label>Source Root</label><input type="text" id="cmSourceRoot" placeholder="예: 00. RAG 소스"></div>
-        <div class="form-group"><label>Folder Mapping</label><input type="text" id="cmFolderMap" placeholder="예: 02. 제안서/01. 전략및방법론"></div>
+        <div class="form-group"><label>Folder Mapping</label><input type="text" id="cmFolderMap" placeholder="예: metadata filter: document_group / document_category"></div>
         <div class="form-group"><label>설명</label><input type="text" id="cmDesc" placeholder="선택"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
@@ -3952,7 +3950,7 @@ POST /api/admin/faiss/activate</code>
   function _renderCollections(data) {
     const el = document.getElementById('colManagerList');
     if (!data.length) {
-      el.innerHTML = `<div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-title">등록된 Collection이 없습니다</div><div class="empty-sub">기본 Collection을 자동 생성하거나 직접 추가하세요.</div><div class="empty-actions"><button class="btn btn-secondary btn-sm" onclick="bootstrapCollections()">🚀 기본 자동 생성</button><button class="btn btn-outline btn-sm" onclick="openColManagerForm()">+ 직접 추가</button></div></div>`;
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-title">등록된 Collection이 없습니다</div><div class="empty-sub">기본 Collection을 동기화하거나 직접 추가하세요.</div><div class="empty-actions"><button class="btn btn-secondary btn-sm" onclick="bootstrapCollections()">기본 Collection 동기화</button><button class="btn btn-outline btn-sm" onclick="openColManagerForm()">+ 직접 추가</button></div></div>`;
       return;
     }
     el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -4028,11 +4026,11 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function bootstrapCollections() {
-    if (!confirm('기본 Collection 14개를 자동 생성합니다. 계속하시겠습니까?')) return;
-    showToast('기본 Collection 생성 중...', 'info');
+    if (!confirm('단일 Collection `weeslee_rag_main` 메타를 동기화합니다. 계속하시겠습니까?')) return;
+    showToast('기본 Collection 동기화 중...', 'info');
     try {
       const result = await platformFetch('/admin/rag-source/collections/bootstrap', { method: 'POST' });
-      showToast(`기본 Collection 생성 완료: ${_formatCollectionBootstrapSummary(result)}`, 'success');
+      showToast(`기본 Collection 동기화 완료: ${_formatCollectionBootstrapSummary(result)}`, 'success');
       loadCollections();
     } catch (e) {
       // Codex API 미완성 시 template 기반으로 대체
@@ -5205,7 +5203,7 @@ POST /api/admin/faiss/activate</code>
     if (snapshotEl) snapshotEl.textContent = _currentActiveSnapshot || '-';
     if (hintEl) {
       hintEl.textContent = count
-        ? `${count}개 문서가 선택되어 있습니다. Collection을 확인한 뒤 증분 추가를 실행하세요.`
+        ? `${count}개 문서가 선택되어 있습니다. 기본 Collection과 metadata filter 기준으로 증분 추가를 실행하세요.`
         : '문서 관리 탭에서 파일을 선택한 뒤 실행하세요.';
     }
     if (snapshotInput && !snapshotInput.value && _currentActiveSnapshot) {
@@ -5221,7 +5219,7 @@ POST /api/admin/faiss/activate</code>
     const ok = await showConfirm({
       icon: '⚙️',
       title: '선택 문서 RAG 추가',
-      body: `선택한 ${ids.length}개 문서를 기존 snapshot에 증분 반영합니다.<br><br><strong>Snapshot</strong>: ${esc(snapshot || '(active)')}<br><strong>Collection</strong>: ${esc(collectionKey || '자동 선택')}`,
+      body: `선택한 ${ids.length}개 문서를 기존 snapshot에 증분 반영합니다.<br><br><strong>Snapshot</strong>: ${esc(snapshot || '(active)')}<br><strong>Collection</strong>: ${esc(collectionKey || 'weeslee_rag_main')}`,
       okLabel: '실행',
     });
     if (!ok) return;
@@ -5486,6 +5484,7 @@ POST /api/admin/faiss/activate</code>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
           ${r.collection_key ? `<span class="chip" style="font-size:10px">${esc(r.collection_key)}</span>` : ''}
+          ${r.document_category ? `<span class="chip" style="font-size:10px">${esc(r.document_category)}</span>` : ''}
           ${r.relative_path ? `<span class="chip" style="font-size:10px">${esc(r.relative_path)}</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--muted);max-height:60px;overflow:hidden">${esc((r.content || r.text || '').slice(0, 200))}...</div>
@@ -6295,7 +6294,7 @@ POST /api/admin/faiss/activate</code>
     const created = Number(data?.created || 0);
     const skipped = Number(data?.skipped || 0);
     const names = _wizardSampleNames(data?.items, ['name', 'collection_key']);
-    let text = `생성 ${created}건, 건너뜀 ${skipped}건`;
+    let text = `동기화 ${created}건, 건너뜀 ${skipped}건`;
     if (!created && !skipped && data?.message) text = String(data.message);
     if (names) text += ` (${names})`;
     return text;

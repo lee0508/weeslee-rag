@@ -178,7 +178,9 @@ def build_chunks_for_document(
                     metadata={
                         "document_id": document_id,
                         "category": metadata.get("category", ""),
+                        "collection_name": metadata.get("collection_name", "weeslee_rag_main"),
                         "document_group": metadata.get("document_group", metadata.get("category", "")),
+                        "document_category": metadata.get("document_category", metadata.get("section_label", "")),
                         "document_type": metadata.get("document_type", ""),
                         "extension": metadata.get("extension", ""),
                         "section_heading": heading,
