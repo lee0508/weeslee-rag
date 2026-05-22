@@ -506,6 +506,37 @@
   line-height: 1.55;
 }
 
+#wrAdminDocsApp .wr-doc-list {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 16px;
+}
+
+#wrAdminDocsApp .wr-doc-list-item {
+  border: 1px solid var(--wr-border);
+  border-radius: 8px;
+  background: var(--wr-surface-muted);
+  padding: 10px 12px;
+}
+
+#wrAdminDocsApp .wr-doc-list-title {
+  color: var(--wr-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+#wrAdminDocsApp .wr-doc-list-meta {
+  margin-top: 4px;
+  color: var(--wr-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+#wrAdminDocsApp .wr-doc-list-empty {
+  color: var(--wr-muted);
+  font-size: 12px;
+}
+
 #wrAdminDocsApp .wr-right-panel {
   position: sticky;
   top: 64px;

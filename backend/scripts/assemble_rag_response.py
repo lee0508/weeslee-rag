@@ -618,6 +618,50 @@ def build_prompt(query: str, documents: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def build_prompt(query: str, documents: list[dict]) -> str:
+    lines = [
+        "당신은 공공 및 민간 제안, RFP, 산출물 문서를 분석해 관련 근거 문서를 찾는 전문가다.",
+        "아래 검색 결과를 바탕으로 사용자의 질의와 가장 관련 있는 문서를 추천하라.",
+        "과장하거나 추측하지 말고, 검색 결과에 있는 근거만 사용하라.",
+        "반드시 답변 안에 실제로 찾은 근거 파일명과 파일 위치 경로를 적어라.",
+        "근거 파일이 없으면 관련 문서를 찾지 못했다고 명시하라.",
+        "출력 형식.",
+        "1. 요약 답변",
+        "2. 근거 파일 목록",
+        "3. 각 파일의 위치 경로",
+        "4. 추천 이유 또는 활용 포인트",
+        "",
+        f"질의: {query}",
+        "",
+        "검색 결과:",
+    ]
+    for doc in documents:
+        file_name = doc.get("file_name") or Path(doc.get("source_path", "")).name
+        file_path = doc.get("original_source_path") or doc.get("source_path") or ""
+        lines.append(f"- 문서ID: {doc['document_id']}")
+        lines.append(f"  파일명: {file_name}")
+        lines.append(
+            f"  유형: {doc['category']}, 최고점수: {doc['best_score']:.4f}, "
+            f"재정렬점수: {doc['ranking_score']:.4f}, 히트수: {doc['hit_count']}"
+        )
+        if doc.get("collection_key"):
+            lines.append(f"  collection: {doc['collection_key']}")
+        if doc.get("relative_path"):
+            lines.append(f"  relative_path: {doc['relative_path']}")
+        lines.append(f"  file_path: {file_path}")
+        if doc["section_headings"]:
+            lines.append("  관련 섹션: " + " | ".join(doc["section_headings"][:3]))
+        if doc.get("root_group") or doc.get("sub_group"):
+            lines.append(
+                "  구조: "
+                + " > ".join([value for value in [doc.get("root_group", ""), doc.get("sub_group", "")] if value])
+            )
+        for snippet in doc["evidence_snippets"][:2]:
+            lines.append("  근거: " + snippet)
+        lines.append("  추천사유: " + " / ".join(doc["reasons"]))
+    return "\n".join(lines)
+
+
 def post_json(url: str, payload: dict, headers: dict[str, str]) -> dict:
     request = urllib.request.Request(
         url,

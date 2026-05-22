@@ -93,9 +93,14 @@ def iter_source_documents(source_root: Path, limit: int = 0) -> list[dict[str, A
     return rows
 
 
-def _collection_key(document_group: str) -> str:
-    suffix = document_group if document_group in {"rfp", "proposal", "deliverable"} else "unknown"
-    return f"rag_source_{suffix}"
+def _collection_key(source_path: Path, source_root: Path) -> str:
+    try:
+        relative = source_path.relative_to(source_root)
+        if relative.parent != Path("."):
+            return relative.parent.name
+    except ValueError:
+        pass
+    return source_path.parent.name or source_path.stem
 
 
 def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: str) -> dict[str, Any]:
@@ -109,11 +114,12 @@ def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: st
     doc_meta = rules.detect_document_metadata(root_group or "", sub_group or "")
     project_name = doc.get("project_name") or rules.extract_project_name(source_path.stem)
     document_group = doc_meta.get("document_group", "unknown")
+    collection_key = _collection_key(source_path, source_root)
 
     return {
         "document_id": str(doc.get("id")),
         "category": document_group,
-        "collection_key": _collection_key(document_group),
+        "collection_key": collection_key,
         "document_group": document_group,
         "document_type": doc.get("document_type") or doc_meta.get("document_type", "unknown"),
         "proposal_section": doc_meta.get("proposal_section") or "",

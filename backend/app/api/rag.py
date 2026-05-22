@@ -204,7 +204,28 @@ class RagAnswerResponse(BaseModel):
     draft_answer: str = ""
     effective_mode: str = "general"
     document_count: int = 0
+    evidence_documents: list[dict] = []
     error: Optional[str] = None
+
+
+def _answer_evidence_documents(documents: list[dict], limit: int = 5) -> list[dict]:
+    items = []
+    for doc in documents[:limit]:
+        items.append(
+            {
+                "document_id": doc.get("document_id") or "",
+                "project_name": doc.get("project_name") or "",
+                "file_name": doc.get("file_name") or "",
+                "category": doc.get("category") or "",
+                "collection_key": doc.get("collection_key") or "",
+                "source_root": doc.get("source_root") or "",
+                "source_path": doc.get("source_path") or doc.get("source") or "",
+                "original_source_path": doc.get("original_source_path") or doc.get("source_path") or doc.get("source") or "",
+                "relative_path": doc.get("relative_path") or "",
+                "best_score": doc.get("best_score", doc.get("score", 0)),
+            }
+        )
+    return items
 
 
 def _client_ip(request: Request) -> str:
@@ -325,6 +346,17 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
     if effective_mode == "graph_rag":
         payload = _enrich_with_graph_context(payload, request.query)
 
+    payload["evidence_documents"] = _answer_evidence_documents(payload.get("documents", []) or [])
+    payload["retrieval_summary"] = {
+        "found_documents": bool(payload.get("documents")),
+        "document_count": len(payload.get("documents", []) or []),
+        "top_source_paths": [
+            doc.get("source_path") or doc.get("original_source_path") or ""
+            for doc in (payload.get("documents", []) or [])[:5]
+            if doc.get("source_path") or doc.get("original_source_path")
+        ],
+    }
+
     return payload, effective_mode, mode_detection
 
 
@@ -404,6 +436,7 @@ async def answer_rag(request: RagQueryRequest, http_request: Request):
             draft_answer=payload.get("draft_answer", ""),
             effective_mode=effective_mode,
             document_count=len(payload.get("documents", []) or []),
+            evidence_documents=payload.get("evidence_documents", []) or [],
         )
     except Exception as exc:
         duration_ms = int((time.perf_counter() - started) * 1000)
@@ -527,8 +560,14 @@ async def search_documents(request: SearchRequest, http_request: Request):
             results.append(
                 {
                     "document_id": doc.get("project_name") or doc.get("source_path", "")[:50],
+                    "project_name": doc.get("project_name") or "",
+                    "file_name": doc.get("file_name") or "",
                     "source": doc.get("source_path", ""),
+                    "source_path": doc.get("source_path", ""),
+                    "original_source_path": doc.get("original_source_path", ""),
+                    "relative_path": doc.get("relative_path", ""),
                     "category": doc.get("category", "unknown"),
+                    "collection_key": doc.get("collection_key", ""),
                     "content": snippet,
                     "score": doc.get("score", 0),
                 }

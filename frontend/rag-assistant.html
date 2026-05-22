@@ -1179,6 +1179,70 @@
       background: var(--amber);
       color: var(--white);
     }
+    .answer-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      white-space: normal;
+    }
+    .answer-body {
+      white-space: pre-wrap;
+      line-height: 1.7;
+      color: var(--text);
+    }
+    .answer-note {
+      font-size: 12px;
+      color: var(--text-s);
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .answer-evidence {
+      border-top: 1px solid var(--gray-200);
+      padding-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .answer-evidence-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+    .answer-evidence-item {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      background: var(--white);
+      padding: 10px 12px;
+      display: grid;
+      gap: 6px;
+    }
+    .answer-evidence-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .answer-evidence-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--navy);
+      word-break: break-word;
+    }
+    .answer-evidence-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-s);
+    }
+    .answer-evidence-path {
+      font-size: 11px;
+      color: var(--text-s);
+      word-break: break-all;
+    }
     .graph-legend {
       display: flex;
       flex-wrap: wrap;
@@ -1631,7 +1695,179 @@
   <script src="config.js"></script>
   <script>
     // ── i18n ──────────────────────────────────────────────────────────────
+    /* const I18N_KO = {
+      tab_rag:'RAG Assistant', tab_knowledge:'지식 검색', tab_review:'답변 검토', tab_proposal:'제안서 초안',
+      runtime_target:'서버 상태', search_mode:'검색 모드', top_k:'Top K',
+      top_docs:'Top Docs', max_chunks:'청크 / 문서', category:'카테고리',
+      answer_mode:'답변 모드', model:'모델', rec_docs:'추천 문서',
+      mode_general:'General RAG', mode_bid:'입찰 사업 검색', mode_rfp:'RFP 분석',
+      cat_all:'전체', cat_rfp:'RFP', cat_proposal:'제안서', cat_kickoff:'착수보고',
+      cat_final:'최종보고', cat_presentation:'발표자료',
+      ans_ollama:'Ollama (생성)', ans_none:'검색 전용',
+      generate_short:'생성', search_only_short:'검색 전용',
+      tpl_tag1:'RAG 검색', tpl_tag2:'라이브', tpl_title:'Weeslee RAG 쿼리 워크스페이스',
+      tpl_desc:'프로젝트와 제안 관련 질문을 입력하면 관련 문서를 검색하고 초안 답변을 생성합니다.',
+      info_target:'대상', info_backend:'백엔드', info_frontend:'프런트엔드', info_ans_mode:'답변 모드',
+      query_input:'쿼리 입력', ready:'준비.', query_label:'쿼리',
+      query_placeholder:'예시: AX 기반 차세대 업무시스템 ISMP 소프트웨어 범위 변경 제안',
+      query_example_bid:'행정안전부 공공데이터 품질관리 시스템 구축 유사 수행실적을 찾아줘',
+      query_example_rfp:'첨부한 RFP의 주요 요구사항과 기술 스택을 분석하고 유사 실적을 검색해줘',
+      query_example_graph:'차세대 업무시스템 ISMP 사업에서 제안부터 최종보고까지 문서 체인을 보여줘',
+      query_hint:'좌측 패널에서 검색 범위와 답변 모드를 설정하세요.',
+      run_rag:'RAG 실행', refresh_health:'상태 새로고침',
+      answer_panel:'답변 패널', draft_answer:'초안 답변', result:'결과',
+      no_answer:'아직 답변이 없습니다.',
+      answer_search_only:'검색 전용 모드입니다. 아래 근거 파일을 검토하세요.',
+      answer_evidence_title:'근거 파일',
+      answer_found_files:'LLM이 찾은 관련 파일',
+      answer_no_evidence:'근거 파일을 찾지 못했습니다.',
+      answer_location:'파일 위치',
+      result_no_result:'결과 없음', result_status:'상태', result_docs:'문서 수',
+      result_top:'최상위 결과', result_ans_size:'답변 크기',
+      result_view_note:'열기와 다운로드는 백엔드 파일 API를 사용합니다. 서버의 <code>data/raw/</code> 디렉터리에 파일이 있어야 합니다.',
+      result_run_hint:'쿼리를 실행하면 결과를 확인할 수 있습니다.',
+      result_success:'성공', result_failed:'실패',
+      view_file:'보기', download:'다운로드', print:'출력', copy_path:'경로 복사', copied:'복사됨',
+      filter_org:'기관명 필터', filter_org_placeholder:'예: 행정안전부',
+      filter_year:'연도 필터', filter_year_placeholder:'예: 2024',
+      prop_settings:'제안서 설정', prop_project_name:'사업명', prop_project_name_ph:'예: 차세대 행정업무시스템 ISMP',
+      prop_org:'발주기관', prop_org_ph:'예: 행정안전부', prop_category:'문서 유형 필터',
+      prop_sections:'생성 섹션', prop_model:'답변 모델', prop_run:'초안 생성',
+      prop_empty:'사업명을 입력하고 초안 생성 버튼을 누르세요.',
+      prop_running:'초안 생성 중입니다. 섹션당 약 30초가 필요합니다.', prop_done:'초안 생성 완료.',
+      prop_error:'초안 생성 실패',
+      search_conditions:'검색 조건', ks_mode:'검색 모드', ks_category:'카테고리',
+      ks_topk:'Top K (청크 수)', ks_topdocs:'Top Docs (문서 수)',
+      ks_hint:'답변 생성 없이 관련 문서만 검색합니다.',
+      ks_placeholder:'사업명, 키워드, 업무 영역을 입력하세요.', ks_btn:'검색',
+      ks_example_bid:'공공데이터 품질관리 시스템 구축 유사 사업',
+      ks_example_rfp:'정보전략계획 ISP 과업지시서',
+      ks_example_graph:'차세대 업무시스템 문서 체인',
+      ks_empty:'검색어를 입력하고 검색 버튼을 누르세요.',
+      session_history:'세션 기록',
+      rv_empty:'아직 실행한 RAG 쿼리가 없습니다.<br>RAG Assistant 탭에서 쿼리를 실행하면 여기에 기록됩니다.',
+      rv_select:'좌측 목록에서 항목을 선택하세요.',
+      checking:'확인 중.', no_index:'인덱스 없음', offline:'오프라인',
+      running_btn:'실행 중..', searching_btn:'검색 중..', health_ok:'서버 상태 확인 완료.',
+      conn_fail:'서버 연결 실패', enter_query:'쿼리를 입력하세요.',
+      running:'검색 중..', generating:'생성 중..',
+      done_top:'완료. 상위 {n}개 문서를 반환했습니다.', no_docs:'반환된 문서가 없습니다.',
+      query_failed:'쿼리 실패', ks_searching:'검색 중..',
+      ks_found:'{n}개 문서 검색됨', ks_none:'검색 결과 없음',
+      ks_no_docs:'관련 문서를 찾지 못했습니다.', ks_enter:'검색어를 입력하세요.', ks_error:'오류',
+      hint_bid:'사업명과 키워드를 자동 확장합니다.<br>proposal, final_report, presentation 우선순위를 적용합니다.',
+      hint_rfp:'RFP와 과업지시서 내용을 분석합니다.<br>rfp, kickoff, proposal 우선순위를 적용합니다.',
+      hint_graph:'FAISS 검색 뒤 동일 프로젝트의 RFP, 제안, 착수, 보고서 체인을 추가로 표시합니다.',
+      mode_graph:'Graph RAG',
+      graph_context_title:'프로젝트 문서 체인',
+      rv_query_label:'쿼리', rv_docs_count:'문서 {n}개', rv_ref_docs:'참조 문서 ({n}개)',
+      rv_copy_answer:'답변 복사', rv_search_only:'검색 전용 모드에서는 답변이 없습니다.',
+      rv_count:'{n}개', rv_rating_label:'품질 평점',
+      rfp_attach:'RFP 파일 첨부',
+      rfp_hint:'PDF, DOCX, TXT를 업로드해 RFP 분석 검색을 실행합니다. HWP와 HWPX는 추후 지원 예정입니다.',
+      rfp_selected:'파일 선택됨',
+      rfp_uploading:'RFP 파일 업로드 중..',
+      rfp_extract_fail:'추출 실패',
+      rfp_remove:'선택 해제',
+      rfp_active_notice:'RFP 첨부 파일이 포함되어 rfp_analysis 모드로 실행합니다.',
+      result_panel:'결과 패널', tab_graph:'그래프', tab_answer_interpret:'답변해석', tab_related_files:'관련파일',
+      graph_empty:'RAG를 실행하면 연관 그래프가 표시됩니다.',
+      graph_loading:'그래프 로드 중..', graph_error:'그래프 로드 실패',
+      graph_nodes:'{n}개 노드', graph_edges:'{e}개 엣지',
+      graph_nodes_short:'노드', graph_edges_short:'엣지',
+      collection_filter:'Collection', col_all:'전체 Collection',
+      doc_group_filter:'문서 그룹',
+      search_weights:'검색 비중', temperature:'Temperature',
+    }; */
+
+    const I18N_KO_SAFE = {
+      tab_rag:'RAG Assistant', tab_knowledge:'\uC9C0\uC2DD \uAC80\uC0C9', tab_review:'\uB2F5\uBCC0 \uAC80\uD1A0', tab_proposal:'\uC81C\uC548\uC11C \uCD08\uC548',
+      runtime_target:'\uC11C\uBC84 \uC0C1\uD0DC', search_mode:'\uAC80\uC0C9 \uBAA8\uB4DC', top_k:'Top K',
+      top_docs:'Top Docs', max_chunks:'\uCCAD\uD06C / \uBB38\uC11C', category:'\uCE74\uD14C\uACE0\uB9AC',
+      answer_mode:'\uB2F5\uBCC0 \uBAA8\uB4DC', model:'\uBAA8\uB378', rec_docs:'\uCD94\uCC9C \uBB38\uC11C',
+      mode_general:'General RAG', mode_bid:'\uC785\uCC30 \uC0AC\uC5C5 \uAC80\uC0C9', mode_rfp:'RFP \uBD84\uC11D',
+      cat_all:'\uC804\uCCB4', cat_rfp:'RFP', cat_proposal:'\uC81C\uC548\uC11C', cat_kickoff:'\uCC29\uC218\uBCF4\uACE0',
+      cat_final:'\uCD5C\uC885\uBCF4\uACE0', cat_presentation:'\uBC1C\uD45C\uC790\uB8CC',
+      ans_ollama:'Ollama (\uC0DD\uC131)', ans_none:'\uAC80\uC0C9 \uC804\uC6A9',
+      generate_short:'\uC0DD\uC131', search_only_short:'\uAC80\uC0C9 \uC804\uC6A9',
+      tpl_tag1:'RAG \uAC80\uC0C9', tpl_tag2:'\uB77C\uC774\uBE0C', tpl_title:'Weeslee RAG \uCFFC\uB9AC \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4',
+      tpl_desc:'\uD504\uB85C\uC81D\uD2B8\uC640 \uC81C\uC548 \uAD00\uB828 \uC9C8\uBB38\uC744 \uC785\uB825\uD558\uBA74 \uAD00\uB828 \uBB38\uC11C\uB97C \uAC80\uC0C9\uD558\uACE0 \uCD08\uC548 \uB2F5\uBCC0\uC744 \uC0DD\uC131\uD569\uB2C8\uB2E4.',
+      info_target:'\uB300\uC0C1', info_backend:'\uBC31\uC5D4\uB4DC', info_frontend:'\uD504\uB7F0\uD2B8\uC5D4\uB4DC', info_ans_mode:'\uB2F5\uBCC0 \uBAA8\uB4DC',
+      query_input:'\uCFFC\uB9AC \uC785\uB825', ready:'\uC900\uBE44.', query_label:'\uCFFC\uB9AC',
+      query_placeholder:'\uC608\uC2DC: AX \uAE30\uBC18 \uCC28\uC138\uB300 \uC5C5\uBB34\uC2DC\uC2A4\uD15C ISMP \uC18C\uD504\uD2B8\uC6E8\uC5B4 \uBC94\uC704 \uBCC0\uACBD \uC81C\uC548',
+      query_example_bid:'\uD589\uC815\uC548\uC804\uBD80 \uACF5\uACF5\uB370\uC774\uD130 \uD488\uC9C8\uAD00\uB9AC \uC2DC\uC2A4\uD15C \uAD6C\uCD95 \uC720\uC0AC \uC218\uD589\uC2E4\uC801\uC744 \uCC3E\uC544\uC918',
+      query_example_rfp:'\uCCA8\uBD80\uD55C RFP\uC758 \uC8FC\uC694 \uC694\uAD6C\uC0AC\uD56D\uACFC \uAE30\uC220 \uC2A4\uD0DD\uC744 \uBD84\uC11D\uD558\uACE0 \uC720\uC0AC \uC2E4\uC801\uC744 \uAC80\uC0C9\uD574\uC918',
+      query_example_graph:'\uCC28\uC138\uB300 \uC5C5\uBB34\uC2DC\uC2A4\uD15C ISMP \uC0AC\uC5C5\uC5D0\uC11C \uC81C\uC548\uBD80\uD130 \uCD5C\uC885\uBCF4\uACE0\uAE4C\uC9C0 \uBB38\uC11C \uCCB4\uC778\uC744 \uBCF4\uC5EC\uC918',
+      query_hint:'\uC88C\uCE21 \uD328\uB110\uC5D0\uC11C \uAC80\uC0C9 \uBC94\uC704\uC640 \uB2F5\uBCC0 \uBAA8\uB4DC\uB97C \uC124\uC815\uD558\uC138\uC694.',
+      run_rag:'RAG \uC2E4\uD589', refresh_health:'\uC0C1\uD0DC \uC0C8\uB85C\uACE0\uCE68',
+      answer_panel:'\uB2F5\uBCC0 \uD328\uB110', draft_answer:'\uCD08\uC548 \uB2F5\uBCC0', result:'\uACB0\uACFC',
+      no_answer:'\uC544\uC9C1 \uB2F5\uBCC0\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
+      answer_search_only:'\uAC80\uC0C9 \uC804\uC6A9 \uBAA8\uB4DC\uC785\uB2C8\uB2E4. \uC544\uB798 \uADFC\uAC70 \uD30C\uC77C\uC744 \uAC80\uD1A0\uD558\uC138\uC694.',
+      answer_evidence_title:'\uADFC\uAC70 \uD30C\uC77C',
+      answer_found_files:'LLM\uC774 \uCC3E\uC740 \uAD00\uB828 \uD30C\uC77C',
+      answer_no_evidence:'\uADFC\uAC70 \uD30C\uC77C\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
+      answer_location:'\uD30C\uC77C \uC704\uCE58',
+      result_no_result:'\uACB0\uACFC \uC5C6\uC74C', result_status:'\uC0C1\uD0DC', result_docs:'\uBB38\uC11C \uC218',
+      result_top:'\uCD5C\uC0C1\uC704 \uACB0\uACFC', result_ans_size:'\uB2F5\uBCC0 \uD06C\uAE30',
+      result_view_note:'\uC5F4\uAE30\uC640 \uB2E4\uC6B4\uB85C\uB4DC\uB294 \uBC31\uC5D4\uB4DC \uD30C\uC77C API\uB97C \uC0AC\uC6A9\uD569\uB2C8\uB2E4. \uC11C\uBC84\uC758 <code>data/raw/</code> \uB514\uB809\uD130\uB9AC\uC5D0 \uD30C\uC77C\uC774 \uC788\uC5B4\uC57C \uD569\uB2C8\uB2E4.',
+      result_run_hint:'\uCFFC\uB9AC\uB97C \uC2E4\uD589\uD558\uBA74 \uACB0\uACFC\uB97C \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.',
+      result_success:'\uC131\uACF5', result_failed:'\uC2E4\uD328',
+      view_file:'\uBCF4\uAE30', download:'\uB2E4\uC6B4\uB85C\uB4DC', print:'\uCD9C\uB825', copy_path:'\uACBD\uB85C \uBCF5\uC0AC', copied:'\uBCF5\uC0AC\uB428',
+      filter_org:'\uAE30\uAD00\uBA85 \uD544\uD130', filter_org_placeholder:'\uC608: \uD589\uC815\uC548\uC804\uBD80',
+      filter_year:'\uC5F0\uB3C4 \uD544\uD130', filter_year_placeholder:'\uC608: 2024',
+      prop_settings:'\uC81C\uC548\uC11C \uC124\uC815', prop_project_name:'\uC0AC\uC5C5\uBA85', prop_project_name_ph:'\uC608: \uCC28\uC138\uB300 \uD589\uC815\uC5C5\uBB34\uC2DC\uC2A4\uD15C ISMP',
+      prop_org:'\uBC1C\uC8FC\uAE30\uAD00', prop_org_ph:'\uC608: \uD589\uC815\uC548\uC804\uBD80', prop_category:'\uBB38\uC11C \uC720\uD615 \uD544\uD130',
+      prop_sections:'\uC0DD\uC131 \uC139\uC158', prop_model:'\uB2F5\uBCC0 \uBAA8\uB378', prop_run:'\uCD08\uC548 \uC0DD\uC131',
+      prop_empty:'\uC0AC\uC5C5\uBA85\uC744 \uC785\uB825\uD558\uACE0 \uCD08\uC548 \uC0DD\uC131 \uBC84\uD2BC\uC744 \uB204\uB974\uC138\uC694.',
+      prop_running:'\uCD08\uC548 \uC0DD\uC131 \uC911\uC785\uB2C8\uB2E4. \uC139\uC158\uB2F9 \uC57D 30\uCD08\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4.', prop_done:'\uCD08\uC548 \uC0DD\uC131 \uC644\uB8CC.',
+      prop_error:'\uCD08\uC548 \uC0DD\uC131 \uC2E4\uD328',
+      search_conditions:'\uAC80\uC0C9 \uC870\uAC74', ks_mode:'\uAC80\uC0C9 \uBAA8\uB4DC', ks_category:'\uCE74\uD14C\uACE0\uB9AC',
+      ks_topk:'Top K (\uCCAD\uD06C \uC218)', ks_topdocs:'Top Docs (\uBB38\uC11C \uC218)',
+      ks_hint:'\uB2F5\uBCC0 \uC0DD\uC131 \uC5C6\uC774 \uAD00\uB828 \uBB38\uC11C\uB9CC \uAC80\uC0C9\uD569\uB2C8\uB2E4.',
+      ks_placeholder:'\uC0AC\uC5C5\uBA85, \uD0A4\uC6CC\uB4DC, \uC5C5\uBB34 \uC601\uC5ED\uC744 \uC785\uB825\uD558\uC138\uC694.', ks_btn:'\uAC80\uC0C9',
+      ks_example_bid:'\uACF5\uACF5\uB370\uC774\uD130 \uD488\uC9C8\uAD00\uB9AC \uC2DC\uC2A4\uD15C \uAD6C\uCD95 \uC720\uC0AC \uC0AC\uC5C5',
+      ks_example_rfp:'\uC815\uBCF4\uC804\uB7B5\uACC4\uD68D ISP \uACFC\uC5C5\uC9C0\uC2DC\uC11C',
+      ks_example_graph:'\uCC28\uC138\uB300 \uC5C5\uBB34\uC2DC\uC2A4\uD15C \uBB38\uC11C \uCCB4\uC778',
+      ks_empty:'\uAC80\uC0C9\uC5B4\uB97C \uC785\uB825\uD558\uACE0 \uAC80\uC0C9 \uBC84\uD2BC\uC744 \uB204\uB974\uC138\uC694.',
+      session_history:'\uC138\uC158 \uAE30\uB85D',
+      rv_empty:'\uC544\uC9C1 \uC2E4\uD589\uD55C RAG \uCFFC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br>RAG Assistant \uD0ED\uC5D0\uC11C \uCFFC\uB9AC\uB97C \uC2E4\uD589\uD558\uBA74 \uC5EC\uAE30\uC5D0 \uAE30\uB85D\uB429\uB2C8\uB2E4.',
+      rv_select:'\uC88C\uCE21 \uBAA9\uB85D\uC5D0\uC11C \uD56D\uBAA9\uC744 \uC120\uD0DD\uD558\uC138\uC694.',
+      checking:'\uD655\uC778 \uC911.', no_index:'\uC778\uB371\uC2A4 \uC5C6\uC74C', offline:'\uC624\uD504\uB77C\uC778',
+      running_btn:'\uC2E4\uD589 \uC911..', searching_btn:'\uAC80\uC0C9 \uC911..', health_ok:'\uC11C\uBC84 \uC0C1\uD0DC \uD655\uC778 \uC644\uB8CC.',
+      conn_fail:'\uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328', enter_query:'\uCFFC\uB9AC\uB97C \uC785\uB825\uD558\uC138\uC694.',
+      running:'\uAC80\uC0C9 \uC911..', generating:'\uC0DD\uC131 \uC911..',
+      done_top:'\uC644\uB8CC. \uC0C1\uC704 {n}\uAC1C \uBB38\uC11C\uB97C \uBC18\uD658\uD588\uC2B5\uB2C8\uB2E4.', no_docs:'\uBC18\uD658\uB41C \uBB38\uC11C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
+      query_failed:'\uCFFC\uB9AC \uC2E4\uD328', ks_searching:'\uAC80\uC0C9 \uC911..',
+      ks_found:'{n}\uAC1C \uBB38\uC11C \uAC80\uC0C9\uB428', ks_none:'\uAC80\uC0C9 \uACB0\uACFC \uC5C6\uC74C',
+      ks_no_docs:'\uAD00\uB828 \uBB38\uC11C\uB97C \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.', ks_enter:'\uAC80\uC0C9\uC5B4\uB97C \uC785\uB825\uD558\uC138\uC694.', ks_error:'\uC624\uB958',
+      hint_bid:'\uC0AC\uC5C5\uBA85\uACFC \uD0A4\uC6CC\uB4DC\uB97C \uC790\uB3D9 \uD655\uC7A5\uD569\uB2C8\uB2E4.<br>proposal, final_report, presentation \uC6B0\uC120\uC21C\uC704\uB97C \uC801\uC6A9\uD569\uB2C8\uB2E4.',
+      hint_rfp:'RFP\uC640 \uACFC\uC5C5\uC9C0\uC2DC\uC11C \uB0B4\uC6A9\uC744 \uBD84\uC11D\uD569\uB2C8\uB2E4.<br>rfp, kickoff, proposal \uC6B0\uC120\uC21C\uC704\uB97C \uC801\uC6A9\uD569\uB2C8\uB2E4.',
+      hint_graph:'FAISS \uAC80\uC0C9 \uB4A4 \uB3D9\uC77C \uD504\uB85C\uC81D\uD2B8\uC758 RFP, \uC81C\uC548, \uCC29\uC218, \uBCF4\uACE0\uC11C \uCCB4\uC778\uC744 \uCD94\uAC00\uB85C \uD45C\uC2DC\uD569\uB2C8\uB2E4.',
+      mode_graph:'Graph RAG',
+      graph_context_title:'\uD504\uB85C\uC81D\uD2B8 \uBB38\uC11C \uCCB4\uC778',
+      rv_query_label:'\uCFFC\uB9AC', rv_docs_count:'\uBB38\uC11C {n}\uAC1C', rv_ref_docs:'\uCC38\uC870 \uBB38\uC11C ({n}\uAC1C)',
+      rv_copy_answer:'\uB2F5\uBCC0 \uBCF5\uC0AC', rv_search_only:'\uAC80\uC0C9 \uC804\uC6A9 \uBAA8\uB4DC\uC5D0\uC11C\uB294 \uB2F5\uBCC0\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
+      rv_count:'{n}\uAC1C', rv_rating_label:'\uD488\uC9C8 \uD3C9\uC810',
+      rfp_attach:'RFP \uD30C\uC77C \uCCA8\uBD80',
+      rfp_hint:'PDF, DOCX, TXT\uB97C \uC5C5\uB85C\uB4DC\uD574 RFP \uBD84\uC11D \uAC80\uC0C9\uC744 \uC2E4\uD589\uD569\uB2C8\uB2E4. HWP\uC640 HWPX\uB294 \uCD94\uD6C4 \uC9C0\uC6D0 \uC608\uC815\uC785\uB2C8\uB2E4.',
+      rfp_selected:'\uD30C\uC77C \uC120\uD0DD\uB428',
+      rfp_uploading:'RFP \uD30C\uC77C \uC5C5\uB85C\uB4DC \uC911..',
+      rfp_extract_fail:'\uCD94\uCD9C \uC2E4\uD328',
+      rfp_remove:'\uC120\uD0DD \uD574\uC81C',
+      rfp_active_notice:'RFP \uCCA8\uBD80 \uD30C\uC77C\uC774 \uD3EC\uD568\uB418\uC5B4 rfp_analysis \uBAA8\uB4DC\uB85C \uC2E4\uD589\uD569\uB2C8\uB2E4.',
+      result_panel:'\uACB0\uACFC \uD328\uB110', tab_graph:'\uADF8\uB798\uD504', tab_answer_interpret:'\uB2F5\uBCC0\uD574\uC11D', tab_related_files:'\uAD00\uB828\uD30C\uC77C',
+      graph_empty:'RAG\uB97C \uC2E4\uD589\uD558\uBA74 \uC5F0\uAD00 \uADF8\uB798\uD504\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.',
+      graph_loading:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC911..', graph_error:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC2E4\uD328',
+      graph_nodes:'{n}\uAC1C \uB178\uB4DC', graph_edges:'{e}\uAC1C \uC5E3\uC9C0',
+      graph_nodes_short:'\uB178\uB4DC', graph_edges_short:'\uC5E3\uC9C0',
+      collection_filter:'Collection', col_all:'\uC804\uCCB4 Collection',
+      doc_group_filter:'\uBB38\uC11C \uADF8\uB8F9',
+      search_weights:'\uAC80\uC0C9 \uBE44\uC911', temperature:'Temperature',
+    };
+
     const I18N = {
+      ko: I18N_KO,
+      /*
       ko: {
         tab_rag:'RAG Assistant', tab_knowledge:'지식 검색', tab_review:'답변 검토', tab_proposal:'제안서 초안',
         runtime_target:'서버 상태', search_mode:'검색 모드', top_k:'Top K',
@@ -1654,6 +1890,11 @@
         run_rag:'RAG 실행', refresh_health:'상태 새로고침',
         answer_panel:'답변 패널', draft_answer:'초안 답변', result:'결과',
         no_answer:'아직 답변이 없습니다.',
+        answer_search_only:'검색 전용 모드입니다. 아래 근거 파일을 검토하세요.',
+        answer_evidence_title:'근거 파일',
+        answer_found_files:'LLM이 찾은 관련 파일',
+        answer_no_evidence:'근거 파일을 찾지 못했습니다.',
+        answer_location:'파일 위치',
         result_no_result:'결과 없음', result_status:'상태', result_docs:'문서 수',
         result_top:'최상위 결과', result_ans_size:'답변 크기',
         result_view_note:'열기/다운로드는 백엔드 파일 API를 사용합니다. 서버의 <code>data/raw/</code> 디렉토리에 파일이 있어야 합니다.',
@@ -1711,6 +1952,7 @@
         doc_group_filter:'문서 그룹',
         search_weights:'검색 비율', temperature:'Temperature',
       },
+      */
       en: {
         tab_rag:'RAG Assistant', tab_knowledge:'Knowledge Search', tab_review:'Answer Review', tab_proposal:'Proposal Draft',
         runtime_target:'Runtime Target', search_mode:'Search Mode', top_k:'Top K',
@@ -1733,6 +1975,11 @@
         run_rag:'Run RAG', refresh_health:'Refresh Health',
         answer_panel:'Answer Panel', draft_answer:'Draft Answer', result:'Result',
         no_answer:'No answer yet.',
+        answer_search_only:'Search-only mode. Review the evidence files below.',
+        answer_evidence_title:'Evidence Files',
+        answer_found_files:'Relevant files found by retrieval',
+        answer_no_evidence:'No evidence files found.',
+        answer_location:'File Location',
         result_no_result:'No result yet.', result_status:'Status', result_docs:'Documents',
         result_top:'Top Result', result_ans_size:'Answer Size',
         result_view_note:'Open/Download uses the backend files API. The file must exist in the server\'s <code>data/raw/</code> directory. Copy Path copies the original source path to clipboard.',
@@ -1823,7 +2070,7 @@
       document.getElementById('langKo').classList.toggle('active', _lang === 'ko');
       document.getElementById('langEn').classList.toggle('active', _lang === 'en');
       // dynamic elements (only update when in initial state)
-      if (!_hasAnswer) document.getElementById('answerPanel').textContent = t('no_answer');
+      if (!_hasAnswer) document.getElementById('answerPanel').innerHTML = `<div class="answer-note">${t('no_answer')}</div>`;
       if (!_queryRan) document.getElementById('queryStatus').textContent = t('ready');
       syncAnswerModeLabel();
       onSearchModeChange();
@@ -2143,10 +2390,15 @@
           .filter((v, i, a) => a.indexOf(v) === i);
 
         // 2. 쿼리에서 기관명 패턴 추출
-        const orgPatterns = [
+        /* const orgPatterns = [
           /(\S+공사)/g, /(\S+공단)/g, /(\S+진흥원)/g, /(\S+연구원)/g,
           /(\S+부)/g, /(\S+청)/g, /(\S+처)/g, /(\S+원)/g, /(\S+회)/g,
           /(\S+센터)/g, /(\S+재단)/g, /(\S+조합)/g, /(\S+은행)/g
+        ]; */
+        const orgPatterns = [
+          /(\S+\uACF5\uC0AC)/g, /(\S+\uACF5\uB2E8)/g, /(\S+\uC9C4\uD765\uC6D0)/g, /(\S+\uC5F0\uAD6C\uC6D0)/g,
+          /(\S+\uBD80)/g, /(\S+\uCCAD)/g, /(\S+\uCC98)/g, /(\S+\uC6D0)/g, /(\S+\uAD00)/g,
+          /(\S+\uC13C\uD130)/g, /(\S+\uC7AC\uB2E8)/g, /(\S+\uC870\uD569)/g, /(\S+\uB300\uD559)/g
         ];
         let orgsFromQuery = [];
         for (const pattern of orgPatterns) {
@@ -2230,7 +2482,10 @@
       // 작성일: 2026-05-14 | 수정: chain 구조 지원 (category별 문서 배열)
       let graphSection = '';
       if (data.graph_context?.length) {
+        /*
         const CAT_LABEL = { rfp:'RFP', proposal:'제안서', kickoff:'착수보고', final_report:'최종보고', presentation:'발표' };
+        */
+        const CAT_LABEL = { rfp:'RFP', proposal:'Proposal', kickoff:'Kickoff', final_report:'Final Report', presentation:'Presentation' };
         const CAT_COLOR = { rfp:'#ef4444', proposal:'#3b82f6', kickoff:'#f59e0b', final_report:'#22c55e', presentation:'#8b5cf6' };
         const chains = data.graph_context.map(ctx => {
           // chain 구조: [{category, documents: [...]}] 또는 related_docs: [...]
@@ -2349,7 +2604,7 @@
 
       _queryRan = true;
       status.textContent = t('running');
-      document.getElementById('answerPanel').textContent = t('generating');
+      document.getElementById('answerPanel').innerHTML = `<div class="answer-note">${t('generating')}</div>`;
       document.getElementById('results').innerHTML = '';
 
       const runBtn = document.querySelector('button[onclick="runQuery()"]');
@@ -2416,8 +2671,7 @@
           ? ` (${_lang === 'ko' ? '확장' : 'expanded'}: ${data.expanded_query.slice(0, 60)}...)` : '';
         status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote;
         _hasAnswer = answerProvider === 'none';
-        document.getElementById('answerPanel').textContent =
-          answerProvider === 'none' ? `(${t('no_docs')})` : t('generating');
+        renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
         renderResultPanel(data);
         renderResults(data.documents || []);
 
@@ -2432,8 +2686,7 @@
 
         if (_rfpSelectedFile) {
           _hasAnswer = answerProvider !== 'none' && Boolean(data.draft_answer);
-          document.getElementById('answerPanel').textContent =
-            answerProvider === 'none' ? `(${t('no_docs')})` : (data.draft_answer || `(${t('no_docs')})`);
+          renderAnswerPanel(data, answerProvider === 'none' ? '' : (data.draft_answer || ''), answerProvider === 'none');
           pushHistory(query || _rfpSelectedFile.name, data);
           if (!isGraphMode && answerProvider !== 'none') switchAnswerTab('answer');
         } else if (answerProvider === 'none') {
@@ -2452,13 +2705,17 @@
           const answerData = await answerResponse.json();
           if (!answerData.success) throw new Error(answerData.error || 'answer generation failed');
           _hasAnswer = true;
-          document.getElementById('answerPanel').textContent = answerData.draft_answer || `(${t('no_docs')})`;
-          pushHistory(query, { ...data, draft_answer: answerData.draft_answer || '' });
+          renderAnswerPanel(
+            { ...data, evidence_documents: answerData.evidence_documents || data.evidence_documents || data.documents || [] },
+            answerData.draft_answer || '',
+            false
+          );
+          pushHistory(query, { ...data, draft_answer: answerData.draft_answer || '', evidence_documents: answerData.evidence_documents || [] });
           if (!isGraphMode) switchAnswerTab('answer');
         }
       } catch (error) {
         status.textContent = `${t('query_failed')}: ${error.message}`;
-        document.getElementById('answerPanel').textContent = '';
+        document.getElementById('answerPanel').innerHTML = '';
         showToast(`${t('query_failed')}: ${error.message}`, 'error');
       } finally {
         runBtn.disabled = false;
@@ -2499,6 +2756,43 @@
             onclick="copyPath(this)">${t('copy_path')}</button>
         </div>
       `;
+    }
+
+    function renderAnswerPanel(payload, answerText, searchOnly = false) {
+      const answerPanel = document.getElementById('answerPanel');
+      const evidenceDocs = payload?.evidence_documents || payload?.documents || [];
+      const answerBody = answerText
+        ? `<div class="answer-body">${escapeHtml(answerText)}</div>`
+        : `<div class="answer-note">${t(searchOnly ? 'answer_search_only' : 'no_answer')}</div>`;
+
+      const evidenceHtml = evidenceDocs.length
+        ? evidenceDocs.slice(0, 5).map(doc => {
+            const title = doc.project_name || doc.file_name || doc.document_id || '-';
+            const pathText = doc.original_source_path || doc.source_path || doc.relative_path || '-';
+            const meta = [
+              doc.collection_key || '',
+              doc.category || '',
+              doc.relative_path || '',
+            ].filter(Boolean).map(v => `<span class="chip">${escapeHtml(v)}</span>`).join('');
+            return `
+              <div class="answer-evidence-item">
+                <div class="answer-evidence-head">
+                  <div class="answer-evidence-name">${escapeHtml(title)}</div>
+                  <div class="badge">${escapeHtml(doc.category || '')}</div>
+                </div>
+                ${meta ? `<div class="answer-evidence-meta">${meta}</div>` : ''}
+                <div class="answer-evidence-path"><strong>${t('answer_location')}</strong> ${escapeHtml(pathText)}</div>
+                ${renderOpenFileAction(doc.source_path || doc.original_source_path || '', doc.input_path || '', doc.document_id || '')}
+              </div>`;
+          }).join('')
+        : `<div class="answer-note">${t('answer_no_evidence')}</div>`;
+
+      answerPanel.innerHTML = `
+        ${answerBody}
+        <div class="answer-evidence">
+          <div class="answer-evidence-title">${t('answer_found_files')}</div>
+          ${evidenceHtml}
+        </div>`;
     }
 
     function copyPath(btn) {

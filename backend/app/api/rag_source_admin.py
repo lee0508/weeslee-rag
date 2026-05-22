@@ -63,6 +63,7 @@ class MetadataBuildRequest(BaseModel):
 
 class CollectionsBootstrapRequest(BaseModel):
     client_id: str = "weeslee"
+    source_id: str = "rag_source"
     overwrite: bool = False
 
 
@@ -105,6 +106,7 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
     sub_group = rules_mod.detect_sub_group(parts)
     doc_meta = rules_mod.detect_document_metadata(root_group or "", sub_group or "")
     project_name = rules_mod.extract_project_name(file_stem)
+    collection_name = _collection_name_from_file_path(normalized)
 
     windows_path = normalized.replace(
         "/mnt/w2_project",
@@ -113,7 +115,7 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
 
     return {
         "source_root": "00. RAG 소스",
-        "collection": doc_meta.get("category", "rag_source"),
+        "collection": collection_name or doc_meta.get("category", "rag_source"),
         "source_path": windows_path,
         "linux_path": normalized,
         "file_name": file_name,
@@ -138,6 +140,13 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
 
 def _normalize_keyword_value(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def _collection_name_from_file_path(file_path: str) -> str:
+    path = Path(str(file_path or ""))
+    if not path.name:
+        return ""
+    return path.parent.name or path.stem
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -339,7 +348,7 @@ async def build_metadata(body: MetadataBuildRequest):
             "document_group": meta.get("document_group"),
             "proposal_section": meta.get("proposal_section"),
             "deliverable_section": meta.get("deliverable_section"),
-            "collection": meta.get("category"),
+            "collection": meta.get("collection"),
             "status": "dry_run" if body.dry_run else "updated",
         })
 
@@ -370,6 +379,60 @@ async def build_metadata(body: MetadataBuildRequest):
 
 @router.post("/collections/bootstrap")
 async def bootstrap_collections(body: CollectionsBootstrapRequest):
+    from app.services.knowledge_source import knowledge_source_service
+    from app.services.platform_store import create_record as ps_create, get_record as ps_get, update_record as ps_update
+
+    mount_path = _get_source_mount_path(body.source_id)
+    if not mount_path:
+        try:
+            if knowledge_source_service.is_accessible():
+                mount_path = knowledge_source_service.get_root_path()
+        except Exception:
+            mount_path = None
+
+    docs = metadata_db_service.list_documents(limit=100000)
+    collection_keys: list[str] = []
+    seen: set[str] = set()
+    for doc in docs:
+        coll_key = _collection_name_from_file_path(str(doc.get("file_path") or "")).strip()
+        if not coll_key or coll_key in seen:
+            continue
+        seen.add(coll_key)
+        collection_keys.append(coll_key)
+
+    COLL_STORE = "collections_active"
+    created = skipped = 0
+    items = []
+
+    for coll_key in sorted(collection_keys):
+        existing = ps_get(COLL_STORE, "collection_key", coll_key)
+        record = {
+            "collection_key": coll_key,
+            "client_id": body.client_id,
+            "name": coll_key,
+            "description": f"00. RAG 소스 폴더 '{coll_key}' 기준 자동 생성",
+            "source_root": "00. RAG 소스",
+            "mount_path": mount_path or "",
+            "enabled": True,
+        }
+        if existing:
+            if not body.overwrite:
+                skipped += 1
+                continue
+            ps_update(COLL_STORE, "collection_key", coll_key, record)
+        else:
+            ps_create(COLL_STORE, record, id_field="collection_key")
+        created += 1
+        items.append({"collection_key": coll_key, "name": coll_key})
+
+    return {
+        "success": True,
+        "client_id": body.client_id,
+        "source_id": body.source_id,
+        "created": created,
+        "skipped": skipped,
+        "items": items,
+    }
     """Collection Template 기반으로 기본 Collection을 자동 생성한다."""
     templates = list_records("collection_templates")
     if body.client_id:

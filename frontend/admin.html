@@ -726,6 +726,21 @@
       <section class="wr-page" data-wr-page-panel="source-documents">
         <div class="wr-eyebrow">Data Build</div>
         <h1 class="wr-page-title" id="wr-source-title" data-wr-anchor>Source Documents</h1>
+        <div class="wr-callout" id="wrSourceCallout">Source Documents 상태를 불러오는 중입니다.</div>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Registered Sources</div>
+            <div class="wr-summary-value" id="wrSourceCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Accessible Sources</div>
+            <div class="wr-summary-value" id="wrSourceAccessibleCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Default Source</div>
+            <div class="wr-summary-value" id="wrSourceDefaultName">Loading...</div>
+          </div>
+        </div>
         <p class="wr-page-lead">원문 문서 위치, 논리 Source, 스캔 상태를 다루는 화면입니다. 1차에서는 설명과 fallback 상태를 우선 표시합니다.</p>
         <div class="wr-callout">API가 아직 연결되지 않았습니다. 백엔드 구현 후 이 영역에 실제 데이터가 표시됩니다.</div>
         <div class="wr-grid">
@@ -741,8 +756,8 @@
         </div>
         <h2 class="wr-section-title" id="wr-source-settings" data-wr-anchor>Source Settings</h2>
         <div class="wr-form-grid">
-          <div class="wr-field"><label>Default source path</label><input value="/data/weeslee/source_documents" readonly></div>
-          <div class="wr-field"><label>Default client</label><input value="weeslee" readonly></div>
+          <div class="wr-field"><label>Default source path</label><input id="wrSourceDefaultPath" value="/data/weeslee/source_documents" readonly></div>
+          <div class="wr-field"><label>Default client</label><input id="wrSourceDefaultClient" value="weeslee" readonly></div>
         </div>
       </section>
 
@@ -770,7 +785,7 @@
         <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>Current Step Map</h2>
         <div class="wr-stepper" id="wrWizardStepper">
           <div class="wr-step"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">Scan</div><div class="wr-step-meta">문서 파일 스캔과 목록 생성</div></div></div>
-          <div class="wr-step"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">Collections</div><div class="wr-step-meta">기본 Collection 생성</div></div></div>
+          <div class="wr-step"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">Collections</div><div class="wr-step-meta">Collection 메타 동기화</div></div></div>
           <div class="wr-step"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">Metadata</div><div class="wr-step-meta">문서 메타데이터 생성</div></div></div>
           <div class="wr-step"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">Tag / Keyword</div><div class="wr-step-meta">태그와 키워드 자동 생성</div></div></div>
           <div class="wr-step"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">Extract / Chunk</div><div class="wr-step-meta">텍스트 추출과 청킹 실행</div></div></div>
@@ -795,6 +810,21 @@ POST /api/admin/faiss/activate</code>
       <section class="wr-page" data-wr-page-panel="faiss-index">
         <div class="wr-eyebrow">Data Build</div>
         <h1 class="wr-page-title" id="wr-faiss-title" data-wr-anchor>FAISS Index</h1>
+        <div class="wr-callout" id="wrFaissCallout">FAISS 상태를 불러오는 중입니다.</div>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Active Snapshot</div>
+            <div class="wr-summary-value" id="wrFaissSnapshot">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Chunk Count</div>
+            <div class="wr-summary-value" id="wrFaissChunkCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Recent Jobs</div>
+            <div class="wr-summary-value" id="wrFaissJobCount">Loading...</div>
+          </div>
+        </div>
         <p class="wr-page-lead">활성 인덱스, 인덱스 생성 Job, 스냅샷 활성화 상태를 확인하는 페이지입니다.</p>
         <div class="wr-grid">
           <div class="wr-card">
@@ -817,6 +847,21 @@ POST /api/admin/faiss/activate</code>
       <section class="wr-page" data-wr-page-panel="json-graph">
         <div class="wr-eyebrow">Graph RAG</div>
         <h1 class="wr-page-title" id="wr-graph-title" data-wr-anchor>JSON Graph</h1>
+        <div class="wr-callout" id="wrGraphCallout">Graph 상태를 불러오는 중입니다.</div>
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Projects</div>
+            <div class="wr-summary-value" id="wrGraphProjectCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Documents</div>
+            <div class="wr-summary-value" id="wrGraphDocumentCount">Loading...</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Edges</div>
+            <div class="wr-summary-value" id="wrGraphEdgeCount">Loading...</div>
+          </div>
+        </div>
         <p class="wr-page-lead">프로젝트, 문서, 카테고리, 관계 데이터를 JSON Graph로 구축하고 Graph RAG에서 활용하는 영역입니다.</p>
         <div class="wr-callout">Graph API가 없거나 실패해도 이 페이지는 fallback 상태를 유지합니다.</div>
         <div class="wr-grid">
@@ -1304,8 +1349,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">2</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Collection 생성</div>
-          <div style="font-size:11px;color:var(--muted)">문서 구조를 기준으로 VectorDB Collection을 생성합니다.</div>
+          <div style="font-size:13px;font-weight:700">Collection 메타 동기화</div>
+          <div style="font-size:11px;color:var(--muted)">문서 구조를 기준으로 Collection 메타 정보를 정리합니다. 전체 순차 실행에서는 자동으로 건너뜁니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-2">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(2)">실행</button>
@@ -5403,7 +5448,7 @@ POST /api/admin/faiss/activate</code>
         method: 'POST',
         body: JSON.stringify({ query, mode, top_k: 10 }),
       });
-      renderSearchResults(data.results || []);
+      renderSearchResultsWithPaths(data.results || []);
     } catch (e) {
       document.getElementById('searchResultList').innerHTML = `<div class="empty" style="color:var(--red)">${esc(e.message)}</div>`;
     }
@@ -5423,6 +5468,29 @@ POST /api/admin/faiss/activate</code>
         </div>
         <div style="font-size:11px;color:var(--muted);max-height:60px;overflow:hidden">${esc((r.content || r.text || '').slice(0, 200))}...</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px">유사도: ${(r.score ?? r.similarity ?? 0).toFixed(3)}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderSearchResultsWithPaths(results) {
+    const el = document.getElementById('searchResultList');
+    if (!results.length) {
+      el.innerHTML = '<div class="empty">검색 결과 없음</div>';
+      return;
+    }
+    el.innerHTML = results.map((r, i) => `
+      <div style="background:var(--surface2);padding:10px 12px;border-radius:8px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:600;font-size:12px">#${i + 1} ${esc(r.project_name || r.document_id || r.file_name || '-')}</span>
+          <span class="chip">${esc(r.category || '-')}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          ${r.collection_key ? `<span class="chip" style="font-size:10px">${esc(r.collection_key)}</span>` : ''}
+          ${r.relative_path ? `<span class="chip" style="font-size:10px">${esc(r.relative_path)}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);max-height:60px;overflow:hidden">${esc((r.content || r.text || '').slice(0, 200))}...</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;word-break:break-all">${esc(r.original_source_path || r.source_path || r.source || '-')}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">유사도 ${(r.score ?? r.similarity ?? 0).toFixed(3)}</div>
       </div>
     `).join('');
   }
@@ -6112,7 +6180,7 @@ POST /api/admin/faiss/activate</code>
 
     let msg = '모든 단계가 준비되었습니다.';
     if (!isOk(dotFiles))  msg = '파일 스캔이 필요합니다.';
-    else if (!isOk(dotCol))   msg = 'Collection 생성이 필요합니다.';
+    else if (!isOk(dotCol))   msg = 'Collection 메타 동기화가 필요합니다.';
     else if (!isOk(dotMeta))  msg = 'Metadata 생성이 필요합니다.';
     else if (!isOk(dotFaiss)) msg = 'FAISS 인덱스 생성이 필요합니다.';
 
@@ -6126,7 +6194,7 @@ POST /api/admin/faiss/activate</code>
   const WIZARD_STEPS = [
     null, // 인덱스 1부터
     { name: '파일 스캔',           api: '/api/admin/rag-source/scan',                       method: 'POST', body: { source_id: 'rag_source', overwrite: false } },
-    { name: 'Collection 생성',     api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST', body: { client_id: 'weeslee', overwrite: false } },
+    { name: 'Collection 메타 동기화', api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST', body: { client_id: 'weeslee', overwrite: false } },
     { name: 'Metadata 생성',       api: '/api/admin/rag-source/metadata/build',              method: 'POST', body: { client_id: 'weeslee', source_id: 'rag_source', inventory_ids: [], overwrite: false, only_missing: true, dry_run: false } },
     { name: 'Tag/Keyword 생성',    api: '/api/admin/rag-source/tags/bootstrap',              method: 'POST', special: 'tag_keyword_bootstrap' },
     { name: '텍스트→Chunk',        api: '/api/admin/faiss/jobs',                             method: 'POST', special: 'faiss_start' },
@@ -6473,7 +6541,7 @@ POST /api/admin/faiss/activate</code>
     const statusEl = document.getElementById('wizardAutoStatus');
     const stopBtn  = document.getElementById('wizardStopBtn');
     if (stopBtn) stopBtn.style.display = '';
-    for (const step of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    for (const step of [1, 3, 4, 5, 6, 7, 8, 9, 10]) {
       if (_wizardAutoStop) {
         if (statusEl) statusEl.textContent = '사용자가 중단했습니다.';
         break;
