@@ -587,39 +587,6 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
 
 def build_prompt(query: str, documents: list[dict]) -> str:
     lines = [
-        "당신은 공공/민간 입찰 RFP 분석과 컨설팅 제안서 작성을 지원하는 전문가다.",
-        "아래 검색 결과를 바탕으로 사용자의 질의와 가장 관련 있는 과거 문서를 추천하라.",
-        "과장하지 말고 근거 중심으로 3개 이하 문서를 추천하라.",
-        "출력 형식:",
-        "1. 추천 문서",
-        "2. 추천 이유",
-        "3. 제안서 작성에 바로 활용할 포인트",
-        "",
-        f"질의: {query}",
-        "",
-        "검색 결과:",
-    ]
-    for doc in documents:
-        lines.append(f"- 문서ID: {doc['document_id']}")
-        lines.append(
-            f"  유형: {doc['category']}, 최고점수: {doc['best_score']:.4f}, "
-            f"랭킹점수: {doc['ranking_score']:.4f}, 히트수: {doc['hit_count']}"
-        )
-        if doc["section_headings"]:
-            lines.append("  관련 섹션: " + " | ".join(doc["section_headings"][:3]))
-        if doc.get("root_group") or doc.get("sub_group"):
-            lines.append(
-                "  구조: "
-                + " > ".join([value for value in [doc.get("root_group", ""), doc.get("sub_group", "")] if value])
-            )
-        for snippet in doc["evidence_snippets"][:2]:
-            lines.append("  근거: " + snippet)
-        lines.append("  추천사유: " + " / ".join(doc["reasons"]))
-    return "\n".join(lines)
-
-
-def build_prompt(query: str, documents: list[dict]) -> str:
-    lines = [
         "당신은 공공 및 민간 제안, RFP, 산출물 문서를 분석해 관련 근거 문서를 찾는 전문가다.",
         "아래 검색 결과를 바탕으로 사용자의 질의와 가장 관련 있는 문서를 추천하라.",
         "과장하거나 추측하지 말고, 검색 결과에 있는 근거만 사용하라.",
