@@ -204,7 +204,7 @@ def _build_hits(bundle: dict[str, Any], chunk_map: dict[str, dict], args: Simple
                 section_label=meta.get("section_label", ""),
                 proposal_section=meta.get("proposal_section", ""),
                 deliverable_section=meta.get("deliverable_section", ""),
-                collection_key=meta.get("collection_key", ""),
+                collection_key=row.get("collection_key", "") or meta.get("collection_key", ""),
                 relative_path=meta.get("relative_path", ""),
                 original_source_path=meta.get("original_source_path", meta.get("source_path", "")),
                 file_name=meta.get("file_name", ""),
