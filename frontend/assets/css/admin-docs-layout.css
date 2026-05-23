@@ -506,6 +506,52 @@
   line-height: 1.55;
 }
 
+#wrAdminDocsApp .wr-step.wr-done .wr-step-index {
+  background: var(--wr-green, #22c55e);
+  color: #fff;
+}
+
+#wrAdminDocsApp .wr-step.wr-running .wr-step-index {
+  background: var(--wr-amber, #f59e0b);
+  color: #000;
+  animation: wr-pulse 1.2s ease-in-out infinite;
+}
+
+#wrAdminDocsApp .wr-step.wr-error .wr-step-index {
+  background: var(--wr-red, #ef4444);
+  color: #fff;
+}
+
+@keyframes wr-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+#wrAdminDocsApp .wr-step-status {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  background: var(--wr-surface-muted);
+  color: var(--wr-muted);
+}
+
+#wrAdminDocsApp .wr-step.wr-done .wr-step-status {
+  background: rgba(34,197,94,0.15);
+  color: var(--wr-green, #22c55e);
+}
+
+#wrAdminDocsApp .wr-step.wr-running .wr-step-status {
+  background: rgba(245,158,11,0.15);
+  color: var(--wr-amber, #f59e0b);
+}
+
+#wrAdminDocsApp .wr-step.wr-error .wr-step-status {
+  background: rgba(239,68,68,0.15);
+  color: var(--wr-red, #ef4444);
+}
+
 #wrAdminDocsApp .wr-doc-list {
   display: grid;
   gap: 8px;
