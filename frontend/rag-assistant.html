@@ -2646,11 +2646,11 @@
       const rvNote = document.getElementById('resultViewNote');
       if (rvNote) rvNote.innerHTML = t('result_view_note');
       // lang buttons
-      document.getElementById('langKo').classList.toggle('active', _lang === 'ko');
-      document.getElementById('langEn').classList.toggle('active', _lang === 'en');
+      const langKo = document.getElementById('langKo'); if (langKo) langKo.classList.toggle('active', _lang === 'ko');
+      const langEn = document.getElementById('langEn'); if (langEn) langEn.classList.toggle('active', _lang === 'en');
       // dynamic elements (only update when in initial state)
-      if (!_hasAnswer) document.getElementById('ragAnswerSection').innerHTML = `<div class="answer-note">${t('no_answer')}</div>`;
-      if (!_queryRan) document.getElementById('queryStatus').textContent = t('ready');
+      if (!_hasAnswer) { const ras = document.getElementById('ragAnswerSection'); if (ras) ras.innerHTML = `<div class="answer-note">${t('no_answer')}</div>`; }
+      if (!_queryRan) { const qs = document.getElementById('queryStatus'); if (qs) qs.textContent = t('ready'); }
       syncAnswerModeLabel();
       onSearchModeChange();
       // re-render review if populated
@@ -3224,10 +3224,10 @@
 
       syncAnswerModeLabel();
 
-      if (!query && !_rfpSelectedFile) { status.textContent = t('enter_query'); return; }
+      if (!query && !_rfpSelectedFile) { if (status) status.textContent = t('enter_query'); return; }
 
       _queryRan = true;
-      status.textContent = t('running');
+      if (status) status.textContent = t('running');
       const ragAnswerEl = document.getElementById('ragAnswerSection'); if (ragAnswerEl) ragAnswerEl.innerHTML = `<div class="answer-note">${t('generating')}</div>`;
       const resultsEl = document.getElementById('results'); if (resultsEl) resultsEl.innerHTML = '';
 
@@ -3240,7 +3240,7 @@
 
       const effectiveQuery = query;
       const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
-      if (_rfpSelectedFile) status.textContent = t('rfp_active_notice');
+      if (_rfpSelectedFile && status) status.textContent = t('rfp_active_notice');
       const searchPayload = {
         query: effectiveQuery, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
         answer_provider: 'none',
@@ -3341,7 +3341,7 @@
           if (!isGraphMode) switchAnswerTab('rag');
         }
       } catch (error) {
-        status.textContent = `${t('query_failed')}: ${error.message}`;
+        if (status) status.textContent = `${t('query_failed')}: ${error.message}`;
         const ragAnswerEl2 = document.getElementById('ragAnswerSection'); if (ragAnswerEl2) ragAnswerEl2.innerHTML = '';
         showToast(`${t('query_failed')}: ${error.message}`, 'error');
       } finally {
@@ -3352,6 +3352,7 @@
 
     function renderResults(documents) {
       const results = document.getElementById('results');
+      if (!results) return;
       if (!documents || !documents.length) {
         results.innerHTML = `<div class="doc">${t('no_docs')}</div>`;
         return;
@@ -4192,8 +4193,8 @@
       _saveHistory(_queryHistory);
       _selectedReviewIdx = -1;
       renderReviewList();
-      document.getElementById('rvDetail').innerHTML =
-        `<div class="rv-detail-empty">${t('rv_select')}</div>`;
+      const rvDetail = document.getElementById('rvDetail');
+      if (rvDetail) rvDetail.innerHTML = `<div class="rv-detail-empty">${t('rv_select')}</div>`;
     }
 
     function copyAnswer(idx) {
@@ -4401,12 +4402,12 @@
 
     function closePreview() {
       const modal = document.getElementById('previewOverlay');
-      modal.classList.remove('open');
+      if (modal) modal.classList.remove('open');
       document.body.style.overflow = '';
-      document.getElementById('previewBody').innerHTML = '';
-      document.getElementById('previewTabs').innerHTML = '';
-      document.getElementById('previewTabs').style.display = 'none';
-      document.getElementById('previewPrintBtn').style.display = 'none';
+      const previewBody = document.getElementById('previewBody'); if (previewBody) previewBody.innerHTML = '';
+      const previewTabs = document.getElementById('previewTabs');
+      if (previewTabs) { previewTabs.innerHTML = ''; previewTabs.style.display = 'none'; }
+      const previewPrintBtn = document.getElementById('previewPrintBtn'); if (previewPrintBtn) previewPrintBtn.style.display = 'none';
     }
 
     // 이벤트 리스너는 DOM 로드 후 등록
@@ -4430,10 +4431,12 @@
       const panel = document.getElementById('docDetailPanel');
       const title = doc.project_name || doc.file_name || doc.document_id || '문서';
 
-      document.getElementById('docDetailTitle').textContent = title;
+      const docDetailTitle = document.getElementById('docDetailTitle');
+      if (docDetailTitle) docDetailTitle.textContent = title;
 
       // 기본 정보
-      document.getElementById('docDetailInfo').innerHTML = `
+      const docDetailInfo = document.getElementById('docDetailInfo');
+      if (docDetailInfo) docDetailInfo.innerHTML = `
         <div style="display:grid;gap:8px;">
           <div><strong>문서 ID:</strong> ${escapeHtml(doc.document_id || '-')}</div>
           <div><strong>프로젝트:</strong> ${escapeHtml(doc.project_name || '-')}</div>
@@ -4452,7 +4455,8 @@
       if (doc.document_group) metaItems.push(`<span class="doc-card-chip">${escapeHtml(doc.document_group)}</span>`);
       if (doc.document_category) metaItems.push(`<span class="doc-card-chip">${escapeHtml(doc.document_category)}</span>`);
 
-      document.getElementById('docDetailMeta').innerHTML = metaItems.length
+      const docDetailMeta = document.getElementById('docDetailMeta');
+      if (docDetailMeta) docDetailMeta.innerHTML = metaItems.length
         ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${metaItems.join('')}</div>
            <div style="margin-top:10px;font-size:12px;color:var(--text-s)">
              <strong>경로:</strong> ${escapeHtml(doc.source_path || doc.original_source_path || '-')}
@@ -4461,8 +4465,9 @@
 
       // 청크
       const chunks = doc.chunks || [];
+      const docDetailChunks = document.getElementById('docDetailChunks');
       if (chunks.length > 0) {
-        document.getElementById('docDetailChunks').innerHTML = chunks.slice(0, 5).map((chunk, i) => `
+        if (docDetailChunks) docDetailChunks.innerHTML = chunks.slice(0, 5).map((chunk, i) => `
           <div class="doc-detail-chunk">
             <div class="doc-detail-chunk-header">
               <span>청크 #${i + 1}</span>
@@ -4472,14 +4477,15 @@
           </div>
         `).join('');
       } else {
-        document.getElementById('docDetailChunks').innerHTML = '<div style="color:var(--gray-400);font-size:12px">청크 정보 없음</div>';
+        if (docDetailChunks) docDetailChunks.innerHTML = '<div style="color:var(--gray-400);font-size:12px">청크 정보 없음</div>';
       }
 
-      panel.classList.add('open');
+      if (panel) panel.classList.add('open');
     }
 
     function closeDocDetail() {
-      document.getElementById('docDetailPanel').classList.remove('open');
+      const docDetailPanel = document.getElementById('docDetailPanel');
+      if (docDetailPanel) docDetailPanel.classList.remove('open');
       _currentDocDetail = null;
     }
 
