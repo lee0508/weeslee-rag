@@ -3228,8 +3228,8 @@
 
       _queryRan = true;
       status.textContent = t('running');
-      document.getElementById('ragAnswerSection').innerHTML = `<div class="answer-note">${t('generating')}</div>`;
-      document.getElementById('results').innerHTML = '';
+      const ragAnswerEl = document.getElementById('ragAnswerSection'); if (ragAnswerEl) ragAnswerEl.innerHTML = `<div class="answer-note">${t('generating')}</div>`;
+      const resultsEl = document.getElementById('results'); if (resultsEl) resultsEl.innerHTML = '';
 
       // Agent 탭에 쿼리 분석 결과 표시 (비동기, 메인 검색과 병렬)
       analyzeAndRenderAgent(query);
@@ -3342,7 +3342,7 @@
         }
       } catch (error) {
         status.textContent = `${t('query_failed')}: ${error.message}`;
-        document.getElementById('ragAnswerSection').innerHTML = '';
+        const ragAnswerEl2 = document.getElementById('ragAnswerSection'); if (ragAnswerEl2) ragAnswerEl2.innerHTML = '';
         showToast(`${t('query_failed')}: ${error.message}`, 'error');
       } finally {
         runBtn.disabled = false;
@@ -3387,6 +3387,7 @@
 
     function renderAnswerPanel(payload, answerText, searchOnly = false) {
       const answerPanel = document.getElementById('ragAnswerSection');
+      if (!answerPanel) return;
       const evidenceDocs = payload?.evidence_documents || payload?.documents || [];
       const answerBody = answerText
         ? `<div class="answer-body">${escapeHtml(answerText)}</div>`
