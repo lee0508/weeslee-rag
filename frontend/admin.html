@@ -596,7 +596,78 @@
       width: 20px; height: 6px; border-radius: 3px; background: var(--surface2); flex-shrink: 0;
     }
     .wizard-progress-dot.done { background: var(--green); }
+
+    /* ── Docs-style Wizard Step 스타일 ───────────────────────────────── */
+    .wr-step-status {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      white-space: nowrap; min-width: 50px; text-align: center;
+    }
+    .wr-step-status.ok { color: var(--green); }
+    .wr-step-status.running { color: var(--amber); }
+    .wr-step-status.err { color: var(--red); }
+    .wr-btn-sm {
+      padding: 4px 10px; font-size: 11px; height: 26px;
+    }
+    .wr-callout-info {
+      background: rgba(59,130,246,.1); border-left-color: #3b82f6;
+    }
     .wizard-progress-dot.active-step { background: var(--amber); }
+
+    /* Table styles */
+    .wr-table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .wr-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .wr-table th, .wr-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .wr-table th {
+      background: var(--bg-muted);
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .wr-table tr:last-child td { border-bottom: none; }
+    .wr-table tr:hover { background: rgba(0,0,0,.02); }
+    [data-wr-theme="dark"] .wr-table tr:hover { background: rgba(255,255,255,.03); }
+
+    /* Status badges in tables */
+    .wr-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .wr-badge-running { background: rgba(234,179,8,.15); color: #ca8a04; }
+    .wr-badge-completed { background: rgba(34,197,94,.15); color: #16a34a; }
+    .wr-badge-failed { background: rgba(239,68,68,.15); color: #dc2626; }
+    .wr-badge-pending { background: rgba(156,163,175,.15); color: #6b7280; }
+
+    /* Input styles */
+    .wr-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wr-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+    }
   </style>
   <link rel="stylesheet" href="assets/css/admin-docs-layout.css?v=20260523">
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
@@ -717,9 +788,9 @@
         </div>
         <h2 class="wr-section-title" id="wr-overview-flow" data-wr-anchor>Build Flow</h2>
         <div class="wr-status-list">
-          <div class="wr-status-row"><span>Source Documents</span><button class="wr-btn" type="button" data-wr-legacy-tab="docsource">Open legacy source manager</button></div>
-          <div class="wr-status-row"><span>Dataset Builder</span><button class="wr-btn" type="button" data-wr-legacy-tab="wizard">Open legacy builder</button></div>
-          <div class="wr-status-row"><span>Search Quality</span><button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">Open legacy benchmark</button></div>
+          <div class="wr-status-row"><span>Source Documents</span><button class="wr-btn" type="button" data-wr-legacy-tab="docsource">소스 관리 열기</button></div>
+          <div class="wr-status-row"><span>Dataset Builder</span><button class="wr-btn" type="button" data-wr-legacy-tab="wizard">빌드 Wizard 열기</button></div>
+          <div class="wr-status-row"><span>Search Quality</span><button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">검색 품질 열기</button></div>
         </div>
       </section>
 
@@ -730,15 +801,15 @@
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
             <div class="wr-summary-label">Registered Sources</div>
-            <div class="wr-summary-value" id="wrSourceCount">Loading...</div>
+            <div class="wr-summary-value" id="wrSourceCount">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Accessible Sources</div>
-            <div class="wr-summary-value" id="wrSourceAccessibleCount">Loading...</div>
+            <div class="wr-summary-value" id="wrSourceAccessibleCount">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Default Source</div>
-            <div class="wr-summary-value" id="wrSourceDefaultName">Loading...</div>
+            <div class="wr-summary-value" id="wrSourceDefaultName">-</div>
           </div>
         </div>
         <p class="wr-page-lead">원문 문서 위치, 논리 Source, 스캔 상태를 다루는 화면입니다. 1차에서는 설명과 fallback 상태를 우선 표시합니다.</p>
@@ -764,12 +835,13 @@
       <section class="wr-page" data-wr-page-panel="rag-build-wizard">
         <div class="wr-eyebrow">Data Build</div>
         <h1 class="wr-page-title" id="wr-wizard-title" data-wr-anchor>RAG Build Wizard</h1>
-        <p class="wr-page-lead">설계 문서의 단계형 위저드와 현재 구현된 실행 단계를 연결해 보여 주는 운영 화면입니다. 실제 실행은 기존 Wizard 탭을 사용하고, 이 페이지는 단계 개요와 최신 상태를 요약합니다.</p>
-        <div class="wr-callout">설계 문서의 Storage Check, Folder Scan, Preprocess 분리는 아직 현재 실행 단계와 1:1로 맞지 않습니다. 그래서 새 레이아웃에서는 현재 실행 가능한 단계를 우선 노출하고 Legacy Wizard로 직접 이동할 수 있게 연결합니다.</div>
+        <p class="wr-page-lead">문서 스캔부터 검색 인덱스 활성화까지 10단계로 RAG 데이터를 구축합니다. 각 단계를 순서대로 실행하거나 전체 자동 실행할 수 있습니다.</p>
+        <div class="wr-callout wr-callout-info">이 페이지에서 직접 실행하거나, Legacy Wizard에서 상세 로그를 확인하며 실행할 수 있습니다.</div>
         <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="wizard">Open Legacy Wizard</button>
-          <button class="wr-btn" type="button" data-wr-legacy-tab="faiss">Open Legacy FAISS</button>
-          <button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">Open Search Quality</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="wrWizardRunAll()">▶ 전체 순차 실행</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">Legacy Wizard 열기</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="faiss">FAISS 관리</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">검색 품질 확인</button>
         </div>
         <h2 class="wr-section-title" id="wr-wizard-summary-title" data-wr-anchor>Latest Run Summary</h2>
         <div class="wr-summary-grid">
@@ -782,18 +854,18 @@
             <div class="wr-summary-value">Legacy wizard driven</div>
           </div>
         </div>
-        <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>Current Step Map</h2>
+        <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>파이프라인 단계</h2>
         <div class="wr-stepper" id="wrWizardStepper">
-          <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">Scan</div><div class="wr-step-meta">문서 파일 스캔과 목록 생성</div></div><span class="wr-step-status" data-wr-step-status="1">-</span></div>
-          <div class="wr-step" data-wr-step="2"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">Collections</div><div class="wr-step-meta">Collection 메타 동기화</div></div><span class="wr-step-status" data-wr-step-status="2">-</span></div>
-          <div class="wr-step" data-wr-step="3"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">Metadata</div><div class="wr-step-meta">문서 메타데이터 생성</div></div><span class="wr-step-status" data-wr-step-status="3">-</span></div>
-          <div class="wr-step" data-wr-step="4"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">Tag / Keyword</div><div class="wr-step-meta">태그와 키워드 자동 생성</div></div><span class="wr-step-status" data-wr-step-status="4">-</span></div>
-          <div class="wr-step" data-wr-step="5"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">Extract / Chunk</div><div class="wr-step-meta">텍스트 추출과 청킹 실행</div></div><span class="wr-step-status" data-wr-step-status="5">-</span></div>
-          <div class="wr-step" data-wr-step="6"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">FAISS Build</div><div class="wr-step-meta">임베딩과 인덱스 생성</div></div><span class="wr-step-status" data-wr-step-status="6">-</span></div>
-          <div class="wr-step" data-wr-step="7"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">Graph Build</div><div class="wr-step-meta">Graph RAG 데이터 생성</div></div><span class="wr-step-status" data-wr-step-status="7">-</span></div>
-          <div class="wr-step" data-wr-step="8"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM Wiki</div><div class="wr-step-meta">Wiki 문서 생성</div></div><span class="wr-step-status" data-wr-step-status="8">-</span></div>
-          <div class="wr-step" data-wr-step="9"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">Search Quality</div><div class="wr-step-meta">품질 검증과 벤치마크 확인</div></div><span class="wr-step-status" data-wr-step-status="9">-</span></div>
-          <div class="wr-step" data-wr-step="10"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">Activate</div><div class="wr-step-meta">FAISS 인덱스 활성화</div></div><span class="wr-step-status" data-wr-step-status="10">-</span></div>
+          <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">파일 스캔</div><div class="wr-step-meta">문서 소스 폴더를 스캔하여 파일 목록을 DB에 저장합니다.</div></div><span class="wr-step-status" data-wr-step-status="1">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(1)">실행</button></div>
+          <div class="wr-step" data-wr-step="2"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">Collection 동기화</div><div class="wr-step-meta">Collection 메타데이터를 생성하고 동기화합니다.</div></div><span class="wr-step-status" data-wr-step-status="2">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(2)">실행</button></div>
+          <div class="wr-step" data-wr-step="3"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">메타데이터 생성</div><div class="wr-step-meta">파일명과 경로에서 프로젝트명, 기관명, 연도 등을 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="3">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(3)">실행</button></div>
+          <div class="wr-step" data-wr-step="4"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">태그/키워드 생성</div><div class="wr-step-meta">문서 내용 기반으로 검색 태그와 키워드를 자동 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="4">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(4)">실행</button></div>
+          <div class="wr-step" data-wr-step="5"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">텍스트 추출 + 청킹</div><div class="wr-step-meta">PDF/HWP/DOCX에서 텍스트를 추출하고 검색 단위로 분할합니다.</div></div><span class="wr-step-status" data-wr-step-status="5">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(5)">실행</button></div>
+          <div class="wr-step" data-wr-step="6"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">임베딩 + FAISS 생성</div><div class="wr-step-meta">청크를 벡터로 변환하고 FAISS 검색 인덱스를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="6">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(6)">실행</button></div>
+          <div class="wr-step" data-wr-step="7"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">Graph RAG 생성</div><div class="wr-step-meta">프로젝트/문서 간 관계 그래프를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="7">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(7)">실행</button></div>
+          <div class="wr-step" data-wr-step="8"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM Wiki 생성</div><div class="wr-step-meta">프로젝트별 자동 지식 문서를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="8">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(8)">실행</button></div>
+          <div class="wr-step" data-wr-step="9"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">검색 품질 확인</div><div class="wr-step-meta">생성된 데이터로 검색 품질을 테스트합니다.</div></div><span class="wr-step-status" data-wr-step-status="9">대기</span><button class="wr-btn wr-btn-sm" data-wr-legacy-tab="benchmark">품질 확인 →</button></div>
+          <div class="wr-step" data-wr-step="10"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">인덱스 활성화</div><div class="wr-step-meta">생성된 FAISS 인덱스를 검색 서버에 적용합니다.</div></div><span class="wr-step-status" data-wr-step-status="10">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(10)">실행</button></div>
         </div>
         <h2 class="wr-section-title" id="wr-wizard-api-title" data-wr-anchor>Execution APIs</h2>
         <code class="wr-code-block">POST /api/admin/rag-source/scan
@@ -814,15 +886,15 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
             <div class="wr-summary-label">Active Snapshot</div>
-            <div class="wr-summary-value" id="wrFaissSnapshot">Loading...</div>
+            <div class="wr-summary-value" id="wrFaissSnapshot">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Chunk Count</div>
-            <div class="wr-summary-value" id="wrFaissChunkCount">Loading...</div>
+            <div class="wr-summary-value" id="wrFaissChunkCount">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Recent Jobs</div>
-            <div class="wr-summary-value" id="wrFaissJobCount">Loading...</div>
+            <div class="wr-summary-value" id="wrFaissJobCount">-</div>
           </div>
         </div>
         <p class="wr-page-lead">활성 인덱스, 인덱스 생성 Job, 스냅샷 활성화 상태를 확인하는 페이지입니다.</p>
@@ -851,15 +923,15 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
             <div class="wr-summary-label">Projects</div>
-            <div class="wr-summary-value" id="wrGraphProjectCount">Loading...</div>
+            <div class="wr-summary-value" id="wrGraphProjectCount">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Documents</div>
-            <div class="wr-summary-value" id="wrGraphDocumentCount">Loading...</div>
+            <div class="wr-summary-value" id="wrGraphDocumentCount">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Edges</div>
-            <div class="wr-summary-value" id="wrGraphEdgeCount">Loading...</div>
+            <div class="wr-summary-value" id="wrGraphEdgeCount">-</div>
           </div>
         </div>
         <p class="wr-page-lead">프로젝트, 문서, 카테고리, 관계 데이터를 JSON Graph로 구축하고 Graph RAG에서 활용하는 영역입니다.</p>
@@ -898,11 +970,48 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-eyebrow">RAG Agent</div>
         <h1 class="wr-page-title" id="wr-jobs-title" data-wr-anchor>Jobs</h1>
         <p class="wr-page-lead">문서 처리, FAISS 생성, Graph/Wiki build 같은 백그라운드 작업 상태를 확인합니다.</p>
-        <div class="wr-status-list">
-          <div class="wr-status-row"><span>Current Job</span><span class="wr-status-badge">No running job</span></div>
-          <div class="wr-status-row"><span>Job API</span><span class="wr-status-badge" id="wrJobPageStatus">Not connected</span></div>
+
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">실행 중</div>
+            <div class="wr-summary-value" id="wrJobsRunning">0</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">완료</div>
+            <div class="wr-summary-value" id="wrJobsCompleted">0</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">실패</div>
+            <div class="wr-summary-value" id="wrJobsFailed">0</div>
+          </div>
         </div>
-        <h2 class="wr-section-title" id="wr-jobs-fallback" data-wr-anchor>Fallback State</h2>
+
+        <h2 class="wr-section-title" id="wr-jobs-list" data-wr-anchor>최근 작업</h2>
+        <div class="wr-inline-actions" style="margin-bottom: 1rem;">
+          <button class="wr-btn wr-btn-primary" type="button" onclick="wrRefreshJobs()">새로고침</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">Wizard에서 작업 시작</button>
+        </div>
+        <div class="wr-table-wrapper">
+          <table class="wr-table" id="wrJobsTable">
+            <thead>
+              <tr>
+                <th>작업 ID</th>
+                <th>유형</th>
+                <th>상태</th>
+                <th>시작 시간</th>
+                <th>소요 시간</th>
+              </tr>
+            </thead>
+            <tbody id="wrJobsTableBody">
+              <tr><td colspan="5" style="text-align:center; color: var(--muted);">작업 내역이 없습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 class="wr-section-title" id="wr-jobs-api" data-wr-anchor>API 연결 상태</h2>
+        <div class="wr-status-list">
+          <div class="wr-status-row"><span>Job API</span><span class="wr-status-badge" id="wrJobPageStatus">연결 대기</span></div>
+        </div>
         <div class="wr-callout">Job API가 아직 연결되지 않았습니다. 백엔드 구현 후 이 영역에 실제 Job 상태가 표시됩니다.</div>
       </section>
 
@@ -910,48 +1019,113 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-eyebrow">RAG Agent</div>
         <h1 class="wr-page-title" id="wr-logs-title" data-wr-anchor>Logs</h1>
         <p class="wr-page-lead">처리 로그와 질의 로그를 문서형 화면에서 요약해 보여 주고, 상세 분석은 기존 Query Logs 탭으로 연결합니다.</p>
+
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
-            <div class="wr-summary-label">Recent Queries</div>
-            <div class="wr-summary-value" id="wrLogSummaryRecent">Loading...</div>
+            <div class="wr-summary-label">오늘 질의 수</div>
+            <div class="wr-summary-value" id="wrLogSummaryRecent">-</div>
           </div>
           <div class="wr-summary-card">
-            <div class="wr-summary-label">Failure Count</div>
-            <div class="wr-summary-value" id="wrLogSummaryFailures">Loading...</div>
+            <div class="wr-summary-label">실패 건수</div>
+            <div class="wr-summary-value" id="wrLogSummaryFailures">-</div>
           </div>
           <div class="wr-summary-card">
-            <div class="wr-summary-label">Avg Duration</div>
-            <div class="wr-summary-value" id="wrLogSummaryDuration">Loading...</div>
+            <div class="wr-summary-label">평균 응답 시간</div>
+            <div class="wr-summary-value" id="wrLogSummaryDuration">-</div>
           </div>
         </div>
+
+        <h2 class="wr-section-title" id="wr-logs-recent" data-wr-anchor>최근 질의 로그</h2>
+        <div class="wr-inline-actions" style="margin-bottom: 1rem;">
+          <button class="wr-btn wr-btn-primary" type="button" onclick="wrRefreshLogs()">새로고침</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="querylogs">상세 로그 보기</button>
+        </div>
+        <div class="wr-table-wrapper">
+          <table class="wr-table" id="wrLogsTable">
+            <thead>
+              <tr>
+                <th>시간</th>
+                <th>질의 내용</th>
+                <th>검색 결과</th>
+                <th>응답 시간</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody id="wrLogsTableBody">
+              <tr><td colspan="5" style="text-align:center; color: var(--muted);">로그 내역이 없습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
         <div class="wr-callout">실시간 상세 로그, 필터, 개별 질의 내용은 Legacy Query Logs 탭에서 계속 확인합니다.</div>
-        <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="querylogs">Open Legacy Query Logs</button>
-        </div>
       </section>
 
       <section class="wr-page" data-wr-page-panel="search-quality">
         <div class="wr-eyebrow">Operations</div>
         <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Search Quality</h1>
         <p class="wr-page-lead">검색 품질 검증과 벤치마크 이력을 새 레이아웃에서 요약하고, 실제 실행은 기존 Search Quality 탭으로 연결합니다.</p>
+
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
-            <div class="wr-summary-label">History Count</div>
-            <div class="wr-summary-value" id="wrDocsBenchmarkCount">Loading...</div>
+            <div class="wr-summary-label">테스트 횟수</div>
+            <div class="wr-summary-value" id="wrDocsBenchmarkCount">-</div>
           </div>
           <div class="wr-summary-card">
-            <div class="wr-summary-label">Latest Score</div>
-            <div class="wr-summary-value" id="wrDocsBenchmarkScore">Loading...</div>
+            <div class="wr-summary-label">최근 점수</div>
+            <div class="wr-summary-value" id="wrDocsBenchmarkScore">-</div>
           </div>
           <div class="wr-summary-card">
-            <div class="wr-summary-label">Latest Snapshot</div>
-            <div class="wr-summary-value" id="wrDocsBenchmarkSnapshot">Loading...</div>
+            <div class="wr-summary-label">마지막 테스트</div>
+            <div class="wr-summary-value" id="wrDocsBenchmarkSnapshot">-</div>
           </div>
         </div>
+
+        <h2 class="wr-section-title" id="wr-quality-test" data-wr-anchor>빠른 검색 테스트</h2>
+        <div class="wr-callout wr-callout-info">검색 품질을 빠르게 확인하려면 아래에서 테스트 질의를 입력하세요.</div>
+        <div class="wr-search-test-form" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+          <input type="text" id="wrQuickSearchQuery" class="wr-input" placeholder="테스트 검색어 입력..." style="flex: 1;">
+          <button class="wr-btn wr-btn-primary" type="button" onclick="wrRunQuickSearch()">검색 테스트</button>
+        </div>
+        <div id="wrQuickSearchResult" style="display: none; margin-bottom: 1rem;">
+          <div class="wr-table-wrapper">
+            <table class="wr-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>문서명</th>
+                  <th>유사도</th>
+                  <th>프로젝트</th>
+                </tr>
+              </thead>
+              <tbody id="wrQuickSearchResultBody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" id="wr-quality-history" data-wr-anchor>벤치마크 이력</h2>
+        <div class="wr-inline-actions" style="margin-bottom: 1rem;">
+          <button class="wr-btn wr-btn-primary" type="button" onclick="wrRunBenchmark()">벤치마크 실행</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">상세 결과 보기</button>
+        </div>
+        <div class="wr-table-wrapper">
+          <table class="wr-table" id="wrBenchmarkTable">
+            <thead>
+              <tr>
+                <th>실행 시간</th>
+                <th>테스트 케이스</th>
+                <th>성공률</th>
+                <th>평균 점수</th>
+                <th>스냅샷</th>
+              </tr>
+            </thead>
+            <tbody id="wrBenchmarkTableBody">
+              <tr><td colspan="5" style="text-align:center; color: var(--muted);">벤치마크 기록이 없습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
         <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
-        <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">Open Legacy Search Quality</button>
-        </div>
       </section>
 
       <section class="wr-page" data-wr-page-panel="settings">
@@ -983,11 +1157,11 @@ POST /api/admin/faiss/activate</code>
       <div class="wr-panel-block">
         <h2 class="wr-panel-title">API Status</h2>
         <div class="wr-status-list">
-          <div class="wr-status-row"><span>Storage API</span><span class="wr-status-badge" id="wrStorageStatus">Not connected</span></div>
-          <div class="wr-status-row"><span>Job API</span><span class="wr-status-badge" id="wrJobStatus">Not connected</span></div>
-          <div class="wr-status-row"><span>FAISS API</span><span class="wr-status-badge" id="wrFaissStatus">Not connected</span></div>
-          <div class="wr-status-row"><span>Graph API</span><span class="wr-status-badge" id="wrGraphStatus">Not connected</span></div>
-          <div class="wr-status-row"><span>Wiki API</span><span class="wr-status-badge" id="wrWikiStatus">Not connected</span></div>
+          <div class="wr-status-row"><span>Storage API</span><span class="wr-status-badge" id="wrStorageStatus">연결 대기</span></div>
+          <div class="wr-status-row"><span>Job API</span><span class="wr-status-badge" id="wrJobStatus">연결 대기</span></div>
+          <div class="wr-status-row"><span>FAISS API</span><span class="wr-status-badge" id="wrFaissStatus">연결 대기</span></div>
+          <div class="wr-status-row"><span>Graph API</span><span class="wr-status-badge" id="wrGraphStatus">연결 대기</span></div>
+          <div class="wr-status-row"><span>Wiki API</span><span class="wr-status-badge" id="wrWikiStatus">연결 대기</span></div>
         </div>
       </div>
     </aside>
@@ -1904,20 +2078,20 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
             <div class="wr-summary-label">History Count</div>
-            <div class="wr-summary-value" id="wrBenchmarkCount">Loading...</div>
+            <div class="wr-summary-value" id="wrBenchmarkCount">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Latest Score</div>
-            <div class="wr-summary-value" id="wrBenchmarkScore">Loading...</div>
+            <div class="wr-summary-value" id="wrBenchmarkScore">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Latest Snapshot</div>
-            <div class="wr-summary-value" id="wrBenchmarkSnapshot">Loading...</div>
+            <div class="wr-summary-value" id="wrBenchmarkSnapshot">-</div>
           </div>
         </div>
         <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
         <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">Open Legacy Search Quality</button>
+          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">상세 검색 품질 열기</button>
         </div>
       </section>
       <section class="wr-page" data-wr-page-panel="search-quality">
@@ -1927,20 +2101,20 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
             <div class="wr-summary-label">History Count</div>
-            <div class="wr-summary-value" id="wrBenchmarkCount">Loading...</div>
+            <div class="wr-summary-value" id="wrBenchmarkCount">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Latest Score</div>
-            <div class="wr-summary-value" id="wrBenchmarkScore">Loading...</div>
+            <div class="wr-summary-value" id="wrBenchmarkScore">-</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">Latest Snapshot</div>
-            <div class="wr-summary-value" id="wrBenchmarkSnapshot">Loading...</div>
+            <div class="wr-summary-value" id="wrBenchmarkSnapshot">-</div>
           </div>
         </div>
         <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
         <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">Open Legacy Search Quality</button>
+          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">상세 검색 품질 열기</button>
         </div>
       </section>
       -->
@@ -6227,6 +6401,268 @@ POST /api/admin/faiss/activate</code>
       if (api) api.innerHTML = 'POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/status';
     }
   }
+
+  // ── Docs-style Wizard 실행 함수 ───────────────────────────────────────────
+  function wrWizardRunStep(step) {
+    // Legacy Wizard의 wizardRun 함수 호출
+    if (typeof wizardRun === 'function') {
+      wizardRun(step);
+      syncWizardStepperState();
+    } else {
+      alert('Legacy Wizard 함수를 찾을 수 없습니다.');
+    }
+  }
+
+  function wrWizardRunAll() {
+    // Legacy Wizard의 wizardRunAll 함수 호출
+    if (typeof wizardRunAll === 'function') {
+      wizardRunAll();
+    } else {
+      alert('Legacy Wizard 함수를 찾을 수 없습니다.');
+    }
+  }
+
+  window.syncWizardStepperState = function() {
+    // Docs-style stepper의 상태를 Legacy Wizard와 동기화
+    for (let i = 1; i <= 10; i++) {
+      const legacyStatus = document.getElementById(`wstatus-${i}`);
+      const docsStatus = document.querySelector(`[data-wr-step-status="${i}"]`);
+      if (legacyStatus && docsStatus) {
+        docsStatus.textContent = legacyStatus.textContent;
+        const cls = legacyStatus.className;
+        docsStatus.className = 'wr-step-status';
+        if (cls.includes('ok')) docsStatus.classList.add('ok');
+        if (cls.includes('running')) docsStatus.classList.add('running');
+        if (cls.includes('err')) docsStatus.classList.add('err');
+      }
+    }
+    // Summary도 동기화
+    const legacySummary = document.getElementById('wizardResultSummary');
+    const docsSummary = document.getElementById('wrWizardSummary');
+    if (legacySummary && docsSummary) {
+      docsSummary.textContent = legacySummary.textContent;
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Jobs Page Functions
+  // ─────────────────────────────────────────────────────────────────────────
+  async function wrRefreshJobs() {
+    const tbody = document.getElementById('wrJobsTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">로딩 중...</td></tr>';
+
+    try {
+      const res = await fetch(apiUrl('/api/admin/faiss/jobs'), {
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      if (!res.ok) throw new Error('API 오류');
+      const data = await res.json();
+      const jobs = data.jobs || [];
+
+      let running = 0, completed = 0, failed = 0;
+      jobs.forEach(j => {
+        if (j.status === 'running') running++;
+        else if (j.status === 'completed' || j.status === 'done') completed++;
+        else if (j.status === 'failed' || j.status === 'error') failed++;
+      });
+
+      document.getElementById('wrJobsRunning').textContent = running;
+      document.getElementById('wrJobsCompleted').textContent = completed;
+      document.getElementById('wrJobsFailed').textContent = failed;
+
+      if (jobs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">작업 내역이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = jobs.slice(0, 20).map(job => {
+        const badgeClass = job.status === 'running' ? 'wr-badge-running' :
+                           (job.status === 'completed' || job.status === 'done') ? 'wr-badge-completed' :
+                           (job.status === 'failed' || job.status === 'error') ? 'wr-badge-failed' : 'wr-badge-pending';
+        const startTime = job.created_at ? new Date(job.created_at).toLocaleString('ko-KR') : '-';
+        const duration = job.duration ? `${job.duration}s` : '-';
+        return `<tr>
+          <td><code>${(job.job_id || job.id || '-').slice(0, 12)}</code></td>
+          <td>${job.type || 'FAISS'}</td>
+          <td><span class="wr-badge ${badgeClass}">${job.status}</span></td>
+          <td>${startTime}</td>
+          <td>${duration}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">API 연결 실패</td></tr>';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Logs Page Functions
+  // ─────────────────────────────────────────────────────────────────────────
+  async function wrRefreshLogs() {
+    const tbody = document.getElementById('wrLogsTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">로딩 중...</td></tr>';
+
+    try {
+      const res = await fetch(apiUrl('/api/query_log'), {
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      if (!res.ok) throw new Error('API 오류');
+      const data = await res.json();
+      const logs = (data.logs || data || []).slice(0, 20);
+
+      // Summary 업데이트
+      const todayCount = logs.filter(l => {
+        const d = new Date(l.timestamp || l.created_at);
+        const today = new Date();
+        return d.toDateString() === today.toDateString();
+      }).length;
+      const failCount = logs.filter(l => l.status === 'error' || l.error).length;
+      const avgDuration = logs.length > 0
+        ? (logs.reduce((acc, l) => acc + (l.duration || l.response_time || 0), 0) / logs.length).toFixed(2)
+        : '-';
+
+      document.getElementById('wrLogSummaryRecent').textContent = todayCount;
+      document.getElementById('wrLogSummaryFailures').textContent = failCount;
+      document.getElementById('wrLogSummaryDuration').textContent = avgDuration !== '-' ? `${avgDuration}s` : '-';
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">로그 내역이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = logs.map(log => {
+        const time = log.timestamp || log.created_at ? new Date(log.timestamp || log.created_at).toLocaleString('ko-KR') : '-';
+        const query = (log.query || log.question || '-').slice(0, 40);
+        const results = log.result_count || log.results?.length || '-';
+        const duration = log.duration || log.response_time ? `${(log.duration || log.response_time).toFixed(2)}s` : '-';
+        const status = log.error ? 'failed' : 'completed';
+        const badgeClass = status === 'failed' ? 'wr-badge-failed' : 'wr-badge-completed';
+        return `<tr>
+          <td>${time}</td>
+          <td title="${(log.query || log.question || '').replace(/"/g, '&quot;')}">${query}${query.length >= 40 ? '...' : ''}</td>
+          <td>${results}건</td>
+          <td>${duration}</td>
+          <td><span class="wr-badge ${badgeClass}">${status}</span></td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">API 연결 실패</td></tr>';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Search Quality Page Functions
+  // ─────────────────────────────────────────────────────────────────────────
+  async function wrRunQuickSearch() {
+    const query = document.getElementById('wrQuickSearchQuery')?.value?.trim();
+    if (!query) { alert('검색어를 입력하세요.'); return; }
+
+    const resultDiv = document.getElementById('wrQuickSearchResult');
+    const tbody = document.getElementById('wrQuickSearchResultBody');
+    if (!resultDiv || !tbody) return;
+
+    resultDiv.style.display = 'block';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">검색 중...</td></tr>';
+
+    try {
+      const res = await fetch(apiUrl('/api/search'), {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + getToken(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query, top_k: 10 })
+      });
+      if (!res.ok) throw new Error('검색 API 오류');
+      const data = await res.json();
+      const results = data.results || data.documents || [];
+
+      if (results.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--muted);">검색 결과가 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = results.slice(0, 10).map((r, i) => {
+        const fileName = r.file_name || r.document_id || r.metadata?.file_name || '-';
+        const score = r.score || r.similarity || r.distance || '-';
+        const project = r.project_name || r.metadata?.project_name || '-';
+        return `<tr>
+          <td>${i + 1}</td>
+          <td title="${fileName}">${fileName.slice(0, 40)}${fileName.length > 40 ? '...' : ''}</td>
+          <td>${typeof score === 'number' ? score.toFixed(3) : score}</td>
+          <td>${project}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--red);">검색 실패: ' + e.message + '</td></tr>';
+    }
+  }
+
+  async function wrRunBenchmark() {
+    if (!confirm('벤치마크를 실행하시겠습니까? 시간이 다소 소요될 수 있습니다.')) return;
+    // Legacy benchmark 함수 호출
+    if (typeof runBenchmarkTest === 'function') {
+      runBenchmarkTest();
+    } else {
+      alert('Legacy Benchmark 탭에서 실행하세요.');
+    }
+  }
+
+  async function wrLoadBenchmarkHistory() {
+    const tbody = document.getElementById('wrBenchmarkTableBody');
+    if (!tbody) return;
+
+    try {
+      const res = await fetch(apiUrl('/api/benchmark/history'), {
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const history = data.history || data || [];
+
+      // Summary 업데이트
+      document.getElementById('wrDocsBenchmarkCount').textContent = history.length;
+      if (history.length > 0) {
+        const latest = history[0];
+        document.getElementById('wrDocsBenchmarkScore').textContent =
+          typeof latest.avg_score === 'number' ? latest.avg_score.toFixed(2) : (latest.score || '-');
+        document.getElementById('wrDocsBenchmarkSnapshot').textContent = latest.snapshot || latest.created_at?.slice(0, 10) || '-';
+      }
+
+      if (history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">벤치마크 기록이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = history.slice(0, 10).map(h => {
+        const time = h.created_at ? new Date(h.created_at).toLocaleString('ko-KR') : '-';
+        const testCases = h.test_count || h.total || '-';
+        const successRate = typeof h.success_rate === 'number' ? `${(h.success_rate * 100).toFixed(1)}%` : '-';
+        const avgScore = typeof h.avg_score === 'number' ? h.avg_score.toFixed(2) : (h.score || '-');
+        const snapshot = h.snapshot || '-';
+        return `<tr>
+          <td>${time}</td>
+          <td>${testCases}</td>
+          <td>${successRate}</td>
+          <td>${avgScore}</td>
+          <td><code>${snapshot}</code></td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      // 벤치마크 히스토리 API가 없을 수 있음
+    }
+  }
+
+  // 페이지 진입 시 데이터 로드
+  document.addEventListener('DOMContentLoaded', function() {
+    // Jobs 페이지 진입 시
+    document.querySelector('[data-wr-page="jobs"]')?.addEventListener('click', wrRefreshJobs);
+    // Logs 페이지 진입 시
+    document.querySelector('[data-wr-page="logs"]')?.addEventListener('click', wrRefreshLogs);
+    // Search Quality 페이지 진입 시
+    document.querySelector('[data-wr-page="search-quality"]')?.addEventListener('click', wrLoadBenchmarkHistory);
+  });
 
   function renderWizardProgressBar() {
     syncWizardPipelineCopy();

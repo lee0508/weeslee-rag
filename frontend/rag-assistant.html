@@ -252,6 +252,45 @@
       outline: none;
     }
     .sidebar-controls input::placeholder { color: var(--gray-400); }
+
+    /* 고급 설정 접기/펼치기 */
+    .advanced-settings-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      margin: 8px 0;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 8px;
+      color: var(--gray-300);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .advanced-settings-toggle:hover {
+      background: rgba(255,255,255,.08);
+      color: var(--white);
+    }
+    .advanced-settings-toggle .toggle-icon {
+      transition: transform .2s;
+    }
+    .advanced-settings-toggle.open .toggle-icon {
+      transform: rotate(180deg);
+    }
+    .advanced-settings {
+      display: none;
+      animation: slideDown .2s ease-out;
+    }
+    .advanced-settings.open {
+      display: grid;
+      gap: 10px;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .results-wrap {
       padding: 0 16px 16px;
       display: flex;
@@ -750,6 +789,314 @@
     }
     .doc-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
     .copy-feedback { color: var(--good); font-size: 11px; }
+
+    /* ── Search Mode Chips UI ───────────────────────────────────────── */
+    .mode-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .mode-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1.5px solid var(--gray-200);
+      background: var(--white);
+      color: var(--gray-600);
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .mode-chip:hover {
+      border-color: var(--navy-m);
+      color: var(--navy);
+    }
+    .mode-chip.active {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: var(--white);
+    }
+    .mode-chip .chip-icon { font-size: 14px; }
+    .mode-chip .chip-badge {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.2);
+      margin-left: 2px;
+    }
+    .mode-chip.active .chip-badge { background: rgba(255,255,255,.25); }
+
+    /* ── Enhanced Document Card ─────────────────────────────────────── */
+    .doc-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 14px;
+      transition: all .15s ease;
+      cursor: pointer;
+    }
+    .doc-card:hover {
+      border-color: var(--navy-m);
+      box-shadow: var(--shadow);
+    }
+    .doc-card.selected {
+      border-color: var(--amber);
+      background: var(--amber-l);
+    }
+    .doc-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .doc-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+      flex: 1;
+    }
+    .doc-card-score {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: var(--good);
+      color: #fff;
+    }
+    .doc-card-score.medium { background: var(--warn); }
+    .doc-card-score.low { background: var(--gray-400); }
+    .doc-card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .doc-card-chip {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+    .doc-card-chip.category { background: var(--amber-l); color: var(--amber-d); }
+    .doc-card-chip.org { background: #dcfce7; color: #15803d; }
+    .doc-card-chip.year { background: #dbeafe; color: #1d4ed8; }
+    .doc-card-path {
+      font-size: 11px;
+      color: var(--text-s);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .doc-card-preview {
+      font-size: 12px;
+      color: var(--gray-600);
+      line-height: 1.5;
+      margin-top: 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* 문서 카드 체크박스 선택 */
+    .doc-card-checkbox {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--amber);
+      cursor: pointer;
+    }
+    .doc-card { position: relative; }
+    .doc-card.checked {
+      border-color: var(--amber);
+      background: linear-gradient(135deg, var(--amber-l) 0%, var(--white) 100%);
+    }
+    .doc-card-project {
+      font-size: 11px;
+      color: var(--text-s);
+      margin-bottom: 4px;
+    }
+    .doc-card-file {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    /* ── Grounded Answer Panel ──────────────────────────────────────── */
+    .grounded-answer {
+      background: linear-gradient(135deg, var(--navy-l) 0%, var(--white) 100%);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .grounded-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .grounded-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+    .grounded-title .icon { font-size: 18px; }
+    .grounded-confidence {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+    .confidence-bar {
+      width: 60px;
+      height: 6px;
+      background: var(--gray-200);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .confidence-fill {
+      height: 100%;
+      background: var(--good);
+      border-radius: 3px;
+      transition: width .3s ease;
+    }
+    .grounded-content {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+    .grounded-content p { margin-bottom: 10px; }
+    .grounded-sources {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--gray-200);
+    }
+    .grounded-sources-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-600);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .source-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 11px;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 14px;
+      color: var(--text-s);
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .source-tag:hover {
+      border-color: var(--navy);
+      color: var(--navy);
+    }
+    .source-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* ── Document Detail Panel ──────────────────────────────────────── */
+    .doc-detail-panel {
+      position: fixed;
+      top: var(--top);
+      right: -450px;
+      width: 440px;
+      height: calc(100vh - var(--top));
+      background: var(--white);
+      border-left: 1px solid var(--gray-200);
+      box-shadow: -4px 0 20px rgba(0,0,0,.1);
+      z-index: 200;
+      transition: right .25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .doc-detail-panel.open { right: 0; }
+    .doc-detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+      background: var(--gray-50);
+    }
+    .doc-detail-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .doc-detail-close:hover { background: var(--gray-200); }
+    .doc-detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .doc-detail-section {
+      margin-bottom: 20px;
+    }
+    .doc-detail-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 8px;
+    }
+    .doc-detail-content {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .doc-detail-chunks {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .doc-detail-chunk {
+      padding: 12px;
+      background: var(--gray-50);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--gray-600);
+    }
+    .doc-detail-chunk-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: var(--gray-400);
+    }
 
     /* ── File Preview Modal ────────────────────────────────────────── */
     .preview-overlay {
@@ -1528,27 +1875,25 @@
         </div>
         <div class="sidebar-controls">
           <div>
-            <label for="searchMode" data-i18n="search_mode">Search Mode</label>
-            <select id="searchMode" onchange="onSearchModeChange()">
-              <option value="general" data-i18n="mode_general">General RAG</option>
-              <option value="bid_project" data-i18n="mode_bid">Bid Project Search</option>
-              <option value="rfp_analysis" data-i18n="mode_rfp">RFP Analysis</option>
-              <option value="graph_rag" data-i18n="mode_graph">Graph RAG</option>
-            </select>
+            <label data-i18n="search_mode">Search Mode</label>
+            <div class="mode-chips" id="searchModeChips">
+              <button type="button" class="mode-chip active" data-mode="general" onclick="selectSearchMode('general')">
+                <span class="chip-icon">🔍</span>일반 문서
+              </button>
+              <button type="button" class="mode-chip" data-mode="bid_project" onclick="selectSearchMode('bid_project')">
+                <span class="chip-icon">📋</span>유사 사업
+              </button>
+              <button type="button" class="mode-chip" data-mode="rfp_analysis" onclick="selectSearchMode('rfp_analysis')">
+                <span class="chip-icon">📄</span>RFP 분석
+              </button>
+              <button type="button" class="mode-chip" data-mode="graph_rag" onclick="selectSearchMode('graph_rag')">
+                <span class="chip-icon">🔗</span>관계 기반
+              </button>
+            </div>
+            <input type="hidden" id="searchMode" value="general">
           </div>
           <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
-          <div>
-            <label for="topK" data-i18n="top_k">Top K</label>
-            <input id="topK" type="number" min="5" max="50" value="20">
-          </div>
-          <div>
-            <label for="topDocs" data-i18n="top_docs">Top Docs</label>
-            <input id="topDocs" type="number" min="3" max="10" value="5">
-          </div>
-          <div>
-            <label for="maxChunks" data-i18n="max_chunks">Max Chunks / Doc</label>
-            <input id="maxChunks" type="number" min="1" max="10" value="3">
-          </div>
+          <!-- 기본 설정: 항상 표시 -->
           <div>
             <label for="category" data-i18n="category">Category</label>
             <select id="category">
@@ -1561,67 +1906,87 @@
             </select>
           </div>
           <div>
-            <label for="filterOrg" data-i18n="filter_org">Organization Filter</label>
-            <input id="filterOrg" type="text" placeholder="" data-i18n-placeholder="filter_org_placeholder">
-          </div>
-          <div>
-            <label for="filterYear" data-i18n="filter_year">Year Filter</label>
-            <input id="filterYear" type="text" placeholder="" data-i18n-placeholder="filter_year_placeholder" maxlength="4" pattern="\d{4}">
-          </div>
-          <div>
             <label for="answerProvider" data-i18n="answer_mode">Answer Mode</label>
             <select id="answerProvider">
               <option value="ollama" data-i18n="ans_ollama">Ollama (Generate)</option>
               <option value="none" data-i18n="ans_none">Search Only</option>
             </select>
           </div>
-          <div>
-            <label for="answerModel" data-i18n="model">Model</label>
-            <select id="answerModel">
-              <option value="gemma4:latest">gemma4:latest</option>
-            </select>
+          <!-- 고급 설정 토글 -->
+          <div class="advanced-settings-toggle" onclick="toggleAdvancedSettings(this)">
+            <span>⚙️ 고급 설정</span>
+            <span class="toggle-icon">▼</span>
           </div>
-          <div class="sidebar-section-sep"></div>
-          <div>
-            <label for="collection" data-i18n="collection_filter">Collection</label>
-            <select id="collection">
-              <option value="" data-i18n="col_all">전체 Collection</option>
-            </select>
-          </div>
-          <div>
-            <label for="documentGroup" data-i18n="doc_group_filter">문서 그룹</label>
-            <select id="documentGroup">
-              <option value="">전체</option>
-              <option value="rfp">RFP</option>
-              <option value="proposal">제안서</option>
-              <option value="deliverable">산출물</option>
-            </select>
-          </div>
-          <div class="sidebar-section-sep"></div>
-          <div class="weight-section">
-            <label data-i18n="search_weights">검색 비율</label>
-            <div class="weight-sliders">
-              <div class="weight-row">
-                <span class="weight-label">Vector</span>
-                <input id="vectorWeight" type="range" min="0" max="100" value="100" oninput="onWeightChange()">
-                <span class="weight-val" id="vectorWeightVal">100%</span>
-              </div>
-              <div class="weight-row">
-                <span class="weight-label">Graph</span>
-                <input id="graphWeight" type="range" min="0" max="100" value="0" oninput="onWeightChange()">
-                <span class="weight-val" id="graphWeightVal">0%</span>
-              </div>
-              <div class="weight-row">
-                <span class="weight-label">Wiki</span>
-                <input id="wikiWeight" type="range" min="0" max="100" value="0" oninput="onWeightChange()">
-                <span class="weight-val" id="wikiWeightVal">0%</span>
+          <!-- 고급 설정: 접기/펼치기 -->
+          <div class="advanced-settings" id="advancedSettings">
+            <div>
+              <label for="topK" data-i18n="top_k">Top K</label>
+              <input id="topK" type="number" min="5" max="50" value="20">
+            </div>
+            <div>
+              <label for="topDocs" data-i18n="top_docs">Top Docs</label>
+              <input id="topDocs" type="number" min="3" max="10" value="5">
+            </div>
+            <div>
+              <label for="maxChunks" data-i18n="max_chunks">Max Chunks / Doc</label>
+              <input id="maxChunks" type="number" min="1" max="10" value="3">
+            </div>
+            <div>
+              <label for="filterOrg" data-i18n="filter_org">Organization Filter</label>
+              <input id="filterOrg" type="text" placeholder="" data-i18n-placeholder="filter_org_placeholder">
+            </div>
+            <div>
+              <label for="filterYear" data-i18n="filter_year">Year Filter</label>
+              <input id="filterYear" type="text" placeholder="" data-i18n-placeholder="filter_year_placeholder" maxlength="4" pattern="\d{4}">
+            </div>
+            <div>
+              <label for="answerModel" data-i18n="model">Model</label>
+              <select id="answerModel">
+                <option value="gemma4:latest">gemma4:latest</option>
+              </select>
+            </div>
+            <div class="sidebar-section-sep"></div>
+            <div>
+              <label for="collection" data-i18n="collection_filter">Collection</label>
+              <select id="collection">
+                <option value="" data-i18n="col_all">전체 Collection</option>
+              </select>
+            </div>
+            <div>
+              <label for="documentGroup" data-i18n="doc_group_filter">문서 그룹</label>
+              <select id="documentGroup">
+                <option value="">전체</option>
+                <option value="rfp">RFP</option>
+                <option value="proposal">제안서</option>
+                <option value="deliverable">산출물</option>
+              </select>
+            </div>
+            <div class="sidebar-section-sep"></div>
+            <div class="weight-section">
+              <label data-i18n="search_weights">검색 비율</label>
+              <div class="weight-sliders">
+                <div class="weight-row">
+                  <span class="weight-label">Vector</span>
+                  <input id="vectorWeight" type="range" min="0" max="100" value="100" oninput="onWeightChange()">
+                  <span class="weight-val" id="vectorWeightVal">100%</span>
+                </div>
+                <div class="weight-row">
+                  <span class="weight-label">Graph</span>
+                  <input id="graphWeight" type="range" min="0" max="100" value="0" oninput="onWeightChange()">
+                  <span class="weight-val" id="graphWeightVal">0%</span>
+                </div>
+                <div class="weight-row">
+                  <span class="weight-label">Wiki</span>
+                  <input id="wikiWeight" type="range" min="0" max="100" value="0" oninput="onWeightChange()">
+                  <span class="weight-val" id="wikiWeightVal">0%</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div>
-            <label for="temperature" data-i18n="temperature">Temperature: <span id="tempDisplay">0.20</span></label>
-            <input id="temperature" type="range" min="0" max="200" value="20" step="1"
-              oninput="document.getElementById('tempDisplay').textContent = (this.value/100).toFixed(2)" style="width:100%">
+            <div>
+              <label for="temperature" data-i18n="temperature">Temperature: <span id="tempDisplay">0.20</span></label>
+              <input id="temperature" type="range" min="0" max="200" value="20" step="1"
+                oninput="document.getElementById('tempDisplay').textContent = (this.value/100).toFixed(2)" style="width:100%">
+            </div>
           </div>
         </div>
       </div>
@@ -1697,6 +2062,9 @@
             <div class="query-actions">
               <button class="btn btn-primary" onclick="runQuery()" data-i18n="run_rag">Run RAG</button>
               <button class="btn btn-outline" onclick="loadHealth(true)" data-i18n="refresh_health">Refresh Health</button>
+              <button class="btn btn-outline" onclick="loadMockData()" title="테스트용 Mock 데이터 로드">🧪 Demo</button>
+              <span id="selectedDocsIndicator" style="display:none;background:var(--amber-l);color:var(--amber-d);padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;"></span>
+              <button id="runSelectedBtn" class="btn btn-outline" onclick="runQueryWithSelectedDocs()" style="display:none;border-color:var(--amber);color:var(--amber);" title="선택한 문서만을 기반으로 답변을 생성합니다">📌 선택 문서로 답변</button>
             </div>
           </div>
         </div>
@@ -1957,7 +2325,7 @@
       hint_bid:'사업명과 키워드를 자동 확장합니다.<br>proposal, final_report, presentation 우선순위를 적용합니다.',
       hint_rfp:'RFP와 과업지시서 내용을 분석합니다.<br>rfp, kickoff, proposal 우선순위를 적용합니다.',
       hint_graph:'FAISS 검색 뒤 동일 프로젝트의 RFP, 제안, 착수, 보고서 체인을 추가로 표시합니다.',
-      mode_graph:'Graph RAG',
+      mode_graph:'관계 기반 검색',
       graph_context_title:'프로젝트 문서 체인',
       rv_query_label:'쿼리', rv_docs_count:'문서 {n}개', rv_ref_docs:'참조 문서 ({n}개)',
       rv_copy_answer:'답변 복사', rv_search_only:'검색 전용 모드에서는 답변이 없습니다.',
@@ -1980,25 +2348,25 @@
     }; */
 
     const I18N_KO_SAFE = {
-      tab_rag:'RAG Assistant', tab_knowledge:'\uC9C0\uC2DD \uAC80\uC0C9', tab_review:'\uB2F5\uBCC0 \uAC80\uD1A0', tab_proposal:'\uC81C\uC548\uC11C \uCD08\uC548',
+      tab_rag:'\uBB38\uC11C \uAC80\uC0C9', tab_knowledge:'\uC720\uC0AC \uBB38\uC11C', tab_review:'\uB2F5\uBCC0 \uAC80\uD1A0', tab_proposal:'\uC81C\uC548\uC11C \uCD08\uC548',
       runtime_target:'\uC11C\uBC84 \uC0C1\uD0DC', search_mode:'\uAC80\uC0C9 \uBAA8\uB4DC', top_k:'Top K',
       top_docs:'Top Docs', max_chunks:'\uCCAD\uD06C / \uBB38\uC11C', category:'\uCE74\uD14C\uACE0\uB9AC',
       answer_mode:'\uB2F5\uBCC0 \uBAA8\uB4DC', model:'\uBAA8\uB378', rec_docs:'\uCD94\uCC9C \uBB38\uC11C',
-      mode_general:'General RAG', mode_bid:'\uC785\uCC30 \uC0AC\uC5C5 \uAC80\uC0C9', mode_rfp:'RFP \uBD84\uC11D',
+      mode_general:'\uC77C\uBC18 \uBB38\uC11C \uAC80\uC0C9', mode_bid:'\uC720\uC0AC \uC0AC\uC5C5 \uAC80\uC0C9', mode_rfp:'RFP \uBD84\uC11D',
       cat_all:'\uC804\uCCB4', cat_rfp:'RFP', cat_proposal:'\uC81C\uC548\uC11C', cat_kickoff:'\uCC29\uC218\uBCF4\uACE0',
       cat_final:'\uCD5C\uC885\uBCF4\uACE0', cat_presentation:'\uBC1C\uD45C\uC790\uB8CC',
-      ans_ollama:'Ollama (\uC0DD\uC131)', ans_none:'\uAC80\uC0C9 \uC804\uC6A9',
-      generate_short:'\uC0DD\uC131', search_only_short:'\uAC80\uC0C9 \uC804\uC6A9',
-      tpl_tag1:'RAG \uAC80\uC0C9', tpl_tag2:'\uB77C\uC774\uBE0C', tpl_title:'Weeslee RAG \uCFFC\uB9AC \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4',
+      ans_ollama:'AI \uB2F5\uBCC0 \uC0DD\uC131', ans_none:'\uBB38\uC11C \uAC80\uC0C9\uB9CC',
+      generate_short:'AI \uB2F5\uBCC0', search_only_short:'\uAC80\uC0C9\uB9CC',
+      tpl_tag1:'\uBB38\uC11C \uAC80\uC0C9', tpl_tag2:'\uB77C\uC774\uBE0C', tpl_title:'\uBB38\uC11C \uAE30\uBC18 AI \uAC80\uC0C9',
       tpl_desc:'\uD504\uB85C\uC81D\uD2B8\uC640 \uC81C\uC548 \uAD00\uB828 \uC9C8\uBB38\uC744 \uC785\uB825\uD558\uBA74 \uAD00\uB828 \uBB38\uC11C\uB97C \uAC80\uC0C9\uD558\uACE0 \uCD08\uC548 \uB2F5\uBCC0\uC744 \uC0DD\uC131\uD569\uB2C8\uB2E4.',
       info_target:'\uB300\uC0C1', info_backend:'\uBC31\uC5D4\uB4DC', info_frontend:'\uD504\uB7F0\uD2B8\uC5D4\uB4DC', info_ans_mode:'\uB2F5\uBCC0 \uBAA8\uB4DC',
-      query_input:'\uCFFC\uB9AC \uC785\uB825', ready:'\uC900\uBE44.', query_label:'\uCFFC\uB9AC',
+      query_input:'\uAC80\uC0C9\uC5B4 \uC785\uB825', ready:'\uC900\uBE44.', query_label:'\uAC80\uC0C9\uC5B4',
       query_placeholder:'\uC608\uC2DC: AX \uAE30\uBC18 \uCC28\uC138\uB300 \uC5C5\uBB34\uC2DC\uC2A4\uD15C ISMP \uC18C\uD504\uD2B8\uC6E8\uC5B4 \uBC94\uC704 \uBCC0\uACBD \uC81C\uC548',
       query_example_bid:'\uD589\uC815\uC548\uC804\uBD80 \uACF5\uACF5\uB370\uC774\uD130 \uD488\uC9C8\uAD00\uB9AC \uC2DC\uC2A4\uD15C \uAD6C\uCD95 \uC720\uC0AC \uC218\uD589\uC2E4\uC801\uC744 \uCC3E\uC544\uC918',
       query_example_rfp:'\uCCA8\uBD80\uD55C RFP\uC758 \uC8FC\uC694 \uC694\uAD6C\uC0AC\uD56D\uACFC \uAE30\uC220 \uC2A4\uD0DD\uC744 \uBD84\uC11D\uD558\uACE0 \uC720\uC0AC \uC2E4\uC801\uC744 \uAC80\uC0C9\uD574\uC918',
       query_example_graph:'\uCC28\uC138\uB300 \uC5C5\uBB34\uC2DC\uC2A4\uD15C ISMP \uC0AC\uC5C5\uC5D0\uC11C \uC81C\uC548\uBD80\uD130 \uCD5C\uC885\uBCF4\uACE0\uAE4C\uC9C0 \uBB38\uC11C \uCCB4\uC778\uC744 \uBCF4\uC5EC\uC918',
       query_hint:'\uC88C\uCE21 \uD328\uB110\uC5D0\uC11C \uAC80\uC0C9 \uBC94\uC704\uC640 \uB2F5\uBCC0 \uBAA8\uB4DC\uB97C \uC124\uC815\uD558\uC138\uC694.',
-      run_rag:'RAG \uC2E4\uD589', refresh_health:'\uC0C1\uD0DC \uC0C8\uB85C\uACE0\uCE68',
+      run_rag:'\uAC80\uC0C9 \uC2E4\uD589', refresh_health:'\uC0C1\uD0DC \uC0C8\uB85C\uACE0\uCE68',
       answer_panel:'\uB2F5\uBCC0 \uD328\uB110', draft_answer:'\uCD08\uC548 \uB2F5\uBCC0', result:'\uACB0\uACFC',
       no_answer:'\uC544\uC9C1 \uB2F5\uBCC0\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
       answer_search_only:'\uAC80\uC0C9 \uC804\uC6A9 \uBAA8\uB4DC\uC785\uB2C8\uB2E4. \uC544\uB798 \uADFC\uAC70 \uD30C\uC77C\uC744 \uAC80\uD1A0\uD558\uC138\uC694.',
@@ -2042,7 +2410,7 @@
       hint_bid:'\uC0AC\uC5C5\uBA85\uACFC \uD0A4\uC6CC\uB4DC\uB97C \uC790\uB3D9 \uD655\uC7A5\uD569\uB2C8\uB2E4.<br>proposal, final_report, presentation \uC6B0\uC120\uC21C\uC704\uB97C \uC801\uC6A9\uD569\uB2C8\uB2E4.',
       hint_rfp:'RFP\uC640 \uACFC\uC5C5\uC9C0\uC2DC\uC11C \uB0B4\uC6A9\uC744 \uBD84\uC11D\uD569\uB2C8\uB2E4.<br>rfp, kickoff, proposal \uC6B0\uC120\uC21C\uC704\uB97C \uC801\uC6A9\uD569\uB2C8\uB2E4.',
       hint_graph:'FAISS \uAC80\uC0C9 \uB4A4 \uB3D9\uC77C \uD504\uB85C\uC81D\uD2B8\uC758 RFP, \uC81C\uC548, \uCC29\uC218, \uBCF4\uACE0\uC11C \uCCB4\uC778\uC744 \uCD94\uAC00\uB85C \uD45C\uC2DC\uD569\uB2C8\uB2E4.',
-      mode_graph:'Graph RAG',
+      mode_graph:'\uAD00\uACC4 \uAE30\uBC18 \uAC80\uC0C9',
       graph_context_title:'\uD504\uB85C\uC81D\uD2B8 \uBB38\uC11C \uCCB4\uC778',
       rv_query_label:'\uCFFC\uB9AC', rv_docs_count:'\uBB38\uC11C {n}\uAC1C', rv_ref_docs:'\uCC38\uC870 \uBB38\uC11C ({n}\uAC1C)',
       rv_copy_answer:'\uB2F5\uBCC0 \uBCF5\uC0AC', rv_search_only:'\uAC80\uC0C9 \uC804\uC6A9 \uBAA8\uB4DC\uC5D0\uC11C\uB294 \uB2F5\uBCC0\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
@@ -2774,6 +3142,21 @@
       }
     }
 
+    // 고급 설정 토글 함수
+    function toggleAdvancedSettings(toggleBtn) {
+      const settings = document.getElementById('advancedSettings');
+      const isOpen = settings.classList.toggle('open');
+      toggleBtn.classList.toggle('open', isOpen);
+    }
+
+    function selectSearchMode(mode) {
+      document.querySelectorAll('.mode-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.mode === mode);
+      });
+      document.getElementById('searchMode').value = mode;
+      onSearchModeChange();
+    }
+
     function onSearchModeChange() {
       const mode = document.getElementById('searchMode').value;
       const hint = document.getElementById('bidHint');
@@ -2796,6 +3179,26 @@
       } else if (!example && isExample) {
         queryEl.value = '';
         queryEl.dataset.isExample = 'false';
+      }
+
+      // RFP 분석 모드 선택 시 파일 첨부 영역 강조
+      const rfpSection = document.getElementById('rfpBar');
+      if (rfpSection) {
+        if (mode === 'rfp_analysis') {
+          rfpSection.classList.add('highlight');
+          rfpSection.style.background = 'linear-gradient(135deg, rgba(232,151,31,.15) 0%, rgba(255,255,255,.02) 100%)';
+          rfpSection.style.border = '2px dashed var(--amber)';
+          rfpSection.style.borderRadius = '8px';
+          rfpSection.style.padding = '12px';
+          rfpSection.style.marginBottom = '12px';
+        } else {
+          rfpSection.classList.remove('highlight');
+          rfpSection.style.background = '';
+          rfpSection.style.border = '';
+          rfpSection.style.borderRadius = '';
+          rfpSection.style.padding = '';
+          rfpSection.style.marginBottom = '';
+        }
       }
     }
 
@@ -2949,7 +3352,7 @@
 
     function renderResults(documents) {
       const results = document.getElementById('results');
-      if (!documents.length) {
+      if (!documents || !documents.length) {
         results.innerHTML = `<div class="doc">${t('no_docs')}</div>`;
         return;
       }
@@ -3291,39 +3694,139 @@
       callback();
     }
 
+    // 문서 카드 클릭을 위한 전역 배열
+    var _renderedDocuments = [];
+
     function renderDocumentCards(documents, compact) {
-      return documents.map(doc => {
-        const subLabel = doc.proposal_section || doc.deliverable_section || '';
-        const metaTags = [
-          doc.collection ? `<span class="chip" style="background:rgba(232,151,31,.12);color:var(--amber-d)">${escapeHtml(doc.collection)}</span>` : '',
-          doc.document_group ? `<span class="chip">${escapeHtml(doc.document_group)}</span>` : '',
-          subLabel ? `<span class="chip" style="font-size:10px">${escapeHtml(subLabel)}</span>` : '',
-        ].filter(Boolean).join('');
+      // 전역 배열에 문서 저장
+      _renderedDocuments = documents;
+
+      return documents.map((doc, idx) => {
+        const score = Number(doc.best_score || doc.ranking_score || 0);
+        const scoreClass = score >= 0.8 ? '' : score >= 0.6 ? 'medium' : 'low';
+        const projectName = doc.project_name || '-';
+        const fileName = doc.file_name || doc.document_id || '-';
+
+        const metaChips = [];
+        if (doc.category) metaChips.push(`<span class="doc-card-chip category">${escapeHtml(doc.category)}</span>`);
+        if (doc.organization) metaChips.push(`<span class="doc-card-chip org">${escapeHtml(doc.organization)}</span>`);
+        if (doc.project_year) metaChips.push(`<span class="doc-card-chip year">${escapeHtml(doc.project_year)}</span>`);
+        if (doc.document_group) metaChips.push(`<span class="doc-card-chip">${escapeHtml(doc.document_group)}</span>`);
+
+        const preview = (doc.chunks && doc.chunks[0]?.text)
+          ? doc.chunks[0].text.slice(0, 120) + (doc.chunks[0].text.length > 120 ? '...' : '')
+          : (doc.evidence_snippets && doc.evidence_snippets[0])
+            ? doc.evidence_snippets[0].slice(0, 120)
+            : '';
+
         return `
-        <div class="doc">
-          <div class="doc-head">
-            <div>
-              <div class="doc-title"><button class="doc-title-btn" type="button"
-                onclick="openFilePreview('${escapeHtml(doc.source_path||'')}','${escapeHtml(doc.input_path||'')}','${escapeHtml(doc.document_id||'')}')">#${doc.rank} ${doc.project_name ? escapeHtml(doc.project_name) : doc.document_id}</button></div>
-              <div class="meta">
-                <span>${escapeHtml(doc.document_id)}</span>
-                <span>${escapeHtml(doc.category || '')}</span>
-                <span>best: ${Number(doc.best_score).toFixed(4)}</span>
-                <span>rank: ${Number(doc.ranking_score).toFixed(4)}</span>
-                <span>hits: ${doc.hit_count}</span>
-              </div>
-            </div>
-            <div class="badge">${escapeHtml(doc.category || '')}</div>
+        <div class="doc-card" data-doc-idx="${idx}">
+          <input type="checkbox" class="doc-card-checkbox" onclick="event.stopPropagation(); toggleDocSelection(${idx})" title="답변 생성에 사용할 문서 선택">
+          <div class="doc-card-header" onclick="openDocDetailByIndex(${idx})">
+            <div class="doc-card-title">#${doc.rank || idx + 1} ${escapeHtml(projectName !== '-' ? projectName : fileName)}</div>
+            <div class="doc-card-score ${scoreClass}">${(score * 100).toFixed(0)}%</div>
           </div>
-          ${metaTags ? `<div class="chips" style="margin:4px 0">${metaTags}</div>` : ''}
-          <div class="meta">${renderSourcePathLink(doc.source_path, doc.input_path)}</div>
-          <div>${(doc.reasons || []).map(r => `- ${escapeHtml(r)}`).join('<br>')}</div>
-          <div class="chips">
-            ${(doc.evidence_snippets || []).slice(0, compact ? 3 : undefined).map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
-          </div>
-          ${renderOpenFileAction(doc.source_path, doc.input_path, doc.document_id)}
+          ${projectName !== '-' ? `<div class="doc-card-file" onclick="openDocDetailByIndex(${idx})">${escapeHtml(fileName)}</div>` : ''}
+          <div class="doc-card-meta">${metaChips.join('')}</div>
+          <div class="doc-card-path">${escapeHtml(doc.source_path || doc.original_source_path || '-')}</div>
+          ${preview ? `<div class="doc-card-preview">${escapeHtml(preview)}</div>` : ''}
         </div>
       `}).join('');
+    }
+
+    // 선택된 문서 인덱스 추적
+    var _selectedDocIndices = new Set();
+
+    function toggleDocSelection(idx) {
+      const card = document.querySelector(`.doc-card[data-doc-idx="${idx}"]`);
+      const checkbox = card?.querySelector('.doc-card-checkbox');
+      if (checkbox?.checked) {
+        _selectedDocIndices.add(idx);
+        card?.classList.add('checked');
+      } else {
+        _selectedDocIndices.delete(idx);
+        card?.classList.remove('checked');
+      }
+      updateSelectedDocsCount();
+    }
+
+    function updateSelectedDocsCount() {
+      const count = _selectedDocIndices.size;
+      const indicator = document.getElementById('selectedDocsIndicator');
+      const runSelectedBtn = document.getElementById('runSelectedBtn');
+      if (indicator) {
+        indicator.textContent = count > 0 ? `선택 문서: ${count}개` : '';
+        indicator.style.display = count > 0 ? 'inline-block' : 'none';
+      }
+      if (runSelectedBtn) {
+        runSelectedBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+      }
+    }
+
+    function getSelectedDocuments() {
+      return [..._selectedDocIndices].map(idx => _renderedDocuments[idx]).filter(Boolean);
+    }
+
+    // 선택된 문서 기반 답변 생성
+    async function runQueryWithSelectedDocs() {
+      const selectedDocs = getSelectedDocuments();
+      if (selectedDocs.length === 0) {
+        showToast('문서를 선택해주세요.', 'warn');
+        return;
+      }
+      const query = document.getElementById('query').value.trim();
+      if (!query) {
+        showToast('검색어를 입력해주세요.', 'warn');
+        return;
+      }
+
+      // 선택된 문서 정보를 기반으로 답변 생성 API 호출
+      // 현재는 UI만 구현 - 실제 API 호출은 백엔드 연동 시 구현
+      showToast(`선택된 ${selectedDocs.length}개 문서를 기반으로 답변을 생성합니다.`, 'info');
+
+      // runQuery와 유사하지만 selected_docs 파라미터 추가
+      const params = {
+        query: query,
+        search_mode: document.getElementById('searchMode').value,
+        top_k: parseInt(document.getElementById('topK').value),
+        top_docs: parseInt(document.getElementById('topDocs').value),
+        max_chunks_per_doc: parseInt(document.getElementById('maxChunks').value),
+        category: document.getElementById('category').value,
+        answer_mode: document.getElementById('answerProvider').value,
+        model: document.getElementById('answerModel').value,
+        selected_document_ids: selectedDocs.map(d => d.document_id || d.file_name)
+      };
+
+      console.log('선택 문서 기반 답변 생성 요청:', params);
+      // 실제 API 호출은 runQuery 함수와 유사하게 구현
+      // 현재는 Mock 응답 표시
+      const answerPanel = document.getElementById('resultTabContent-rag');
+      if (answerPanel) {
+        answerPanel.innerHTML = `
+          <div class="grounded-answer">
+            <div class="grounded-header">
+              <div class="grounded-title"><span class="grounded-icon">📌</span><span>선택 문서 기반 답변</span></div>
+              <div class="grounded-confidence"><span>선택</span><span class="confidence-badge">${selectedDocs.length}건</span></div>
+            </div>
+            <div class="grounded-body">
+              <p>선택하신 ${selectedDocs.length}개 문서를 기반으로 답변을 생성 중입니다...</p>
+              <p style="color:var(--text-s);font-size:12px;margin-top:12px;">* 실제 답변 생성은 백엔드 API 연동 후 활성화됩니다.</p>
+            </div>
+            <div class="grounded-refs">
+              <div class="refs-header"><span class="refs-icon">📚</span><span>선택 문서 (${selectedDocs.length}건)</span></div>
+              <div class="refs-list">
+                ${selectedDocs.map(d => `<div class="ref-item"><span class="ref-icon">📄</span><span>${escapeHtml(d.project_name || d.file_name || '-')}</span></div>`).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function openDocDetailByIndex(idx) {
+      if (_renderedDocuments && _renderedDocuments[idx]) {
+        openDocDetail(_renderedDocuments[idx]);
+      }
     }
 
     function escapeHtml(text) {
@@ -3905,12 +4408,221 @@
       document.getElementById('previewPrintBtn').style.display = 'none';
     }
 
-    document.getElementById('previewOverlay').addEventListener('click', e => {
-      if (e.target === document.getElementById('previewOverlay')) closePreview();
+    // 이벤트 리스너는 DOM 로드 후 등록
+    document.addEventListener('DOMContentLoaded', () => {
+      const overlay = document.getElementById('previewOverlay');
+      if (overlay) {
+        overlay.addEventListener('click', e => {
+          if (e.target === overlay) closePreview();
+        });
+      }
     });
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closePreview();
+      if (e.key === 'Escape') { closePreview(); closeDocDetail(); }
     });
+
+    // ── Document Detail Panel ──────────────────────────────────────────
+    let _currentDocDetail = null;
+
+    function openDocDetail(doc) {
+      _currentDocDetail = doc;
+      const panel = document.getElementById('docDetailPanel');
+      const title = doc.project_name || doc.file_name || doc.document_id || '문서';
+
+      document.getElementById('docDetailTitle').textContent = title;
+
+      // 기본 정보
+      document.getElementById('docDetailInfo').innerHTML = `
+        <div style="display:grid;gap:8px;">
+          <div><strong>문서 ID:</strong> ${escapeHtml(doc.document_id || '-')}</div>
+          <div><strong>프로젝트:</strong> ${escapeHtml(doc.project_name || '-')}</div>
+          <div><strong>파일명:</strong> ${escapeHtml(doc.file_name || '-')}</div>
+          <div><strong>카테고리:</strong> ${escapeHtml(doc.category || '-')}</div>
+          <div><strong>Best Score:</strong> ${Number(doc.best_score || 0).toFixed(4)}</div>
+          <div><strong>Ranking Score:</strong> ${Number(doc.ranking_score || 0).toFixed(4)}</div>
+        </div>
+      `;
+
+      // 메타데이터
+      const metaItems = [];
+      if (doc.organization) metaItems.push(`<span class="doc-card-chip org">${escapeHtml(doc.organization)}</span>`);
+      if (doc.project_year) metaItems.push(`<span class="doc-card-chip year">${escapeHtml(doc.project_year)}</span>`);
+      if (doc.collection) metaItems.push(`<span class="doc-card-chip">${escapeHtml(doc.collection)}</span>`);
+      if (doc.document_group) metaItems.push(`<span class="doc-card-chip">${escapeHtml(doc.document_group)}</span>`);
+      if (doc.document_category) metaItems.push(`<span class="doc-card-chip">${escapeHtml(doc.document_category)}</span>`);
+
+      document.getElementById('docDetailMeta').innerHTML = metaItems.length
+        ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${metaItems.join('')}</div>
+           <div style="margin-top:10px;font-size:12px;color:var(--text-s)">
+             <strong>경로:</strong> ${escapeHtml(doc.source_path || doc.original_source_path || '-')}
+           </div>`
+        : '-';
+
+      // 청크
+      const chunks = doc.chunks || [];
+      if (chunks.length > 0) {
+        document.getElementById('docDetailChunks').innerHTML = chunks.slice(0, 5).map((chunk, i) => `
+          <div class="doc-detail-chunk">
+            <div class="doc-detail-chunk-header">
+              <span>청크 #${i + 1}</span>
+              <span>Score: ${Number(chunk.score || 0).toFixed(4)}</span>
+            </div>
+            <div>${escapeHtml((chunk.text || chunk.content || '').slice(0, 300))}${(chunk.text || chunk.content || '').length > 300 ? '...' : ''}</div>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('docDetailChunks').innerHTML = '<div style="color:var(--gray-400);font-size:12px">청크 정보 없음</div>';
+      }
+
+      panel.classList.add('open');
+    }
+
+    function closeDocDetail() {
+      document.getElementById('docDetailPanel').classList.remove('open');
+      _currentDocDetail = null;
+    }
+
+    function openDocDetailFile() {
+      if (_currentDocDetail) {
+        openFilePreview(
+          _currentDocDetail.source_path || _currentDocDetail.original_source_path || '',
+          _currentDocDetail.input_path || '',
+          _currentDocDetail.document_id || ''
+        );
+      }
+    }
+
+    function downloadDocDetail() {
+      if (_currentDocDetail) {
+        const path = _currentDocDetail.input_path || _currentDocDetail.source_path || '';
+        if (path) {
+          window.location.href = `${API_BASE}/files/download?path=${encodeURIComponent(path)}`;
+        }
+      }
+    }
+
+    function copyDocDetailPath() {
+      if (_currentDocDetail) {
+        const path = _currentDocDetail.source_path || _currentDocDetail.original_source_path || '';
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(path).then(() => showToast('경로가 복사되었습니다', 'success'));
+        }
+      }
+    }
+
+    // ── Mock 데이터 (API 오프라인 시 테스트용) ─────────────────────────────
+    var MOCK_DOCUMENTS = [
+      {
+        rank: 1,
+        document_id: 'DOC_2024_ISP_001',
+        project_name: 'K-water 스마트물관리 ISP 수립',
+        file_name: '01_전략및방법론.pdf',
+        category: 'proposal',
+        organization: 'K-water',
+        project_year: '2024',
+        collection: 'weeslee_proposals',
+        document_group: '제안서',
+        document_category: '전략및방법론',
+        best_score: 0.8923,
+        ranking_score: 0.9145,
+        hit_count: 12,
+        source_path: '\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스\\02. 제안서\\K-water\\2024_스마트물관리_ISP\\01_전략및방법론.pdf',
+        chunks: [
+          { text: '본 사업은 K-water의 스마트물관리 체계 고도화를 위한 정보화전략계획(ISP) 수립을 목표로 합니다. 디지털 트윈 기반 실시간 물관리 시스템 구축을 통해...', score: 0.8923 },
+          { text: '주요 추진 전략으로 AI 기반 수요 예측, IoT 센서 네트워크 확장, 클라우드 기반 통합 플랫폼 구축을 제안합니다...', score: 0.8456 }
+        ]
+      },
+      {
+        rank: 2,
+        document_id: 'DOC_2024_ISMP_002',
+        project_name: '기상청 AX 전환 ISMP',
+        file_name: '02_현황분석보고서.pdf',
+        category: 'deliverable',
+        organization: '기상청',
+        project_year: '2024',
+        collection: 'weeslee_deliverables',
+        document_group: '산출물',
+        document_category: '현황분석',
+        best_score: 0.8567,
+        ranking_score: 0.8823,
+        hit_count: 8,
+        source_path: '\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스\\03. 산출물\\기상청\\2024_AX전환_ISMP\\02_현황분석보고서.pdf',
+        chunks: [
+          { text: '기상청의 현행 시스템 분석 결과, AI 전환(AX)을 위한 핵심 과제로 데이터 표준화, 레거시 시스템 현대화, AI 모델 통합이 도출되었습니다...', score: 0.8567 }
+        ]
+      },
+      {
+        rank: 3,
+        document_id: 'DOC_2023_RFP_003',
+        project_name: '보건복지부 통합정보시스템 구축',
+        file_name: 'RFP_과업지시서.pdf',
+        category: 'rfp',
+        organization: '보건복지부',
+        project_year: '2023',
+        collection: 'weeslee_rfp',
+        document_group: 'RFP',
+        document_category: '과업지시서',
+        best_score: 0.7934,
+        ranking_score: 0.8102,
+        hit_count: 5,
+        source_path: '\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스\\01. RFP\\보건복지부\\2023_통합정보시스템\\RFP_과업지시서.pdf',
+        chunks: []
+      }
+    ];
+
+    function loadMockData() {
+      renderResults(MOCK_DOCUMENTS);
+      const mockAnswer = `K-water 스마트물관리 ISP 수립 사업에서 제시된 전략을 참고하면, 다음과 같은 접근법을 권장합니다:
+
+1. **디지털 트윈 기반 실시간 모니터링**: IoT 센서 네트워크를 통한 실시간 데이터 수집 및 분석
+2. **AI 기반 예측 시스템**: 수요 예측 및 이상 징후 탐지를 위한 머신러닝 모델 적용
+3. **클라우드 통합 플랫폼**: 분산된 시스템을 클라우드 기반으로 통합하여 운영 효율성 제고
+
+기상청 AX 전환 사례에서도 유사한 패턴이 확인되며, 레거시 시스템 현대화와 데이터 표준화가 선행되어야 합니다.`;
+
+      renderGroundedAnswer(mockAnswer, MOCK_DOCUMENTS.slice(0, 3), 0.87);
+      showToast('Mock 데이터 로드됨 (테스트 모드)', 'info');
+    }
+
+    function renderGroundedAnswer(answer, sources, confidence) {
+      const ragPanel = document.getElementById('ragAnswerSection');
+      const confidencePercent = Math.round(confidence * 100);
+
+      ragPanel.innerHTML = `
+        <div class="grounded-answer">
+          <div class="grounded-header">
+            <div class="grounded-title">
+              <span class="icon">✨</span>
+              <span>AI 생성 답변</span>
+            </div>
+            <div class="grounded-confidence">
+              <span>신뢰도</span>
+              <div class="confidence-bar">
+                <div class="confidence-fill" style="width:${confidencePercent}%"></div>
+              </div>
+              <span style="font-weight:600;color:${confidence > 0.7 ? 'var(--good)' : 'var(--warn)'}">${confidencePercent}%</span>
+            </div>
+          </div>
+          <div class="grounded-content">
+            ${answer.split('\n').map(p => p.trim() ? `<p>${escapeHtml(p)}</p>` : '').join('')}
+          </div>
+          <div class="grounded-sources">
+            <div class="grounded-sources-title">
+              <span>📚</span>
+              <span>참조 문서 (${sources.length}건)</span>
+            </div>
+            <div class="source-tags">
+              ${sources.map((s, i) => `
+                <span class="source-tag" onclick="openDocDetailByIndex(${i})">
+                  <span>📄</span>
+                  <span>${escapeHtml(s.project_name || s.file_name || s.document_id)}</span>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
   </script>
 
   <!-- ── File Preview Modal ─────────────────────────────────────────── -->
@@ -3926,6 +4638,36 @@
         <button id="previewPrintBtn" class="doc-link" type="button" onclick="printPreview()" style="display:none">출력</button>
         <a id="previewDlBtn" class="doc-link" href="#" download>다운로드</a>
         <button class="doc-link" type="button" onclick="closePreview()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Detail Panel -->
+  <div class="doc-detail-panel" id="docDetailPanel">
+    <div class="doc-detail-header">
+      <div style="font-weight:600;font-size:14px;color:var(--navy)" id="docDetailTitle">문서 상세</div>
+      <button class="doc-detail-close" onclick="closeDocDetail()">×</button>
+    </div>
+    <div class="doc-detail-body">
+      <div class="doc-detail-section">
+        <div class="doc-detail-section-title">기본 정보</div>
+        <div class="doc-detail-content" id="docDetailInfo">-</div>
+      </div>
+      <div class="doc-detail-section">
+        <div class="doc-detail-section-title">메타데이터</div>
+        <div class="doc-detail-content" id="docDetailMeta">-</div>
+      </div>
+      <div class="doc-detail-section">
+        <div class="doc-detail-section-title">매칭된 청크</div>
+        <div class="doc-detail-chunks" id="docDetailChunks">-</div>
+      </div>
+      <div class="doc-detail-section">
+        <div class="doc-detail-section-title">액션</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="openDocDetailFile()">파일 열기</button>
+          <button class="btn btn-outline btn-sm" onclick="downloadDocDetail()">다운로드</button>
+          <button class="btn btn-outline btn-sm" onclick="copyDocDetailPath()">경로 복사</button>
+        </div>
       </div>
     </div>
   </div>
