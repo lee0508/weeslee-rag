@@ -1169,7 +1169,53 @@
     .agent-results, .wiki-results {
       flex: 1;
       overflow-y: auto;
+      padding: 8px;
     }
+    .wiki-item {
+      padding: 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .wiki-item:hover {
+      border-color: var(--navy);
+      background: var(--gray-50);
+    }
+    .wiki-item-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--gray-700);
+      margin-bottom: 4px;
+    }
+    .wiki-item-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--gray-400);
+    }
+    .wiki-detail {
+      padding: 8px;
+    }
+    .wiki-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .wiki-detail-content {
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .wiki-detail-content h2 { font-size: 18px; margin: 16px 0 8px; }
+    .wiki-detail-content h3 { font-size: 15px; margin: 12px 0 6px; }
+    .wiki-detail-content h4 { font-size: 13px; margin: 10px 0 4px; }
+    .wiki-detail-content table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+    .wiki-detail-content td { padding: 6px 8px; border: 1px solid var(--gray-200); }
+    .wiki-detail-content tr:first-child td { background: var(--gray-50); font-weight: 600; }
 
     /* ── Knowledge Graph Visualization ── */
     #graphPanel {
@@ -1898,6 +1944,7 @@
       result_panel:'\uACB0\uACFC \uD328\uB110', tab_graph:'\uADF8\uB798\uD504', tab_answer_interpret:'\uB2F5\uBCC0\uD574\uC11D', tab_related_files:'\uAD00\uB828\uD30C\uC77C',
       tab_rag_result:'RAG', tab_agent_result:'Agent', tab_wiki_result:'Wiki',
       agent_empty:'Agent \uBAA8\uB4DC\uB97C \uC0AC\uC6A9\uD558\uBA74 \uB2E4\uC911 \uCFFC\uB9AC \uACB0\uACFC\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.', wiki_empty:'Wiki \uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.', rag_evidence_docs:'\uADFC\uAC70 \uBB38\uC11C',
+      wiki_load_error:'Wiki \uB85C\uB4DC \uC2E4\uD328', wiki_back:'\u2190 \uBAA9\uB85D',
       graph_empty:'RAG\uB97C \uC2E4\uD589\uD558\uBA74 \uC5F0\uAD00 \uADF8\uB798\uD504\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.',
       graph_loading:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC911..', graph_error:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC2E4\uD328',
       graph_nodes:'{n}\uAC1C \uB178\uB4DC', graph_edges:'{e}\uAC1C \uC5E3\uC9C0',
@@ -2073,6 +2120,7 @@
         result_panel:'Result Panel', tab_graph:'Graph', tab_answer_interpret:'Answer', tab_related_files:'Files',
         tab_rag_result:'RAG', tab_agent_result:'Agent', tab_wiki_result:'Wiki',
         agent_empty:'Use Agent mode to display multi-query results.', wiki_empty:'No Wiki search results.', rag_evidence_docs:'Evidence Documents',
+        wiki_load_error:'Wiki load failed', wiki_back:'← Back',
         graph_empty:'Run RAG to display the relationship graph.',
         graph_loading:'Loading graph...', graph_error:'Failed to load graph',
         graph_nodes:'{n} nodes', graph_edges:'{e} edges',
@@ -2273,6 +2321,9 @@
       document.getElementById('wikiPanel').classList.toggle('active', tabName === 'wiki');
       if (tabName === 'graph' && _kgCy) {
         setTimeout(() => _kgCy.resize(), 50);
+      }
+      if (tabName === 'wiki') {
+        loadWikiProjects();
       }
     }
 
@@ -2845,6 +2896,94 @@
           <div class="answer-evidence-title">${t('answer_found_files')}</div>
           ${evidenceHtml}
         </div>`;
+
+      // RAG 탭 근거 문서 섹션 활성화
+      const ragDocsSection = document.getElementById('ragDocsSection');
+      const ragResultDocs = document.getElementById('ragResultDocs');
+      if (ragDocsSection && ragResultDocs && evidenceDocs.length > 0) {
+        ragDocsSection.style.display = 'block';
+        ragResultDocs.innerHTML = renderDocumentCards(evidenceDocs.slice(0, 10), true);
+      }
+    }
+
+    // ── Wiki 탭 기능 ──
+    async function loadWikiProjects() {
+      const wikiEmpty = document.querySelector('.wiki-empty');
+      const wikiResults = document.getElementById('wikiResults');
+      if (!wikiResults) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/wiki/projects`);
+        if (!response.ok) throw new Error('Wiki API 오류');
+        const data = await response.json();
+
+        if (!data.pages || data.pages.length === 0) {
+          wikiEmpty.style.display = 'block';
+          wikiResults.style.display = 'none';
+          return;
+        }
+
+        wikiEmpty.style.display = 'none';
+        wikiResults.style.display = 'block';
+        wikiResults.innerHTML = data.pages.map(page => `
+          <div class="wiki-item" onclick="loadWikiDetail('${escapeHtml(page.slug)}')">
+            <div class="wiki-item-title">${escapeHtml(page.title || page.slug)}</div>
+            <div class="wiki-item-meta">
+              <span class="wiki-item-date">${escapeHtml(page.generated_at || '')}</span>
+              <span class="wiki-item-size">${Math.round((page.size_bytes || 0) / 1024)}KB</span>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Wiki 로드 오류:', error);
+        wikiEmpty.textContent = t('wiki_load_error') || 'Wiki 로드 실패';
+        wikiEmpty.style.display = 'block';
+        wikiResults.style.display = 'none';
+      }
+    }
+
+    async function loadWikiDetail(slug) {
+      const wikiResults = document.getElementById('wikiResults');
+      if (!wikiResults) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/wiki/projects/${encodeURIComponent(slug)}`);
+        if (!response.ok) throw new Error('Wiki 상세 조회 실패');
+        const data = await response.json();
+
+        wikiResults.innerHTML = `
+          <div class="wiki-detail">
+            <div class="wiki-detail-header">
+              <button class="btn btn-outline btn-sm" onclick="loadWikiProjects()">${t('wiki_back') || '← 목록'}</button>
+              <span class="wiki-detail-meta">${escapeHtml(data.generated_at || '')}</span>
+            </div>
+            <div class="wiki-detail-content">${renderMarkdown(data.markdown || '')}</div>
+          </div>
+        `;
+      } catch (error) {
+        showToast('Wiki 상세 로드 실패: ' + error.message, 'error');
+      }
+    }
+
+    function renderMarkdown(md) {
+      // 간단한 마크다운 렌더링 (헤더, 볼드, 리스트, 테이블)
+      return md
+        .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/^(?!<[hlutp])/gm, '<p>')
+        .replace(/(?<![>])$/gm, '</p>')
+        .replace(/<p><\/p>/g, '')
+        .replace(/\|(.+)\|/g, (match) => {
+          const cells = match.split('|').filter(c => c.trim());
+          if (cells.every(c => /^-+$/.test(c.trim()))) return '';
+          return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+        });
     }
 
     function copyPath(btn) {
