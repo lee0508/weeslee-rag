@@ -3033,6 +3033,7 @@
     function renderResultPanel(data) {
       const resultSummary = document.getElementById('resultSummary');
       const resultDocs = document.getElementById('resultDocs');
+      if (!resultSummary || !resultDocs) return;
       const docCount = data.documents?.length || 0;
       const topDocument = docCount ? (data.documents[0].project_name || data.documents[0].document_id) : '-';
       const answerLength = (data.draft_answer || '').length;
@@ -3288,7 +3289,7 @@
         }
 
         if (!data.success) {
-          status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
+          if (status) status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
           renderResultPanel(data);
           switchAnswerTab('rag');
           return;
@@ -3296,7 +3297,7 @@
 
         const expandedNote = data.expanded_query
           ? ` (${_lang === 'ko' ? '확장' : 'expanded'}: ${data.expanded_query.slice(0, 60)}...)` : '';
-        status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote;
+        if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote;
         _hasAnswer = answerProvider === 'none';
         renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
         renderResultPanel(data);
