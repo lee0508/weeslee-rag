@@ -1136,6 +1136,41 @@
       .rv-rating { flex-wrap: wrap; }
     }
 
+    /* ── 4-Tab Result Panels ── */
+    #ragPanel, #agentPanel, #wikiPanel {
+      height: 100%;
+      min-height: 300px;
+      flex-direction: column;
+    }
+    #ragPanel.active, #agentPanel.active, #wikiPanel.active {
+      display: flex;
+    }
+    .rag-answer-section {
+      padding: 12px;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+    .rag-docs-section {
+      flex: 1;
+    }
+    .rag-docs-section .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-600);
+      margin-bottom: 8px;
+    }
+    .agent-empty, .wiki-empty {
+      padding: 40px;
+      text-align: center;
+      color: var(--gray-400);
+      font-size: 14px;
+    }
+    .agent-results, .wiki-results {
+      flex: 1;
+      overflow-y: auto;
+    }
+
     /* ── Knowledge Graph Visualization ── */
     #graphPanel {
       height: 100%;
@@ -1514,13 +1549,27 @@
         <div class="card-header">
           <div class="card-title" data-i18n="result_panel">결과 패널</div>
           <div class="panel-tabs">
-            <button class="panel-tab active" type="button" data-tab="graph" onclick="switchAnswerTab('graph')" data-i18n="tab_graph">그래프</button>
-            <button class="panel-tab" type="button" data-tab="answer" onclick="switchAnswerTab('answer')" data-i18n="tab_answer_interpret">답변해석</button>
-            <button class="panel-tab" type="button" data-tab="files" onclick="switchAnswerTab('files')" data-i18n="tab_related_files">관련파일</button>
+            <button class="panel-tab active" type="button" data-tab="rag" onclick="switchAnswerTab('rag')" data-i18n="tab_rag_result">RAG</button>
+            <button class="panel-tab" type="button" data-tab="agent" onclick="switchAnswerTab('agent')" data-i18n="tab_agent_result">Agent</button>
+            <button class="panel-tab" type="button" data-tab="graph" onclick="switchAnswerTab('graph')" data-i18n="tab_graph">Graph</button>
+            <button class="panel-tab" type="button" data-tab="wiki" onclick="switchAnswerTab('wiki')" data-i18n="tab_wiki_result">Wiki</button>
           </div>
         </div>
-        <!-- 그래프 탭 -->
-        <div class="card-body panel-view active" id="graphPanel">
+        <!-- RAG 탭 (FAISS 검색 결과 + LLM 답변) -->
+        <div class="card-body panel-view active" id="ragPanel">
+          <div class="rag-answer-section" id="ragAnswerSection" data-i18n="no_answer">아직 답변이 없습니다.</div>
+          <div class="rag-docs-section" id="ragDocsSection" style="display:none">
+            <div class="section-title" data-i18n="rag_evidence_docs">근거 문서</div>
+            <div class="result-docs" id="ragResultDocs"></div>
+          </div>
+        </div>
+        <!-- Agent 탭 (Multi-Query/확장 검색 결과) -->
+        <div class="card-body panel-view" id="agentPanel">
+          <div class="agent-empty" data-i18n="agent_empty">Agent 모드를 사용하면 다중 쿼리 결과가 표시됩니다.</div>
+          <div class="agent-results" id="agentResults" style="display:none"></div>
+        </div>
+        <!-- Graph 탭 -->
+        <div class="card-body panel-view" id="graphPanel">
           <div class="graph-legend">
             <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#22c55e"></div>기관</div>
             <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#E8971F"></div>프로젝트</div>
@@ -1536,19 +1585,10 @@
             </div>
           </div>
         </div>
-        <!-- 답변해석 탭 -->
-        <div class="card-body panel-view answer" id="answerPanel" data-i18n="no_answer">아직 답변이 없습니다.</div>
-        <!-- 관련파일 탭 -->
-        <div class="card-body panel-view result-view" id="filesPanel">
-          <div class="result-summary" id="resultSummary">
-            <div class="result-metric">
-              <div class="label" data-i18n="result_status">상태</div>
-              <div class="value" data-i18n="result_no_result">결과 없음</div>
-            </div>
-          </div>
-          <div class="result-docs" id="resultDocs">
-            <div class="result-json" id="resultPayload" data-i18n="result_run_hint">쿼리를 실행하면 결과를 확인할 수 있습니다.</div>
-          </div>
+        <!-- Wiki 탭 -->
+        <div class="card-body panel-view" id="wikiPanel">
+          <div class="wiki-empty" data-i18n="wiki_empty">Wiki 검색 결과가 없습니다.</div>
+          <div class="wiki-results" id="wikiResults" style="display:none"></div>
         </div>
       </div>
     </aside>
@@ -1856,6 +1896,8 @@
       rfp_remove:'\uC120\uD0DD \uD574\uC81C',
       rfp_active_notice:'RFP \uCCA8\uBD80 \uD30C\uC77C\uC774 \uD3EC\uD568\uB418\uC5B4 rfp_analysis \uBAA8\uB4DC\uB85C \uC2E4\uD589\uD569\uB2C8\uB2E4.',
       result_panel:'\uACB0\uACFC \uD328\uB110', tab_graph:'\uADF8\uB798\uD504', tab_answer_interpret:'\uB2F5\uBCC0\uD574\uC11D', tab_related_files:'\uAD00\uB828\uD30C\uC77C',
+      tab_rag_result:'RAG', tab_agent_result:'Agent', tab_wiki_result:'Wiki',
+      agent_empty:'Agent \uBAA8\uB4DC\uB97C \uC0AC\uC6A9\uD558\uBA74 \uB2E4\uC911 \uCFFC\uB9AC \uACB0\uACFC\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.', wiki_empty:'Wiki \uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.', rag_evidence_docs:'\uADFC\uAC70 \uBB38\uC11C',
       graph_empty:'RAG\uB97C \uC2E4\uD589\uD558\uBA74 \uC5F0\uAD00 \uADF8\uB798\uD504\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.',
       graph_loading:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC911..', graph_error:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC2E4\uD328',
       graph_nodes:'{n}\uAC1C \uB178\uB4DC', graph_edges:'{e}\uAC1C \uC5E3\uC9C0',
@@ -2029,6 +2071,8 @@
         rfp_remove:'✕ Remove',
         rfp_active_notice:'RFP file attached — running in rfp_analysis mode.',
         result_panel:'Result Panel', tab_graph:'Graph', tab_answer_interpret:'Answer', tab_related_files:'Files',
+        tab_rag_result:'RAG', tab_agent_result:'Agent', tab_wiki_result:'Wiki',
+        agent_empty:'Use Agent mode to display multi-query results.', wiki_empty:'No Wiki search results.', rag_evidence_docs:'Evidence Documents',
         graph_empty:'Run RAG to display the relationship graph.',
         graph_loading:'Loading graph...', graph_error:'Failed to load graph',
         graph_nodes:'{n} nodes', graph_edges:'{e} edges',
@@ -2070,7 +2114,7 @@
       document.getElementById('langKo').classList.toggle('active', _lang === 'ko');
       document.getElementById('langEn').classList.toggle('active', _lang === 'en');
       // dynamic elements (only update when in initial state)
-      if (!_hasAnswer) document.getElementById('answerPanel').innerHTML = `<div class="answer-note">${t('no_answer')}</div>`;
+      if (!_hasAnswer) document.getElementById('ragAnswerSection').innerHTML = `<div class="answer-note">${t('no_answer')}</div>`;
       if (!_queryRan) document.getElementById('queryStatus').textContent = t('ready');
       syncAnswerModeLabel();
       onSearchModeChange();
@@ -2216,16 +2260,17 @@
       const provider = document.getElementById('answerProvider').value;
       document.getElementById('heroAnswerMode').textContent =
         provider === 'none' ? t('search_only_short') : t('generate_short');
-      if (provider === 'none') switchAnswerTab('files');
+      if (provider === 'none') switchAnswerTab('rag');
     }
 
     function switchAnswerTab(tabName) {
       document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === tabName);
       });
+      document.getElementById('ragPanel').classList.toggle('active', tabName === 'rag');
+      document.getElementById('agentPanel').classList.toggle('active', tabName === 'agent');
       document.getElementById('graphPanel').classList.toggle('active', tabName === 'graph');
-      document.getElementById('answerPanel').classList.toggle('active', tabName === 'answer');
-      document.getElementById('filesPanel').classList.toggle('active', tabName === 'files');
+      document.getElementById('wikiPanel').classList.toggle('active', tabName === 'wiki');
       if (tabName === 'graph' && _kgCy) {
         setTimeout(() => _kgCy.resize(), 50);
       }
@@ -2610,7 +2655,7 @@
 
       _queryRan = true;
       status.textContent = t('running');
-      document.getElementById('answerPanel').innerHTML = `<div class="answer-note">${t('generating')}</div>`;
+      document.getElementById('ragAnswerSection').innerHTML = `<div class="answer-note">${t('generating')}</div>`;
       document.getElementById('results').innerHTML = '';
 
       const runBtn = document.querySelector('button[onclick="runQuery()"]');
@@ -2669,7 +2714,7 @@
         if (!data.success) {
           status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
           renderResultPanel(data);
-          switchAnswerTab('files');
+          switchAnswerTab('rag');
           return;
         }
 
@@ -2687,14 +2732,14 @@
           loadGraphFromQuery(query, data.documents || []);
           switchAnswerTab('graph');
         } else {
-          switchAnswerTab(answerProvider === 'none' ? 'files' : 'answer');
+          switchAnswerTab('rag');
         }
 
         if (_rfpSelectedFile) {
           _hasAnswer = answerProvider !== 'none' && Boolean(data.draft_answer);
           renderAnswerPanel(data, answerProvider === 'none' ? '' : (data.draft_answer || ''), answerProvider === 'none');
           pushHistory(query || _rfpSelectedFile.name, data);
-          if (!isGraphMode && answerProvider !== 'none') switchAnswerTab('answer');
+          if (!isGraphMode && answerProvider !== 'none') switchAnswerTab('rag');
         } else if (answerProvider === 'none') {
           pushHistory(query, data);
         } else {
@@ -2717,11 +2762,11 @@
             false
           );
           pushHistory(query, { ...data, draft_answer: answerData.draft_answer || '', evidence_documents: answerData.evidence_documents || [] });
-          if (!isGraphMode) switchAnswerTab('answer');
+          if (!isGraphMode) switchAnswerTab('rag');
         }
       } catch (error) {
         status.textContent = `${t('query_failed')}: ${error.message}`;
-        document.getElementById('answerPanel').innerHTML = '';
+        document.getElementById('ragAnswerSection').innerHTML = '';
         showToast(`${t('query_failed')}: ${error.message}`, 'error');
       } finally {
         runBtn.disabled = false;
@@ -2765,7 +2810,7 @@
     }
 
     function renderAnswerPanel(payload, answerText, searchOnly = false) {
-      const answerPanel = document.getElementById('answerPanel');
+      const answerPanel = document.getElementById('ragAnswerSection');
       const evidenceDocs = payload?.evidence_documents || payload?.documents || [];
       const answerBody = answerText
         ? `<div class="answer-body">${escapeHtml(answerText)}</div>`
