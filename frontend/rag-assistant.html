@@ -1217,6 +1217,119 @@
     .wiki-detail-content td { padding: 6px 8px; border: 1px solid var(--gray-200); }
     .wiki-detail-content tr:first-child td { background: var(--gray-50); font-weight: 600; }
 
+    /* ── Agent 탭 스타일 ── */
+    .agent-analysis {
+      padding: 12px;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+    .agent-section {
+      margin-bottom: 16px;
+    }
+    .agent-section:last-child { margin-bottom: 0; }
+    .agent-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .agent-section-title .icon { font-size: 14px; }
+    .agent-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .agent-mode-badge.graph_rag { background: #dbeafe; color: #1d4ed8; }
+    .agent-mode-badge.rfp_analysis { background: #fef3c7; color: #b45309; }
+    .agent-mode-badge.bid_project { background: #dcfce7; color: #15803d; }
+    .agent-mode-badge.general { background: var(--gray-100); color: var(--gray-600); }
+    .agent-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .agent-keyword {
+      padding: 3px 8px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+    .agent-keyword.tech { background: #8b5cf6; }
+    .agent-keyword.org { background: #22c55e; }
+    .agent-keyword.year { background: #f59e0b; }
+    .agent-filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .agent-filter-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .agent-filter-item .label {
+      color: var(--gray-400);
+    }
+    .agent-filter-item .value {
+      color: var(--gray-700);
+      font-weight: 500;
+    }
+    .agent-expanded-query {
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--gray-600);
+      max-height: 80px;
+      overflow-y: auto;
+    }
+    .agent-multi-queries {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .agent-multi-query {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .agent-multi-query:hover {
+      border-color: var(--navy);
+      background: var(--gray-50);
+    }
+    .agent-multi-query .num {
+      width: 20px;
+      height: 20px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .agent-multi-query .text { flex: 1; color: var(--gray-700); }
+
     /* ── Knowledge Graph Visualization ── */
     #graphPanel {
       height: 100%;
@@ -1943,7 +2056,10 @@
       rfp_active_notice:'RFP \uCCA8\uBD80 \uD30C\uC77C\uC774 \uD3EC\uD568\uB418\uC5B4 rfp_analysis \uBAA8\uB4DC\uB85C \uC2E4\uD589\uD569\uB2C8\uB2E4.',
       result_panel:'\uACB0\uACFC \uD328\uB110', tab_graph:'\uADF8\uB798\uD504', tab_answer_interpret:'\uB2F5\uBCC0\uD574\uC11D', tab_related_files:'\uAD00\uB828\uD30C\uC77C',
       tab_rag_result:'RAG', tab_agent_result:'Agent', tab_wiki_result:'Wiki',
-      agent_empty:'Agent \uBAA8\uB4DC\uB97C \uC0AC\uC6A9\uD558\uBA74 \uB2E4\uC911 \uCFFC\uB9AC \uACB0\uACFC\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.', wiki_empty:'Wiki \uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.', rag_evidence_docs:'\uADFC\uAC70 \uBB38\uC11C',
+      agent_empty:'Agent 모드를 사용하면 다중 쿼리 결과가 표시됩니다.', wiki_empty:'Wiki 검색 결과가 없습니다.', rag_evidence_docs:'근거 문서',
+      agent_detected_mode:'감지된 모드', agent_expanded:'확장 쿼리', agent_keywords:'키워드', agent_filters:'필터 제안',
+      agent_org:'발주기관', agent_year:'연도', agent_doc_group:'문서그룹', agent_doc_category:'문서카테고리',
+      agent_multi_query:'다중 쿼리', agent_tech:'기술', agent_project_type:'프로젝트 유형',
       wiki_load_error:'Wiki \uB85C\uB4DC \uC2E4\uD328', wiki_back:'\u2190 \uBAA9\uB85D',
       graph_empty:'RAG\uB97C \uC2E4\uD589\uD558\uBA74 \uC5F0\uAD00 \uADF8\uB798\uD504\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.',
       graph_loading:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC911..', graph_error:'\uADF8\uB798\uD504 \uB85C\uB4DC \uC2E4\uD328',
@@ -2120,6 +2236,9 @@
         result_panel:'Result Panel', tab_graph:'Graph', tab_answer_interpret:'Answer', tab_related_files:'Files',
         tab_rag_result:'RAG', tab_agent_result:'Agent', tab_wiki_result:'Wiki',
         agent_empty:'Use Agent mode to display multi-query results.', wiki_empty:'No Wiki search results.', rag_evidence_docs:'Evidence Documents',
+        agent_detected_mode:'Detected Mode', agent_expanded:'Expanded Query', agent_keywords:'Keywords', agent_filters:'Suggested Filters',
+        agent_org:'Organization', agent_year:'Year', agent_doc_group:'Doc Group', agent_doc_category:'Doc Category',
+        agent_multi_query:'Multi Query', agent_tech:'Technology', agent_project_type:'Project Type',
         wiki_load_error:'Wiki load failed', wiki_back:'← Back',
         graph_empty:'Run RAG to display the relationship graph.',
         graph_loading:'Loading graph...', graph_error:'Failed to load graph',
@@ -2709,6 +2828,9 @@
       document.getElementById('ragAnswerSection').innerHTML = `<div class="answer-note">${t('generating')}</div>`;
       document.getElementById('results').innerHTML = '';
 
+      // Agent 탭에 쿼리 분석 결과 표시 (비동기, 메인 검색과 병렬)
+      analyzeAndRenderAgent(query);
+
       const runBtn = document.querySelector('button[onclick="runQuery()"]');
       runBtn.disabled = true;
       runBtn.textContent = t('running_btn');
@@ -2984,6 +3106,163 @@
           if (cells.every(c => /^-+$/.test(c.trim()))) return '';
           return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
         });
+    }
+
+    // ── Agent 탭 쿼리 분석 결과 렌더링 ──────────────────────────────────
+    let _lastAnalysis = null;
+
+    async function analyzeAndRenderAgent(query) {
+      const agentEmpty = document.querySelector('.agent-empty');
+      const agentResults = document.getElementById('agentResults');
+      if (!agentResults) return;
+
+      if (!query || query.trim().length < 2) {
+        agentEmpty.style.display = 'block';
+        agentResults.style.display = 'none';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/rag/analyze-prompt`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        if (!response.ok) throw new Error('분석 API 오류');
+        const data = await response.json();
+        _lastAnalysis = data;
+
+        agentEmpty.style.display = 'none';
+        agentResults.style.display = 'block';
+        agentResults.innerHTML = renderAgentAnalysis(data);
+      } catch (error) {
+        console.error('쿼리 분석 오류:', error);
+        agentEmpty.textContent = '쿼리 분석 실패';
+        agentEmpty.style.display = 'block';
+        agentResults.style.display = 'none';
+      }
+    }
+
+    function renderAgentAnalysis(data) {
+      const modeInfo = data.mode_detection || {};
+      const mode = modeInfo.mode || 'general';
+      const modeReason = modeInfo.reason || '';
+
+      const modeLabels = {
+        'general': 'General',
+        'graph_rag': 'Graph RAG',
+        'rfp_analysis': 'RFP 분석',
+        'bid_project': '입찰 프로젝트'
+      };
+
+      // 키워드 섹션
+      const keywords = data.extracted_keywords || [];
+      const techs = data.detected_technologies || [];
+      const keywordHtml = keywords.length
+        ? keywords.slice(0, 12).map(k => `<span class="agent-keyword">${escapeHtml(k)}</span>`).join('')
+        : '<span style="color:var(--gray-400);font-size:12px">감지된 키워드 없음</span>';
+
+      const techHtml = techs.length
+        ? techs.map(t => `<span class="agent-keyword tech">${escapeHtml(t)}</span>`).join('')
+        : '';
+
+      // 필터 제안
+      const filters = data.suggested_filters || {};
+      let filterItems = [];
+      if (data.detected_organization) filterItems.push(`<div class="agent-filter-item"><span class="label">${t('agent_org')}:</span><span class="value">${escapeHtml(data.detected_organization)}</span></div>`);
+      if (data.detected_year) filterItems.push(`<div class="agent-filter-item"><span class="label">${t('agent_year')}:</span><span class="value">${escapeHtml(data.detected_year)}</span></div>`);
+      if (data.detected_project_type) filterItems.push(`<div class="agent-filter-item"><span class="label">${t('agent_project_type')}:</span><span class="value">${escapeHtml(data.detected_project_type)}</span></div>`);
+      if (data.detected_document_group) filterItems.push(`<div class="agent-filter-item"><span class="label">${t('agent_doc_group')}:</span><span class="value">${escapeHtml(data.detected_document_group)}</span></div>`);
+      if (data.detected_document_category) filterItems.push(`<div class="agent-filter-item"><span class="label">${t('agent_doc_category')}:</span><span class="value">${escapeHtml(data.detected_document_category)}</span></div>`);
+
+      // 확장 쿼리
+      const expandedQuery = data.expanded_query || data.original_query || '';
+
+      // 다중 쿼리 생성 (키워드 기반)
+      const multiQueries = generateMultiQueries(data);
+
+      return `
+        <div class="agent-analysis">
+          <div class="agent-section">
+            <div class="agent-section-title"><span class="icon">🎯</span>${t('agent_detected_mode')}</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="agent-mode-badge ${mode}">${modeLabels[mode] || mode}</span>
+              <span style="font-size:12px;color:var(--gray-500)">${escapeHtml(modeReason)}</span>
+            </div>
+          </div>
+
+          <div class="agent-section">
+            <div class="agent-section-title"><span class="icon">🏷️</span>${t('agent_keywords')}</div>
+            <div class="agent-keywords">
+              ${keywordHtml}
+              ${techHtml}
+            </div>
+          </div>
+
+          ${filterItems.length ? `
+          <div class="agent-section">
+            <div class="agent-section-title"><span class="icon">🔍</span>${t('agent_filters')}</div>
+            <div class="agent-filter-row">${filterItems.join('')}</div>
+          </div>
+          ` : ''}
+
+          <div class="agent-section">
+            <div class="agent-section-title"><span class="icon">📝</span>${t('agent_expanded')}</div>
+            <div class="agent-expanded-query">${escapeHtml(expandedQuery)}</div>
+          </div>
+
+          ${multiQueries.length ? `
+          <div class="agent-section">
+            <div class="agent-section-title"><span class="icon">🔄</span>${t('agent_multi_query')}</div>
+            <div class="agent-multi-queries">
+              ${multiQueries.map((q, i) => `
+                <div class="agent-multi-query" onclick="applyMultiQuery('${escapeHtml(q)}')">
+                  <span class="num">${i + 1}</span>
+                  <span class="text">${escapeHtml(q)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function generateMultiQueries(analysisData) {
+      const queries = [];
+      const original = analysisData.original_query || '';
+      const org = analysisData.detected_organization;
+      const year = analysisData.detected_year;
+      const techs = analysisData.detected_technologies || [];
+      const docGroup = analysisData.detected_document_group;
+      const projectType = analysisData.detected_project_type;
+
+      // 기본 확장
+      if (org && projectType) {
+        queries.push(`${org} ${projectType} 사업`);
+      }
+      if (techs.length && docGroup) {
+        queries.push(`${techs[0]} ${docGroup}`);
+      }
+      if (org && docGroup) {
+        queries.push(`${org} ${docGroup}`);
+      }
+      if (year && projectType) {
+        queries.push(`${year}년 ${projectType}`);
+      }
+      if (techs.length > 1) {
+        queries.push(`${techs.slice(0, 2).join(' ')} 적용 사례`);
+      }
+
+      return queries.slice(0, 4);
+    }
+
+    function applyMultiQuery(query) {
+      const queryInput = document.getElementById('queryInput');
+      if (queryInput) {
+        queryInput.value = query;
+        showToast('다중 쿼리 적용됨', 'success');
+      }
     }
 
     function copyPath(btn) {
