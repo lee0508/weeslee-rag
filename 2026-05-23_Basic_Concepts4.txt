@@ -1,0 +1,411 @@
+4.11 GraphRAG 화면
+
+목적: 문서 간 관계를 그래프로 보여준다.
+
+Node 예시:
+
+문서
+사업
+기관
+기술
+인물
+연도
+산업분야
+문서유형
+
+Edge 예시:
+
+문서 - belongs_to - 사업
+사업 - ordered_by - 기관
+사업 - uses_technology - AI
+사업 - similar_to - 다른 사업
+문서 - references - 다른 문서
+
+화면 기능:
+
+그래프 시각화
+노드 클릭 시 관련 문서 표시
+사업명 클릭 시 관련 제안서 표시
+기관 클릭 시 수행 이력 표시
+기술 클릭 시 관련 사업 표시
+5. LangGraph 란?
+5.1 정의
+
+LangGraph는 LangChain에서 만든 그래프 기반 Agent/Workflow 프레임워크이다.
+공식 문서에 따르면 LangGraph는 long-running, stateful workflow 또는 agent를 위한 저수준 인프라를 제공한다. 즉, 단순한 1회성 체인이 아니라 상태를 유지하고 여러 단계를 반복하거나 조건에 따라 분기하는 워크플로를 만들 때 사용한다.
+
+5.2 LangChain과 LangGraph의 차이
+LangChain:
+- LLM, Prompt, Retriever, Tool 등을 연결하는 프레임워크
+- 주로 Chain 중심
+- 입력 → 처리 → 출력 구조에 적합
+
+LangGraph:
+- 여러 작업 단계를 Node와 Edge로 구성
+- 상태를 유지함
+- 조건 분기 가능
+- 반복 처리 가능
+- Agent Workflow에 적합
+5.3 weeslee-rag에서 LangGraph가 필요한 이유
+
+weeslee-rag의 문서 처리 과정은 단순하지 않다.
+
+예를 들어 문서 하나를 처리할 때 다음 판단이 필요하다.
+
+문서 업로드
+  ↓
+파일 유형 확인
+  ↓
+PDF인가?
+  ├─ 예: PDF 파서 실행
+  └─ 아니오: DOCX/HWP/TXT 파서 실행
+
+텍스트 추출 성공?
+  ├─ 예: Chunking
+  └─ 아니오: OCR 실행
+
+메타데이터 자동 생성 성공?
+  ├─ 예: 관리자 검토 대기
+  └─ 아니오: 수동 입력 요청
+
+Chunk 품질 양호?
+  ├─ 예: Embedding
+  └─ 아니오: Chunking 재실행
+
+Embedding 성공?
+  ├─ 예: FAISS 저장
+  └─ 아니오: Job 실패 처리
+
+이런 구조는 단순 함수 호출보다 LangGraph 방식이 적합하다.
+
+5.4 LangGraph 예시 구조
+[Start]
+  ↓
+[Load Document]
+  ↓
+[Extract Text]
+  ↓
+{Text Quality Check}
+  ├─ Good → [Chunk Document]
+  └─ Bad → [OCR Document]
+              ↓
+          [Chunk Document]
+              ↓
+        [Generate Metadata]
+              ↓
+        [Embed Chunks]
+              ↓
+        [Store FAISS]
+              ↓
+        [Build Wiki]
+              ↓
+        [Build Graph]
+              ↓
+            [End]
+5.5 LangGraph Python 예시
+# LangGraph 기반 문서 처리 워크플로 예시
+# 실제 운영 코드가 아니라 구조 이해용 예시입니다.
+
+from typing import TypedDict, List, Optional
+from langgraph.graph import StateGraph, END
+
+
+# 1. 워크플로 전체에서 공유할 상태 정의
+class DocumentState(TypedDict):
+    document_id: str
+    file_path: str
+    file_type: str
+    extracted_text: Optional[str]
+    chunks: List[str]
+    metadata: dict
+    status: str
+    error: Optional[str]
+
+
+# 2. 문서 로딩 Node
+def load_document(state: DocumentState) -> DocumentState:
+    # 파일 존재 여부 확인
+    # 파일 유형 확인
+    state["status"] = "document_loaded"
+    return state
+
+
+# 3. 텍스트 추출 Node
+def extract_text(state: DocumentState) -> DocumentState:
+    # PDF, DOCX, TXT, HWP 등에 따라 추출 로직 분기
+    state["extracted_text"] = "문서에서 추출된 텍스트"
+    state["status"] = "text_extracted"
+    return state
+
+
+# 4. 텍스트 품질 검사 Node
+def check_text_quality(state: DocumentState) -> str:
+    text = state.get("extracted_text") or ""
+
+    # 텍스트 길이가 너무 짧으면 OCR 필요
+    if len(text.strip()) < 300:
+        return "need_ocr"
+
+    return "good"
+
+
+# 5. OCR Node
+def run_ocr(state: DocumentState) -> DocumentState:
+    # OCR 엔진 실행
+    state["extracted_text"] = "OCR로 추출된 텍스트"
+    state["status"] = "ocr_completed"
+    return state
+
+
+# 6. Chunking Node
+def chunk_document(state: DocumentState) -> DocumentState:
+    text = state["extracted_text"] or ""
+
+    # 실제로는 RecursiveCharacterTextSplitter 사용 권장
+    state["chunks"] = [text[i:i+1000] for i in range(0, len(text), 1000)]
+    state["status"] = "chunked"
+    return state
+
+
+# 7. 메타데이터 생성 Node
+def generate_metadata(state: DocumentState) -> DocumentState:
+    # LLM 또는 규칙 기반으로 기관명, 사업명, 문서유형 추출
+    state["metadata"] = {
+        "organization": "자동 추출 기관명",
+        "project_name": "자동 추출 사업명",
+        "document_type": "proposal"
+    }
+    state["status"] = "metadata_generated"
+    return state
+
+
+# 8. Embedding + FAISS 저장 Node
+def store_faiss(state: DocumentState) -> DocumentState:
+    # Chunk Embedding 후 FAISS 저장
+    state["status"] = "faiss_stored"
+    return state
+
+
+# 9. Graph 구성
+workflow = StateGraph(DocumentState)
+
+workflow.add_node("load_document", load_document)
+workflow.add_node("extract_text", extract_text)
+workflow.add_node("run_ocr", run_ocr)
+workflow.add_node("chunk_document", chunk_document)
+workflow.add_node("generate_metadata", generate_metadata)
+workflow.add_node("store_faiss", store_faiss)
+
+workflow.set_entry_point("load_document")
+
+workflow.add_edge("load_document", "extract_text")
+
+workflow.add_conditional_edges(
+    "extract_text",
+    check_text_quality,
+    {
+        "good": "chunk_document",
+        "need_ocr": "run_ocr"
+    }
+)
+
+workflow.add_edge("run_ocr", "chunk_document")
+workflow.add_edge("chunk_document", "generate_metadata")
+workflow.add_edge("generate_metadata", "store_faiss")
+workflow.add_edge("store_faiss", END)
+
+app = workflow.compile()
+6. LangGraph에서 GraphRAG
+6.1 주의할 점
+
+LangGraph와 GraphRAG는 같은 개념이 아니다.
+
+LangGraph:
+- LLM 작업 흐름을 그래프로 제어하는 프레임워크
+
+GraphRAG:
+- 문서 지식을 그래프 구조로 만들어 검색과 답변에 활용하는 RAG 방식
+
+즉, LangGraph는 “처리 흐름의 그래프”이고, GraphRAG는 “지식 관계의 그래프”이다.
+
+6.2 LangGraph로 GraphRAG를 처리한다는 의미
+
+LangGraph를 사용하면 GraphRAG 생성 절차를 단계별 Workflow로 만들 수 있다.
+
+예시:
+
+[문서 로딩]
+  ↓
+[엔티티 추출]
+  ↓
+[관계 추출]
+  ↓
+[Graph Node 생성]
+  ↓
+[Graph Edge 생성]
+  ↓
+[Community Detection]
+  ↓
+[Community Summary 생성]
+  ↓
+[GraphRAG 검색 준비]
+
+Microsoft GraphRAG 문서에서는 GraphRAG를 일반적인 텍스트 스니펫 검색보다 구조적이고 계층적인 RAG 접근으로 설명하며, 원문에서 지식 그래프를 추출하고 커뮤니티 계층과 요약을 만든 뒤 이를 검색/응답에 활용하는 흐름을 제시한다.
+
+6.3 weeslee-rag에서 LangGraph + GraphRAG 적용 방식
+
+weeslee-rag에서는 다음처럼 적용하는 것이 좋다.
+
+LangChain:
+- 문서 로딩
+- Chunking
+- Embedding
+- Retriever
+- LLM 답변
+
+LangGraph:
+- 문서 처리 Workflow
+- 실패/재시도
+- OCR 필요 여부 판단
+- Wiki 생성 단계 제어
+- Graph 생성 단계 제어
+
+GraphRAG:
+- 기관, 사업, 기술, 문서 간 관계 추출
+- 유사 사업 관계 생성
+- 공공기관 ISP 사업 관계 분석
+- 제안서 작성 시 관련 근거 추천
+7. GraphRAG 구성하기
+7.1 GraphRAG 기본 개념
+
+GraphRAG는 문서 내용을 단순 Chunk로만 저장하지 않고, 문서 안의 엔티티와 관계를 추출해서 그래프 형태로 저장하는 방식이다. Microsoft Research는 GraphRAG를 텍스트 추출, 네트워크 분석, LLM 프롬프팅/요약을 결합해 텍스트 데이터셋을 풍부하게 이해하는 기법으로 설명한다.
+
+7.2 GraphRAG가 필요한 이유
+
+일반 RAG는 다음 질문에 약할 수 있다.
+
+1. 우리 회사가 수행한 공공기관 ISP 사업 전체 흐름을 정리해줘.
+2. K-water 사업과 유사한 사업들을 기술 관점에서 묶어줘.
+3. AI, 빅데이터, 클라우드가 함께 등장한 제안서를 찾아줘.
+4. 특정 기관과 관련된 모든 문서와 유사 사업을 보여줘.
+5. 제안서에 활용할 수 있는 회사 레퍼런스를 사업 유형별로 묶어줘.
+
+이 질문은 단순 Chunk 검색보다 관계 분석이 중요하다.
+
+7.3 GraphRAG Node 설계
+
+weeslee-rag의 Graph Node는 다음과 같이 구성한다.
+
+Document Node
+- document_id
+- title
+- file_path
+- document_type
+- year
+
+Project Node
+- project_id
+- project_name
+- business_year
+- project_type
+
+Organization Node
+- organization_id
+- organization_name
+- organization_type
+
+Technology Node
+- technology_id
+- technology_name
+
+Domain Node
+- domain_id
+- domain_name
+
+Person Node
+- person_id
+- person_name
+- role
+7.4 GraphRAG Edge 설계
+Document -> belongs_to -> Project
+Project -> ordered_by -> Organization
+Project -> uses_technology -> Technology
+Project -> belongs_to_domain -> Domain
+Project -> similar_to -> Project
+Document -> references -> Document
+Document -> written_for -> Organization
+Document -> has_keyword -> Keyword
+7.5 GraphRAG 저장소 선택
+
+초기 MVP에서는 JSON Graph로 충분하다.
+
+data/graph/
+  nodes.json
+  edges.json
+  graph_summary.json
+
+추후 확장 시 Neo4j를 사용할 수 있다.
+
+MVP:
+- JSON Graph
+- NetworkX
+- Cytoscape.js 시각화
+
+확장:
+- Neo4j
+- Cypher Query
+- GraphRAG Query API
+7.6 GraphRAG 생성 절차
+1. 문서에서 메타데이터 추출
+2. 기관명 추출
+3. 사업명 추출
+4. 기술 키워드 추출
+5. 문서유형 추출
+6. Node 생성
+7. Edge 생성
+8. 유사도 기반 Project 간 similar_to 관계 생성
+9. Graph Summary 생성
+10. 검색 API와 연결
+7.7 GraphRAG 예시 JSON
+{
+  "nodes": [
+    {
+      "id": "project_kwater_isp_2024",
+      "type": "Project",
+      "label": "K-water 고유 플랫폼 구축 전략계획 수립 용역",
+      "properties": {
+        "year": "2024",
+        "domain": "Public ISP"
+      }
+    },
+    {
+      "id": "org_kwater",
+      "type": "Organization",
+      "label": "한국수자원공사",
+      "properties": {
+        "organization_type": "공공기관"
+      }
+    },
+    {
+      "id": "tech_cloud",
+      "type": "Technology",
+      "label": "Cloud",
+      "properties": {}
+    }
+  ],
+  "edges": [
+    {
+      "source": "project_kwater_isp_2024",
+      "target": "org_kwater",
+      "type": "ordered_by"
+    },
+    {
+      "source": "project_kwater_isp_2024",
+      "target": "tech_cloud",
+      "type": "uses_technology"
+    }
+  ]
+}
+
+참조 파일:
+[2026-05-23_Basic_Concepts5.txt]

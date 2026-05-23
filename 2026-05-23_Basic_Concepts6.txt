@@ -1,0 +1,182 @@
+10. weeslee-rag 전체 아키텍처 권장안
+10.1 전체 구조
+[Frontend Admin]
+   |
+   | REST API
+   ↓
+[Backend API - Flask/FastAPI]
+   |
+   ├─ Document Service
+   ├─ Metadata Service
+   ├─ RAG Service
+   ├─ FAISS Service
+   ├─ Wiki Service
+   ├─ Graph Service
+   └─ Job Service
+        |
+        ├─ Source Documents
+        ├─ Extracted Text
+        ├─ Chunks
+        ├─ Embeddings
+        ├─ FAISS Index
+        ├─ LLM Wiki
+        └─ JSON Graph / Neo4j
+10.2 데이터 저장 구조
+/data/weeslee/weeslee-rag/
+  source/
+    raw_documents/
+
+  processed/
+    extracted_text/
+    chunks/
+    metadata/
+
+  indexes/
+    faiss/
+
+  wiki/
+    projects/
+    organizations/
+    technologies/
+    business-domains/
+
+  graph/
+    nodes.json
+    edges.json
+    summaries.json
+
+  logs/
+    ingestion/
+    faiss/
+    wiki/
+    graph/
+10.3 단계별 개발 순서
+1단계: 문서 중앙화
+
+우선순위:
+
+1. 문서 목록 관리
+2. 폴더 스캔
+3. 문서 업로드
+4. 문서 분류
+5. 메타데이터 관리
+6. 미분류 문서 관리
+
+완료 기준:
+
+관리자 페이지에서 모든 문서가 보이고,
+각 문서에 대분류, 세부분류, 기관명, 사업명, 연도, 문서유형을 지정할 수 있어야 한다.
+2단계: RAG 검색
+
+우선순위:
+
+1. 텍스트 추출
+2. Chunking
+3. Embedding
+4. FAISS 저장
+5. 검색 API
+6. 검색 테스트 화면
+7. 출처 표시
+
+완료 기준:
+
+“경기주택도시공사 ISP 사업과 유사한 문서 찾아줘”라고 검색했을 때
+관련 문서, 관련 Chunk, 유사도 점수, 관련 이유가 표시되어야 한다.
+3단계: LLM Wiki
+
+우선순위:
+
+1. Project Wiki 생성
+2. Organization Wiki 생성
+3. Technology Wiki 생성
+4. 관리자 수정 기능
+5. Wiki 검색 기능
+
+완료 기준:
+
+사업별 Wiki 페이지가 자동 생성되고,
+관리자가 수정할 수 있어야 한다.
+4단계: GraphRAG
+
+우선순위:
+
+1. Node/Edge JSON 생성
+2. 문서-사업-기관-기술 관계 생성
+3. 그래프 시각화
+4. Graph 기반 검색
+5. 유사 사업 추천
+
+완료 기준:
+
+특정 사업을 클릭하면 관련 기관, 문서, 기술, 유사 사업이 그래프로 표시되어야 한다.
+5단계: LangGraph Workflow
+
+우선순위:
+
+1. 문서 처리 Workflow 구성
+2. OCR 필요 여부 자동 판단
+3. 실패 문서 재처리
+4. Job 상태 추적
+5. RAG/Wiki/Graph 통합 Pipeline 구성
+
+완료 기준:
+
+문서 업로드 후 관리자 페이지에서 버튼 하나로
+텍스트 추출 → 메타데이터 → Chunk → Embedding → FAISS → Wiki → Graph 생성 흐름을 실행할 수 있어야 한다.
+11. 결론
+
+weeslee-rag의 개발 방향은 단순 RAG 검색 시스템이 아니라 다음과 같이 잡아야 한다.
+
+핵심 방향
+문서 중앙화
+  ↓
+문서 구조화
+  ↓
+RAG 검색
+  ↓
+LLM Wiki 지식화
+  ↓
+GraphRAG 관계화
+  ↓
+제안서 작성 지원
+기술별 역할
+LangChain:
+- 문서 로딩
+- Chunking
+- Embedding
+- Retriever
+- LLM 답변 생성
+
+LangGraph:
+- 문서 처리 Workflow
+- 조건 분기
+- 실패/재시도
+- 장기 실행 Job 관리
+
+RAG:
+- 문서 검색
+- 출처 기반 답변
+- 유사 문서 추천
+
+GraphRAG:
+- 문서, 사업, 기관, 기술 간 관계 분석
+- 유사 사업 관계 추론
+- 공공사업 제안 근거 추천
+
+LLM Wiki:
+- 문서를 사람이 읽을 수 있는 지식 페이지로 정리
+- 사업별/기관별/기술별 지식 축적
+- 제안서 작성용 회사 지식 베이스 구축
+최종 목표
+
+weeslee-rag는 다음 질문에 답할 수 있어야 한다.
+
+1. 이 RFP와 유사한 우리 회사 수행 실적은 무엇인가?
+2. 어떤 제안서를 참고하면 좋은가?
+3. 이 사업에 사용할 수 있는 회사 기술 경험은 무엇인가?
+4. 해당 기관과 유사한 공공기관 사업 경험은 무엇인가?
+5. 제안서에 넣을 수 있는 핵심 문구와 근거 문서는 무엇인가?
+6. 특정 사업과 연결된 문서, 기관, 기술, 레퍼런스는 무엇인가?
+
+이 수준까지 가야 weeslee-rag는 단순 검색 시스템이 아니라
+“위즐리앤컴퍼니의 제안서 작성 지식 엔진”이 된다.

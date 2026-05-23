@@ -1,0 +1,11 @@
+# 2026-05-22 ?⑥씪 Collection ?ъ젙??- [x] `backend/app/services/rag_source_pipeline.py`?먯꽌 manifest `collection_name`??`weeslee_rag_main`?쇰줈 怨좎젙?덈떎.
+- [x] `collection_key`瑜??대뜑紐낆씠 ?꾨땲??`document_group` 湲곕컲 metadata 媛믪쑝濡??섎룎?몃떎.
+- [x] `document_category`瑜?manifest, extract, chunk metadata??異붽??덈떎.
+- [x] `backend/app/api/rag_source_admin.py`??`metadata/build` ?묐떟怨?`collections/bootstrap`瑜??⑥씪 collection 湲곗??쇰줈 ?뺣━?덈떎.
+- [x] `python -m compileall backend/app/services/rag_source_pipeline.py backend/app/api/rag_source_admin.py backend/scripts/extract_manifest_batch.py backend/scripts/build_chunk_batch.py` 寃�利앹쓣 ?듦낵?덈떎.
+- [x] 寃�???묐떟怨?寃곌낵 ?붾㈃??`document_category`瑜??몄텧?섎룄濡?`backend/app/api/rag.py`, `frontend/admin.html`, `frontend/rag-assistant.html`??留욎톬??
+- [x] 愿�由ъ옄 Wizard, Collection Manager, 利앸텇 異붽? ?덈궡 臾멸뎄瑜?`weeslee_rag_main + metadata filter` 援ъ“??留욊쾶 ?뺣━?덈떎.
+- [x] `backend/app/api/rag_source_admin.py`??`bootstrap_collections` ?꾨옒 dead code瑜??쒓굅?덈떎.
+- [x] 2026-05-22 추가 완료 확인. frontend/admin.html의 RAG 위저드와 RAG Source 탭 API 안내를 실제 POST /api/admin/faiss/jobs 중심 파이프라인 기준으로 정리했습니다.
+- [x] 2026-05-22 추가 완료 확인. Step 5와 Step 6 문구를 OCR/청킹 시작, 임베딩/FAISS 진행 기준으로 런타임 동기화하도록 맞췄습니다.
+- [x] 2026-05-22 추가 완료 확인. frontend/admin.html 마지막 inline script를 new Function(...) 파싱으로 검증했습니다.

@@ -125,7 +125,6 @@ out/
 dist/
 
 # Logs
-logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -155,10 +154,7 @@ data/staged/
 data/wiki/generated/
 *.faiss
 
-# Documentation / work logs (excluded from deployment)
-*.md
-*.txt
-*.mmd
+# Documentation / work logs must stay trackable for handoff.
 
 # Security & local config
 .env.*
@@ -170,7 +166,6 @@ data/wiki/generated/
 # Local tooling / screenshots / work files
 .playwright-mcp/
 diagrams/
-docs/
 nul
 *.pptx
 *.png

@@ -1,0 +1,286 @@
+4. LangChain 기반 문서 찾기 시스템 관리자 페이지 구성 요소
+4.1 관리자 페이지의 목적
+
+관리자 페이지는 단순히 파일 목록을 보여주는 화면이 아니다.
+
+관리자 페이지는 다음 작업을 통제해야 한다.
+
+문서 업로드
+문서 분류
+메타데이터 생성
+텍스트 추출
+Chunk 확인
+Embedding 실행
+FAISS 색인 생성
+검색 테스트
+LLM Wiki 생성
+GraphRAG 생성
+작업 로그 확인
+실패 문서 재처리
+4.2 관리자 페이지 권장 메뉴 구조
+Admin
+ ├─ 1. Overview
+ ├─ 2. Source Documents
+ ├─ 3. Category Manager
+ ├─ 4. Metadata Manager
+ ├─ 5. RAG Build Wizard
+ ├─ 6. FAISS Index
+ ├─ 7. Search Test
+ ├─ 8. LLM Wiki
+ ├─ 9. GraphRAG
+ ├─ 10. Jobs / Logs
+ └─ 11. Settings
+4.3 Overview 화면
+
+목적: 전체 상태를 한눈에 확인한다.
+
+표시 항목:
+
+전체 문서 수
+미분류 문서 수
+처리 완료 문서 수
+처리 실패 문서 수
+Chunk 총 개수
+FAISS Index 개수
+LLM Wiki 페이지 수
+Graph Node 수
+Graph Edge 수
+최근 작업 상태
+
+화면 구성:
+
+[전체 문서] [미분류] [FAISS Index] [Wiki Pages] [Graph Nodes]
+
+최근 작업
+- 2026-05-23 10:30 K-water 제안서 색인 완료
+- 2026-05-23 10:20 AI 진로교육망 문서 Chunking 완료
+- 2026-05-23 10:10 문서 3건 메타데이터 자동 생성 실패
+4.4 Source Documents 화면
+
+목적: 원본 문서를 관리한다.
+
+필요 기능:
+
+문서 업로드
+폴더 스캔
+문서 목록
+문서 상세 보기
+원본 파일 열기
+텍스트 추출 결과 보기
+처리 상태 표시
+재처리 버튼
+
+테이블 컬럼:
+
+선택
+문서명
+파일유형
+대분류
+세부분류
+기관명
+사업명
+연도
+처리상태
+Chunk 수
+FAISS 등록 여부
+Wiki 등록 여부
+Graph 등록 여부
+관리
+4.5 Category Manager 화면
+
+목적: 문서 대분류/세부분류를 관리한다.
+
+권장 분류:
+
+대분류
+ ├─ RFP
+ ├─ Proposal
+ ├─ Final Report
+ ├─ Presentation
+ ├─ Contract
+ ├─ Reference
+ ├─ Meeting Note
+ └─ Internal Document
+
+세부분류 예시:
+
+Proposal
+ ├─ ISP
+ ├─ ISMP
+ ├─ AI
+ ├─ BigData
+ ├─ Cloud
+ ├─ OCR
+ ├─ RAG
+ └─ Consulting
+
+주의할 점:
+
+Collection명을 무조건 대분류/세부분류 기준으로 만드는 것은 조심해야 한다.
+
+추천 방식:
+
+FAISS Collection은 너무 잘게 나누지 않는다.
+문서 분류는 metadata로 관리한다.
+검색 시 metadata filter를 사용한다.
+
+예시:
+
+{
+  "collection": "weeslee_documents",
+  "metadata": {
+    "major_category": "Proposal",
+    "minor_category": "ISP",
+    "organization": "K-water",
+    "project_name": "K-water 고유 플랫폼 구축 전략계획 수립 용역",
+    "year": "2024",
+    "document_type": "proposal"
+  }
+}
+4.6 Metadata Manager 화면
+
+목적: 문서별 메타데이터를 정확하게 관리한다.
+
+필수 메타데이터:
+
+document_id
+file_name
+file_path
+file_type
+major_category
+minor_category
+organization
+project_name
+business_year
+document_type
+tags
+summary
+keywords
+created_at
+updated_at
+processing_status
+
+자동 생성 대상:
+
+기관명
+사업명
+문서유형
+연도
+핵심 키워드
+요약
+관련 기술
+관련 산업
+제안 활용 가능 여부
+
+관리자 확인 필요:
+
+자동 분류 결과가 맞는지
+사업명이 정확한지
+기관명이 정확한지
+문서유형이 맞는지
+RAG 검색에 포함할지 제외할지
+4.7 RAG Build Wizard 화면
+
+목적: 문서를 단계별로 RAG 데이터로 변환한다.
+
+Stepper 구성:
+
+1단계: 문서 선택
+2단계: 텍스트 추출
+3단계: 메타데이터 생성
+4단계: Chunking
+5단계: Embedding
+6단계: FAISS 저장
+7단계: 검색 테스트
+8단계: 완료
+
+각 단계별 버튼:
+
+[실행]
+[미리보기]
+[로그 보기]
+[재실행]
+[다음 단계]
+4.8 FAISS Index 화면
+
+목적: VectorDB 상태를 관리한다.
+
+표시 항목:
+
+Collection명
+문서 수
+Chunk 수
+Embedding 모델
+생성일
+마지막 업데이트일
+Index 파일 경로
+상태
+
+기능:
+
+Index 생성
+Index 재생성
+Index 삭제
+검색 테스트
+Metadata 필터 테스트
+4.9 Search Test 화면
+
+목적: 실제 검색 품질을 검증한다.
+
+입력 항목:
+
+검색어
+검색 모드
+- 일반 검색
+- RAG 검색
+- 유사 문서 검색
+- RFP 분석 검색
+
+카테고리 필터
+기관명 필터
+연도 필터
+Top K
+LLM 답변 생성 여부
+
+결과 표시:
+
+검색 결과 문서
+유사도 점수
+매칭 Chunk
+출처 페이지
+관련 이유
+LLM 답변
+4.10 LLM Wiki 화면
+
+목적: 문서를 사람이 읽기 쉬운 지식 페이지로 재구성한다.
+
+메뉴:
+
+Wiki Home
+Projects
+Organizations
+Technologies
+Business Domains
+References
+
+예시 Wiki 구조:
+
+wiki/
+  index.md
+  organizations/
+    k-water.md
+    gh-corporation.md
+  projects/
+    k-water-platform-isp.md
+    ai-career-network-isp.md
+  technologies/
+    rag.md
+    ocr.md
+    vector-db.md
+    cloud.md
+  business-domains/
+    public-isp.md
+    ai-consulting.md
+
+참조 파일:
+[2026-05-23_Basic_Concepts4.txt]

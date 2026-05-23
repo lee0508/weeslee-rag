@@ -1,0 +1,327 @@
+2) Text Splitter
+
+문서를 Chunk 단위로 나누는 기능이다.
+
+# 문서 Chunking 예시
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,        # 하나의 Chunk 최대 길이
+    chunk_overlap=150       # 앞뒤 문맥 유지를 위한 중복 길이
+)
+
+chunks = splitter.split_documents(documents)
+3) Embedding Model
+
+텍스트를 숫자 벡터로 바꾸는 기능이다.
+
+weeslee-rag에서는 다음 후보를 사용할 수 있다.
+
+Ollama nomic-embed-text
+OpenAI Embedding
+HuggingFace Embedding
+BGE 계열 Embedding
+# Ollama Embedding 예시
+from langchain_ollama import OllamaEmbeddings
+
+embeddings = OllamaEmbeddings(
+    model="nomic-embed-text"
+)
+4) Vector Store
+
+Embedding된 Chunk를 저장하고 검색하는 저장소이다.
+
+weeslee-rag 현재 방향에서는 FAISS가 적합하다.
+
+# FAISS VectorDB 생성 예시
+from langchain_community.vectorstores import FAISS
+
+vectorstore = FAISS.from_documents(
+    documents=chunks,
+    embedding=embeddings
+)
+
+vectorstore.save_local("data/indexes/faiss/project_a")
+5) Retriever
+
+VectorDB에서 검색 결과를 가져오는 기능이다.
+
+retriever = vectorstore.as_retriever(
+    search_kwargs={
+        "k": 5
+    }
+)
+
+results = retriever.invoke("경기주택도시공사 ISP 사업과 유사한 문서를 찾아줘")
+6) LLM
+
+검색 결과를 바탕으로 최종 답변을 생성하는 언어 모델이다.
+
+from langchain_ollama import ChatOllama
+
+llm = ChatOllama(
+    model="qwen:7b",
+    temperature=0.2
+)
+2. RAG 란?
+2.1 정의
+
+RAG는 Retrieval-Augmented Generation의 약자이다.
+한국어로는 “검색 증강 생성”이라고 볼 수 있다.
+
+즉, LLM이 자기 기억만으로 답변하는 것이 아니라, 외부 문서에서 관련 내용을 먼저 검색한 뒤 그 검색 결과를 근거로 답변하는 방식이다. AWS와 IBM 설명 기준으로 RAG/LangChain 계열 구조는 LLM이 외부 데이터와 연결되어 더 정확하고 관련성 있는 답변을 만들도록 돕는 방식으로 설명된다.
+
+2.2 일반 LLM 답변과 RAG 답변의 차이
+일반 LLM 답변
+
+사용자 질문:
+
+경기주택도시공사 ISP 사업과 유사한 우리 회사 실적을 찾아줘.
+
+LLM 단독 답변:
+
+관련 실적이 있을 수 있습니다. ISP, 정보화전략계획, 공공기관 컨설팅 문서를 확인해 보세요.
+
+문제점:
+
+회사 내부 문서를 모른다.
+실제 파일명을 모른다.
+근거가 없다.
+출처가 없다.
+환각 가능성이 높다.
+RAG 답변
+
+RAG 답변:
+
+검색 결과 다음 문서가 유사합니다.
+
+K-water 고유 플랫폼 구축 전략계획 수립 용역
+AI 기반 진로교육정보망 ISP 수립
+기상청 데이터허브 컨설팅
+
+유사 근거:
+
+공공기관 대상 ISP 성격
+데이터 플랫폼/정보화 전략 수립 포함
+단계별 구축 로드맵 포함
+클라우드/AI/빅데이터 요소 포함
+
+출처:
+
+/data/weeslee/문서중앙화/제안서/K-water_고유플랫폼_ISP.pdf
+/data/weeslee/문서중앙화/완료보고서/진로교육정보망_ISP.docx
+
+장점:
+
+실제 문서를 기반으로 답변한다.
+출처를 제시한다.
+검색 근거를 설명한다.
+제안서 작성에 바로 활용할 수 있다.
+2.3 RAG 기본 흐름
+
+RAG는 크게 두 단계로 나뉜다.
+
+A. 색인 단계
+
+문서를 VectorDB에 넣는 단계이다.
+
+문서 업로드
+  ↓
+문서 파싱
+  ↓
+텍스트 추출
+  ↓
+Chunking
+  ↓
+Embedding
+  ↓
+VectorDB 저장
+  ↓
+Collection 생성
+B. 질의 단계
+
+사용자 질문에 답변하는 단계이다.
+
+사용자 질문
+  ↓
+질문 Embedding
+  ↓
+VectorDB 검색
+  ↓
+관련 Chunk 추출
+  ↓
+Prompt 구성
+  ↓
+LLM 답변 생성
+  ↓
+출처 표시
+2.4 weeslee-rag에서 RAG의 핵심
+
+weeslee-rag에서 RAG의 핵심은 “문서를 벡터화했다”가 아니다.
+
+핵심은 다음이다.
+
+어떤 문서를 넣을 것인가?
+문서를 어떤 기준으로 분류할 것인가?
+Chunk 단위는 어떻게 나눌 것인가?
+메타데이터를 어떻게 붙일 것인가?
+검색 결과를 어떻게 필터링할 것인가?
+검색 결과를 어떻게 신뢰할 수 있게 보여줄 것인가?
+관리자 페이지에서 이 과정을 어떻게 통제할 것인가?
+3. BackEnd 쪽에서 API 구성 방법
+3.1 Backend 기본 구조
+
+weeslee-rag의 Backend는 다음과 같이 구성하는 것이 좋다.
+
+backend/
+  app/
+    main.py
+    config.py
+
+    api/
+      routes_documents.py
+      routes_categories.py
+      routes_metadata.py
+      routes_ingestion.py
+      routes_faiss.py
+      routes_search.py
+      routes_graph.py
+      routes_wiki.py
+      routes_jobs.py
+
+    services/
+      document_service.py
+      parser_service.py
+      chunk_service.py
+      embedding_service.py
+      vector_service.py
+      search_service.py
+      graph_service.py
+      wiki_service.py
+      job_service.py
+
+    models/
+      document.py
+      category.py
+      metadata.py
+      chunk.py
+      job.py
+
+    storage/
+      file_storage.py
+      faiss_storage.py
+      metadata_storage.py
+
+    utils/
+      file_utils.py
+      text_utils.py
+      log_utils.py
+3.2 API는 기능 단위로 나누어야 한다
+1) 문서 관리 API
+
+문서 업로드, 목록 조회, 삭제, 상세 조회를 담당한다.
+
+POST   /api/documents/upload
+GET    /api/documents
+GET    /api/documents/{document_id}
+DELETE /api/documents/{document_id}
+2) 카테고리 관리 API
+
+대분류, 세부분류, 문서유형을 관리한다.
+
+GET    /api/categories
+POST   /api/categories
+PUT    /api/categories/{category_id}
+DELETE /api/categories/{category_id}
+3) 메타데이터 관리 API
+
+문서별 기관명, 사업명, 연도, 문서유형, 태그 등을 관리한다.
+
+GET    /api/documents/{document_id}/metadata
+POST   /api/documents/{document_id}/metadata/auto
+PUT    /api/documents/{document_id}/metadata
+POST   /api/documents/{document_id}/tags
+DELETE /api/documents/{document_id}/tags/{tag_id}
+4) 문서 전처리 API
+
+텍스트 추출, OCR, Chunking을 담당한다.
+
+POST /api/ingestion/extract-text
+POST /api/ingestion/chunk
+POST /api/ingestion/preview-chunks
+5) FAISS 색인 API
+
+Embedding과 VectorDB 생성을 담당한다.
+
+POST /api/faiss/build
+POST /api/faiss/rebuild
+GET  /api/faiss/status
+GET  /api/faiss/collections
+GET  /api/faiss/collections/{collection_id}
+6) 검색 API
+
+사용자 질의를 받아 관련 문서를 검색한다.
+
+POST /api/search
+POST /api/search/rag
+POST /api/search/similar-documents
+
+예시 요청:
+
+{
+  "query": "경기주택도시공사 ISP 사업과 유사한 회사 실적을 찾아줘",
+  "category": "proposal",
+  "top_k": 5,
+  "use_llm": true
+}
+
+예시 응답:
+
+{
+  "query": "경기주택도시공사 ISP 사업과 유사한 회사 실적을 찾아줘",
+  "results": [
+    {
+      "document_id": "doc_001",
+      "title": "K-water 고유 플랫폼 구축 전략계획 수립 용역",
+      "score": 0.87,
+      "matched_chunks": [
+        {
+          "chunk_id": "chunk_001",
+          "text": "스마트 물관리 플랫폼 아키텍처 설계...",
+          "page": 12
+        }
+      ],
+      "reason": "공공기관 ISP, 플랫폼 전략, 데이터 통합, 구축 로드맵 항목이 유사합니다."
+    }
+  ],
+  "answer": "검색 결과 K-water 고유 플랫폼 구축 전략계획 수립 용역이 가장 유사합니다..."
+}
+7) LLM Wiki API
+
+문서를 기반으로 Wiki 페이지를 생성하고 관리한다.
+
+POST /api/wiki/build
+POST /api/wiki/rebuild
+GET  /api/wiki/pages
+GET  /api/wiki/pages/{page_id}
+PUT  /api/wiki/pages/{page_id}
+8) GraphRAG API
+
+문서 간 관계, 기관 간 관계, 사업 간 관계를 그래프로 구성한다.
+
+POST /api/graph/build
+GET  /api/graph/nodes
+GET  /api/graph/edges
+GET  /api/graph/search
+GET  /api/graph/document/{document_id}/relations
+9) Job API
+
+OCR, Chunking, Embedding, FAISS Build, Wiki Build, Graph Build는 오래 걸릴 수 있으므로 Job 방식으로 처리해야 한다.
+
+POST /api/jobs/start
+GET  /api/jobs
+GET  /api/jobs/{job_id}
+POST /api/jobs/{job_id}/cancel
+
+참조 파일:
+[2026-05-23_Basic_Concepts3.txt]
