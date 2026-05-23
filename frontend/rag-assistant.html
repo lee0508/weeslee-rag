@@ -3517,7 +3517,7 @@
     async function analyzeAndRenderAgent(query) {
       const agentEmpty = document.querySelector('.agent-empty');
       const agentResults = document.getElementById('agentResults');
-      if (!agentResults) return;
+      if (!agentResults || !agentEmpty) return;
 
       if (!query || query.trim().length < 2) {
         agentEmpty.style.display = 'block';
@@ -3540,9 +3540,9 @@
         agentResults.innerHTML = renderAgentAnalysis(data);
       } catch (error) {
         console.error('쿼리 분석 오류:', error);
-        agentEmpty.textContent = '쿼리 분석 실패';
-        agentEmpty.style.display = 'block';
-        agentResults.style.display = 'none';
+        if (agentEmpty) { agentEmpty.textContent = '쿼리 분석 실패'; agentEmpty.style.display = 'block'; }
+        
+        if (agentResults) agentResults.style.display = 'none';
       }
     }
 
