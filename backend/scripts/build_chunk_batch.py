@@ -233,33 +233,40 @@ def main() -> int:
 
     all_rows: list[ChunkRow] = []
 
+    # 전체 문서 수 파악을 위해 먼저 CSV를 읽음
     with summary_csv.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            if row.get("extraction_status") != "success":
-                continue
+        csv_rows = list(csv.DictReader(handle))
+    total_docs = len([r for r in csv_rows if r.get("extraction_status") == "success"])
 
-            text_path = Path(row["output_text_path"])
-            metadata_path = Path(row["output_metadata_path"])
-            if not text_path.exists() or not metadata_path.exists():
-                continue
+    for idx, row in enumerate(csv_rows):
+        if row.get("extraction_status") != "success":
+            continue
 
-            text = text_path.read_text(encoding="utf-8")
-            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            metadata.setdefault("document_id", row["document_id"])
-            metadata.setdefault("category", row.get("category", ""))
-            metadata.setdefault("extension", row.get("extension", ""))
-            metadata.setdefault("source_path", row.get("source_path", ""))
+        # 진행률 출력 (JSON 형식으로 파싱 가능하게)
+        progress_pct = int((idx / max(len(csv_rows), 1)) * 100)
+        print(json.dumps({"progress": progress_pct, "current": idx + 1, "total": total_docs, "stage": "청킹"}), flush=True)
 
-            all_rows.extend(
-                build_chunks_for_document(
-                    metadata=metadata,
-                    text=text,
-                    max_chars=args.max_chars,
-                    overlap_chars=args.overlap_chars,
-                    min_chars=args.min_chars,
-                )
+        text_path = Path(row["output_text_path"])
+        metadata_path = Path(row["output_metadata_path"])
+        if not text_path.exists() or not metadata_path.exists():
+            continue
+
+        text = text_path.read_text(encoding="utf-8")
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata.setdefault("document_id", row["document_id"])
+        metadata.setdefault("category", row.get("category", ""))
+        metadata.setdefault("extension", row.get("extension", ""))
+        metadata.setdefault("source_path", row.get("source_path", ""))
+
+        all_rows.extend(
+            build_chunks_for_document(
+                metadata=metadata,
+                text=text,
+                max_chars=args.max_chars,
+                overlap_chars=args.overlap_chars,
+                min_chars=args.min_chars,
             )
+        )
 
     with output_jsonl.open("w", encoding="utf-8") as handle:
         for row in all_rows:

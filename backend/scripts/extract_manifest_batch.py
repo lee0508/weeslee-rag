@@ -163,123 +163,130 @@ async def run_batch(args: argparse.Namespace) -> int:
     extractor = DocumentExtractor(use_ocr=use_ocr)
     results: list[ExtractionRow] = []
 
+    # 전체 문서 수 파악을 위해 먼저 CSV를 읽음
     with manifest_csv.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            document_id = row["document_id"]
-            input_path = resolve_input_path(row)
-            source_path = Path(row["source_path"])
-            extension = input_path.suffix.lower() or source_path.suffix.lower()
-            category = row.get("category", "")
-            text_path, metadata_path = build_output_paths(text_dir, metadata_dir, document_id)
+        all_rows = list(csv.DictReader(handle))
+    total_docs = len(all_rows)
 
-            if extension in UNSUPPORTED_FOR_PHASE1:
-                results.append(
-                    ExtractionRow(
-                        document_id=document_id,
-                        category=category,
-                        source_path=str(source_path),
-                        extension=extension,
-                        extraction_status="skipped_unsupported",
-                        extraction_method="",
-                        output_text_path="",
-                        output_metadata_path="",
-                        error=f"Unsupported format (no extractor): {extension}",
-                    )
-                )
-                continue
+    for idx, row in enumerate(all_rows):
+        # 진행률 출력 (JSON 형식으로 파싱 가능하게)
+        progress_pct = int((idx / max(total_docs, 1)) * 100)
+        print(json.dumps({"progress": progress_pct, "current": idx + 1, "total": total_docs, "stage": "텍스트 추출"}), flush=True)
 
-            if extension not in SUPPORTED_FOR_PHASE1:
-                results.append(
-                    ExtractionRow(
-                        document_id=document_id,
-                        category=category,
-                        source_path=str(source_path),
-                        extension=extension,
-                        extraction_status="skipped_unknown",
-                        extraction_method="",
-                        output_text_path="",
-                        output_metadata_path="",
-                        error=f"Unknown extension: {extension}",
-                    )
-                )
-                continue
+        document_id = row["document_id"]
+        input_path = resolve_input_path(row)
+        source_path = Path(row["source_path"])
+        extension = input_path.suffix.lower() or source_path.suffix.lower()
+        category = row.get("category", "")
+        text_path, metadata_path = build_output_paths(text_dir, metadata_dir, document_id)
 
-            result = await extractor.extract(str(input_path))
+        if extension in UNSUPPORTED_FOR_PHASE1:
+            results.append(
+                ExtractionRow(
+                    document_id=document_id,
+                    category=category,
+                    source_path=str(source_path),
+                    extension=extension,
+                    extraction_status="skipped_unsupported",
+                    extraction_method="",
+                    output_text_path="",
+                    output_metadata_path="",
+                    error=f"Unsupported format (no extractor): {extension}",
+                )
+            )
+            continue
 
-            if result.get("success"):
-                content = result.get("content", "")
-                project_meta = enrich_project_metadata(row.get("folder_name", ""))
-                res_meta = result.get("metadata", {})
-                project_name = _preferred_value(row, "project_name", project_meta["project_name"])
-                organization = _preferred_value(row, "organization", project_meta["organization"])
-                folder_year = _preferred_value(row, "project_year", project_meta["folder_year"])
-                metadata = {
-                    "document_id": document_id,
-                    "category": category,
-                    "collection_name": row.get("collection_name", "weeslee_rag_main"),
-                    "document_group": row.get("document_group", ""),
-                    "document_category": row.get("document_category", ""),
-                    "document_type": row.get("document_type", ""),
-                    "proposal_section": row.get("proposal_section", ""),
-                    "deliverable_section": row.get("deliverable_section", ""),
-                    "collection_key": row.get("collection_key", ""),
-                    "source_path": str(source_path),
-                    "input_path": str(input_path),
-                    "snapshot_path": row.get("snapshot_path", ""),
-                    "extension": extension,
-                    "project_name": project_name,
-                    "project_confidence": project_meta["project_confidence"],
-                    "organization": organization,
-                    "organization_confidence": project_meta["organization_confidence"],
-                    "folder_year": folder_year,
-                    "folder_name": row.get("folder_name", project_meta["folder_name"]),
-                    "extraction_method": result.get("method", ""),
-                    "is_scanned": res_meta.get("is_scanned", False),
-                    "content_length": len(content),
-                    "page_count": res_meta.get("pages", 0),
-                    "metadata_confidence": {
-                        "project_name": project_meta["project_confidence"],
-                        "organization": project_meta["organization_confidence"],
-                    },
-                    "extracted_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-                    "result": result,
-                }
-                text_path.write_text(content, encoding="utf-8")
-                metadata_path.write_text(
-                    json.dumps(metadata, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
+        if extension not in SUPPORTED_FOR_PHASE1:
+            results.append(
+                ExtractionRow(
+                    document_id=document_id,
+                    category=category,
+                    source_path=str(source_path),
+                    extension=extension,
+                    extraction_status="skipped_unknown",
+                    extraction_method="",
+                    output_text_path="",
+                    output_metadata_path="",
+                    error=f"Unknown extension: {extension}",
                 )
-                _write_derived_outputs(document_id, content, metadata)
-                results.append(
-                    ExtractionRow(
-                        document_id=document_id,
-                        category=category,
-                        source_path=str(input_path),
-                        extension=extension,
-                        extraction_status="success",
-                        extraction_method=result.get("method", ""),
-                        output_text_path=str(text_path),
-                        output_metadata_path=str(metadata_path),
-                        error="",
-                    )
+            )
+            continue
+
+        result = await extractor.extract(str(input_path))
+
+        if result.get("success"):
+            content = result.get("content", "")
+            project_meta = enrich_project_metadata(row.get("folder_name", ""))
+            res_meta = result.get("metadata", {})
+            project_name = _preferred_value(row, "project_name", project_meta["project_name"])
+            organization = _preferred_value(row, "organization", project_meta["organization"])
+            folder_year = _preferred_value(row, "project_year", project_meta["folder_year"])
+            metadata = {
+                "document_id": document_id,
+                "category": category,
+                "collection_name": row.get("collection_name", "weeslee_rag_main"),
+                "document_group": row.get("document_group", ""),
+                "document_category": row.get("document_category", ""),
+                "document_type": row.get("document_type", ""),
+                "proposal_section": row.get("proposal_section", ""),
+                "deliverable_section": row.get("deliverable_section", ""),
+                "collection_key": row.get("collection_key", ""),
+                "source_path": str(source_path),
+                "input_path": str(input_path),
+                "snapshot_path": row.get("snapshot_path", ""),
+                "extension": extension,
+                "project_name": project_name,
+                "project_confidence": project_meta["project_confidence"],
+                "organization": organization,
+                "organization_confidence": project_meta["organization_confidence"],
+                "folder_year": folder_year,
+                "folder_name": row.get("folder_name", project_meta["folder_name"]),
+                "extraction_method": result.get("method", ""),
+                "is_scanned": res_meta.get("is_scanned", False),
+                "content_length": len(content),
+                "page_count": res_meta.get("pages", 0),
+                "metadata_confidence": {
+                    "project_name": project_meta["project_confidence"],
+                    "organization": project_meta["organization_confidence"],
+                },
+                "extracted_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "result": result,
+            }
+            text_path.write_text(content, encoding="utf-8")
+            metadata_path.write_text(
+                json.dumps(metadata, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            _write_derived_outputs(document_id, content, metadata)
+            results.append(
+                ExtractionRow(
+                    document_id=document_id,
+                    category=category,
+                    source_path=str(input_path),
+                    extension=extension,
+                    extraction_status="success",
+                    extraction_method=result.get("method", ""),
+                    output_text_path=str(text_path),
+                    output_metadata_path=str(metadata_path),
+                    error="",
                 )
-            else:
-                # Distinguish scanned-PDF-no-OCR from genuine extraction failures
-                is_scan_no_ocr = result.get("method") == "scanned_ocr_disabled"
-                results.append(
-                    ExtractionRow(
-                        document_id=document_id,
-                        category=category,
-                        source_path=str(input_path),
-                        extension=extension,
-                        extraction_status="skipped_scan_no_ocr" if is_scan_no_ocr else "failed",
-                        extraction_method=result.get("method", ""),
-                        output_text_path="",
-                        output_metadata_path="",
-                        error=result.get("error", "Unknown extraction error"),
-                    )
+            )
+        else:
+            # Distinguish scanned-PDF-no-OCR from genuine extraction failures
+            is_scan_no_ocr = result.get("method") == "scanned_ocr_disabled"
+            results.append(
+                ExtractionRow(
+                    document_id=document_id,
+                    category=category,
+                    source_path=str(input_path),
+                    extension=extension,
+                    extraction_status="skipped_scan_no_ocr" if is_scan_no_ocr else "failed",
+                    extraction_method=result.get("method", ""),
+                    output_text_path="",
+                    output_metadata_path="",
+                    error=result.get("error", "Unknown extraction error"),
                 )
+            )
 
     with summary_csv.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(asdict(results[0]).keys()) if results else [])

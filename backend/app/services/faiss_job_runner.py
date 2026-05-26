@@ -222,7 +222,11 @@ async def _run_script(
     pct_start: int,
     pct_end: int,
 ) -> int:
-    """Run a pipeline script; stream stdout lines as log events."""
+    """Run a pipeline script; stream stdout lines as log events.
+
+    스크립트가 {"progress": N, ...} 형식의 JSON을 출력하면
+    pct_start ~ pct_end 범위로 매핑하여 진행률을 업데이트합니다.
+    """
     script = SCRIPTS_DIR / args[0]
     cmd = [sys.executable, str(script)] + args[1:]
     proc = await asyncio.create_subprocess_exec(
@@ -233,7 +237,25 @@ async def _run_script(
     )
     async for raw in proc.stdout:
         line = raw.decode("utf-8", errors="replace").rstrip()
-        emit(pct_start, args[0], line)
+
+        # JSON 진행률 파싱 시도
+        calculated_pct = pct_start
+        stage_text = args[0]
+        try:
+            if line.startswith("{") and "progress" in line:
+                data = json.loads(line)
+                script_pct = data.get("progress", 0)
+                # 스크립트 진행률(0-100)을 pct_start ~ pct_end 범위로 매핑
+                calculated_pct = pct_start + int((script_pct / 100) * (pct_end - pct_start))
+                stage_text = data.get("stage", args[0])
+                current = data.get("current", "")
+                total = data.get("total", "")
+                if current and total:
+                    stage_text = f"{stage_text} ({current}/{total})"
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+
+        emit(calculated_pct, stage_text, line)
     await proc.wait()
     return proc.returncode
 
