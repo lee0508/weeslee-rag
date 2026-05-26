@@ -49,6 +49,7 @@ def create_job(
     snapshot: str,
     source_id: str = "rag_source",
     start_from_stage: int = 1,
+    end_stage: int = 6,
 ) -> str:
     """파이프라인 잡을 생성한다.
 
@@ -56,6 +57,7 @@ def create_job(
         snapshot: 스냅샷 이름
         source_id: Document Source ID
         start_from_stage: 시작 단계 (1-6). 이전 단계가 완료되어 있어야 함.
+        end_stage: 종료 단계 (1-6).
     """
     job_id = uuid.uuid4().hex[:8]
     _jobs[job_id] = {
@@ -63,6 +65,7 @@ def create_job(
         "snapshot": snapshot,
         "source_id": source_id,
         "start_from_stage": start_from_stage,
+        "end_stage": end_stage,
         "status": "pending",
         "progress": 0,
         "stage": "",
@@ -250,7 +253,11 @@ async def run_pipeline(job_id: str) -> None:
     snapshot = job["snapshot"]
     source_id = job.get("source_id", "rag_source")
     start_from = job.get("start_from_stage", 1)
+    end_stage = job.get("end_stage", 6)
     p = _paths(snapshot)
+
+    def should_run(stage: int) -> bool:
+        return start_from <= stage <= end_stage
 
     def emit(pct: int, stage: str, log: str = "") -> None:
         job["progress"] = pct
@@ -267,7 +274,7 @@ async def run_pipeline(job_id: str) -> None:
 
     try:
         # ── Stage 1: manifest CSV 확인 (5%) ───────────────────────────────
-        if start_from <= 1:
+        if should_run(1):
             emit(5, "manifest CSV 확인")
             if not p["manifest_csv"].exists():
                 emit(5, "manifest CSV 생성", f"source_id={source_id}")
@@ -281,11 +288,11 @@ async def run_pipeline(job_id: str) -> None:
                 )
             emit(5, "manifest CSV 확인", f"OK: {p['manifest_csv'].name}")
             save_pipeline_state(source_id, snapshot, 1)
-        else:
+        elif start_from > 1:
             emit(5, "Stage 1 건너뜀", "이전에 완료됨")
 
         # ── Stage 2: 텍스트 추출 (10%) ────────────────────────────────────
-        if start_from <= 2:
+        if should_run(2):
             p["text_dir"].mkdir(parents=True, exist_ok=True)
             p["metadata_dir"].mkdir(parents=True, exist_ok=True)
             emit(10, "텍스트 추출 중...")
@@ -303,11 +310,11 @@ async def run_pipeline(job_id: str) -> None:
             if rc != 0:
                 raise RuntimeError("extract_manifest_batch.py 실패")
             save_pipeline_state(source_id, snapshot, 2)
-        else:
+        elif start_from > 2:
             emit(50, "Stage 2 건너뜀", "이전에 완료됨")
 
         # ── Stage 3: 청크 생성 (55%) ──────────────────────────────────────
-        if start_from <= 3:
+        if should_run(3):
             p["chunks_dir"].mkdir(parents=True, exist_ok=True)
             emit(55, "청크 생성 중...")
             rc = await _run_script(
@@ -321,11 +328,11 @@ async def run_pipeline(job_id: str) -> None:
             if rc != 0:
                 raise RuntimeError("build_chunk_batch.py 실패")
             save_pipeline_state(source_id, snapshot, 3)
-        else:
+        elif start_from > 3:
             emit(68, "Stage 3 건너뜀", "이전에 완료됨")
 
         # ── Stage 4: FAISS 인덱스 빌드 (70%) ─────────────────────────────
-        if start_from <= 4:
+        if should_run(4):
             p["faiss_dir"].mkdir(parents=True, exist_ok=True)
             emit(70, "FAISS 인덱스 빌드 중...")
             rc = await _run_script(
@@ -341,11 +348,11 @@ async def run_pipeline(job_id: str) -> None:
             if rc != 0:
                 raise RuntimeError("build_faiss_index.py 실패")
             save_pipeline_state(source_id, snapshot, 4)
-        else:
+        elif start_from > 4:
             emit(88, "Stage 4 건너뜀", "이전에 완료됨")
 
         # ── Stage 5: 카테고리 인덱스 (90%) ───────────────────────────────
-        if start_from <= 5:
+        if should_run(5):
             emit(90, "카테고리 인덱스 빌드 중...")
             rc = await _run_script(
                 [
@@ -360,11 +367,11 @@ async def run_pipeline(job_id: str) -> None:
             if rc != 0:
                 emit(90, "카테고리 인덱스", "경고: build_category_indexes.py 실패 (비필수)")
             save_pipeline_state(source_id, snapshot, 5)
-        else:
+        elif start_from > 5:
             emit(93, "Stage 5 건너뜀", "이전에 완료됨")
 
         # ── Stage 6: 그래프 빌드 (94%) ───────────────────────────────────
-        if start_from <= 6:
+        if should_run(6):
             emit(94, "그래프 데이터 빌드 중...")
             rc = await _run_script(
                 ["build_graph_jsonl.py", "--snapshot", snapshot],
@@ -373,11 +380,13 @@ async def run_pipeline(job_id: str) -> None:
             if rc != 0:
                 emit(94, "그래프 빌드", "경고: build_graph_jsonl.py 실패 (비필수)")
             save_pipeline_state(source_id, snapshot, 6)
-        else:
+        elif start_from > 6:
             emit(96, "Stage 6 건너뜀", "이전에 완료됨")
 
-        # ── Stage 7: 완료 알림 (97%) ──────────────────────────────────────
-        emit(97, "준비 완료", f"인덱스 준비됨: {snapshot} — admin에서 Activate 하세요.")
+        if end_stage <= 3:
+            emit(97, "청킹 완료", f"청크 준비됨: {snapshot} — 다음 단계에서 FAISS를 생성하세요.")
+        else:
+            emit(97, "준비 완료", f"인덱스 준비됨: {snapshot} — admin에서 Activate 하세요.")
 
         job["status"] = "completed"
         emit(100, "완료")
@@ -388,7 +397,11 @@ async def run_pipeline(job_id: str) -> None:
         emit(job["progress"], "오류", str(exc))
 
     finally:
-        q.put_nowait({"done": True})
+        q.put_nowait({
+            "done": True,
+            "status": job.get("status"),
+            "error": job.get("error"),
+        })
 
 
 async def _run_script(

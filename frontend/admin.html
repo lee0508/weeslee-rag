@@ -7279,7 +7279,7 @@ POST /api/admin/faiss/activate</code>
     if (logEl)  { logEl.classList.add('show'); logEl.textContent = ''; }
     if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
 
-    // ── faiss_start: FAISS 파이프라인 잡 시작 (Step 5) ─────────────────────
+    // ── faiss_start: OCR/텍스트 추출 + 청킹 잡 시작 (Step 5) ────────────────
     if (cfg?.special === 'faiss_start') {
       _wizardSetStatus(step, '잡 시작...', 'running');
       try {
@@ -7288,7 +7288,14 @@ POST /api/admin/faiss/activate</code>
 
         // 기존 스냅샷이 선택되었는지 확인
         const existingSnapshot = getSelectedSnapshot();
-        const startFromStage = existingSnapshot ? getRecommendedStartStage() : 1;
+        const recommendedStage = existingSnapshot ? getRecommendedStartStage() : 1;
+        if (existingSnapshot && recommendedStage > 3) {
+          _wizardAppendLog(step, `기존 스냅샷은 OCR/청킹 단계가 이미 완료된 상태입니다. recommended_start=${recommendedStage}`);
+          _wizardMarkDone(step);
+          _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${existingSnapshot}의 OCR/청킹 완료가 확인됐습니다.`), 'ok');
+          return true;
+        }
+        const startFromStage = Math.max(1, recommendedStage);
 
         if (existingSnapshot) {
           _wizardFaissSnapshot = existingSnapshot;
@@ -7307,49 +7314,58 @@ POST /api/admin/faiss/activate</code>
             snapshot: _wizardFaissSnapshot,
             source_id: src,
             start_from_stage: startFromStage,
+            end_stage: 3,
           }),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
         _wizardFaissJobId = d.job_id;
-        _wizardSetStatus(step, '파이프라인 실행 중...', 'running');
-        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage}`);
+        _wizardSetStatus(step, 'OCR/청킹 실행 중...', 'running');
+        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage} | end_stage: 3`);
         await _wizardSseStream(step, _wizardFaissJobId);
         _wizardMarkDone(step);
-        _wizardMarkDone(6); // 같은 파이프라인이 chunk+faiss 모두 수행
         const resumeMsg = startFromStage > 1 ? ` (Stage ${startFromStage}부터 재개)` : '';
-        _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 파이프라인 잡 ${_wizardFaissJobId} 실행 완료.${resumeMsg}`), 'ok');
+        _wizardSetRunSummary(_wizardBuildSummary(step, `OCR/청킹 잡 ${_wizardFaissJobId} 실행 완료.${resumeMsg}`), 'ok');
         // 스냅샷 목록 새로고침
         loadSnapshotList();
         return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }
 
-    // ── faiss_poll: Step 5 잡 완료 확인 (Step 6) ───────────────────────────
+    // ── faiss_poll: 임베딩 + Vector + FAISS 생성 (Step 6) ──────────────────
     if (cfg?.special === 'faiss_poll') {
-      if (!_wizardFaissJobId) {
-        _wizardMarkError(step, 'Step 5 (텍스트→Chunk)를 먼저 실행하세요.');
+      const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
+      if (!snapshot) {
+        _wizardMarkError(step, 'FAISS 스냅샷이 없습니다. Step 5 (OCR/청킹)를 먼저 실행하세요.');
         return false;
       }
+      _wizardFaissSnapshot = snapshot;
       try {
-        const data = await fetch(`${API_BASE}/admin/faiss/jobs`, {
-          headers: { Authorization: 'Bearer ' + getToken() },
-        }).then(r => r.json()).catch(() => ({ jobs: [] }));
-        const job = (data.jobs || []).find(j => j.job_id === _wizardFaissJobId);
-        if (job?.status === 'completed') {
-          _wizardMarkDone(step);
-          _wizardSetRunSummary(_wizardBuildSummary(step, `잡 ${_wizardFaissJobId} 완료가 확인됐습니다.`), 'ok');
-          return true;
-        }
-        if (job?.status === 'running') {
-          _wizardSetStatus(step, 'FAISS 생성 중...', 'running');
-          await _wizardSseStream(step, _wizardFaissJobId);
-          _wizardMarkDone(step);
-          _wizardSetRunSummary(_wizardBuildSummary(step, `잡 ${_wizardFaissJobId} 스트림 완료.`), 'ok');
-          return true;
-        }
-        _wizardMarkError(step, job ? `잡 상태: ${job.status}` : '잡을 찾을 수 없습니다.');
-        return false;
+        const src = (document.getElementById('ctxSource')?.value?.trim() || 'rag_source').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const recommendedStage = getSelectedSnapshot() ? getRecommendedStartStage() : 4;
+        const startFromStage = Math.max(4, Math.min(recommendedStage || 4, 5));
+        _wizardSetStatus(step, '잡 시작...', 'running');
+        _wizardAppendLog(step, `POST /api/admin/faiss/jobs\n스냅샷: ${snapshot}`);
+        const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            snapshot,
+            source_id: src,
+            start_from_stage: startFromStage,
+            end_stage: 5,
+          }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+        _wizardFaissJobId = d.job_id;
+        _wizardSetStatus(step, 'FAISS 생성 중...', 'running');
+        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage} | end_stage: 5`);
+        await _wizardSseStream(step, _wizardFaissJobId);
+        _wizardMarkDone(step);
+        _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 잡 ${_wizardFaissJobId} 실행 완료.`), 'ok');
+        loadSnapshotList();
+        return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }
 

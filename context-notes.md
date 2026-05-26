@@ -52,3 +52,13 @@
 - 최근 작업은 `/admin/faiss/jobs`에서 선택 Source ID 또는 snapshot 문자열에 source ID가 포함된 job을 우선 표시한다.
 - 오른쪽 패널은 `Project Dataset`, `Current Source`, `Next Source Action`, `Recent Source Jobs`, `On This Page`, `API Status` 순서로 구성했다.
 - 상태 새로고침 버튼은 Source 스캔을 강제로 다시 실행하고, Overview 진입 시에는 10분 throttling 규칙을 유지한다.
+
+## 2026-05-27 Dataset Builder 5/6단계 분리
+
+- Step 5 `OCR 작업 + 청킹 시작`은 사용자 관점에서 텍스트 추출과 청킹까지만 수행해야 한다.
+- 기존 `faiss_start` job은 manifest, OCR/텍스트 추출, 청킹, FAISS, 카테고리 인덱스, 그래프까지 한 번에 실행해 Step 6과 역할이 겹쳤다.
+- Step 6 `임베딩 + Vector + FAISS 진행`은 청크 결과를 입력으로 FAISS 인덱스와 카테고리 인덱스를 생성하는 별도 단계로 둔다.
+- Job 실패 시 runner가 `{"done": true}`만 보내면 프론트가 성공으로 오판하므로 완료 이벤트에 실패 상태와 error를 포함해야 한다.
+- `/api/admin/faiss/jobs` 요청에 `end_stage`를 추가해 Step 5는 1-3, Step 6은 4-5만 실행하도록 했다.
+- 기존 FAISS 탭의 직접 job 실행은 `end_stage` 기본값 6을 유지하므로 기존 전체 파이프라인 동작은 유지된다.
+- 검증은 `python3 -m compileall`, `admin.html` inline script 파싱, `git diff --check`로 수행했다.

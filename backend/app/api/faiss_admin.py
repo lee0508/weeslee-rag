@@ -186,6 +186,7 @@ class StartJobRequest(BaseModel):
     snapshot: str
     source_id: str = "rag_source"
     start_from_stage: int = 1  # 시작 단계 (1-6)
+    end_stage: int = 6  # 종료 단계 (1-6)
 
 
 class AddDocumentsRequest(BaseModel):
@@ -201,14 +202,19 @@ async def start_job(req: StartJobRequest):
     start_from_stage를 지정하면 해당 단계부터 시작합니다.
     이전 단계가 완료되어 있어야 합니다.
     """
-    # start_from_stage 범위 검증
+    # stage 범위 검증
     if req.start_from_stage < 1 or req.start_from_stage > 6:
         raise HTTPException(status_code=400, detail="start_from_stage는 1-6 사이여야 합니다.")
+    if req.end_stage < 1 or req.end_stage > 6:
+        raise HTTPException(status_code=400, detail="end_stage는 1-6 사이여야 합니다.")
+    if req.start_from_stage > req.end_stage:
+        raise HTTPException(status_code=400, detail="start_from_stage는 end_stage보다 클 수 없습니다.")
 
     job_id = runner.create_job(
         req.snapshot,
         source_id=req.source_id,
         start_from_stage=req.start_from_stage,
+        end_stage=req.end_stage,
     )
     asyncio.create_task(runner.run_pipeline(job_id))
     return {
@@ -216,6 +222,7 @@ async def start_job(req: StartJobRequest):
         "snapshot": req.snapshot,
         "source_id": req.source_id,
         "start_from_stage": req.start_from_stage,
+        "end_stage": req.end_stage,
         "status": "running",
     }
 
