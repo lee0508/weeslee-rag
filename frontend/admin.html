@@ -1242,14 +1242,42 @@ POST /api/admin/faiss/activate</code>
 
     <aside class="wr-right-panel">
       <div class="wr-panel-block">
-        <h2 class="wr-panel-title">On This Page</h2>
-        <div class="wr-on-this-page" id="wrOnThisPage"></div>
+        <h2 class="wr-panel-title">Project Dataset</h2>
+        <div class="wr-status-list">
+          <div class="wr-status-row"><span>Dataset</span><span class="wr-status-badge" id="wrDatasetName">weeslee_rag_main</span></div>
+          <div class="wr-status-row"><span>Active Snapshot</span><span class="wr-status-badge" id="wrDatasetSnapshot">확인 중</span></div>
+        </div>
       </div>
       <div class="wr-panel-block">
-        <h2 class="wr-panel-title">Current Job</h2>
-        <div class="wr-status-list">
-          <div class="wr-status-row"><span>No running job</span><span class="wr-status-badge">Fallback</span></div>
+        <h2 class="wr-panel-title">Current Source</h2>
+        <div class="wr-field" style="margin-bottom:10px">
+          <label for="wrCurrentSourceSelect">Source ID</label>
+          <select id="wrCurrentSourceSelect" style="width:100%;background:var(--wr-bg-alt);color:var(--wr-text);border:1px solid var(--wr-border);border-radius:6px;padding:8px"></select>
         </div>
+        <div class="wr-status-list">
+          <div class="wr-status-row"><span>Mount</span><span id="wrCurrentSourceMount">-</span></div>
+          <div class="wr-status-row"><span>새 파일</span><span class="wr-status-badge" id="wrCurrentSourceNew">0</span></div>
+          <div class="wr-status-row"><span>변경 파일</span><span class="wr-status-badge" id="wrCurrentSourceChanged">0</span></div>
+          <div class="wr-status-row"><span>삭제 파일</span><span class="wr-status-badge" id="wrCurrentSourceRemoved">0</span></div>
+        </div>
+      </div>
+      <div class="wr-panel-block">
+        <h2 class="wr-panel-title">Next Source Action</h2>
+        <div class="wr-callout" id="wrSourceActionMessage" style="font-size:12px;padding:10px">Source 상태를 확인하는 중입니다.</div>
+        <div class="wr-inline-actions" style="margin-top:10px">
+          <button class="wr-btn wr-btn-sm" type="button" data-wr-page="source-documents">소스 관리</button>
+          <button class="wr-btn wr-btn-sm" type="button" data-wr-page="rag-build-wizard">Wizard 실행</button>
+        </div>
+      </div>
+      <div class="wr-panel-block">
+        <h2 class="wr-panel-title">Recent Source Jobs</h2>
+        <div class="wr-status-list" id="wrSourceJobList">
+          <div class="wr-status-row"><span>최근 Job</span><span class="wr-status-badge">확인 중</span></div>
+        </div>
+      </div>
+      <div class="wr-panel-block">
+        <h2 class="wr-panel-title">On This Page</h2>
+        <div class="wr-on-this-page" id="wrOnThisPage"></div>
       </div>
       <div class="wr-panel-block">
         <h2 class="wr-panel-title">API Status</h2>

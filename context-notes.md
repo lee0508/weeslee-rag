@@ -41,3 +41,14 @@
 - 이번 1차 구현은 `Overview` 상단을 상태판과 다음 작업 안내 중심으로 바꾸는 데 한정한다.
 - 기존 Legacy Dashboard와 `loadDashboard()`가 이미 상태 카드와 다음 작업 판단을 제공하므로, 새 Docs-style Overview에서도 같은 판단 흐름을 보여주도록 연결한다.
 - Source/Dataset 세부 관리, GraphRAG 관계 편집, LLM Wiki 미리보기는 후속 단계로 남긴다.
+
+## 2026-05-26 관리자 오른쪽 Source 운영 패널
+
+- 전체 Dataset은 `weeslee_rag_main`으로 유지하되 단계별 생성과 재개는 `Document Source ID` 기준으로 보는 것이 맞다.
+- 오른쪽 패널은 기존 `On This Page`, `Current Job`, `API Status`보다 Source 운영 상태를 먼저 보여줘야 한다.
+- 제안 구조는 Project Dataset, Current Source, Next Source Action, Recent Jobs, API Status 순서다.
+- Source 선택은 `/admin/document-sources` 응답의 `source_id`를 select에 표시하고 선택값을 `localStorage`에 저장한다.
+- Source별 변경 감지 값은 `new_file_count`, `changed_file_count`, `removed_file_count`, `needs_rag_build`, `next_action` 필드를 사용한다.
+- 최근 작업은 `/admin/faiss/jobs`에서 선택 Source ID 또는 snapshot 문자열에 source ID가 포함된 job을 우선 표시한다.
+- 오른쪽 패널은 `Project Dataset`, `Current Source`, `Next Source Action`, `Recent Source Jobs`, `On This Page`, `API Status` 순서로 구성했다.
+- 상태 새로고침 버튼은 Source 스캔을 강제로 다시 실행하고, Overview 진입 시에는 10분 throttling 규칙을 유지한다.

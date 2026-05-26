@@ -4,6 +4,7 @@
   if (!app) return;
 
   const TOKEN_KEY = 'admin_token';
+  const SOURCE_PANEL_KEY = 'wr_current_source_id';
   const API_BASE = window.__API_BASE__ || `${window.location.origin}/api`;
   const navLinks = Array.from(app.querySelectorAll('[data-wr-page]'));
   const navControls = Array.from(app.querySelectorAll('.wr-nav-link'));
@@ -109,6 +110,13 @@
     el.className = `wr-status-badge ${state ? `wr-${state}` : ''}`.trim();
   }
 
+  function setBadge(id, label, state) {
+    const el = app.querySelector(`#${id}`);
+    if (!el) return;
+    el.textContent = label;
+    el.className = `wr-status-badge ${state ? `wr-${state}` : ''}`.trim();
+  }
+
   async function checkApiStatus() {
     const checks = [
       ['wrStorageStatus', 'Storage API', '/knowledge-sources/status'],
@@ -137,6 +145,152 @@
   function setHtml(selector, html) {
     const el = app.querySelector(selector);
     if (el) el.innerHTML = html;
+  }
+
+  function getSourceId(source) {
+    return source?.source_id || source?.id || '';
+  }
+
+  function getSelectedSourceId(sourceList) {
+    const stored = localStorage.getItem(SOURCE_PANEL_KEY);
+    const ids = sourceList.map(getSourceId).filter(Boolean);
+    if (stored && ids.includes(stored)) return stored;
+    return ids[0] || '';
+  }
+
+  function renderRightPanelSourceOptions(sourceList, selectedId) {
+    const select = app.querySelector('#wrCurrentSourceSelect');
+    if (!select) return;
+
+    if (!sourceList.length) {
+      select.innerHTML = '<option value="">등록된 Source 없음</option>';
+      select.disabled = true;
+      return;
+    }
+
+    select.disabled = false;
+    select.innerHTML = sourceList.map(source => {
+      const sourceId = getSourceId(source);
+      const label = source.source_name
+        ? `${source.source_name} (${sourceId})`
+        : sourceId;
+      return `<option value="${escapeHtml(sourceId)}"${sourceId === selectedId ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    }).join('');
+  }
+
+  function getActiveSnapshot(faissStatus) {
+    return faissStatus?.active?.snapshot
+      || faissStatus?.active_index?.snapshot
+      || faissStatus?.snapshot
+      || faissStatus?.active_snapshot
+      || '';
+  }
+
+  function jobMatchesSource(job, sourceId) {
+    if (!sourceId) return false;
+    const haystack = [
+      job?.source_id,
+      job?.source,
+      job?.snapshot,
+      job?.job_id,
+      job?.metadata?.source_id,
+    ].filter(Boolean).join(' ');
+    return haystack.includes(sourceId);
+  }
+
+  function renderSourceJobs(jobs, sourceId) {
+    const list = app.querySelector('#wrSourceJobList');
+    if (!list) return;
+
+    const matchedJobs = jobs.filter(job => jobMatchesSource(job, sourceId));
+    const recentJobs = (matchedJobs.length ? matchedJobs : jobs).slice(0, 4);
+
+    if (!recentJobs.length) {
+      list.innerHTML = '<div class="wr-status-row"><span>최근 Job</span><span class="wr-status-badge">없음</span></div>';
+      return;
+    }
+
+    list.innerHTML = recentJobs.map(job => {
+      const title = job.snapshot || job.job_id || 'job';
+      const status = job.status || '-';
+      const stage = job.stage || '-';
+      const progress = job.progress ?? 0;
+      const badgeState = status === 'completed' ? 'ok' : (status === 'failed' || status === 'error' ? 'warn' : '');
+      return `
+        <div class="wr-status-row">
+          <span>${escapeHtml(title)}</span>
+          <span class="wr-status-badge ${badgeState ? `wr-${badgeState}` : ''}">${escapeHtml(status)}</span>
+        </div>
+        <div class="wr-status-row">
+          <span>${escapeHtml(stage)}</span>
+          <span>${escapeHtml(progress)}%</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderRightPanelSource(sourceList, selectedId, faissStatus, jobsData) {
+    const source = sourceList.find(item => getSourceId(item) === selectedId) || null;
+    const activeSnapshot = getActiveSnapshot(faissStatus);
+    const jobs = Array.isArray(jobsData?.jobs) ? jobsData.jobs : [];
+
+    setBadge('wrDatasetName', 'weeslee_rag_main', 'ok');
+    setBadge('wrDatasetSnapshot', activeSnapshot || 'No active', activeSnapshot ? 'ok' : 'warn');
+    renderRightPanelSourceOptions(sourceList, selectedId);
+
+    if (!source) {
+      setText('wrCurrentSourceMount', '-');
+      setBadge('wrCurrentSourceNew', '0', '');
+      setBadge('wrCurrentSourceChanged', '0', '');
+      setBadge('wrCurrentSourceRemoved', '0', '');
+      setText('wrSourceActionMessage', '등록된 Source가 없습니다. Source Documents 메뉴에서 Source를 먼저 등록해 주세요.');
+      renderSourceJobs(jobs, selectedId);
+      return;
+    }
+
+    const newCount = Number(source.new_file_count || 0);
+    const changedCount = Number(source.changed_file_count || 0);
+    const removedCount = Number(source.removed_file_count || 0);
+    const needsWork = Boolean(source.needs_rag_build || newCount || changedCount || removedCount);
+    const mountPath = source.mount_path || source.source_uri || '-';
+    const nextAction = source.next_action || (needsWork
+      ? '새 문서 변경 사항이 있습니다. Wizard에서 RAG 작업을 실행해 주세요.'
+      : '현재 Source는 추가 작업이 필요하지 않습니다.');
+
+    setText('wrCurrentSourceMount', mountPath);
+    setBadge('wrCurrentSourceNew', String(newCount), newCount ? 'warn' : 'ok');
+    setBadge('wrCurrentSourceChanged', String(changedCount), changedCount ? 'warn' : 'ok');
+    setBadge('wrCurrentSourceRemoved', String(removedCount), removedCount ? 'warn' : 'ok');
+    setText('wrSourceActionMessage', `${source.source_name || selectedId}: ${nextAction}`);
+    renderSourceJobs(jobs, selectedId);
+  }
+
+  function setRightSourcePanelError(message) {
+    setBadge('wrDatasetSnapshot', 'Not connected', 'warn');
+    setText('wrCurrentSourceMount', '-');
+    setBadge('wrCurrentSourceNew', '-', 'warn');
+    setBadge('wrCurrentSourceChanged', '-', 'warn');
+    setBadge('wrCurrentSourceRemoved', '-', 'warn');
+    setText('wrSourceActionMessage', `Source 상태를 읽지 못했습니다. ${message}`);
+    setHtml('#wrSourceJobList', `<div class="wr-status-row"><span>최근 Job</span><span class="wr-status-badge wr-warn">실패</span></div>`);
+  }
+
+  async function refreshRightSourcePanel(forceScan = false) {
+    try {
+      const [sources, faissStatus, jobsData] = await Promise.all([
+        fetchJson('/admin/document-sources'),
+        fetchJson('/admin/faiss/status').catch(() => ({})),
+        fetchJson('/admin/faiss/jobs').catch(() => ({ jobs: [] })),
+      ]);
+
+      let sourceList = Array.isArray(sources) ? sources : [];
+      sourceList = await scanSourceDocumentsIfNeeded(sourceList, forceScan);
+      const selectedId = getSelectedSourceId(sourceList);
+      if (selectedId) localStorage.setItem(SOURCE_PANEL_KEY, selectedId);
+      renderRightPanelSource(sourceList, selectedId, faissStatus, jobsData);
+    } catch (error) {
+      setRightSourcePanelError(error.message);
+    }
   }
 
   async function refreshSourceDocuments() {
@@ -424,6 +578,7 @@
   }
 
   function refreshPageData(pageName) {
+    if (pageName === 'overview') refreshRightSourcePanel();
     if (pageName === 'source-documents') renderSourceDocumentsPage();
     if (pageName === 'rag-build-wizard') refreshWizardSummary();
     if (pageName === 'faiss-index') refreshFaissSummary();
@@ -727,8 +882,15 @@
 
   app.querySelector('#wrRefreshStatus')?.addEventListener('click', () => {
     checkApiStatus();
-    refreshPageData(app.querySelector('.wr-page.wr-is-active')?.dataset.wrPagePanel || 'overview');
+    const activePage = app.querySelector('.wr-page.wr-is-active')?.dataset.wrPagePanel || 'overview';
+    refreshRightSourcePanel(true);
+    if (activePage !== 'overview') refreshPageData(activePage);
     showToast('API 상태를 다시 확인했습니다.');
+  });
+
+  app.querySelector('#wrCurrentSourceSelect')?.addEventListener('change', event => {
+    localStorage.setItem(SOURCE_PANEL_KEY, event.target.value);
+    refreshRightSourcePanel(false);
   });
 
   searchInput?.addEventListener('input', event => filterNav(event.target.value));

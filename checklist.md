@@ -1,9 +1,8 @@
-# 관리자 페이지 1차 UI 개선 체크리스트
+# 관리자 오른쪽 Source 운영 패널 체크리스트
 
-- [x] 앞선 관리자 UI 개선 분석 기준 재확인
-- [x] 방금 시작했던 새 요구사항 기반 미커밋 변경 원복
-- [x] Overview 상단을 상태판과 다음 작업 안내 중심으로 재구성
-- [x] 기존 API 상태 조회 결과를 Overview 요약 카드에 연결
-- [x] 다음 작업 버튼이 실제 작업 화면으로 이동하도록 연결
-- [x] 정적 문법 검사와 UTF-8 인코딩 확인
-- [x] 변경 사항 커밋
+- [x] 오른쪽 패널 현재 구조와 Source 상태 데이터 흐름 확인
+- [x] Project Dataset, Current Source, Next Source Action, Recent Jobs UI 추가
+- [x] Source ID 선택과 상태 렌더링 JS 연결
+- [x] API Status는 하단에 유지
+- [x] 정적 검사와 UTF-8 인코딩 확인
+- [ ] 변경 사항 커밋
