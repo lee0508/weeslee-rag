@@ -53,6 +53,18 @@
     refreshPageData(targetName);
   }
 
+  window.openWrDocsPage = function openWrDocsPage(pageName) {
+    const target = app.querySelector(`.wr-page[data-wr-page-panel="${pageName}"]`);
+    if (!target) return false;
+
+    const legacy = document.getElementById('legacyAdminTabs');
+    if (legacy) legacy.hidden = true;
+
+    setActivePage(pageName);
+    app.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  };
+
   function renderOnThisPage(pageName) {
     if (!onThisPage) return;
     const page = app.querySelector(`.wr-page[data-wr-page-panel="${pageName}"]`);

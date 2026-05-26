@@ -5904,24 +5904,21 @@ POST /api/admin/faiss/activate</code>
 
   // ── 빠른 이동 버튼 함수 ──────────────────────────────────────────────────
   function openSourceManagement() {
-    // Legacy docsource 탭으로 이동하고 소스 정보 로드
+    if (window.openWrDocsPage?.('source-documents')) return;
     switchTab('docsource');
-    // 디렉토리 구조 표시를 위해 loadDocSources 호출
     if (typeof loadDocSources === 'function') loadDocSources();
   }
 
   function openBuildWizard() {
-    // Legacy wizard 탭으로 이동하고 완료 상태 표시
+    if (window.openWrDocsPage?.('rag-build-wizard')) return;
     switchTab('wizard');
-    // Wizard 진행 상태 동기화
     if (typeof renderWizardProgressBar === 'function') renderWizardProgressBar();
-    if (typeof syncWizardStepStatuses === 'function') syncWizardStepStatuses();
+    if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
   }
 
   function openSearchQuality() {
-    // Legacy benchmark 탭으로 이동하고 테스트 문구 자동 입력
+    if (window.openWrDocsPage?.('search-quality')) return;
     switchTab('benchmark');
-    // 검색 입력란에 기본 테스트 문구 입력
     setTimeout(() => {
       const searchInput = document.getElementById('bmQuery') || document.querySelector('#tab-benchmark input[type="text"]');
       if (searchInput && !searchInput.value) {
