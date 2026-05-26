@@ -29,8 +29,10 @@ from pathlib import Path
 import os
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-WIKI_DIR = PROJECT_ROOT / "data" / "wiki" / "projects"
-INVENTORY_PATH = PROJECT_ROOT / "data" / "staged" / "project_inventory.json"
+DATA_DIR = PROJECT_ROOT / "data"
+WIKI_DIR = DATA_DIR / "wiki" / "projects"
+STAGED_DIR = DATA_DIR / "staged"
+INVENTORY_PATH = STAGED_DIR / "project_inventory.json"
 
 # 환경변수 우선, 없으면 로컬 기본값 사용 (CLI 인자로 덮어쓸 수 있음)
 RAG_API_BASE = os.getenv("RAG_API_BASE", "http://127.0.0.1:8080")
@@ -365,10 +367,19 @@ def render_wiki(
 """
 
 
-def load_inventory() -> dict:
+def load_inventory(source_id: str = None) -> dict:
+    """source_id별 inventory 파일 또는 기본 inventory를 로드한다."""
+    # source_id가 지정되면 해당 inventory 파일 먼저 시도
+    if source_id:
+        source_inventory_path = STAGED_DIR / f"{source_id}_inventory.json"
+        if source_inventory_path.exists():
+            print(f"Loading inventory from {source_inventory_path}")
+            return json.loads(source_inventory_path.read_text(encoding="utf-8"))
+
+    # 기본 inventory 파일
     if not INVENTORY_PATH.exists():
         print(f"[ERROR] project_inventory.json not found at {INVENTORY_PATH}")
-        print("Run: python -c 'import build_project_inventory'  or re-run manifest collection")
+        print("Run: python build_project_inventory.py --from-chunks  or re-run manifest collection")
         sys.exit(1)
     return json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
 
@@ -417,6 +428,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--list", action="store_true", help="List all available projects")
     parser.add_argument("--project", default=None, help="Project slug (e.g. k-water, ax, moj)")
     parser.add_argument(
+        "--source-id",
+        default=None,
+        help="Document Source ID (e.g. rag_source, domestic_business). Uses source-specific inventory.",
+    )
+    parser.add_argument(
+        "--from-inventory",
+        action="store_true",
+        help="Use all projects from inventory instead of TARGET_PROJECTS",
+    )
+    parser.add_argument(
         "--rag-api-base",
         default=None,
         help="RAG API base URL (default: RAG_API_BASE env or http://127.0.0.1:8080)",
@@ -431,11 +452,45 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Ollama model name (default: OLLAMA_MODEL env or gemma3:4b)",
     )
+    parser.add_argument(
+        "--wiki-dir",
+        default=None,
+        help="Output directory for wiki files (default: data/wiki/projects)",
+    )
+    parser.add_argument(
+        "--max-projects",
+        type=int,
+        default=0,
+        help="Maximum number of projects to process (0 = unlimited)",
+    )
     return parser.parse_args()
 
 
+def slugify(folder_name: str) -> str:
+    """폴더명을 slug로 변환한다."""
+    import re
+    # 숫자, 점, 공백 제거 후 소문자 변환
+    slug = re.sub(r"^\d+\.\s*", "", folder_name)
+    slug = re.sub(r"[^\w가-힣-]", "-", slug)
+    slug = re.sub(r"-+", "-", slug).strip("-").lower()
+    return slug[:50] if slug else "unknown"
+
+
+def meta_from_folder(folder_name: str, folder_data: dict) -> dict:
+    """inventory의 folder 데이터에서 wiki 메타데이터를 생성한다."""
+    slug = slugify(folder_name)
+    return {
+        "slug": slug,
+        "display_name": folder_name,
+        "organization": folder_data.get("organization", ""),
+        "year": folder_data.get("folder_year", "-"),
+        "project_type": "자동 분류",
+        "search_name": folder_name,
+    }
+
+
 def main() -> None:
-    global RAG_API_BASE, OLLAMA_BASE, OLLAMA_MODEL
+    global RAG_API_BASE, OLLAMA_BASE, OLLAMA_MODEL, WIKI_DIR
 
     args = parse_args()
 
@@ -446,41 +501,65 @@ def main() -> None:
     if args.ollama_model:
         OLLAMA_MODEL = args.ollama_model
 
+    # wiki-dir 처리: source_id가 있으면 source_id별 디렉토리 사용
+    if args.wiki_dir:
+        WIKI_DIR = Path(args.wiki_dir)
+    elif args.source_id:
+        WIKI_DIR = DATA_DIR / "wiki" / args.source_id / "projects"
+
     if args.list:
         list_projects()
         return
 
-    inventory = load_inventory()
+    inventory = load_inventory(source_id=args.source_id)
     snapshot = get_active_snapshot()
     print(f"RAG API base: {RAG_API_BASE}")
     print(f"Ollama base: {OLLAMA_BASE}")
     print(f"Active snapshot: {snapshot}")
     print(f"Ollama model: {OLLAMA_MODEL}")
+    print(f"Wiki output dir: {WIKI_DIR}")
+    if args.source_id:
+        print(f"Source ID: {args.source_id}")
 
-    # Select projects to process
-    slug_map = {meta["slug"].split("-")[0]: (folder, meta)
-                for folder, meta in TARGET_PROJECTS.items()}
-    slug_map.update({meta["slug"]: (folder, meta)
-                     for folder, meta in TARGET_PROJECTS.items()})
-
-    if args.all:
-        selected = list(TARGET_PROJECTS.items())
-    elif args.project:
-        key = args.project.lower()
-        match = slug_map.get(key)
-        if not match:
-            # Fuzzy match on display_name
-            for folder, meta in TARGET_PROJECTS.items():
-                if key in meta["display_name"].lower() or key in folder.lower():
-                    match = (folder, meta)
-                    break
-        if not match:
-            print(f"[ERROR] Project not found: {args.project}")
-            print(f"Available: {[m['slug'] for m in TARGET_PROJECTS.values()]}")
-            sys.exit(1)
-        selected = [match]
+    # --from-inventory 모드: inventory에서 동적으로 프로젝트 목록 생성
+    if args.from_inventory or args.source_id:
+        selected = []
+        for folder_name, folder_data in inventory.items():
+            meta = meta_from_folder(folder_name, folder_data)
+            selected.append((folder_name, meta))
+        # 문서 수 기준 정렬 (많은 순)
+        selected.sort(key=lambda x: -inventory[x[0]].get("doc_count", 0))
+        print(f"Projects from inventory: {len(selected)}")
     else:
-        selected = list(TARGET_PROJECTS.items())
+        # 기존 TARGET_PROJECTS 기반 처리
+        slug_map = {meta["slug"].split("-")[0]: (folder, meta)
+                    for folder, meta in TARGET_PROJECTS.items()}
+        slug_map.update({meta["slug"]: (folder, meta)
+                         for folder, meta in TARGET_PROJECTS.items()})
+
+        if args.all:
+            selected = list(TARGET_PROJECTS.items())
+        elif args.project:
+            key = args.project.lower()
+            match = slug_map.get(key)
+            if not match:
+                # Fuzzy match on display_name
+                for folder, meta in TARGET_PROJECTS.items():
+                    if key in meta["display_name"].lower() or key in folder.lower():
+                        match = (folder, meta)
+                        break
+            if not match:
+                print(f"[ERROR] Project not found: {args.project}")
+                print(f"Available: {[m['slug'] for m in TARGET_PROJECTS.values()]}")
+                sys.exit(1)
+            selected = [match]
+        else:
+            selected = list(TARGET_PROJECTS.items())
+
+    # max-projects 적용
+    if args.max_projects > 0:
+        selected = selected[:args.max_projects]
+        print(f"Limited to {args.max_projects} projects")
 
     generated = []
     for folder_name, meta in selected:

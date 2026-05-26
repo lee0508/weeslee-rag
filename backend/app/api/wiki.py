@@ -20,10 +20,19 @@ from fastapi import APIRouter, HTTPException
 router = APIRouter(prefix="/wiki", tags=["Wiki"])
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-WIKI_DIR = PROJECT_ROOT / "data" / "wiki" / "projects"
+DATA_DIR = PROJECT_ROOT / "data"
+WIKI_DIR = DATA_DIR / "wiki" / "projects"
 _BUILD_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "build_project_wiki.py"
+_INVENTORY_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "build_project_inventory.py"
 
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,79}$")
+
+
+def _get_wiki_dir(source_id: Optional[str] = None) -> Path:
+    """source_id별 Wiki 디렉토리 반환."""
+    if source_id:
+        return DATA_DIR / "wiki" / source_id / "projects"
+    return WIKI_DIR
 
 
 def _slugify(name: str) -> str:
@@ -69,11 +78,12 @@ def _read_wiki(path: Path) -> dict:
 
 
 @router.get("/projects")
-async def list_wiki_projects():
+async def list_wiki_projects(source_id: Optional[str] = None):
     """사용 가능한 프로젝트 위키 목록."""
-    WIKI_DIR.mkdir(parents=True, exist_ok=True)
+    wiki_dir = _get_wiki_dir(source_id)
+    wiki_dir.mkdir(parents=True, exist_ok=True)
     pages = []
-    for md_file in sorted(WIKI_DIR.glob("*.md")):
+    for md_file in sorted(wiki_dir.glob("*.md")):
         try:
             info = _read_wiki(md_file)
             pages.append({
@@ -85,7 +95,7 @@ async def list_wiki_projects():
             })
         except Exception:
             pass
-    return {"pages": pages, "count": len(pages)}
+    return {"pages": pages, "count": len(pages), "source_id": source_id or "default"}
 
 
 @router.get("/match")
@@ -127,29 +137,59 @@ async def match_wiki(label: str):
 
 
 @router.get("/projects/{slug}")
-async def get_wiki_project(slug: str):
+async def get_wiki_project(slug: str, source_id: Optional[str] = None):
     """특정 프로젝트 위키 마크다운과 메타데이터."""
     if not _SLUG_RE.match(slug):
         raise HTTPException(status_code=400, detail="Invalid slug format")
 
-    path = WIKI_DIR / f"{slug}.md"
+    wiki_dir = _get_wiki_dir(source_id)
+    path = wiki_dir / f"{slug}.md"
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Wiki not found: {slug}")
 
-    return _read_wiki(path)
+    result = _read_wiki(path)
+    result["source_id"] = source_id or "default"
+    return result
 
 
 @router.post("/build")
-async def build_wiki(slug: Optional[str] = None):
-    """build_project_wiki.py 실행하여 위키 재생성."""
+async def build_wiki(
+    slug: Optional[str] = None,
+    source_id: Optional[str] = None,
+    from_inventory: bool = False,
+    max_projects: int = 0,
+):
+    """build_project_wiki.py 실행하여 위키 재생성.
+
+    Args:
+        slug: 특정 프로젝트 slug (선택)
+        source_id: Document Source ID (선택). 지정 시 해당 source의 inventory 사용
+        from_inventory: True면 inventory의 모든 프로젝트 처리 (TARGET_PROJECTS 무시)
+        max_projects: 처리할 최대 프로젝트 수 (0=무제한)
+    """
     if not _BUILD_SCRIPT.exists():
         raise HTTPException(status_code=500, detail="build_project_wiki.py not found")
+
+    # source_id 지정 시 먼저 inventory 생성
+    if source_id and _INVENTORY_SCRIPT.exists():
+        inv_cmd = [sys.executable, str(_INVENTORY_SCRIPT), "--source-id", source_id]
+        try:
+            subprocess.run(inv_cmd, capture_output=True, timeout=60, cwd=str(PROJECT_ROOT))
+        except Exception:
+            pass  # inventory 생성 실패해도 계속 진행
 
     cmd = [sys.executable, str(_BUILD_SCRIPT)]
     if slug:
         cmd += ["--project", slug]
+    elif source_id:
+        cmd += ["--source-id", source_id]
+    elif from_inventory:
+        cmd += ["--from-inventory"]
     else:
         cmd += ["--all"]
+
+    if max_projects > 0:
+        cmd += ["--max-projects", str(max_projects)]
 
     try:
         proc = subprocess.run(
@@ -158,20 +198,23 @@ async def build_wiki(slug: Optional[str] = None):
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=300,
+            timeout=600,  # source_id 모드는 더 오래 걸릴 수 있음
             cwd=str(PROJECT_ROOT),
         )
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Wiki build timed out (300s)")
+        raise HTTPException(status_code=504, detail="Wiki build timed out (600s)")
 
     if proc.returncode != 0:
         raise HTTPException(status_code=500, detail=proc.stderr.strip() or "Build failed")
 
     # List generated files
-    generated = [p.stem for p in WIKI_DIR.glob("*.md")]
+    wiki_dir = _get_wiki_dir(source_id)
+    generated = [p.stem for p in wiki_dir.glob("*.md")]
     return {
         "success": True,
+        "source_id": source_id or "default",
         "generated": generated,
+        "count": len(generated),
         "stdout": proc.stdout.strip()[-2000:],
     }
 
