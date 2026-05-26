@@ -6022,12 +6022,11 @@ POST /api/admin/faiss/activate</code>
     const el = document.getElementById('docSourceList');
     if (!el) return;
     try {
-      const r = await fetch(`${API_BASE}/knowledge-sources/status`, { headers: authHeaders() });
+      const r = await fetch(`${API_BASE}/admin/document-sources`, { headers: authHeaders() });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
 
-      // knowledge-sources/status 응답을 테이블로 표시
-      const sources = d.sources || (d.status ? [d] : []);
+      const sources = Array.isArray(d) ? d : [];
       if (!sources.length) {
         el.innerHTML = `<div class="empty-state">
           <div class="empty-icon">📂</div>
@@ -6044,22 +6043,36 @@ POST /api/admin/faiss/activate</code>
           <th style="padding:6px 8px;text-align:left;color:var(--muted)">원본 경로</th>
           <th style="padding:6px 8px;text-align:left;color:var(--muted)">상태</th>
           <th style="padding:6px 8px;text-align:left;color:var(--muted)">스캔 파일</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">변경 감지</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">다음 작업</th>
           <th style="padding:6px 8px;text-align:left;color:var(--muted)">관리</th>
         </tr></thead>
         <tbody>
-        ${sources.map(s => `<tr style="border-bottom:1px solid var(--border)">
+        ${sources.map(s => {
+          const newCount = Number(s.new_file_count || 0);
+          const changedCount = Number(s.changed_file_count || 0);
+          const removedCount = Number(s.removed_file_count || 0);
+          const needsWork = s.needs_rag_build || newCount || changedCount || removedCount;
+          const sourceIdParam = encodeURIComponent(s.source_id || s.id || '');
+          return `<tr style="border-bottom:1px solid var(--border)">
           <td style="padding:6px 8px;font-weight:600">${esc(s.name || s.source_name || '-')}</td>
-          <td style="padding:6px 8px;color:var(--muted);word-break:break-all;max-width:220px">${esc(s.path || s.root || '-')}</td>
+          <td style="padding:6px 8px;color:var(--muted);word-break:break-all;max-width:220px">${esc(s.mount_path || s.source_uri || '-')}</td>
           <td style="padding:6px 8px">
-            <span class="pill ${s.status === 'ok' || s.accessible ? 'green' : 'red'}">
-              ${s.status === 'ok' || s.accessible ? '연결됨' : '오류'}
+            <span class="pill ${s.status === 'accessible' || s.accessible ? 'green' : 'amber'}">
+              ${s.status === 'accessible' || s.accessible ? '연결됨' : '확인 필요'}
             </span>
           </td>
-          <td style="padding:6px 8px">${s.file_count ?? s.total_files ?? '-'}</td>
+          <td style="padding:6px 8px">${s.last_scan_file_count ?? s.file_count ?? '-'}</td>
           <td style="padding:6px 8px">
+            <span class="pill ${needsWork ? 'amber' : 'green'}">새 ${newCount} · 변경 ${changedCount} · 삭제 ${removedCount}</span>
+          </td>
+          <td style="padding:6px 8px;color:var(--muted);max-width:260px">${esc(s.next_action || 'Source Document 기준 스캔을 먼저 실행하세요.')}</td>
+          <td style="padding:6px 8px">
+            <button class="btn btn-outline btn-sm" onclick="scanDocSourceChanges('${sourceIdParam}')">새 파일 확인</button>
             <button class="btn btn-outline btn-sm" onclick="switchTab('wizard')">Dataset 생성</button>
           </td>
-        </tr>`).join('')}
+        </tr>`;
+        }).join('')}
         </tbody>
       </table>`;
     } catch (e) {
@@ -6070,6 +6083,26 @@ POST /api/admin/faiss/activate</code>
           <button class="btn btn-outline btn-sm" onclick="loadDocSources()">↻ 재시도</button>
         </div>
       </div>`;
+    }
+  }
+
+  async function scanDocSourceChanges(sourceId) {
+    if (!sourceId) return;
+    const decodedSourceId = decodeURIComponent(sourceId);
+    try {
+      const r = await fetch(`${API_BASE}/admin/document-sources/${encodeURIComponent(decodedSourceId)}/scan`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.success === false) {
+        showToast(`Source Document 확인 실패: ${d.detail || d.reason || r.status}`, 'error');
+        return;
+      }
+      showToast(d.next_action || 'Source Document 확인이 완료되었습니다.');
+      loadDocSources();
+    } catch (e) {
+      showToast(`Source Document 확인 오류: ${e.message}`, 'error');
     }
   }
 

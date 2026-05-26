@@ -21,8 +21,11 @@
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  async function fetchJson(path) {
-    const response = await fetch(`${API_BASE}${path}`, { headers: headers() });
+  async function fetchJson(path, options = {}) {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: { ...headers(), ...(options.headers || {}) },
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   }
@@ -196,6 +199,7 @@
       setText('wrSourceDefaultName', 'Not connected');
       setText('wrSourceCallout', `Source Documents API 연결 실패: ${error.message}`);
       setHtml('#wrSourceRegistryList', `<div class="wr-doc-list-empty">${escapeHtml(error.message)}</div>`);
+      setHtml('#wrSourceChangeList', '<div class="wr-doc-list-empty">새 파일 감지 상태를 읽지 못했습니다.</div>');
       setHtml('#wrSourceMountList', '<div class="wr-doc-list-empty">마운트 상태를 읽지 못했습니다.</div>');
     }
   }
@@ -464,6 +468,23 @@
       registryCard.insertBefore(list, button || null);
     }
 
+    if (registryCard && !page.querySelector('#wrSourceChangeList')) {
+      const button = registryCard.querySelector('[data-wr-legacy-tab="docsource"]');
+      const actionWrap = document.createElement('div');
+      actionWrap.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0';
+      actionWrap.innerHTML = `
+        <button class="wr-btn wr-primary" id="wrSourceScanNow" type="button">새 파일 확인</button>
+        <span class="wr-doc-list-meta" id="wrSourceScanHint">화면 진입 시 10분 간격으로 자동 확인합니다.</span>
+      `;
+      const list = document.createElement('div');
+      list.className = 'wr-doc-list';
+      list.id = 'wrSourceChangeList';
+      list.innerHTML = '<div class="wr-doc-list-empty">Source Document 변경 상태를 불러오는 중입니다.</div>';
+      registryCard.insertBefore(actionWrap, button || null);
+      registryCard.insertBefore(list, button || null);
+      actionWrap.querySelector('#wrSourceScanNow')?.addEventListener('click', () => renderSourceDocumentsPage(true));
+    }
+
     if (mountCard && !page.querySelector('#wrSourceMountList')) {
       const list = document.createElement('div');
       list.className = 'wr-doc-list';
@@ -481,7 +502,85 @@
     return { pathInput, clientInput };
   }
 
-  async function renderSourceDocumentsPage() {
+  const SOURCE_SCAN_THROTTLE_MS = 10 * 60 * 1000;
+
+  function sourceScanKey(sourceId) {
+    return `wr_source_scan_checked_at:${sourceId || 'source'}`;
+  }
+
+  function shouldAutoScanSource(source, force) {
+    if (force) return true;
+    if (source?.enabled === false) return false;
+    const sourceId = source?.source_id || source?.id;
+    const lastAttempt = Number(localStorage.getItem(sourceScanKey(sourceId)) || '0');
+    if (Date.now() - lastAttempt < SOURCE_SCAN_THROTTLE_MS) return false;
+    if (!source?.last_scanned_at) return true;
+    const lastScanTime = Date.parse(source.last_scanned_at);
+    return !Number.isFinite(lastScanTime) || Date.now() - lastScanTime > SOURCE_SCAN_THROTTLE_MS;
+  }
+
+  async function scanSourceDocumentsIfNeeded(sourceList, force = false) {
+    const candidates = sourceList.filter(source => shouldAutoScanSource(source, force));
+    if (!candidates.length) return sourceList;
+
+    const hint = app.querySelector('#wrSourceScanHint');
+    if (hint) hint.textContent = 'Source Document 변경 여부를 확인하는 중입니다.';
+
+    await Promise.all(candidates.map(async source => {
+      const sourceId = source.source_id || source.id;
+      try {
+        localStorage.setItem(sourceScanKey(sourceId), String(Date.now()));
+        await fetchJson(`/admin/document-sources/${encodeURIComponent(sourceId)}/scan`, { method: 'POST' });
+      } catch (error) {
+        console.warn(`[admin] source scan failed: ${sourceId}`, error);
+      }
+    }));
+
+    if (hint) hint.textContent = force
+      ? '수동 확인이 완료되었습니다.'
+      : '자동 확인이 완료되었습니다.';
+    const refreshed = await fetchJson('/admin/document-sources');
+    return Array.isArray(refreshed) ? refreshed : sourceList;
+  }
+
+  function formatScanDate(value) {
+    if (!value) return '아직 스캔 없음';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('ko-KR');
+  }
+
+  function renderSourceChangeList(sourceList) {
+    if (!sourceList.length) {
+      return '<div class="wr-doc-list-empty">등록된 source가 없어 새 파일을 확인할 수 없습니다.</div>';
+    }
+
+    return sourceList.slice(0, 6).map(source => {
+      const sourceId = source.source_id || source.id || '';
+      const newCount = Number(source.new_file_count || 0);
+      const changedCount = Number(source.changed_file_count || 0);
+      const removedCount = Number(source.removed_file_count || 0);
+      const needsWork = Boolean(source.needs_rag_build || newCount || changedCount || removedCount);
+      const nextAction = source.next_action || 'Source Document 기준 스캔을 먼저 실행하세요.';
+      const sampleFiles = [
+        ...(source.last_scan_new_files || []),
+        ...(source.last_scan_changed_files || []),
+        ...(source.last_scan_removed_files || []),
+      ].slice(0, 4);
+
+      return `
+        <div class="wr-doc-list-item">
+          <div class="wr-doc-list-title">${escapeHtml(source.source_name || sourceId || '-')}</div>
+          <div class="wr-doc-list-meta">마지막 확인 ${escapeHtml(formatScanDate(source.last_scanned_at))} | 전체 ${escapeHtml(source.last_scan_file_count ?? '-')}개</div>
+          <div class="wr-doc-list-meta">새 파일 ${newCount}개 | 변경 ${changedCount}개 | 삭제 ${removedCount}개</div>
+          <div class="wr-doc-list-meta">${needsWork ? '작업 필요' : '추가 작업 없음'} | ${escapeHtml(nextAction)}</div>
+          ${sampleFiles.length ? `<div class="wr-doc-list-meta">예시 파일 ${sampleFiles.map(escapeHtml).join(' | ')}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function renderSourceDocumentsPage(forceScan = false) {
     try {
       const { pathInput, clientInput } = ensureSourceDocumentsUi();
       const [sources, mountStatus] = await Promise.all([
@@ -489,7 +588,8 @@
         fetchJson('/admin/mounts/status').catch(() => ({ sources: [] })),
       ]);
 
-      const sourceList = Array.isArray(sources) ? sources : [];
+      let sourceList = Array.isArray(sources) ? sources : [];
+      sourceList = await scanSourceDocumentsIfNeeded(sourceList, forceScan);
       const mountList = Array.isArray(mountStatus?.sources) ? mountStatus.sources : [];
       const accessibleCount = mountList.filter(source => {
         const mi = source.mount_path_info;
@@ -502,7 +602,7 @@
       setText('wrSourceAccessibleCount', String(accessibleCount));
       setText('wrSourceDefaultName', defaultSource?.source_name || 'No source');
       setText('wrSourceCallout', sourceList.length
-        ? `등록된 source ${sourceList.length}개 중 접근 가능한 source ${accessibleCount}개를 확인했습니다.`
+        ? `등록된 source ${sourceList.length}개 중 접근 가능한 source ${accessibleCount}개를 확인했습니다. 새 파일 감지 결과를 확인하고 작업 필요 메시지가 있으면 RAG 작업을 진행하세요.`
         : '등록된 source가 없습니다. Legacy Document Source에서 먼저 등록해 주세요.');
 
       const registryHtml = sourceList.length
@@ -515,6 +615,7 @@
           `).join('')
         : '<div class="wr-doc-list-empty">등록된 source가 없습니다.</div>';
       setHtml('#wrSourceRegistryList', registryHtml);
+      setHtml('#wrSourceChangeList', renderSourceChangeList(sourceList));
 
       const mountHtml = mountList.length
         ? mountList.slice(0, 4).map(source => {

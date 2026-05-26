@@ -1,6 +1,9 @@
 # 문서 소스(DocumentSource) CRUD + 접근 테스트 API
+import json
 import os
+import re
 from datetime import datetime, timezone
+from pathlib import Path
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +17,8 @@ from app.services.platform_store import (
 
 STORE = "document_sources"
 ID_FIELD = "source_id"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+INVENTORY_DIR = PROJECT_ROOT / "platform_config" / "document_source_inventories"
 
 _WEESLEE_DEFAULT = {
     "source_id": "rag_source",
@@ -28,6 +33,12 @@ _WEESLEE_DEFAULT = {
     "status": "unknown",
     "last_checked_at": None,
     "last_scanned_at": None,
+    "last_scan_file_count": 0,
+    "new_file_count": 0,
+    "changed_file_count": 0,
+    "removed_file_count": 0,
+    "needs_rag_build": False,
+    "next_action": "Source Document 기준 스캔을 먼저 실행하세요.",
 }
 
 router = APIRouter(
@@ -97,6 +108,61 @@ def _check_path_accessible(path: str) -> dict:
         return {"accessible": False, "reason": str(e)}
 
 
+def _inventory_path(source_id: str) -> Path:
+    safe_id = re.sub(r"[^a-zA-Z0-9가-힣_.-]+", "_", source_id).strip("._") or "source"
+    INVENTORY_DIR.mkdir(parents=True, exist_ok=True)
+    return INVENTORY_DIR / f"{safe_id}.json"
+
+
+def _load_inventory(source_id: str) -> Optional[dict]:
+    path = _inventory_path(source_id)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and isinstance(data.get("files"), dict):
+            return data["files"]
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return None
+
+
+def _save_inventory(source_id: str, inventory: dict) -> None:
+    _inventory_path(source_id).write_text(
+        json.dumps({"files": inventory}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _build_inventory(root: str) -> dict:
+    root_path = Path(root)
+    inventory = {}
+    for file_path in _walk_files(root):
+        path_obj = Path(file_path)
+        try:
+            stat = path_obj.stat()
+            rel_path = path_obj.relative_to(root_path).as_posix()
+        except Exception:
+            continue
+        inventory[rel_path] = {
+            "size": stat.st_size,
+            "mtime": int(stat.st_mtime),
+        }
+    return inventory
+
+
+def _sample_paths(paths: list[str]) -> list[str]:
+    return sorted(paths)[:10]
+
+
+def _next_action(new_count: int, changed_count: int, removed_count: int, initial_scan: bool) -> str:
+    if initial_scan:
+        return "기준 스캔이 완료되었습니다. 이후 추가되는 Source Document를 자동 비교합니다."
+    if new_count or changed_count or removed_count:
+        return "Source Document 변경이 감지되었습니다. RAG 작업에서 파일 스캔, 메타데이터 생성, FAISS 빌드를 순서대로 실행하세요."
+    return "새로 처리할 Source Document가 없습니다. 현재 인덱스를 유지해도 됩니다."
+
+
 @router.get("")
 async def list_sources(client_id: Optional[str] = None):
     _seed()
@@ -115,6 +181,12 @@ async def create_source(body: DocumentSourceCreate):
     data["status"] = "unknown"
     data["last_checked_at"] = None
     data["last_scanned_at"] = None
+    data["last_scan_file_count"] = 0
+    data["new_file_count"] = 0
+    data["changed_file_count"] = 0
+    data["removed_file_count"] = 0
+    data["needs_rag_build"] = False
+    data["next_action"] = "Source Document 기준 스캔을 먼저 실행하세요."
     return create_record(STORE, data, id_field=ID_FIELD)
 
 
@@ -175,7 +247,7 @@ async def test_source_access(source_id: str):
 
 @router.post("/{source_id}/scan")
 async def scan_source(source_id: str):
-    """소스 경로를 스캔해 파일 수를 확인한다. (초기 버전: 파일 수 카운트만 수행)"""
+    """소스 경로를 스캔해 이전 스냅샷과 비교하고 변경 안내를 저장한다."""
     _seed()
     rec = get_record(STORE, ID_FIELD, source_id)
     if not rec:
@@ -197,17 +269,56 @@ async def scan_source(source_id: str):
         }
 
     try:
-        file_count = sum(1 for _ in _walk_files(scan_path))
+        previous_inventory = _load_inventory(source_id)
+        current_inventory = _build_inventory(scan_path)
     except Exception as e:
         return {"source_id": source_id, "scanned_at": now, "success": False, "reason": str(e)}
 
-    update_record(STORE, ID_FIELD, source_id, {"last_scanned_at": now})
+    previous_paths = set((previous_inventory or {}).keys())
+    current_paths = set(current_inventory.keys())
+    initial_scan = previous_inventory is None
+    new_files = sorted(current_paths - previous_paths) if not initial_scan else []
+    removed_files = sorted(previous_paths - current_paths) if not initial_scan else []
+    changed_files = sorted(
+        path for path in current_paths & previous_paths
+        if current_inventory.get(path) != previous_inventory.get(path)
+    ) if not initial_scan else []
+    file_count = len(current_inventory)
+    new_count = len(new_files)
+    changed_count = len(changed_files)
+    removed_count = len(removed_files)
+    needs_rag_build = bool(new_count or changed_count or removed_count)
+    next_action = _next_action(new_count, changed_count, removed_count, initial_scan)
+
+    _save_inventory(source_id, current_inventory)
+    updates = {
+        "last_scanned_at": now,
+        "last_scan_file_count": file_count,
+        "new_file_count": new_count,
+        "changed_file_count": changed_count,
+        "removed_file_count": removed_count,
+        "last_scan_new_files": _sample_paths(new_files),
+        "last_scan_changed_files": _sample_paths(changed_files),
+        "last_scan_removed_files": _sample_paths(removed_files),
+        "needs_rag_build": needs_rag_build,
+        "next_action": next_action,
+    }
+    update_record(STORE, ID_FIELD, source_id, updates)
     return {
         "source_id": source_id,
         "scanned_at": now,
         "success": True,
         "file_count": file_count,
         "scan_path": scan_path,
+        "initial_scan": initial_scan,
+        "new_file_count": new_count,
+        "changed_file_count": changed_count,
+        "removed_file_count": removed_count,
+        "new_files": _sample_paths(new_files),
+        "changed_files": _sample_paths(changed_files),
+        "removed_files": _sample_paths(removed_files),
+        "needs_rag_build": needs_rag_build,
+        "next_action": next_action,
     }
 
 

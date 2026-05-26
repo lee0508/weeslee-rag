@@ -8,3 +8,15 @@
 - Docs 레이아웃 스크립트가 로드되지 않는 경우를 대비해 기존 Legacy 탭 이동 fallback은 유지한다.
 - 배포본도 확인했으며, 2026-05-26 13:36 KST 기준 `openWrDocsPage`가 없고 빠른 이동 함수가 Legacy 탭으로 직접 이동하는 상태다.
 - `openBuildWizard()`의 fallback은 존재하지 않는 `syncWizardStepStatuses` 대신 실제 정의된 `window.syncWizardStepperState`를 호출하도록 정리했다.
+
+## 2026-05-26 Source Document 새 파일 감지 점검
+
+- `backend/app/api/document_sources.py`의 `/admin/document-sources/{source_id}/scan`은 현재 파일 수와 `last_scanned_at`만 저장한다.
+- 기존 API는 이전 스캔과 현재 스캔을 비교하지 않으므로 새 파일, 변경 파일, 삭제 파일을 관리자에게 알려줄 수 없다.
+- `frontend/assets/js/admin/admin-docs-layout.js`의 Source Documents 화면은 등록된 source와 mount 상태만 표시하며, 새 파일 감지 결과와 다음 작업 메시지는 표시하지 않는다.
+- 새 파일 감지는 Document Source 레지스트리의 상태 필드와 별도 인벤토리 파일을 함께 사용한다.
+- 첫 스캔은 기준점을 만드는 작업으로 보고 모든 파일을 새 파일로 경고하지 않는다.
+- 두 번째 스캔부터 새 파일, 변경 파일, 삭제 파일 수를 계산하고 `needs_rag_build`와 `next_action`으로 관리자에게 RAG 작업 진행 필요성을 안내한다.
+- 화면 진입 시 자동 확인은 과도한 NAS 탐색을 피하기 위해 source별 최소 간격을 둔다.
+- 기본 `python3` 환경에는 `fastapi`가 없어 API 모듈 import 기반 동작 테스트는 실행하지 못했다.
+- 대신 `compileall`, 프론트 스크립트 `node --check`, `admin.html` inline script VM 파싱, UTF-8 파일 인코딩 확인, `git diff --check`로 정적 검증했다.
