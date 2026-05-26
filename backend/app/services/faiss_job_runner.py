@@ -4,6 +4,14 @@ FAISS pipeline job runner.
 
 Runs the 4-stage pipeline (extract → chunk → faiss → category-indexes)
 as an async subprocess chain and emits progress events via asyncio.Queue.
+
+Pipeline Stages:
+  1: manifest   - Manifest CSV 확인/생성
+  2: extract    - 텍스트 추출 (OCR 포함)
+  3: chunk      - 청크 생성
+  4: faiss      - FAISS 인덱스 빌드
+  5: category   - 카테고리 인덱스 빌드
+  6: graph      - 그래프 데이터 빌드
 """
 from __future__ import annotations
 
@@ -20,18 +28,41 @@ from app.services.rag_source_pipeline import build_manifest
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 DATA_DIR = PROJECT_ROOT / "data"
+STAGED_DIR = DATA_DIR / "staged"
 ACTIVE_INDEX_PATH = DATA_DIR / "active_index.json"
 
 # job_id → job state dict
 _jobs: dict[str, dict] = {}
 
+# 파이프라인 단계 정의
+PIPELINE_STAGES = {
+    1: {"name": "manifest", "label": "Manifest CSV 확인", "pct_start": 0, "pct_end": 5},
+    2: {"name": "extract", "label": "텍스트 추출", "pct_start": 5, "pct_end": 50},
+    3: {"name": "chunk", "label": "청크 생성", "pct_start": 50, "pct_end": 68},
+    4: {"name": "faiss", "label": "FAISS 인덱스 빌드", "pct_start": 68, "pct_end": 88},
+    5: {"name": "category", "label": "카테고리 인덱스 빌드", "pct_start": 88, "pct_end": 93},
+    6: {"name": "graph", "label": "그래프 데이터 빌드", "pct_start": 93, "pct_end": 97},
+}
 
-def create_job(snapshot: str, source_id: str = "rag_source") -> str:
+
+def create_job(
+    snapshot: str,
+    source_id: str = "rag_source",
+    start_from_stage: int = 1,
+) -> str:
+    """파이프라인 잡을 생성한다.
+
+    Args:
+        snapshot: 스냅샷 이름
+        source_id: Document Source ID
+        start_from_stage: 시작 단계 (1-6). 이전 단계가 완료되어 있어야 함.
+    """
     job_id = uuid.uuid4().hex[:8]
     _jobs[job_id] = {
         "job_id": job_id,
         "snapshot": snapshot,
         "source_id": source_id,
+        "start_from_stage": start_from_stage,
         "status": "pending",
         "progress": 0,
         "stage": "",
@@ -97,11 +128,128 @@ def _paths(snapshot: str) -> dict[str, Path]:
     }
 
 
+def _pipeline_state_path(source_id: str, snapshot: str) -> Path:
+    """파이프라인 상태 파일 경로를 반환한다."""
+    return STAGED_DIR / f"{source_id}_{snapshot}_pipeline_state.json"
+
+
+def save_pipeline_state(source_id: str, snapshot: str, completed_stage: int) -> dict:
+    """파이프라인 진행 상태를 저장한다."""
+    STAGED_DIR.mkdir(parents=True, exist_ok=True)
+    state = {
+        "source_id": source_id,
+        "snapshot": snapshot,
+        "completed_stage": completed_stage,
+        "completed_at": datetime.now().isoformat(),
+        "stages": {
+            str(i): {
+                "name": info["name"],
+                "label": info["label"],
+                "completed": i <= completed_stage,
+            }
+            for i, info in PIPELINE_STAGES.items()
+        },
+    }
+    state_path = _pipeline_state_path(source_id, snapshot)
+    state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    return state
+
+
+def load_pipeline_state(source_id: str, snapshot: str) -> Optional[dict]:
+    """저장된 파이프라인 상태를 로드한다."""
+    state_path = _pipeline_state_path(source_id, snapshot)
+    if not state_path.exists():
+        return None
+    try:
+        return json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def detect_completed_stages(snapshot: str) -> dict:
+    """파일 시스템을 검사하여 완료된 단계를 감지한다."""
+    p = _paths(snapshot)
+    result = {
+        "snapshot": snapshot,
+        "stages": {},
+        "recommended_start": 1,
+    }
+
+    # Stage 1: manifest CSV 존재 여부
+    manifest_exists = p["manifest_csv"].exists()
+    result["stages"]["1"] = {
+        "name": "manifest",
+        "label": "Manifest CSV 확인",
+        "completed": manifest_exists,
+        "file": str(p["manifest_csv"]) if manifest_exists else None,
+    }
+
+    # Stage 2: 텍스트 추출 (summary_csv 존재 여부로 판단)
+    summary_exists = p["summary_csv"].exists()
+    text_count = len(list(p["text_dir"].glob("*.txt"))) if p["text_dir"].exists() else 0
+    result["stages"]["2"] = {
+        "name": "extract",
+        "label": "텍스트 추출",
+        "completed": summary_exists and text_count > 0,
+        "text_count": text_count,
+    }
+
+    # Stage 3: 청크 생성
+    chunks_exists = p["chunks_jsonl"].exists()
+    chunk_count = 0
+    if chunks_exists:
+        try:
+            chunk_count = sum(1 for ln in p["chunks_jsonl"].read_text(encoding="utf-8").splitlines() if ln.strip())
+        except Exception:
+            pass
+    result["stages"]["3"] = {
+        "name": "chunk",
+        "label": "청크 생성",
+        "completed": chunks_exists and chunk_count > 0,
+        "chunk_count": chunk_count,
+    }
+
+    # Stage 4: FAISS 인덱스 빌드
+    faiss_exists = p["index_path"].exists() and p["meta_path"].exists()
+    result["stages"]["4"] = {
+        "name": "faiss",
+        "label": "FAISS 인덱스 빌드",
+        "completed": faiss_exists,
+    }
+
+    # Stage 5: 카테고리 인덱스 (선택적이므로 항상 false로 표시)
+    result["stages"]["5"] = {
+        "name": "category",
+        "label": "카테고리 인덱스 빌드",
+        "completed": False,  # 비필수 단계
+    }
+
+    # Stage 6: 그래프 빌드 (선택적)
+    graph_dir = DATA_DIR / "indexes" / "graph"
+    graph_exists = (graph_dir / "projects.jsonl").exists() or (graph_dir / "edges.jsonl").exists()
+    result["stages"]["6"] = {
+        "name": "graph",
+        "label": "그래프 데이터 빌드",
+        "completed": graph_exists,
+    }
+
+    # 권장 시작 단계 계산
+    for i in range(1, 7):
+        if not result["stages"][str(i)]["completed"]:
+            result["recommended_start"] = i
+            break
+    else:
+        result["recommended_start"] = 7  # 모두 완료됨
+
+    return result
+
+
 async def run_pipeline(job_id: str) -> None:
     job = _jobs[job_id]
     q: asyncio.Queue = job["queue"]
     snapshot = job["snapshot"]
     source_id = job.get("source_id", "rag_source")
+    start_from = job.get("start_from_stage", 1)
     p = _paths(snapshot)
 
     def emit(pct: int, stage: str, log: str = "") -> None:
@@ -112,94 +260,121 @@ async def run_pipeline(job_id: str) -> None:
         q.put_nowait({"progress": pct, "stage": stage, "log": log})
 
     job["status"] = "running"
-    emit(0, "파이프라인 시작")
+    if start_from > 1:
+        emit(0, "파이프라인 재개", f"Stage {start_from}부터 시작")
+    else:
+        emit(0, "파이프라인 시작")
 
     try:
         # ── Stage 1: manifest CSV 확인 (5%) ───────────────────────────────
-        emit(5, "manifest CSV 확인")
-        if not p["manifest_csv"].exists():
-            emit(5, "manifest CSV 생성", f"source_id={source_id}")
-            manifest = build_manifest(snapshot_name=snapshot, source_id=source_id, overwrite=True)
-            p = _paths(snapshot)
-            emit(5, "manifest CSV 생성", f"생성 완료: {Path(manifest['manifest_csv']).name} ({manifest['total']}건)")
-        if not p["manifest_csv"].exists():
-            raise FileNotFoundError(
-                f"Manifest CSV 없음: {p['manifest_csv']}\n"
-                f"data/staged/manifest/ 에 {snapshot}_manifest.csv 를 생성하지 못했습니다."
-            )
-        emit(5, "manifest CSV 확인", f"OK: {p['manifest_csv'].name}")
+        if start_from <= 1:
+            emit(5, "manifest CSV 확인")
+            if not p["manifest_csv"].exists():
+                emit(5, "manifest CSV 생성", f"source_id={source_id}")
+                manifest = build_manifest(snapshot_name=snapshot, source_id=source_id, overwrite=True)
+                p = _paths(snapshot)
+                emit(5, "manifest CSV 생성", f"생성 완료: {Path(manifest['manifest_csv']).name} ({manifest['total']}건)")
+            if not p["manifest_csv"].exists():
+                raise FileNotFoundError(
+                    f"Manifest CSV 없음: {p['manifest_csv']}\n"
+                    f"data/staged/manifest/ 에 {snapshot}_manifest.csv 를 생성하지 못했습니다."
+                )
+            emit(5, "manifest CSV 확인", f"OK: {p['manifest_csv'].name}")
+            save_pipeline_state(source_id, snapshot, 1)
+        else:
+            emit(5, "Stage 1 건너뜀", "이전에 완료됨")
 
         # ── Stage 2: 텍스트 추출 (10%) ────────────────────────────────────
-        p["text_dir"].mkdir(parents=True, exist_ok=True)
-        p["metadata_dir"].mkdir(parents=True, exist_ok=True)
-        emit(10, "텍스트 추출 중...")
-        rc = await _run_script(
-            [
-                "extract_manifest_batch.py",
-                "--manifest-csv", str(p["manifest_csv"]),
-                "--text-dir", str(p["text_dir"]),
-                "--metadata-dir", str(p["metadata_dir"]),
-                "--summary-csv", str(p["summary_csv"]),
-                "--use-ocr",   # auto-fall-back to tesseract for scanned PDFs
-            ],
-            emit, 10, 50,
-        )
-        if rc != 0:
-            raise RuntimeError("extract_manifest_batch.py 실패")
+        if start_from <= 2:
+            p["text_dir"].mkdir(parents=True, exist_ok=True)
+            p["metadata_dir"].mkdir(parents=True, exist_ok=True)
+            emit(10, "텍스트 추출 중...")
+            rc = await _run_script(
+                [
+                    "extract_manifest_batch.py",
+                    "--manifest-csv", str(p["manifest_csv"]),
+                    "--text-dir", str(p["text_dir"]),
+                    "--metadata-dir", str(p["metadata_dir"]),
+                    "--summary-csv", str(p["summary_csv"]),
+                    "--use-ocr",   # auto-fall-back to tesseract for scanned PDFs
+                ],
+                emit, 10, 50,
+            )
+            if rc != 0:
+                raise RuntimeError("extract_manifest_batch.py 실패")
+            save_pipeline_state(source_id, snapshot, 2)
+        else:
+            emit(50, "Stage 2 건너뜀", "이전에 완료됨")
 
         # ── Stage 3: 청크 생성 (55%) ──────────────────────────────────────
-        p["chunks_dir"].mkdir(parents=True, exist_ok=True)
-        emit(55, "청크 생성 중...")
-        rc = await _run_script(
-            [
-                "build_chunk_batch.py",
-                "--summary-csv", str(p["summary_csv"]),
-                "--output-jsonl", str(p["chunks_jsonl"]),
-            ],
-            emit, 55, 68,
-        )
-        if rc != 0:
-            raise RuntimeError("build_chunk_batch.py 실패")
+        if start_from <= 3:
+            p["chunks_dir"].mkdir(parents=True, exist_ok=True)
+            emit(55, "청크 생성 중...")
+            rc = await _run_script(
+                [
+                    "build_chunk_batch.py",
+                    "--summary-csv", str(p["summary_csv"]),
+                    "--output-jsonl", str(p["chunks_jsonl"]),
+                ],
+                emit, 55, 68,
+            )
+            if rc != 0:
+                raise RuntimeError("build_chunk_batch.py 실패")
+            save_pipeline_state(source_id, snapshot, 3)
+        else:
+            emit(68, "Stage 3 건너뜀", "이전에 완료됨")
 
         # ── Stage 4: FAISS 인덱스 빌드 (70%) ─────────────────────────────
-        p["faiss_dir"].mkdir(parents=True, exist_ok=True)
-        emit(70, "FAISS 인덱스 빌드 중...")
-        rc = await _run_script(
-            [
-                "build_faiss_index.py",
-                "--chunks-jsonl", str(p["chunks_jsonl"]),
-                "--output-index", str(p["index_path"]),
-                "--output-metadata", str(p["meta_path"]),
-                "--embedding-provider", "ollama",
-            ],
-            emit, 70, 88,
-        )
-        if rc != 0:
-            raise RuntimeError("build_faiss_index.py 실패")
+        if start_from <= 4:
+            p["faiss_dir"].mkdir(parents=True, exist_ok=True)
+            emit(70, "FAISS 인덱스 빌드 중...")
+            rc = await _run_script(
+                [
+                    "build_faiss_index.py",
+                    "--chunks-jsonl", str(p["chunks_jsonl"]),
+                    "--output-index", str(p["index_path"]),
+                    "--output-metadata", str(p["meta_path"]),
+                    "--embedding-provider", "ollama",
+                ],
+                emit, 70, 88,
+            )
+            if rc != 0:
+                raise RuntimeError("build_faiss_index.py 실패")
+            save_pipeline_state(source_id, snapshot, 4)
+        else:
+            emit(88, "Stage 4 건너뜀", "이전에 완료됨")
 
         # ── Stage 5: 카테고리 인덱스 (90%) ───────────────────────────────
-        emit(90, "카테고리 인덱스 빌드 중...")
-        rc = await _run_script(
-            [
-                "build_category_indexes.py",
-                "--combined-chunks", str(p["chunks_jsonl"]),
-                "--output-dir", str(p["faiss_dir"]),
-                "--snapshot", snapshot,
-                "--embedding-provider", "ollama",
-            ],
-            emit, 90, 93,
-        )
-        if rc != 0:
-            emit(90, "카테고리 인덱스", "경고: build_category_indexes.py 실패 (비필수)")
+        if start_from <= 5:
+            emit(90, "카테고리 인덱스 빌드 중...")
+            rc = await _run_script(
+                [
+                    "build_category_indexes.py",
+                    "--combined-chunks", str(p["chunks_jsonl"]),
+                    "--output-dir", str(p["faiss_dir"]),
+                    "--snapshot", snapshot,
+                    "--embedding-provider", "ollama",
+                ],
+                emit, 90, 93,
+            )
+            if rc != 0:
+                emit(90, "카테고리 인덱스", "경고: build_category_indexes.py 실패 (비필수)")
+            save_pipeline_state(source_id, snapshot, 5)
+        else:
+            emit(93, "Stage 5 건너뜀", "이전에 완료됨")
 
         # ── Stage 6: 그래프 빌드 (94%) ───────────────────────────────────
-        emit(94, "그래프 데이터 빌드 중...")
-        rc = await _run_script(
-            ["build_graph_jsonl.py", "--snapshot", snapshot],
-            emit, 94, 96,
-        )
-        if rc != 0:
-            emit(94, "그래프 빌드", "경고: build_graph_jsonl.py 실패 (비필수)")
+        if start_from <= 6:
+            emit(94, "그래프 데이터 빌드 중...")
+            rc = await _run_script(
+                ["build_graph_jsonl.py", "--snapshot", snapshot],
+                emit, 94, 96,
+            )
+            if rc != 0:
+                emit(94, "그래프 빌드", "경고: build_graph_jsonl.py 실패 (비필수)")
+            save_pipeline_state(source_id, snapshot, 6)
+        else:
+            emit(96, "Stage 6 건너뜀", "이전에 완료됨")
 
         # ── Stage 7: 완료 알림 (97%) ──────────────────────────────────────
         emit(97, "준비 완료", f"인덱스 준비됨: {snapshot} — admin에서 Activate 하세요.")

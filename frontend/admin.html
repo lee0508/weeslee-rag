@@ -1329,6 +1329,14 @@ POST /api/admin/faiss/activate</code>
       <option value="current">현재 (기본)</option>
     </select>
   </div>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span>스냅샷</span>
+    <select id="ctxSnapshot" onchange="onSnapshotChange()"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">
+      <option value="">새 스냅샷</option>
+    </select>
+    <span id="ctxSnapshotStage" style="font-size:10px;color:var(--muted)"></span>
+  </div>
   <div id="ctxActiveBadge" style="
     margin-left:auto; padding:2px 10px; border-radius:99px; font-size:10px;
     background:rgba(34,197,94,.15); color:var(--green); font-weight:700;
@@ -6045,8 +6053,80 @@ POST /api/admin/faiss/activate</code>
     const src = document.getElementById('ctxSource').value;
     const ds  = document.getElementById('ctxDataset').value;
     console.log('[CTX] Source:', src, '| Dataset:', ds);
-    // 향후 각 탭 데이터를 재로드할 때 이 값을 참조
+    // 스냅샷 목록 새로고침
+    loadSnapshotList();
   }
+
+  // ── 스냅샷 선택 및 단계 재개 기능 ────────────────────────────────────────
+  let _selectedSnapshot = '';
+  let _snapshotStages = null;
+
+  async function loadSnapshotList() {
+    const sel = document.getElementById('ctxSnapshot');
+    if (!sel) return;
+
+    try {
+      const data = await api('/admin/faiss/staged-summary');
+      const snapshots = data.snapshots || [];
+
+      // 옵션 초기화
+      sel.innerHTML = '<option value="">새 스냅샷</option>';
+
+      // 스냅샷 추가
+      snapshots.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.snapshot;
+        const status = s.faiss_indexed ? '✓ FAISS' : (s.chunks_exist ? '◐ Chunk' : '○');
+        opt.textContent = `${s.snapshot} (${status})`;
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      console.warn('[snapshot] loadSnapshotList error:', e);
+    }
+  }
+
+  async function onSnapshotChange() {
+    const sel = document.getElementById('ctxSnapshot');
+    const stageEl = document.getElementById('ctxSnapshotStage');
+    _selectedSnapshot = sel?.value || '';
+
+    if (!_selectedSnapshot) {
+      _snapshotStages = null;
+      if (stageEl) stageEl.textContent = '';
+      return;
+    }
+
+    // 단계 감지 API 호출
+    try {
+      const data = await api(`/admin/faiss/snapshots/${encodeURIComponent(_selectedSnapshot)}/stages`);
+      _snapshotStages = data;
+
+      // 권장 시작 단계 표시
+      if (data.recommended_start <= 6) {
+        const stageInfo = data.stages[String(data.recommended_start)];
+        if (stageEl) stageEl.textContent = `→ Stage ${data.recommended_start}부터 재개 가능`;
+      } else {
+        if (stageEl) stageEl.textContent = '✓ 모든 단계 완료';
+      }
+    } catch (e) {
+      console.warn('[snapshot] stage detection error:', e);
+      _snapshotStages = null;
+      if (stageEl) stageEl.textContent = '';
+    }
+  }
+
+  function getSelectedSnapshot() {
+    return _selectedSnapshot || '';
+  }
+
+  function getRecommendedStartStage() {
+    return _snapshotStages?.recommended_start || 1;
+  }
+
+  // 초기 로드
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => loadSnapshotList(), 500);
+  });
 
   const _adminMissingRouteWarnings = new Set();
 
@@ -7177,23 +7257,42 @@ POST /api/admin/faiss/activate</code>
       try {
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const src   = (document.getElementById('ctxSource')?.value?.trim() || 'rag_source').replace(/[^a-zA-Z0-9_-]/g, '_');
-        _wizardFaissSnapshot = `snapshot_${today}_${src}`;
-        _wizardAppendLog(step, `스냅샷: ${_wizardFaissSnapshot}`);
+
+        // 기존 스냅샷이 선택되었는지 확인
+        const existingSnapshot = getSelectedSnapshot();
+        const startFromStage = existingSnapshot ? getRecommendedStartStage() : 1;
+
+        if (existingSnapshot) {
+          _wizardFaissSnapshot = existingSnapshot;
+          _wizardAppendLog(step, `기존 스냅샷 재사용: ${_wizardFaissSnapshot}`);
+          _wizardAppendLog(step, `Stage ${startFromStage}부터 시작`);
+        } else {
+          _wizardFaissSnapshot = `snapshot_${today}_${src}`;
+          _wizardAppendLog(step, `새 스냅샷: ${_wizardFaissSnapshot}`);
+        }
+
         _wizardAppendLog(step, 'POST /api/admin/faiss/jobs ...');
         const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ snapshot: _wizardFaissSnapshot, source_id: src }),
+          body: JSON.stringify({
+            snapshot: _wizardFaissSnapshot,
+            source_id: src,
+            start_from_stage: startFromStage,
+          }),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
         _wizardFaissJobId = d.job_id;
         _wizardSetStatus(step, '파이프라인 실행 중...', 'running');
-        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId}`);
+        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage}`);
         await _wizardSseStream(step, _wizardFaissJobId);
         _wizardMarkDone(step);
         _wizardMarkDone(6); // 같은 파이프라인이 chunk+faiss 모두 수행
-        _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 파이프라인 잡 ${_wizardFaissJobId} 실행 완료.`), 'ok');
+        const resumeMsg = startFromStage > 1 ? ` (Stage ${startFromStage}부터 재개)` : '';
+        _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 파이프라인 잡 ${_wizardFaissJobId} 실행 완료.${resumeMsg}`), 'ok');
+        // 스냅샷 목록 새로고침
+        loadSnapshotList();
         return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }

@@ -185,6 +185,7 @@ async def delete_snapshot(snapshot: str):
 class StartJobRequest(BaseModel):
     snapshot: str
     source_id: str = "rag_source"
+    start_from_stage: int = 1  # 시작 단계 (1-6)
 
 
 class AddDocumentsRequest(BaseModel):
@@ -195,10 +196,28 @@ class AddDocumentsRequest(BaseModel):
 
 @router.post("/jobs")
 async def start_job(req: StartJobRequest):
-    """파이프라인 잡 시작 (extract → chunk → faiss → category)."""
-    job_id = runner.create_job(req.snapshot, source_id=req.source_id)
+    """파이프라인 잡 시작 (extract → chunk → faiss → category).
+
+    start_from_stage를 지정하면 해당 단계부터 시작합니다.
+    이전 단계가 완료되어 있어야 합니다.
+    """
+    # start_from_stage 범위 검증
+    if req.start_from_stage < 1 or req.start_from_stage > 6:
+        raise HTTPException(status_code=400, detail="start_from_stage는 1-6 사이여야 합니다.")
+
+    job_id = runner.create_job(
+        req.snapshot,
+        source_id=req.source_id,
+        start_from_stage=req.start_from_stage,
+    )
     asyncio.create_task(runner.run_pipeline(job_id))
-    return {"job_id": job_id, "snapshot": req.snapshot, "source_id": req.source_id, "status": "running"}
+    return {
+        "job_id": job_id,
+        "snapshot": req.snapshot,
+        "source_id": req.source_id,
+        "start_from_stage": req.start_from_stage,
+        "status": "running",
+    }
 
 
 @router.get("/jobs")
@@ -408,6 +427,48 @@ async def staged_summary():
             "text_count":     text_count,
             "metadata_count": meta_count,
         },
+    }
+
+
+# ── 스냅샷 단계 감지 및 상태 조회 API ─────────────────────────────────────────────
+
+@router.get("/snapshots/{snapshot}/stages")
+async def get_snapshot_stages(snapshot: str):
+    """스냅샷의 완료된 단계를 파일 시스템 검사로 감지한다.
+
+    Returns:
+        stages: 각 단계별 완료 여부
+        recommended_start: 권장 시작 단계 (미완료된 첫 단계)
+    """
+    result = runner.detect_completed_stages(snapshot)
+    return result
+
+
+@router.get("/pipeline-state")
+async def get_pipeline_state(source_id: str, snapshot: str):
+    """저장된 파이프라인 상태를 조회한다.
+
+    파이프라인 실행 중 저장된 상태 파일을 로드합니다.
+    파일이 없으면 detect_completed_stages로 감지합니다.
+    """
+    # 저장된 상태 확인
+    state = runner.load_pipeline_state(source_id, snapshot)
+    if state:
+        return {"source": "saved", **state}
+
+    # 없으면 파일 시스템 감지
+    detected = runner.detect_completed_stages(snapshot)
+    return {"source": "detected", **detected}
+
+
+@router.get("/pipeline-stages")
+async def list_pipeline_stages():
+    """파이프라인 단계 정보를 반환한다."""
+    return {
+        "stages": [
+            {"stage": i, **info}
+            for i, info in runner.PIPELINE_STAGES.items()
+        ]
     }
 
 
