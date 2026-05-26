@@ -32,3 +32,12 @@
 - 5단계 정상 운영 기준은 PDF/HWP/HWPX/DOCX/PPTX/XLSX로 통일하고, 구형 DOC/PPT/XLS와 TXT는 5단계 대상처럼 표시하지 않는 것이 안전하다.
 - 확장자 상수 import 기반 검증은 기본 Python 환경에 `pdfplumber`가 없어 실행하지 못했다.
 - `compileall`, `admin.html` inline script VM 파싱, UTF-8 인코딩 확인, `git diff --check`는 통과했다.
+
+## 2026-05-26 관리자 페이지 1차 UI 개선
+
+- 앞선 분석 문서의 1차 개선 순서는 대시보드 상태 요약, RAG Source Manager, 작업 마법사, Collection 자동 생성, Metadata 버튼 분리, API 경로 접이식 표시다.
+- 사용자가 새 요구사항을 주었지만, 그 전에 앞선 UI 개선 분석 내용을 먼저 구현하는 것이 맞다고 정정했다.
+- 방금 시작했던 운영 대시보드형 Overview 변경은 커밋 전 원복했다.
+- 이번 1차 구현은 `Overview` 상단을 상태판과 다음 작업 안내 중심으로 바꾸는 데 한정한다.
+- 기존 Legacy Dashboard와 `loadDashboard()`가 이미 상태 카드와 다음 작업 판단을 제공하므로, 새 Docs-style Overview에서도 같은 판단 흐름을 보여주도록 연결한다.
+- Source/Dataset 세부 관리, GraphRAG 관계 편집, LLM Wiki 미리보기는 후속 단계로 남긴다.
