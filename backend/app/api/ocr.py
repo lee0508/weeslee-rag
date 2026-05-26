@@ -42,11 +42,11 @@ async def get_supported_formats():
         extensions=document_extractor.supported_extensions,
         description={
             ".pdf": "PDF documents (with OCR support for scanned PDFs)",
+            ".hwp": "Hangul HWP documents",
+            ".hwpx": "Hangul HWPX documents",
             ".docx": "Microsoft Word documents",
             ".pptx": "Microsoft PowerPoint presentations",
-            ".ppt": "Microsoft PowerPoint presentations (legacy)",
             ".xlsx": "Microsoft Excel spreadsheets",
-            ".xls": "Microsoft Excel spreadsheets (legacy)",
             ".png": "PNG images (OCR)",
             ".jpg": "JPEG images (OCR)",
             ".jpeg": "JPEG images (OCR)"

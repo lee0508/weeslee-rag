@@ -16,7 +16,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 MANIFEST_DIR = DATA_DIR / "staged" / "manifest"
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 
-SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".hwp", ".hwpx"}
+SUPPORTED_EXTENSIONS = {".pdf", ".hwp", ".hwpx", ".docx", ".pptx", ".xlsx"}
 MAIN_COLLECTION_NAME = "weeslee_rag_main"
 MANIFEST_FIELDS = [
     "document_id",

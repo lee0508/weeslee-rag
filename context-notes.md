@@ -20,3 +20,15 @@
 - 화면 진입 시 자동 확인은 과도한 NAS 탐색을 피하기 위해 source별 최소 간격을 둔다.
 - 기본 `python3` 환경에는 `fastapi`가 없어 API 모듈 import 기반 동작 테스트는 실행하지 못했다.
 - 대신 `compileall`, 프론트 스크립트 `node --check`, `admin.html` inline script VM 파싱, UTF-8 파일 인코딩 확인, `git diff --check`로 정적 검증했다.
+
+## 2026-05-26 관리자 5단계 OCR/청킹 파이프라인 점검
+
+- 5단계 `OCR 작업 + 청킹 시작`은 프론트에서 `/api/admin/faiss/jobs`를 호출한다.
+- 백엔드 job runner는 manifest 확인 또는 생성 후 `extract_manifest_batch.py`, `build_chunk_batch.py`, `build_faiss_index.py`, `build_category_indexes.py` 순서로 실행한다.
+- `rag_source_pipeline.py`의 manifest 후보 확장자는 `.doc`, `.ppt`, `.xls`, `.txt`까지 포함하고 있었다.
+- `extract_manifest_batch.py`는 실제 추출 지원 목록을 `.pdf`, `.pptx`, `.docx`, `.xlsx`, `.hwpx`, `.hwp`로 두고 `.doc`, `.ppt`, `.xls`는 스킵했다.
+- `.txt`는 manifest 후보에는 들어가지만 추출 지원 목록에는 없어 `skipped_unknown`이 된다.
+- `PptxExtractor`와 `XlsxExtractor`가 각각 `.ppt`, `.xls`를 지원한다고 노출하지만 내부 라이브러리는 OOXML 계열 처리라 구형 바이너리 형식 지원으로 보기 어렵다.
+- 5단계 정상 운영 기준은 PDF/HWP/HWPX/DOCX/PPTX/XLSX로 통일하고, 구형 DOC/PPT/XLS와 TXT는 5단계 대상처럼 표시하지 않는 것이 안전하다.
+- 확장자 상수 import 기반 검증은 기본 Python 환경에 `pdfplumber`가 없어 실행하지 못했다.
+- `compileall`, `admin.html` inline script VM 파싱, UTF-8 인코딩 확인, `git diff --check`는 통과했다.

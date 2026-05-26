@@ -14,7 +14,7 @@ class XlsxExtractor(BaseExtractor):
 
     @property
     def supported_extensions(self) -> List[str]:
-        return [".xlsx", ".xls"]
+        return [".xlsx"]
 
     async def extract(self, file_path: str) -> Dict[str, Any]:
         """

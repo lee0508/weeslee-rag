@@ -8,8 +8,8 @@ This script is designed for the phase 1 PoC workflow:
 - Save extraction metadata into data/staged/metadata
 - Save a batch summary CSV
 
-Unsupported formats such as .hwp / .hwpx are recorded as skipped so they can
-be routed to a later specialized parser or OCR workflow.
+Legacy binary Office formats and plain text files are recorded as skipped so
+they do not enter the chunking and FAISS stages with unclear extractor output.
 """
 
 from __future__ import annotations
@@ -36,8 +36,8 @@ from app.extractors.pdf_extractor import _is_tesseract_available  # noqa: E402
 from app.services.metadata_enricher import enrich_confidence  # noqa: E402
 
 
-SUPPORTED_FOR_PHASE1 = {".pdf", ".pptx", ".docx", ".xlsx", ".hwpx", ".hwp"}
-UNSUPPORTED_FOR_PHASE1 = {".doc", ".ppt", ".xls"}
+SUPPORTED_FOR_PHASE1 = {".pdf", ".hwp", ".hwpx", ".docx", ".pptx", ".xlsx"}
+UNSUPPORTED_FOR_PHASE1 = {".doc", ".ppt", ".xls", ".txt"}
 EXTRACTED_TEXT_DIR = PROJECT_ROOT / "data" / "extracted_text"
 
 

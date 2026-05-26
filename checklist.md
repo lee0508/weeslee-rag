@@ -1,8 +1,8 @@
-# 관리자 Source Document 새 파일 감지 작업 체크리스트
+# 관리자 5단계 OCR/청킹 파이프라인 정상화 체크리스트
 
-- [x] 기존 Document Source 스캔 API가 새 파일을 비교 저장하는지 확인
-- [x] 관리자 Source Documents 화면이 새 파일 감지 메시지를 표시하는지 확인
-- [x] 백엔드 스캔 API에 파일 스냅샷 비교와 다음 작업 메시지 저장 추가
-- [x] 관리자 화면에 자동 확인, 수동 확인, 다음 작업 안내 표시 추가
-- [x] 한글 인코딩과 문법 검사 수행
+- [x] 5단계 실행 API와 배치 스크립트 흐름 확인
+- [x] manifest, extraction, extractor, UI의 확장자 목록 차이 확인
+- [x] 실제 5단계 지원 확장자를 PDF/HWP/HWPX/DOCX/PPTX/XLSX로 통일
+- [x] 구형 DOC/PPT/XLS와 TXT가 5단계 대상처럼 보이지 않도록 정리
+- [x] 문법 검사와 한글 인코딩 확인
 - [x] 변경 사항 커밋
