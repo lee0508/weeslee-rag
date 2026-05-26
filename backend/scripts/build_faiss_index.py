@@ -132,6 +132,10 @@ def main() -> int:
     total = len(rows)
     fallback_count = 0
     for i, row in enumerate(rows, start=1):
+        # 진행률 출력 (JSON 형식)
+        progress_pct = int((i / max(total, 1)) * 100)
+        print(json.dumps({"progress": progress_pct, "current": i, "total": total, "stage": "임베딩"}), flush=True)
+
         text = row.get("text", "")
         embedding_text = truncate_for_embedding(text, args.max_embed_chars)
         if args.embedding_provider == "ollama":

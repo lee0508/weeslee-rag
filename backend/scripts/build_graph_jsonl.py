@@ -512,6 +512,9 @@ def main() -> int:
             if candidate.exists():
                 faiss_meta_path = candidate
 
+    # 진행률 출력: 데이터 로드 시작
+    print(json.dumps({"progress": 10, "current": 1, "total": 4, "stage": "그래프 데이터 로드"}), flush=True)
+
     if faiss_meta_path and faiss_meta_path.exists():
         docs = _docs_from_faiss_meta(faiss_meta_path)
         source_type = "faiss_metadata"
@@ -529,17 +532,24 @@ def main() -> int:
         print(json.dumps({"error": "No documents found — run pipeline first"}))
         return 1
 
+    # 진행률 출력: 노드/엣지 생성
+    print(json.dumps({"progress": 40, "current": 2, "total": 4, "stage": "그래프 노드/엣지 생성"}), flush=True)
     nodes, edges = _build_nodes_edges(docs)
 
     nodes_path = out_dir / "graph_nodes.jsonl"
     edges_path = out_dir / "graph_edges.jsonl"
     manifest_path = out_dir / "graph_manifest.json"
 
+    # 진행률 출력: 파일 저장
+    print(json.dumps({"progress": 70, "current": 3, "total": 4, "stage": "그래프 파일 저장"}), flush=True)
     _write_jsonl(nodes_path, nodes)
     _write_jsonl(edges_path, edges)
 
     project_count  = sum(1 for n in nodes if n["type"] == "project")
     document_count = sum(1 for n in nodes if n["type"] == "document")
+
+    # 진행률 출력: 완료
+    print(json.dumps({"progress": 100, "current": 4, "total": 4, "stage": "그래프 빌드 완료"}), flush=True)
 
     manifest = {
         "built_at":      datetime.now().isoformat(timespec="seconds"),

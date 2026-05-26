@@ -80,7 +80,12 @@ def main() -> int:
 
     import subprocess
 
-    for cat in args.categories:
+    total_cats = len(args.categories)
+    for cat_idx, cat in enumerate(args.categories):
+        # 진행률 출력 (JSON 형식)
+        progress_pct = int((cat_idx / max(total_cats, 1)) * 100)
+        print(json.dumps({"progress": progress_pct, "current": cat_idx + 1, "total": total_cats, "stage": "카테고리 인덱스"}), flush=True)
+
         chunks = by_category.get(cat, [])
         if not chunks:
             print(f"SKIP {cat}: no chunks found")
