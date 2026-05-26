@@ -27,6 +27,7 @@ ACTIVE_INDEX_PATH = DATA_DIR / "active_index.json"
 FAISS_DIR = DATA_DIR / "indexes" / "faiss"
 MANIFEST_DIR = DATA_DIR / "staged" / "manifest"
 GRAPH_DIR = DATA_DIR / "indexes" / "graph"
+PLATFORM_STORE_PATH = DATA_DIR / "platform_store.json"
 
 BACKEND_ROOT = PROJECT_ROOT / "backend"
 if str(BACKEND_ROOT) not in sys.path:
@@ -62,6 +63,50 @@ CATEGORY_COLORS = {
 }
 
 _DATE_PREFIX = re.compile(r"^\d+\.\s*")
+
+
+# ── Source ID helpers ─────────────────────────────────────────────────────────
+
+def _load_platform_store() -> dict:
+    """platform_store.json 로드."""
+    if not PLATFORM_STORE_PATH.exists():
+        return {}
+    try:
+        return json.loads(PLATFORM_STORE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _get_source_mount_path(source_id: str) -> str | None:
+    """Document Source의 mount_path 반환."""
+    store = _load_platform_store()
+    for rec in store.get("document_sources", []):
+        if rec.get("source_id") == source_id:
+            return rec.get("mount_path") or rec.get("source_uri")
+    return None
+
+
+def _filter_docs_by_source(docs: list[dict], source_id: str) -> list[dict]:
+    """source_id의 mount_path 기준으로 문서 필터링."""
+    mount_path = _get_source_mount_path(source_id)
+    if not mount_path:
+        print(f"[WARN] source_id '{source_id}' not found, returning all docs")
+        return docs
+
+    mount_normalized = mount_path.replace("\\", "/").rstrip("/")
+    filtered = []
+    for doc in docs:
+        source_path = doc.get("source_path", "").replace("\\", "/")
+        if source_path.startswith(mount_normalized):
+            filtered.append(doc)
+    return filtered
+
+
+def _get_graph_dir(source_id: str | None) -> Path:
+    """source_id별 Graph 디렉토리 반환."""
+    if source_id:
+        return DATA_DIR / "indexes" / "graph" / source_id
+    return GRAPH_DIR
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
@@ -493,13 +538,22 @@ def parse_args() -> argparse.Namespace:
                    help="Snapshot name (auto-detect from active_index.json if omitted)")
     p.add_argument("--faiss-meta", default="",
                    help="Direct path to FAISS metadata JSONL (overrides --snapshot)")
-    p.add_argument("--output-dir", default=str(GRAPH_DIR))
+    p.add_argument("--output-dir", default="",
+                   help="Output directory (default: data/indexes/graph or data/indexes/graph/{source_id})")
+    p.add_argument("--source-id", default="",
+                   help="Document Source ID. Filters documents and outputs to source-specific directory.")
     return p.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    out_dir = Path(args.output_dir)
+    source_id = args.source_id or None
+
+    # 출력 디렉토리 결정: --output-dir > source_id별 디렉토리 > 기본 디렉토리
+    if args.output_dir:
+        out_dir = Path(args.output_dir)
+    else:
+        out_dir = _get_graph_dir(source_id)
 
     # Resolve source
     faiss_meta_path: Path | None = None
@@ -513,7 +567,7 @@ def main() -> int:
                 faiss_meta_path = candidate
 
     # 진행률 출력: 데이터 로드 시작
-    print(json.dumps({"progress": 10, "current": 1, "total": 4, "stage": "그래프 데이터 로드"}), flush=True)
+    print(json.dumps({"progress": 10, "current": 1, "total": 5, "stage": "그래프 데이터 로드"}), flush=True)
 
     if faiss_meta_path and faiss_meta_path.exists():
         docs = _docs_from_faiss_meta(faiss_meta_path)
@@ -532,8 +586,19 @@ def main() -> int:
         print(json.dumps({"error": "No documents found — run pipeline first"}))
         return 1
 
+    # source_id 필터링 적용
+    original_count = len(docs)
+    if source_id:
+        print(json.dumps({"progress": 25, "current": 2, "total": 5, "stage": f"source_id '{source_id}' 필터링"}), flush=True)
+        docs = _filter_docs_by_source(docs, source_id)
+        print(json.dumps({"source_id": source_id, "filtered_count": len(docs),
+                          "original_count": original_count}, ensure_ascii=False))
+        if not docs:
+            print(json.dumps({"error": f"No documents found for source_id '{source_id}'"}))
+            return 1
+
     # 진행률 출력: 노드/엣지 생성
-    print(json.dumps({"progress": 40, "current": 2, "total": 4, "stage": "그래프 노드/엣지 생성"}), flush=True)
+    print(json.dumps({"progress": 45, "current": 3, "total": 5, "stage": "그래프 노드/엣지 생성"}), flush=True)
     nodes, edges = _build_nodes_edges(docs)
 
     nodes_path = out_dir / "graph_nodes.jsonl"
@@ -541,7 +606,7 @@ def main() -> int:
     manifest_path = out_dir / "graph_manifest.json"
 
     # 진행률 출력: 파일 저장
-    print(json.dumps({"progress": 70, "current": 3, "total": 4, "stage": "그래프 파일 저장"}), flush=True)
+    print(json.dumps({"progress": 75, "current": 4, "total": 5, "stage": "그래프 파일 저장"}), flush=True)
     _write_jsonl(nodes_path, nodes)
     _write_jsonl(edges_path, edges)
 
@@ -549,16 +614,19 @@ def main() -> int:
     document_count = sum(1 for n in nodes if n["type"] == "document")
 
     # 진행률 출력: 완료
-    print(json.dumps({"progress": 100, "current": 4, "total": 4, "stage": "그래프 빌드 완료"}), flush=True)
+    print(json.dumps({"progress": 100, "current": 5, "total": 5, "stage": "그래프 빌드 완료"}), flush=True)
 
     manifest = {
-        "built_at":      datetime.now().isoformat(timespec="seconds"),
-        "source_type":   source_type,
-        "source_path":   source_path,
-        "doc_count":     len(docs),
-        "node_count":    len(nodes),
-        "edge_count":    len(edges),
-        "project_count": project_count,
+        "built_at":       datetime.now().isoformat(timespec="seconds"),
+        "source_id":      source_id or "all",
+        "source_type":    source_type,
+        "source_path":    source_path,
+        "output_dir":     str(out_dir),
+        "doc_count":      len(docs),
+        "original_count": original_count if source_id else len(docs),
+        "node_count":     len(nodes),
+        "edge_count":     len(edges),
+        "project_count":  project_count,
         "document_count": document_count,
     }
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")

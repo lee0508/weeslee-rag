@@ -37,37 +37,71 @@ from app.core.auth import require_admin_token
 router = APIRouter(prefix="/graph", tags=["Graph"])
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-GRAPH_DIR = PROJECT_ROOT / "data" / "indexes" / "graph"
+DATA_DIR = PROJECT_ROOT / "data"
+GRAPH_DIR = DATA_DIR / "indexes" / "graph"
 _BUILD_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "build_graph_jsonl.py"
 
 
+def _get_graph_dir(source_id: Optional[str] = None) -> Path:
+    """source_id별 Graph 디렉토리 반환."""
+    if source_id:
+        return DATA_DIR / "indexes" / "graph" / source_id
+    return GRAPH_DIR
+
+
 # ── File-based cache (invalidates when JSONL mtime changes) ──────────────────
+# source_id별 캐시 지원
+_caches: dict[str, dict] = {}
+
+
+def _get_cache_key(source_id: Optional[str]) -> str:
+    return source_id or "_default_"
+
 
 _cache: dict = {"nodes": [], "edges": [], "mtime": 0.0}
 
 
-def _load_graph() -> None:
-    nodes_path = GRAPH_DIR / "graph_nodes.jsonl"
-    edges_path = GRAPH_DIR / "graph_edges.jsonl"
+def _load_graph(source_id: Optional[str] = None) -> dict:
+    """source_id별 그래프 데이터 로드 및 캐시 반환."""
+    cache_key = _get_cache_key(source_id)
+    graph_dir = _get_graph_dir(source_id)
+
+    if cache_key not in _caches:
+        _caches[cache_key] = {"nodes": [], "edges": [], "mtime": 0.0}
+
+    cache = _caches[cache_key]
+    nodes_path = graph_dir / "graph_nodes.jsonl"
+    edges_path = graph_dir / "graph_edges.jsonl"
+
     if not nodes_path.exists():
-        _cache["nodes"] = []
-        _cache["edges"] = []
-        _cache["mtime"] = 0.0
-        return
+        cache["nodes"] = []
+        cache["edges"] = []
+        cache["mtime"] = 0.0
+        return cache
+
     mtime = nodes_path.stat().st_mtime
-    if mtime == _cache["mtime"]:
-        return
+    if mtime == cache["mtime"]:
+        return cache
+
     nodes = [json.loads(line) for line in nodes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     edges = []
     if edges_path.exists():
         edges = [json.loads(line) for line in edges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    _cache["nodes"] = nodes
-    _cache["edges"] = edges
-    _cache["mtime"] = mtime
+    cache["nodes"] = nodes
+    cache["edges"] = edges
+    cache["mtime"] = mtime
+
+    # 기본 캐시 업데이트 (source_id=None인 경우)
+    if source_id is None:
+        global _cache
+        _cache = cache
+
+    return cache
 
 
-def _manifest() -> dict:
-    p = GRAPH_DIR / "graph_manifest.json"
+def _manifest(source_id: Optional[str] = None) -> dict:
+    graph_dir = _get_graph_dir(source_id)
+    p = graph_dir / "graph_manifest.json"
     if not p.exists():
         return {}
     try:
@@ -79,40 +113,41 @@ def _manifest() -> dict:
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/summary")
-async def graph_summary():
+async def graph_summary(source_id: Optional[str] = None):
     """그래프 전체 통계."""
-    _load_graph()
-    m = _manifest()
+    cache = _load_graph(source_id)
+    m = _manifest(source_id)
     return {
+        "source_id":      source_id or "all",
         "built_at":       m.get("built_at"),
         "source_type":    m.get("source_type"),
-        "project_count":  sum(1 for n in _cache["nodes"] if n.get("type") == "project"),
-        "document_count": sum(1 for n in _cache["nodes"] if n.get("type") == "document"),
-        "edge_count":     len(_cache["edges"]),
-        "has_data":       bool(_cache["nodes"]),
+        "project_count":  sum(1 for n in cache["nodes"] if n.get("type") == "project"),
+        "document_count": sum(1 for n in cache["nodes"] if n.get("type") == "document"),
+        "edge_count":     len(cache["edges"]),
+        "has_data":       bool(cache["nodes"]),
     }
 
 
 @router.get("/projects")
-async def list_projects():
+async def list_projects(source_id: Optional[str] = None):
     """프로젝트 노드 목록."""
-    _load_graph()
-    projects = [n for n in _cache["nodes"] if n.get("type") == "project"]
+    cache = _load_graph(source_id)
+    projects = [n for n in cache["nodes"] if n.get("type") == "project"]
     projects.sort(key=lambda n: n.get("year", "") or "", reverse=True)
-    return {"projects": projects}
+    return {"source_id": source_id or "all", "projects": projects}
 
 
 @router.get("/project/{project_name:path}")
-async def get_project(project_name: str):
+async def get_project(project_name: str, source_id: Optional[str] = None):
     """특정 프로젝트의 노드와 엣지."""
-    _load_graph()
+    cache = _load_graph(source_id)
     proj_id = f"project:{project_name}"
-    proj_node = next((n for n in _cache["nodes"] if n["id"] == proj_id), None)
+    proj_node = next((n for n in cache["nodes"] if n["id"] == proj_id), None)
     if not proj_node:
         raise HTTPException(status_code=404, detail=f"Project not found: {project_name}")
 
     # Collect directly connected nodes
-    direct_edges = [e for e in _cache["edges"]
+    direct_edges = [e for e in cache["edges"]
                     if e["source"] == proj_id or e["target"] == proj_id]
     connected_ids = {proj_id}
     for e in direct_edges:
@@ -122,7 +157,7 @@ async def get_project(project_name: str):
     # Add edges between those connected nodes (doc→category, doc→doc sequences)
     all_edges = list(direct_edges)
     seen_edge_ids = {e["id"] for e in all_edges}
-    for e in _cache["edges"]:
+    for e in cache["edges"]:
         if e["id"] not in seen_edge_ids and e["source"] in connected_ids:
             all_edges.append(e)
             connected_ids.add(e["target"])
@@ -132,90 +167,108 @@ async def get_project(project_name: str):
     cat_ids = {e["target"] for e in all_edges if e["relation"] == "has_category"}
     connected_ids.update(cat_ids)
 
-    nodes = [n for n in _cache["nodes"] if n["id"] in connected_ids]
-    return {"project": proj_node, "nodes": nodes, "edges": all_edges}
+    nodes = [n for n in cache["nodes"] if n["id"] in connected_ids]
+    return {"source_id": source_id or "all", "project": proj_node, "nodes": nodes, "edges": all_edges}
 
 
 @router.get("/document/{document_id}")
-async def get_document(document_id: str):
+async def get_document(document_id: str, source_id: Optional[str] = None):
     """특정 문서 노드와 연결 엣지."""
-    _load_graph()
+    cache = _load_graph(source_id)
     doc_id = f"doc:{document_id}"
-    doc_node = next((n for n in _cache["nodes"] if n["id"] == doc_id), None)
+    doc_node = next((n for n in cache["nodes"] if n["id"] == doc_id), None)
     if not doc_node:
         raise HTTPException(status_code=404, detail=f"Document not found: {document_id}")
 
-    related_edges = [e for e in _cache["edges"]
+    related_edges = [e for e in cache["edges"]
                      if e["source"] == doc_id or e["target"] == doc_id]
     connected_ids = {doc_id}
     for e in related_edges:
         connected_ids.add(e["source"])
         connected_ids.add(e["target"])
-    nodes = [n for n in _cache["nodes"] if n["id"] in connected_ids]
-    return {"document": doc_node, "nodes": nodes, "edges": related_edges}
+    nodes = [n for n in cache["nodes"] if n["id"] in connected_ids]
+    return {"source_id": source_id or "all", "document": doc_node, "nodes": nodes, "edges": related_edges}
 
 
 @router.post("/build", dependencies=[Depends(require_admin_token)])
-async def build_graph():
-    """build_graph_jsonl.py 를 실행하여 그래프 데이터를 재생성."""
+async def build_graph(source_id: Optional[str] = None):
+    """build_graph_jsonl.py 를 실행하여 그래프 데이터를 재생성.
+
+    Args:
+        source_id: Document Source ID. 지정 시 해당 source 문서만 처리.
+    """
     if not _BUILD_SCRIPT.exists():
         raise HTTPException(status_code=500, detail="build_graph_jsonl.py not found")
+
+    cmd = [sys.executable, str(_BUILD_SCRIPT)]
+    if source_id:
+        cmd += ["--source-id", source_id]
+
     try:
         proc = subprocess.run(
-            [sys.executable, str(_BUILD_SCRIPT)],
-            capture_output=True, text=True, encoding="utf-8", timeout=120,
+            cmd,
+            capture_output=True, text=True, encoding="utf-8", timeout=300,
+            cwd=str(PROJECT_ROOT),
         )
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Build timed out")
+        raise HTTPException(status_code=504, detail="Build timed out (300s)")
 
     if proc.returncode != 0:
         raise HTTPException(status_code=500, detail=proc.stderr.strip() or "Build failed")
 
-    # Invalidate cache
-    _cache["mtime"] = 0.0
-    _load_graph()
+    # Invalidate cache for this source_id
+    cache_key = _get_cache_key(source_id)
+    if cache_key in _caches:
+        _caches[cache_key]["mtime"] = 0.0
+    _load_graph(source_id)
 
     for line in reversed(proc.stdout.strip().splitlines()):
         try:
             data = json.loads(line)
             if data.get("graph_complete"):
+                data["source_id"] = source_id or "all"
                 return data
         except Exception:
             pass
 
-    return {"graph_complete": True, "output": proc.stdout.strip()[-500:]}
+    return {"graph_complete": True, "source_id": source_id or "all", "output": proc.stdout.strip()[-500:]}
 
 
 # ── CRUD Helper Functions ───────────────────────────────────────────────────
 
 
-def _save_graph() -> None:
+def _save_graph(source_id: Optional[str] = None) -> None:
     """JSONL 파일에 현재 캐시 내용 저장."""
-    nodes_path = GRAPH_DIR / "graph_nodes.jsonl"
-    edges_path = GRAPH_DIR / "graph_edges.jsonl"
-    manifest_path = GRAPH_DIR / "graph_manifest.json"
+    graph_dir = _get_graph_dir(source_id)
+    cache_key = _get_cache_key(source_id)
+    cache = _caches.get(cache_key, _cache)
 
-    GRAPH_DIR.mkdir(parents=True, exist_ok=True)
+    nodes_path = graph_dir / "graph_nodes.jsonl"
+    edges_path = graph_dir / "graph_edges.jsonl"
+    manifest_path = graph_dir / "graph_manifest.json"
+
+    graph_dir.mkdir(parents=True, exist_ok=True)
 
     with open(nodes_path, "w", encoding="utf-8") as f:
-        for node in _cache["nodes"]:
+        for node in cache["nodes"]:
             f.write(json.dumps(node, ensure_ascii=False) + "\n")
 
     with open(edges_path, "w", encoding="utf-8") as f:
-        for edge in _cache["edges"]:
+        for edge in cache["edges"]:
             f.write(json.dumps(edge, ensure_ascii=False) + "\n")
 
     # manifest 업데이트
-    manifest = _manifest()
+    manifest = _manifest(source_id)
     manifest["updated_at"] = datetime.now().isoformat()
-    manifest["project_count"] = sum(1 for n in _cache["nodes"] if n.get("type") == "project")
-    manifest["document_count"] = sum(1 for n in _cache["nodes"] if n.get("type") == "document")
-    manifest["edge_count"] = len(_cache["edges"])
+    manifest["source_id"] = source_id or "all"
+    manifest["project_count"] = sum(1 for n in cache["nodes"] if n.get("type") == "project")
+    manifest["document_count"] = sum(1 for n in cache["nodes"] if n.get("type") == "document")
+    manifest["edge_count"] = len(cache["edges"])
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
 
     # mtime 갱신
-    _cache["mtime"] = nodes_path.stat().st_mtime
+    cache["mtime"] = nodes_path.stat().st_mtime
 
 
 # ── Request/Response Models ─────────────────────────────────────────────────
@@ -349,22 +402,22 @@ async def delete_edge(edge_id: str):
 
 
 @router.get("/edges")
-async def list_edges(project_name: Optional[str] = None, limit: int = 100):
+async def list_edges(project_name: Optional[str] = None, source_id: Optional[str] = None, limit: int = 100):
     """엣지 목록 조회 (프로젝트별 필터 가능)."""
-    _load_graph()
+    cache = _load_graph(source_id)
 
     if project_name:
         proj_id = f"project:{project_name}"
         # 해당 프로젝트와 연결된 문서 ID 추출
-        doc_ids = {n["id"] for n in _cache["nodes"]
+        doc_ids = {n["id"] for n in cache["nodes"]
                    if n.get("type") == "document" and n.get("project_name") == project_name}
         doc_ids.add(proj_id)
-        edges = [e for e in _cache["edges"]
+        edges = [e for e in cache["edges"]
                  if e["source"] in doc_ids or e["target"] in doc_ids]
     else:
-        edges = _cache["edges"]
+        edges = cache["edges"]
 
-    return {"edges": edges[:limit], "total": len(edges)}
+    return {"source_id": source_id or "all", "edges": edges[:limit], "total": len(edges)}
 
 
 # ── 유사 프로젝트 검색 API (개선방안 5) ──────────────────────────────────────────────
@@ -558,6 +611,7 @@ def _to_cytoscape_elements(
 async def cytoscape_by_organization(
     org_name: str,
     depth: int = 2,
+    source_id: Optional[str] = None,
 ):
     """
     기관 중심 Cytoscape 그래프 반환.
@@ -566,7 +620,7 @@ async def cytoscape_by_organization(
     """
     from app.services.knowledge_graph import normalize_organization
 
-    _load_graph()
+    cache = _load_graph(source_id)
     canonical = normalize_organization(org_name)
     org_id = f"org:{canonical}"
 
@@ -581,7 +635,7 @@ async def cytoscape_by_organization(
 
     while queue:
         current_id, current_depth = queue.pop(0)
-        node = next((n for n in _cache["nodes"] if n["id"] == current_id), None)
+        node = next((n for n in cache["nodes"] if n["id"] == current_id), None)
         if node:
             result_nodes.append(node)
 
@@ -589,7 +643,7 @@ async def cytoscape_by_organization(
             continue
 
         # 연결된 엣지 탐색
-        for edge in _cache["edges"]:
+        for edge in cache["edges"]:
             if edge["source"] == current_id or edge["target"] == current_id:
                 edge_id = edge.get("id", f"{edge['source']}->{edge['target']}")
                 if edge_id in visited_edges:
@@ -603,17 +657,19 @@ async def cytoscape_by_organization(
                     visited_nodes.add(next_id)
                     queue.append((next_id, current_depth + 1))
 
-    return _to_cytoscape_elements(result_nodes, result_edges, center_id=org_id)
+    result = _to_cytoscape_elements(result_nodes, result_edges, center_id=org_id)
+    result["source_id"] = source_id or "all"
+    return result
 
 
 @router.get("/cytoscape/methodology")
-async def cytoscape_by_methodology(method_name: str, depth: int = 2):
+async def cytoscape_by_methodology(method_name: str, depth: int = 2, source_id: Optional[str] = None):
     """
     방법론 중심 Cytoscape 그래프 반환.
     """
     from app.services.knowledge_graph import normalize_methodology
 
-    _load_graph()
+    cache = _load_graph(source_id)
     canonical = normalize_methodology(method_name)
     method_id = f"method:{canonical}"
 
@@ -627,14 +683,14 @@ async def cytoscape_by_methodology(method_name: str, depth: int = 2):
 
     while queue:
         current_id, current_depth = queue.pop(0)
-        node = next((n for n in _cache["nodes"] if n["id"] == current_id), None)
+        node = next((n for n in cache["nodes"] if n["id"] == current_id), None)
         if node:
             result_nodes.append(node)
 
         if current_depth >= depth:
             continue
 
-        for edge in _cache["edges"]:
+        for edge in cache["edges"]:
             if edge["source"] == current_id or edge["target"] == current_id:
                 edge_id = edge.get("id", f"{edge['source']}->{edge['target']}")
                 if edge_id in visited_edges:
@@ -647,17 +703,19 @@ async def cytoscape_by_methodology(method_name: str, depth: int = 2):
                     visited_nodes.add(next_id)
                     queue.append((next_id, current_depth + 1))
 
-    return _to_cytoscape_elements(result_nodes, result_edges, center_id=method_id)
+    result = _to_cytoscape_elements(result_nodes, result_edges, center_id=method_id)
+    result["source_id"] = source_id or "all"
+    return result
 
 
 @router.get("/cytoscape/technology")
-async def cytoscape_by_technology(tech_name: str, depth: int = 2):
+async def cytoscape_by_technology(tech_name: str, depth: int = 2, source_id: Optional[str] = None):
     """
     기술 중심 Cytoscape 그래프 반환.
     """
     from app.services.knowledge_graph import normalize_technology
 
-    _load_graph()
+    cache = _load_graph(source_id)
     canonical = normalize_technology(tech_name)
     tech_id = f"tech:{canonical}"
 
@@ -671,14 +729,14 @@ async def cytoscape_by_technology(tech_name: str, depth: int = 2):
 
     while queue:
         current_id, current_depth = queue.pop(0)
-        node = next((n for n in _cache["nodes"] if n["id"] == current_id), None)
+        node = next((n for n in cache["nodes"] if n["id"] == current_id), None)
         if node:
             result_nodes.append(node)
 
         if current_depth >= depth:
             continue
 
-        for edge in _cache["edges"]:
+        for edge in cache["edges"]:
             if edge["source"] == current_id or edge["target"] == current_id:
                 edge_id = edge.get("id", f"{edge['source']}->{edge['target']}")
                 if edge_id in visited_edges:
@@ -691,26 +749,30 @@ async def cytoscape_by_technology(tech_name: str, depth: int = 2):
                     visited_nodes.add(next_id)
                     queue.append((next_id, current_depth + 1))
 
-    return _to_cytoscape_elements(result_nodes, result_edges, center_id=tech_id)
+    result = _to_cytoscape_elements(result_nodes, result_edges, center_id=tech_id)
+    result["source_id"] = source_id or "all"
+    return result
 
 
 @router.get("/cytoscape/full")
-async def cytoscape_full_graph(limit: int = 200):
+async def cytoscape_full_graph(limit: int = 200, source_id: Optional[str] = None):
     """
     전체 Knowledge Graph를 Cytoscape 형식으로 반환 (노드 수 제한).
     """
-    _load_graph()
+    cache = _load_graph(source_id)
 
     # 노드 타입 우선순위 (중요한 노드 먼저)
     priority = {"organization": 0, "methodology": 1, "technology": 2, "project": 3, "domain": 4, "document": 5}
-    sorted_nodes = sorted(_cache["nodes"], key=lambda n: priority.get(n.get("type"), 99))
+    sorted_nodes = sorted(cache["nodes"], key=lambda n: priority.get(n.get("type"), 99))
     limited_nodes = sorted_nodes[:limit]
     node_ids = {n["id"] for n in limited_nodes}
 
     # 해당 노드들만 연결하는 엣지
     limited_edges = [
-        e for e in _cache["edges"]
+        e for e in cache["edges"]
         if e["source"] in node_ids and e["target"] in node_ids
     ]
 
-    return _to_cytoscape_elements(limited_nodes, limited_edges)
+    result = _to_cytoscape_elements(limited_nodes, limited_edges)
+    result["source_id"] = source_id or "all"
+    return result
