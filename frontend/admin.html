@@ -7263,6 +7263,11 @@ POST /api/admin/faiss/activate</code>
     if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
   }
 
+  function _wizardMarkJobError(step, label, err) {
+    const msg = err?.message || String(err || '알 수 없는 오류');
+    _wizardMarkError(step, `${label} 실패: ${msg}`);
+  }
+
   async function _wizardRunTagKeywordBootstrap(step) {
     const requests = [
       { label: 'Tag bootstrap', api: '/api/admin/rag-source/tags/bootstrap' },
@@ -7378,7 +7383,7 @@ POST /api/admin/faiss/activate</code>
         // 스냅샷 목록 새로고침
         loadSnapshotList();
         return true;
-      } catch (e) { _wizardMarkError(step, e.message); return false; }
+      } catch (e) { _wizardMarkJobError(step, 'OCR/청킹', e); return false; }
     }
 
     // ── faiss_poll: 임베딩 + Vector + FAISS 생성 (Step 6) ──────────────────
@@ -7415,7 +7420,7 @@ POST /api/admin/faiss/activate</code>
         _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 잡 ${_wizardFaissJobId} 실행 완료.`), 'ok');
         loadSnapshotList();
         return true;
-      } catch (e) { _wizardMarkError(step, e.message); return false; }
+      } catch (e) { _wizardMarkJobError(step, '임베딩/FAISS', e); return false; }
     }
 
     // ── interactive: 건너뜀 (Step 9) ───────────────────────────────────────

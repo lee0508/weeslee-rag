@@ -97,3 +97,9 @@
 - Step 5의 `openpyxl` 메시지 `Data Validation extension is not supported and will be removed`는 XLSX 데이터 유효성 확장을 보존하지 않는다는 경고이며 텍스트 추출 실패가 아니다.
 - FAISS job runner는 subprocess stderr를 stdout과 합쳐 SSE 로그로 보내므로, 이 경고가 UI에서 오류처럼 보일 수 있다.
 - XLSX 추출기에서 해당 `openpyxl.worksheet._reader` UserWarning만 억제하고, 실제 추출 예외는 기존처럼 `success=False`로 유지한다.
+
+## 2026-05-27 Step 5 실패 상태 메시지
+
+- Step 5 실행 중에는 상태가 `OCR/청킹 실행 중...`으로 표시되고, SSE 실패가 발생하면 `_wizardMarkError()`가 호출된다.
+- 사용자가 보는 요약 영역이나 자동 실행 상태에 실행 중 메시지가 남으면 실패 원인을 놓치기 쉽다.
+- Step 5와 Step 6 같은 FAISS job 단계는 실패 시 단계별 문맥을 붙여 `OCR/청킹 실패` 또는 `임베딩/FAISS 실패`로 명확히 표시해야 한다.
