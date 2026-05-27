@@ -2,6 +2,7 @@
 XLSX Extractor
 """
 import os
+import warnings
 from typing import Dict, Any, List
 from pathlib import Path
 from openpyxl import load_workbook
@@ -33,7 +34,14 @@ class XlsxExtractor(BaseExtractor):
             ).to_dict()
 
         try:
-            wb = load_workbook(file_path, data_only=True)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="Data Validation extension is not supported.*",
+                    category=UserWarning,
+                    module="openpyxl.worksheet._reader",
+                )
+                wb = load_workbook(file_path, data_only=True)
             content_parts = []
 
             for sheet_name in wb.sheetnames:

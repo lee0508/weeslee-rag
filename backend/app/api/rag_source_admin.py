@@ -85,6 +85,22 @@ def _get_source_mount_path(source_id: str) -> Optional[str]:
     return rec.get("mount_path") or rec.get("source_uri") or None
 
 
+def _get_source_name(source_id: str) -> str:
+    rec = get_record("document_sources", "source_id", source_id) or {}
+    return rec.get("source_name") or rec.get("name") or source_id
+
+
+def _normalize_compare_path(path: str) -> str:
+    normalized = str(path or "").replace("\\", "/").rstrip("/")
+    return normalized.casefold() if re.match(r"^[a-zA-Z]:/", normalized) else normalized
+
+
+def _is_document_under_source(doc: dict, source_root: str) -> bool:
+    file_path = _normalize_compare_path(doc.get("file_path", ""))
+    root = _normalize_compare_path(source_root)
+    return bool(file_path and root and (file_path == root or file_path.startswith(root + "/")))
+
+
 def _file_exists_by_path(file_path: str) -> Optional[int]:
     """SQLite documents 테이블에서 file_path로 기존 레코드 ID를 반환한다."""
     with get_db_connection() as conn:
@@ -142,6 +158,20 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
         "search_priority": "high",
         "confidential_level": "internal",
     }
+
+
+def _filter_docs_by_source(docs: list[dict], source_id: str) -> tuple[list[dict], str, str]:
+    mount_path = _get_source_mount_path(source_id)
+    if not mount_path:
+        raise HTTPException(
+            status_code=422,
+            detail=f"source_id '{source_id}'의 Document Source 경로를 찾을 수 없습니다.",
+        )
+
+    source_name = _get_source_name(source_id)
+    return [
+        doc for doc in docs if doc and _is_document_under_source(doc, mount_path)
+    ], mount_path, source_name
 
 
 def _normalize_keyword_value(value: str) -> str:
@@ -299,6 +329,8 @@ async def build_metadata(body: MetadataBuildRequest):
     else:
         docs = metadata_db_service.list_documents(limit=10000)
 
+    docs, source_root, source_name = _filter_docs_by_source(docs, body.source_id)
+
     if body.collection:
         docs = docs if body.collection == MAIN_COLLECTION_NAME else []
 
@@ -321,6 +353,9 @@ async def build_metadata(body: MetadataBuildRequest):
 
         try:
             meta = _apply_rules_to_path(rules, file_path)
+            meta["source_id"] = body.source_id
+            meta["source_name"] = source_name
+            meta["source_root_path"] = source_root
         except Exception:
             failed += 1
             continue
@@ -354,6 +389,8 @@ async def build_metadata(body: MetadataBuildRequest):
             "deliverable_section": meta.get("deliverable_section"),
             "collection": meta.get("collection"),
             "collection_key": meta.get("collection_key"),
+            "source_id": body.source_id,
+            "source_name": source_name,
             "status": "dry_run" if body.dry_run else "updated",
         })
 
@@ -374,6 +411,8 @@ async def build_metadata(body: MetadataBuildRequest):
         "dry_run": body.dry_run,
         "client_id": body.client_id,
         "source_id": body.source_id,
+        "source_name": source_name,
+        "source_root": source_root,
         "total": len(docs),
         "updated": updated,
         "skipped": skipped,

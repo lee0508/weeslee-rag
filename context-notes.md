@@ -88,3 +88,12 @@
 - 기존 manifest row에는 `source_id`가 없어 OCR, 청킹, FAISS metadata에서 어떤 Document Source 기준 산출물인지 추적하기 어려웠다.
 - manifest 생성 시 Document Source 레코드를 조회해 `source_id`와 `source_name`을 각 row에 포함한다.
 - OCR 추출 metadata와 chunk metadata에도 같은 값을 전달해 GraphRAG, LLM Wiki, 증분 처리에서 Source 기준 필터를 사용할 수 있게 한다.
+
+## 2026-05-27 Dataset Builder Step 2 source_id 필터링
+
+- Step 2 `/api/admin/rag-source/metadata/build`는 요청 body에 `source_id`를 받지만 기존 코드는 `meta_status` 기준으로 전체 documents를 조회했다.
+- `documents` 테이블에는 `source_id` 컬럼이 없으므로 현재 구조에서는 Document Source의 `mount_path` 또는 `source_uri`와 문서 `file_path` prefix를 비교해 대상 문서를 좁히는 방식이 맞다.
+- Step 1 스캔도 같은 `source_id`의 mount path를 기준으로 파일을 documents에 저장하므로, Step 2 역시 같은 경로 기준을 사용해야 Source별 Dataset Builder 흐름이 맞는다.
+- Step 5의 `openpyxl` 메시지 `Data Validation extension is not supported and will be removed`는 XLSX 데이터 유효성 확장을 보존하지 않는다는 경고이며 텍스트 추출 실패가 아니다.
+- FAISS job runner는 subprocess stderr를 stdout과 합쳐 SSE 로그로 보내므로, 이 경고가 UI에서 오류처럼 보일 수 있다.
+- XLSX 추출기에서 해당 `openpyxl.worksheet._reader` UserWarning만 억제하고, 실제 추출 예외는 기존처럼 `success=False`로 유지한다.
