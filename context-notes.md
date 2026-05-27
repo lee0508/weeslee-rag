@@ -153,3 +153,5 @@
 - 현재 Dataset Builder Step 8은 선택 Source와 Step 6 스냅샷을 `/api/wiki/build`에 넘기지 않아 active snapshot 기준으로 Wiki를 만들 수 있다.
 - 추가 검증 중 `/api/wiki/build`의 `async` 엔드포인트가 `subprocess.run()`으로 이벤트 루프를 blocking하고, 그 subprocess가 다시 같은 서버의 `/api/rag/query`를 호출해 내부 요청을 처리하지 못하는 구조를 확인했다.
 - Wiki build subprocess 실행은 `asyncio.to_thread()`로 넘겨 API 서버가 내부 RAG 요청을 동시에 처리할 수 있게 해야 한다.
+- `3d8d706` 배포 후 `source_id=01_rfp`, `snapshot=snapshot_20260527_01_rfp`, `max_projects=1`로 `/api/wiki/build`를 호출해 HTTP 200을 확인했다.
+- 응답 stdout에서 지정 스냅샷을 사용했고 `data/wiki/01_rfp/projects/old.md` 1건이 생성됐다. 다만 source inventory의 첫 프로젝트가 `old`로 잡히는 것은 별도 데이터 품질 점검 대상이다.
