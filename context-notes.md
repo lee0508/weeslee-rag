@@ -209,3 +209,5 @@
 - `/api/rag/query`와 `/api/rag/similar-files` 응답에는 `source_id`, `snapshot`, 문서별 `original_path`, `document_group`, `document_type`, `file_ext`, 사용 가능 산출물 flag, `relation_summary`를 포함한다.
 - `/api/rag/query`는 기존 `draft_answer`를 유지하면서 표준 응답용 `answer` alias도 함께 반환한다.
 - `assemble_rag_response.py`는 기존 문자열 `evidence_snippets`를 유지하면서 `evidence_chunks`에 `chunk_id`, `text`, `page`, `score`를 추가해 API 정규화 단계에서 구조화 근거로 사용할 수 있게 했다.
+- 실제 `main.py`에 등록된 RAG 라우터는 `backend/app/api/rag.py`이다. `rag_with_similar_files.py`는 같은 목적의 보조 파일이지만 현재 서비스 라우터가 아니므로, P0 표준화 호출은 `rag.py`의 `_run_query()`에 들어가야 한다.
+- 서버 프로젝트 경로는 항상 `/data/weeslee/{프로젝트 폴더}` 기준으로 확인한다. `weeslee-rag`의 운영 경로는 `/data/weeslee/weeslee-rag`이다.
