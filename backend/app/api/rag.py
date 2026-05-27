@@ -21,6 +21,11 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import settings
+from app.api.rag_with_similar_files import (
+    _snippet_text as _standard_snippet_text,
+    _standardize_rag_document,
+    _standardize_rag_payload,
+)
 from app.services.query_log_service import query_log_service
 
 
@@ -348,6 +353,11 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
     if effective_mode == "graph_rag":
         payload = _enrich_with_graph_context(payload, request.query)
 
+    payload = _standardize_rag_payload(
+        payload,
+        snapshot=snapshot,
+        max_chunks_per_doc=request.max_chunks_per_doc,
+    )
     payload["evidence_documents"] = _answer_evidence_documents(payload.get("documents", []) or [])
     payload["retrieval_summary"] = {
         "found_documents": bool(payload.get("documents")),
@@ -644,36 +654,29 @@ def _to_similar_file_doc(doc: dict, rank: int, max_chunks_per_doc: int) -> dict:
         or []
     )
     content_snippets = [
-        _normalize_snippet(snippet)
+        _normalize_snippet(_standard_snippet_text(snippet))
         for snippet in snippets[:max_chunks_per_doc]
-        if str(snippet or "").strip()
+        if _standard_snippet_text(snippet)
     ]
     best_score = doc.get("best_score", doc.get("score", 0))
     ranking_score = doc.get("ranking_score", best_score)
-    return {
+    standard_doc = _standardize_rag_document(
+        doc,
+        rank,
+        str(doc.get("source_id") or "rag_source"),
+        max_chunks_per_doc,
+    )
+    standard_doc.update({
         "rank": rank,
         "match_label": _match_label(best_score),
-        "document_id": doc.get("document_id") or doc.get("id") or "",
-        "project_name": doc.get("project_name") or doc.get("title") or "",
-        "category": doc.get("category") or doc.get("document_type") or "unknown",
-        "source_path": doc.get("source_path") or doc.get("source") or "",
-        "original_source_path": doc.get("original_source_path") or doc.get("source_path") or doc.get("source") or "",
         "input_path": doc.get("input_path") or "",
-        "relative_path": doc.get("relative_path") or "",
-        "root_group": doc.get("root_group") or "",
-        "sub_group": doc.get("sub_group") or "",
-        "section_label": doc.get("section_label") or "",
-        "proposal_section": doc.get("proposal_section") or "",
-        "deliverable_section": doc.get("deliverable_section") or "",
-        "collection_key": doc.get("collection_key") or "",
-        "search_keywords": doc.get("search_keywords") or [],
         "best_score": best_score,
         "ranking_score": ranking_score,
         "hit_count": doc.get("hit_count", len(content_snippets)),
         "reasons": doc.get("reasons", []),
-        "evidence_snippets": content_snippets,
         "content_snippets": content_snippets,
-    }
+    })
+    return standard_doc
 
 
 @router.post("/similar-files")
@@ -708,6 +711,8 @@ async def similar_files(request: SimilarFilesRequest, http_request: Request):
             "query": request.query,
             "effective_mode": effective_mode,
             "mode_detection": mode_detection,
+            "source_id": payload.get("source_id"),
+            "snapshot": payload.get("snapshot"),
             "document_count": len(documents),
             "documents": documents,
             "graph_context": payload.get("graph_context", []),
