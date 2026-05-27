@@ -101,6 +101,35 @@ def _is_document_under_source(doc: dict, source_root: str) -> bool:
     return bool(file_path and root and (file_path == root or file_path.startswith(root + "/")))
 
 
+def _list_documents_under_source(
+    source_root: str,
+    *,
+    meta_status: Optional[str] = None,
+    limit: int = 0,
+) -> list[dict]:
+    normalized_root = str(source_root or "").replace("\\", "/").rstrip("/")
+    if not normalized_root:
+        return []
+
+    sql = """
+        SELECT *
+        FROM documents
+        WHERE (replace(file_path, '\\', '/') = ?
+           OR replace(file_path, '\\', '/') LIKE ?)
+    """
+    params: list[object] = [normalized_root, f"{normalized_root}/%"]
+    if meta_status:
+        sql += " AND meta_status = ?"
+        params.append(meta_status)
+    sql += " ORDER BY updated_at DESC"
+    if limit and limit > 0:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    with get_db_connection() as conn:
+        return [dict(row) for row in conn.execute(sql, params).fetchall()]
+
+
 def _file_exists_by_path(file_path: str) -> Optional[int]:
     """SQLite documents 테이블에서 file_path로 기존 레코드 ID를 반환한다."""
     with get_db_connection() as conn:
@@ -321,15 +350,22 @@ async def build_metadata(body: MetadataBuildRequest):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"규칙 모듈 로드 실패: {exc}")
 
+    source_root = _get_source_mount_path(body.source_id)
+    if not source_root:
+        raise HTTPException(
+            status_code=422,
+            detail=f"source_id '{body.source_id}'의 Document Source 경로를 찾을 수 없습니다.",
+        )
+    source_name = _get_source_name(body.source_id)
+
     # 처리 대상 문서 목록 조회
     if body.inventory_ids:
         docs = [metadata_db_service.get_document(i) for i in body.inventory_ids if metadata_db_service.get_document(i)]
+        docs = [doc for doc in docs if doc and _is_document_under_source(doc, source_root)]
     elif body.only_missing and not body.overwrite:
-        docs = metadata_db_service.list_documents(meta_status="pending", limit=10000)
+        docs = _list_documents_under_source(source_root, meta_status="pending")
     else:
-        docs = metadata_db_service.list_documents(limit=10000)
-
-    docs, source_root, source_name = _filter_docs_by_source(docs, body.source_id)
+        docs = _list_documents_under_source(source_root)
 
     if body.collection:
         docs = docs if body.collection == MAIN_COLLECTION_NAME else []

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services.knowledge_source import knowledge_source_service
-from app.services.metadata_db import metadata_db_service
+from app.services.metadata_db import get_db_connection
 from app.services.platform_store import get_record
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -76,9 +76,22 @@ def resolve_source_path(source_id: str = "rag_source") -> Path:
 
 
 def iter_source_documents(source_root: Path, limit: int = 0) -> list[dict[str, Any]]:
-    docs = metadata_db_service.list_documents(limit=100000, offset=0)
     prefix = str(source_root).replace("\\", "/").rstrip("/")
     rows: list[dict[str, Any]] = []
+    sql = """
+        SELECT *
+        FROM documents
+        WHERE replace(file_path, '\\', '/') = ?
+           OR replace(file_path, '\\', '/') LIKE ?
+        ORDER BY id ASC
+    """
+    params: list[Any] = [prefix, f"{prefix}/%"]
+    if limit and limit > 0:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    with get_db_connection() as conn:
+        docs = [dict(row) for row in conn.execute(sql, params).fetchall()]
 
     for doc in docs:
         file_path = str(doc.get("file_path") or "")
@@ -92,9 +105,6 @@ def iter_source_documents(source_root: Path, limit: int = 0) -> list[dict[str, A
             continue
         rows.append(doc)
 
-    rows.sort(key=lambda item: int(item.get("id") or 0))
-    if limit and limit > 0:
-        return rows[:limit]
     return rows
 
 

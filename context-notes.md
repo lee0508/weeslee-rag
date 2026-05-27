@@ -122,3 +122,14 @@
 - 현재 구현은 Document Source, Dataset Builder Step 5/6 분리, 사용자 문서 미리보기, 문서 상세 API 중심으로 재정리해야 한다.
 - `docs/2026-05-27_관리자시점_개발방향.md`는 관리자 관점 워크플로우를 문서 등록, 전처리, 구조 기반 청킹, FAISS/RAG, LLM Wiki, GraphRAG 순서로 제시한다.
 - 특히 페이지별 OCR 결과 저장, 실패 로그, 재처리 버튼, 구조 기반 청킹, 관계 모델은 아직 남은 과제로 명시해야 한다.
+
+## 2026-05-27 Step 5 manifest 대상 없음 장애
+
+- 오류 메시지는 `manifest 대상 문서를 찾지 못했습니다. source_id=01_rfp, root=/mnt/w2_project/00. RAG 소스/01. RFP`이다.
+- Step 5는 파일 시스템을 직접 순회하지 않고 `documents` 테이블의 `file_path`가 Document Source root prefix와 일치하는 문서만 manifest 대상으로 삼는다.
+- 따라서 원인은 `01_rfp` 기준 Step 1 스캔 결과가 DB에 없거나, DB에는 있지만 경로 문자열이 Document Source root와 다르게 저장된 경우로 좁혀진다.
+- 서버 확인 결과 `platform_config/document_sources.json`의 `01_rfp`는 `/mnt/w2_project/00. RAG 소스/01. RFP`를 가리키고, 실제 폴더에는 지원 확장자 파일 47개가 있다.
+- `metadata.db` 전체 문서는 122,925건이고 `01_rfp` prefix와 맞는 문서는 47건 존재한다.
+- Step 5의 `iter_source_documents()`가 `list_documents(limit=100000)`으로 최근 100,000건만 읽은 뒤 prefix 필터를 적용해, 오래된 47건이 후보에서 빠지는 것이 직접 원인이다.
+- Step 5 manifest 조회는 SQLite에서 `source_root` prefix 조건을 먼저 적용하도록 변경해 전체 DB 크기와 무관하게 대상 Source 문서를 찾게 했다.
+- Step 2 Metadata 생성도 `list_documents(limit=10000)` 후 필터링하던 구조라 같은 문제가 발생할 수 있어 Source prefix DB 조회로 맞췄다.
