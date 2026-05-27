@@ -133,3 +133,5 @@
 - Step 5의 `iter_source_documents()`가 `list_documents(limit=100000)`으로 최근 100,000건만 읽은 뒤 prefix 필터를 적용해, 오래된 47건이 후보에서 빠지는 것이 직접 원인이다.
 - Step 5 manifest 조회는 SQLite에서 `source_root` prefix 조건을 먼저 적용하도록 변경해 전체 DB 크기와 무관하게 대상 Source 문서를 찾게 했다.
 - Step 2 Metadata 생성도 `list_documents(limit=10000)` 후 필터링하던 구조라 같은 문제가 발생할 수 있어 Source prefix DB 조회로 맞췄다.
+- 서버 배포 후 `PYTHONPATH=backend .venv/bin/python3`로 `iter_source_documents(resolve_source_path('01_rfp'))`를 실행해 47건 조회를 확인했다.
+- `weeslee-rag-api.service`를 재시작했고 `/api/health/all`은 HTTP 200과 healthy 상태를 반환했다.
