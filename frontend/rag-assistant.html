@@ -4274,6 +4274,7 @@
     function _previewFormats(detail) {
       const formats = [];
       if (detail?.available_formats?.html) formats.push({ id: 'html', label: 'HTML' });
+      if (detail?.available_formats?.summary) formats.push({ id: 'summary', label: '요약' });
       if (detail?.available_formats?.md) formats.push({ id: 'md', label: 'Markdown' });
       if (detail?.available_formats?.txt) formats.push({ id: 'txt', label: 'TXT' });
       return formats;
@@ -4365,6 +4366,8 @@
 
       const endpoint = format === 'html'
         ? `${API_BASE}/documents/${encodeURIComponent(docId)}/html`
+        : format === 'summary'
+          ? `${API_BASE}/documents/${encodeURIComponent(docId)}/summary`
         : format === 'md'
           ? `${API_BASE}/documents/${encodeURIComponent(docId)}/markdown`
           : `${API_BASE}/documents/${encodeURIComponent(docId)}/text`;
@@ -4379,7 +4382,11 @@
           body.innerHTML = `<iframe id="previewFrame" srcdoc="${escapeHtml(_previewState.content)}" title="${escapeHtml(_previewState.fileName)}"></iframe>`;
         } else {
           _previewState.mode = 'text';
-          _previewState.content = format === 'md' ? (data.markdown || '') : (data.text || '');
+          _previewState.content = format === 'summary'
+            ? (data.summary || '')
+            : format === 'md'
+              ? (data.markdown || '')
+              : (data.text || '');
           body.innerHTML = `<div class="preview-text">${escapeHtml(_previewState.content)}</div>`;
         }
         printBtn.style.display = '';

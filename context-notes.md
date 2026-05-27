@@ -103,3 +103,9 @@
 - Step 5 실행 중에는 상태가 `OCR/청킹 실행 중...`으로 표시되고, SSE 실패가 발생하면 `_wizardMarkError()`가 호출된다.
 - 사용자가 보는 요약 영역이나 자동 실행 상태에 실행 중 메시지가 남으면 실패 원인을 놓치기 쉽다.
 - Step 5와 Step 6 같은 FAISS job 단계는 실패 시 단계별 문맥을 붙여 `OCR/청킹 실패` 또는 `임베딩/FAISS 실패`로 명확히 표시해야 한다.
+
+## 2026-05-27 사용자 문서 미리보기와 OCR 산출물
+
+- `rag-assistant.html`의 문서 클릭은 `openDocDetail()`과 `openFilePreview()`로 이어지며, 미리보기는 `/api/documents/{document_id}` 상세 API를 먼저 조회한다.
+- 백엔드 문서 상세 API는 Step 5 산출물인 `data/extracted_text/{document_id}/document.html`, `document.md`, `raw_text.txt`와 `data/staged/text/{document_id}.txt`를 이미 fallback으로 읽는다.
+- 전체 본문 보기 연결은 되어 있으나 요약은 `available_formats.summary`가 있어도 미리보기 탭에 표시되지 않았다.
