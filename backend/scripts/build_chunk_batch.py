@@ -177,6 +177,8 @@ def build_chunks_for_document(
                     text=chunk_text,
                     metadata={
                         "document_id": document_id,
+                        "source_id": metadata.get("source_id", ""),
+                        "source_name": metadata.get("source_name", ""),
                         "category": metadata.get("category", ""),
                         "collection_name": metadata.get("collection_name", "weeslee_rag_main"),
                         "document_group": metadata.get("document_group", metadata.get("category", "")),

@@ -20,6 +20,8 @@ SUPPORTED_EXTENSIONS = {".pdf", ".hwp", ".hwpx", ".docx", ".pptx", ".xlsx"}
 MAIN_COLLECTION_NAME = "weeslee_rag_main"
 MANIFEST_FIELDS = [
     "document_id",
+    "source_id",
+    "source_name",
     "category",
     "collection_name",
     "collection_key",
@@ -116,7 +118,13 @@ def _document_category(rules_mod, doc_meta: dict[str, Any]) -> str:
     return doc_meta.get("document_type", "unknown")
 
 
-def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: str) -> dict[str, Any]:
+def build_manifest_row(
+    doc: dict[str, Any],
+    source_root: Path,
+    snapshot_name: str,
+    source_id: str,
+    source_name: str,
+) -> dict[str, Any]:
     rules = _rules()
     source_path = Path(str(doc.get("file_path") or "")).resolve()
     relative_path = source_path.relative_to(source_root).as_posix()
@@ -133,6 +141,8 @@ def build_manifest_row(doc: dict[str, Any], source_root: Path, snapshot_name: st
 
     return {
         "document_id": str(doc.get("id")),
+        "source_id": source_id,
+        "source_name": source_name,
         "category": document_group,
         "collection_name": MAIN_COLLECTION_NAME,
         "collection_key": collection_key,
@@ -180,6 +190,8 @@ def build_manifest(
     limit: int = 0,
     overwrite: bool = True,
 ) -> dict[str, Any]:
+    source_record = get_record("document_sources", "source_id", source_id) or {}
+    source_name = source_record.get("source_name") or source_record.get("name") or source_id
     source_root = resolve_source_path(source_id)
     docs = iter_source_documents(source_root, limit=limit)
     MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
@@ -203,7 +215,10 @@ def build_manifest(
             f"manifest 대상 문서를 찾지 못했습니다. source_id={source_id}, root={source_root}"
         )
 
-    rows = [build_manifest_row(doc, source_root, snapshot_name) for doc in docs]
+    rows = [
+        build_manifest_row(doc, source_root, snapshot_name, source_id, source_name)
+        for doc in docs
+    ]
     category_counts = {"rfp": 0, "proposal": 0, "deliverable": 0, "unknown": 0}
     for row in rows:
         category_counts[row["category"] if row["category"] in category_counts else "unknown"] += 1

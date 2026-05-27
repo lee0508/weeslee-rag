@@ -223,6 +223,8 @@ async def run_batch(args: argparse.Namespace) -> int:
             folder_year = _preferred_value(row, "project_year", project_meta["folder_year"])
             metadata = {
                 "document_id": document_id,
+                "source_id": row.get("source_id", ""),
+                "source_name": row.get("source_name", ""),
                 "category": category,
                 "collection_name": row.get("collection_name", "weeslee_rag_main"),
                 "document_group": row.get("document_group", ""),

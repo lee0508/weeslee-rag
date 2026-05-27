@@ -82,3 +82,9 @@
 - 기존 레코드를 바로 삭제하거나 primary key를 수정하면 참조가 깨질 수 있으므로, 목록에서 기존 값을 읽어 새 레코드로 복제 생성하는 방식을 사용한다.
 - 복제 생성 시 `source_id`는 보내지 않고 서버 자동 생성값을 사용하며, `client_id`, `source_name`, `source_type`, `source_uri`, `mount_path`, `root_subpath`, `readonly`, `enabled`만 넘긴다.
 - 버튼 동작은 기존 Source 수정이 아니라 복제 생성이므로 표시 문구는 `새 ID로 복제`가 더 정확하다.
+
+## 2026-05-27 Manifest source_id/source_name 추가
+
+- 기존 manifest row에는 `source_id`가 없어 OCR, 청킹, FAISS metadata에서 어떤 Document Source 기준 산출물인지 추적하기 어려웠다.
+- manifest 생성 시 Document Source 레코드를 조회해 `source_id`와 `source_name`을 각 row에 포함한다.
+- OCR 추출 metadata와 chunk metadata에도 같은 값을 전달해 GraphRAG, LLM Wiki, 증분 처리에서 Source 기준 필터를 사용할 수 있게 한다.
