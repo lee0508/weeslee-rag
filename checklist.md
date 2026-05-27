@@ -1,7 +1,8 @@
-# RAG Assistant 검색 결과 Graph 탭 체크리스트
+# Graph RAG 생성 경로 통일 체크리스트
 
-- [x] 현재 Graph 탭과 Graph API 동작 확인
-- [x] 검색 결과 `document_id` 묶음용 Cytoscape API 추가
-- [x] RAG Assistant Graph 탭을 검색 결과 문서 기준 API로 연결
-- [x] Python 컴파일 및 프론트 스크립트 문법 검증
-- [x] 변경 사항 커밋
+- [x] Graph Build 메뉴와 Dataset Builder 7단계 호출 경로 분석
+- [x] Graph Build 메뉴를 Dataset Builder 7단계 이동으로 변경
+- [x] Legacy Graph 직접 Build 버튼을 7단계 이동으로 변경
+- [x] Dataset Builder 7단계에서 `source_id` 전달
+- [x] 프론트 스크립트 문법 검증
+- [x] 변경 사항 커밋 및 배포

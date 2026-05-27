@@ -189,3 +189,13 @@
 - `git diff --check`는 저장소의 기존 미추적/변경 파일과 CRLF 추가 줄을 trailing whitespace로 보고해 별도 잔여 리스크로 기록한다.
 - 서버 API 확인 중 `similar_project` 엣지로 다른 프로젝트가 많이 포함되어 결과 검증 그래프가 흐려지는 것을 확인했다.
 - 검색 결과 문서의 프로젝트가 아닌 다른 프로젝트 노드는 제외하고, 결과 문서와 직접 설명 노드 중심으로 유지하도록 필터를 추가했다.
+
+## 2026-05-27 Graph Build 메뉴와 Dataset Builder 7단계 통일
+
+- Graph Build 메뉴와 Legacy Graph의 `buildGraph()`는 `/api/graph/build`를 직접 호출한다.
+- Dataset Builder 7단계도 같은 `/api/graph/build`를 호출하므로 실제 작업은 같은 GraphRAG 생성 작업이다.
+- 기존 직접 Build 버튼은 `source_id` 없이 전체 그래프를 만들 수 있어 Source별 Dataset Builder 흐름과 다르다.
+- 운영 기준은 GraphRAG 생성 실행을 Dataset Builder 7단계로 통일하고, Graph Build 메뉴는 7단계로 이동하는 안내 경로로 둔다.
+- Graph Build 메뉴, Legacy Graph View의 Build 버튼, 문서 선택 Graph 반영, Wiki의 Graphify 버튼, RAG Source의 Graph 생성 버튼을 모두 7단계 이동으로 바꿨다.
+- Dataset Builder 7단계는 현재 `ctxSource` 값을 읽어 `/api/graph/build?source_id={source_id}`로 호출한다.
+- 직접 Build를 남기는 유일한 위치는 7단계 실행 코드이며, 사용자가 Source 선택 후 실행하는 경로로 통일됐다.
