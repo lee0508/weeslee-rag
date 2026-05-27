@@ -70,3 +70,8 @@
 - 기존 `rag_source`와 이미 저장된 source_id는 그대로 유지해 기존 데이터와 URL을 깨지 않도록 한다.
 - Legacy Document Source 폼과 새 Source 등록 흐름 모두 신규 등록 시 source_id를 보내지 않고 서버 응답값을 사용한다.
 - 기본 Python 환경에는 `fastapi`가 없어 API 모듈 직접 import 검증은 실행하지 못했고, compileall과 admin inline script 파싱으로 정적 검증했다.
+
+## 2026-05-27 Document Source Dataset 생성 버튼
+
+- Document Source 목록의 행별 `Dataset 생성` 버튼은 기존에 `switchTab('wizard')`만 호출해 선택 Source가 Dataset Builder에 반영되지 않았다.
+- 버튼 클릭 시 해당 행의 `source_id`를 `ctxSource`에 설정하고 `onCtxChange()`를 호출한 뒤 wizard로 이동해야 한다.

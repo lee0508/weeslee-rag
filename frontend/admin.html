@@ -6247,7 +6247,7 @@ POST /api/admin/faiss/activate</code>
           <td style="padding:6px 8px;color:var(--muted);max-width:260px">${esc(s.next_action || 'Source Document 기준 스캔을 먼저 실행하세요.')}</td>
           <td style="padding:6px 8px">
             <button class="btn btn-outline btn-sm" onclick="scanDocSourceChanges('${sourceIdParam}')">새 파일 확인</button>
-            <button class="btn btn-outline btn-sm" onclick="switchTab('wizard')">Dataset 생성</button>
+            <button class="btn btn-outline btn-sm" onclick="openDatasetBuilderForSource('${sourceIdParam}')">Dataset 생성</button>
           </td>
         </tr>`;
         }).join('')}
@@ -6262,6 +6262,23 @@ POST /api/admin/faiss/activate</code>
         </div>
       </div>`;
     }
+  }
+
+  function openDatasetBuilderForSource(sourceId) {
+    const decodedSourceId = decodeURIComponent(sourceId || '');
+    const sel = document.getElementById('ctxSource');
+    if (sel && decodedSourceId) {
+      sel.value = decodedSourceId;
+      if (sel.value !== decodedSourceId) {
+        const option = document.createElement('option');
+        option.value = decodedSourceId;
+        option.textContent = decodedSourceId;
+        sel.appendChild(option);
+        sel.value = decodedSourceId;
+      }
+      onCtxChange();
+    }
+    switchTab('wizard');
   }
 
   async function scanDocSourceChanges(sourceId) {
