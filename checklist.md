@@ -1,8 +1,9 @@
-# Step 5 manifest 대상 없음 장애 대응 체크리스트
+# Dataset Builder Source ID 표시 개선 체크리스트
 
-- [x] Step 5 manifest 생성 코드와 Step 1 스캔 저장 로직 확인
-- [x] 서버의 `01_rfp` Document Source 설정과 SQLite documents 경로 현황 확인
-- [x] 원인에 맞는 최소 코드 수정
-- [x] 관련 정적 검증 실행
-- [x] 변경 사항 커밋
-- [x] 서버 배포 및 서비스 재시작
+- [x] Dataset Builder 컨텍스트 바의 Document Source 표시 방식 확인
+- [x] Source 이름 옆에 `source_id`가 보이도록 UI 수정
+- [x] 현재 선택된 `source_id` 힌트 추가
+- [x] Step 5/6 실행 로그와 요청 body가 원본 `source_id`를 쓰도록 정리
+- [x] 정적 검증 실행
+- [ ] 변경 사항 커밋
+- [ ] 서버 배포 및 서비스 재시작

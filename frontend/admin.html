@@ -1347,8 +1347,9 @@ POST /api/admin/faiss/activate</code>
     <span>Document Source</span>
     <select id="ctxSource" onchange="onCtxChange()"
       style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">
-      <option value="rag_source">00. RAG 소스</option>
+      <option value="rag_source">00. RAG 소스 (rag_source)</option>
     </select>
+    <span id="ctxSourceIdHint" style="font-size:10px;color:var(--muted);font-family:monospace"></span>
   </div>
   <div style="display:flex;align-items:center;gap:6px">
     <span>Dataset</span>
@@ -6047,11 +6048,15 @@ POST /api/admin/faiss/activate</code>
       const sources = await r.json();
       if (!Array.isArray(sources) || sources.length === 0) return;
       const current = sel.value;
-      sel.innerHTML = sources.map(s =>
-        `<option value="${esc(s.source_id || s.id)}">${esc(s.source_name || s.name || s.source_id)}</option>`
-      ).join('');
+      sel.innerHTML = sources.map(s => {
+        const sourceId = s.source_id || s.id || '';
+        const sourceName = s.source_name || s.name || sourceId;
+        const label = sourceId && sourceName !== sourceId ? `${sourceName} (${sourceId})` : sourceName;
+        return `<option value="${esc(sourceId)}" data-source-name="${esc(sourceName)}">${esc(label)}</option>`;
+      }).join('');
       // 기존 선택값 유지 (있으면)
       if (sources.some(s => (s.source_id || s.id) === current)) sel.value = current;
+      updateCtxSourceHint();
     } catch { /* 실패 시 기본값 유지 */ }
   }
 
@@ -6082,8 +6087,16 @@ POST /api/admin/faiss/activate</code>
     const src = document.getElementById('ctxSource').value;
     const ds  = document.getElementById('ctxDataset').value;
     console.log('[CTX] Source:', src, '| Dataset:', ds);
+    updateCtxSourceHint();
     // 스냅샷 목록 새로고침
     loadSnapshotList();
+  }
+
+  function updateCtxSourceHint() {
+    const sel = document.getElementById('ctxSource');
+    const hint = document.getElementById('ctxSourceIdHint');
+    if (!sel || !hint) return;
+    hint.textContent = sel.value ? `source_id=${sel.value}` : '';
   }
 
   // ── 스냅샷 선택 및 단계 재개 기능 ────────────────────────────────────────
@@ -6274,6 +6287,7 @@ POST /api/admin/faiss/activate</code>
         const option = document.createElement('option');
         option.value = decodedSourceId;
         option.textContent = decodedSourceId;
+        option.dataset.sourceName = decodedSourceId;
         sel.appendChild(option);
         sel.value = decodedSourceId;
       }
@@ -7338,7 +7352,8 @@ POST /api/admin/faiss/activate</code>
       _wizardSetStatus(step, '잡 시작...', 'running');
       try {
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const src   = (document.getElementById('ctxSource')?.value?.trim() || 'rag_source').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const sourceId = document.getElementById('ctxSource')?.value?.trim() || 'rag_source';
+        const snapshotSourceKey = sourceId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         // 기존 스냅샷이 선택되었는지 확인
         const existingSnapshot = getSelectedSnapshot();
@@ -7354,9 +7369,11 @@ POST /api/admin/faiss/activate</code>
         if (existingSnapshot) {
           _wizardFaissSnapshot = existingSnapshot;
           _wizardAppendLog(step, `기존 스냅샷 재사용: ${_wizardFaissSnapshot}`);
+          _wizardAppendLog(step, `Document Source: ${sourceId}`);
           _wizardAppendLog(step, `Stage ${startFromStage}부터 시작`);
         } else {
-          _wizardFaissSnapshot = `snapshot_${today}_${src}`;
+          _wizardFaissSnapshot = `snapshot_${today}_${snapshotSourceKey}`;
+          _wizardAppendLog(step, `Document Source: ${sourceId}`);
           _wizardAppendLog(step, `새 스냅샷: ${_wizardFaissSnapshot}`);
         }
 
@@ -7366,7 +7383,7 @@ POST /api/admin/faiss/activate</code>
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
             snapshot: _wizardFaissSnapshot,
-            source_id: src,
+            source_id: sourceId,
             start_from_stage: startFromStage,
             end_stage: 3,
           }),
@@ -7395,17 +7412,17 @@ POST /api/admin/faiss/activate</code>
       }
       _wizardFaissSnapshot = snapshot;
       try {
-        const src = (document.getElementById('ctxSource')?.value?.trim() || 'rag_source').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const sourceId = document.getElementById('ctxSource')?.value?.trim() || 'rag_source';
         const recommendedStage = getSelectedSnapshot() ? getRecommendedStartStage() : 4;
         const startFromStage = Math.max(4, Math.min(recommendedStage || 4, 5));
         _wizardSetStatus(step, '잡 시작...', 'running');
-        _wizardAppendLog(step, `POST /api/admin/faiss/jobs\n스냅샷: ${snapshot}`);
+        _wizardAppendLog(step, `POST /api/admin/faiss/jobs\n스냅샷: ${snapshot}\nDocument Source: ${sourceId}`);
         const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
             snapshot,
-            source_id: src,
+            source_id: sourceId,
             start_from_stage: startFromStage,
             end_stage: 5,
           }),

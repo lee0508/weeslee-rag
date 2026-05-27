@@ -135,3 +135,10 @@
 - Step 2 Metadata 생성도 `list_documents(limit=10000)` 후 필터링하던 구조라 같은 문제가 발생할 수 있어 Source prefix DB 조회로 맞췄다.
 - 서버 배포 후 `PYTHONPATH=backend .venv/bin/python3`로 `iter_source_documents(resolve_source_path('01_rfp'))`를 실행해 47건 조회를 확인했다.
 - `weeslee-rag-api.service`를 재시작했고 `/api/health/all`은 HTTP 200과 healthy 상태를 반환했다.
+
+## 2026-05-27 Dataset Builder source_id 표시
+
+- Dataset Builder 공통 컨텍스트 바의 `ctxSource`는 option value로 `source_id`를 가지고 있지만 표시 텍스트는 Source 이름만 보여줘 사용자가 `01. RFP`의 내부 ID가 `01_rfp`인지 확인하기 어려웠다.
+- Source option 표시를 `Source 이름 (source_id)` 형식으로 바꾸고, 선택 박스 옆에 `source_id=...` 힌트를 별도로 표시한다.
+- Step 5/6 job 요청은 원본 `source_id` 값을 그대로 보내고, 스냅샷명에만 안전한 문자열로 변환한 키를 사용해야 한다.
+- 기존 스냅샷 선택 기능은 유지하되 Step 5/6 로그에 Document Source ID를 남겨, 어떤 Source 기준으로 기존 스냅샷을 재사용하거나 이어서 실행했는지 확인할 수 있게 한다.
