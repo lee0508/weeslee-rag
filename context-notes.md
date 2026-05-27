@@ -172,3 +172,4 @@
 - 기존 `startJob()`은 `/api/admin/faiss/jobs`에 `{snapshot}`만 보내므로 백엔드 기본값인 `source_id=rag_source`, `start_from_stage=1`, `end_stage=6`으로 전체 파이프라인을 실행한다.
 - 현재 운영 흐름은 Dataset Builder가 Source별 Step 5, Step 6, Step 7, Step 8을 관리하므로 FAISS Index 탭에서는 직접 실행 대신 Dataset Builder로 이동시키는 것이 안전하다.
 - staged 준비 현황의 스냅샷 사용 버튼은 Dataset Builder의 스냅샷 선택값으로 연결한다.
+- `d128823` 배포 후 서비스를 재시작했고 `/api/health/all` HTTP 200을 확인했다.
