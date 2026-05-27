@@ -115,3 +115,10 @@
 - Step 5 재실행 시간을 줄이려면 문서별 `data/staged/text/{document_id}.txt`와 `data/staged/metadata/{document_id}.json`을 재사용해야 한다.
 - 기존 산출물이 원본 파일보다 최신이면 텍스트 추출/OCR은 건너뛰고 summary CSV에는 `skipped_existing`으로 남긴다.
 - 청킹은 전체 snapshot chunks를 다시 만들 수 있어야 하므로 `success`뿐 아니라 `skipped_existing` row도 입력으로 처리해야 한다.
+
+## 2026-05-27 Phase 9 체크리스트 현재화
+
+- 기존 `docs/design/Phase9_Codex_구현_체크리스트.md`는 초기 설계 기준이라 현재 source_id 중심 Dataset Builder 구현과 맞지 않았다.
+- 현재 구현은 Document Source, Dataset Builder Step 5/6 분리, 사용자 문서 미리보기, 문서 상세 API 중심으로 재정리해야 한다.
+- `docs/2026-05-27_관리자시점_개발방향.md`는 관리자 관점 워크플로우를 문서 등록, 전처리, 구조 기반 청킹, FAISS/RAG, LLM Wiki, GraphRAG 순서로 제시한다.
+- 특히 페이지별 OCR 결과 저장, 실패 로그, 재처리 버튼, 구조 기반 청킹, 관계 모델은 아직 남은 과제로 명시해야 한다.
