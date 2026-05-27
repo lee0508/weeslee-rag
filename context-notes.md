@@ -75,3 +75,9 @@
 
 - Document Source 목록의 행별 `Dataset 생성` 버튼은 기존에 `switchTab('wizard')`만 호출해 선택 Source가 Dataset Builder에 반영되지 않았다.
 - 버튼 클릭 시 해당 행의 `source_id`를 `ctxSource`에 설정하고 `onCtxChange()`를 호출한 뒤 wizard로 이동해야 한다.
+
+## 2026-05-27 기존 Document Source ID 재생성
+
+- 기존에 한글 또는 관리하기 어려운 `source_id`로 저장된 Document Source를 새 자동 source_id로 다시 등록할 수 있어야 한다.
+- 기존 레코드를 바로 삭제하거나 primary key를 수정하면 참조가 깨질 수 있으므로, 목록에서 기존 값을 읽어 새 레코드로 복제 생성하는 방식을 사용한다.
+- 복제 생성 시 `source_id`는 보내지 않고 서버 자동 생성값을 사용하며, `client_id`, `source_name`, `source_type`, `source_uri`, `mount_path`, `root_subpath`, `readonly`, `enabled`만 넘긴다.

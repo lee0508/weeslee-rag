@@ -6248,6 +6248,7 @@ POST /api/admin/faiss/activate</code>
           <td style="padding:6px 8px">
             <button class="btn btn-outline btn-sm" onclick="scanDocSourceChanges('${sourceIdParam}')">새 파일 확인</button>
             <button class="btn btn-outline btn-sm" onclick="openDatasetBuilderForSource('${sourceIdParam}')">Dataset 생성</button>
+            <button class="btn btn-outline btn-sm" onclick="recreateDocSource('${sourceIdParam}')">ID 재생성</button>
           </td>
         </tr>`;
         }).join('')}
@@ -6279,6 +6280,44 @@ POST /api/admin/faiss/activate</code>
       onCtxChange();
     }
     switchTab('wizard');
+  }
+
+  async function recreateDocSource(sourceId) {
+    if (!sourceId) return;
+    const decodedSourceId = decodeURIComponent(sourceId);
+    if (!confirm('이 Source를 새 source_id로 다시 등록하시겠습니까? 기존 Source는 삭제되지 않습니다.')) return;
+    try {
+      const getResp = await fetch(`${API_BASE}/admin/document-sources/${encodeURIComponent(decodedSourceId)}`, {
+        headers: authHeaders(),
+      });
+      const source = await getResp.json().catch(() => ({}));
+      if (!getResp.ok) throw new Error(source.detail || `HTTP ${getResp.status}`);
+      const payload = {
+        client_id: source.client_id || 'weeslee',
+        source_name: source.source_name || source.name || decodedSourceId,
+        source_type: source.source_type || 'smb',
+        source_uri: source.source_uri || source.mount_path || '',
+        mount_path: source.mount_path || source.source_uri || '',
+        root_subpath: source.root_subpath || '',
+        readonly: source.readonly !== false,
+        enabled: source.enabled !== false,
+      };
+      const createResp = await fetch(`${API_BASE}/admin/document-sources`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const created = await createResp.json().catch(() => ({}));
+      if (!createResp.ok) throw new Error(created.detail || `HTTP ${createResp.status}`);
+      showToast(`새 source_id 생성 완료: ${created.source_id}`, 'success');
+      await refreshCtxSourceSelect();
+      const sel = document.getElementById('ctxSource');
+      if (sel) sel.value = created.source_id || '';
+      onCtxChange();
+      loadDocSources();
+    } catch (e) {
+      showToast(`ID 재생성 실패: ${e.message}`, 'error');
+    }
   }
 
   async function scanDocSourceChanges(sourceId) {
