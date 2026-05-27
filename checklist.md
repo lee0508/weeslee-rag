@@ -1,8 +1,6 @@
-# Document Source ID 재생성 체크리스트
+# Document Source 복제 버튼 문구 체크리스트
 
-- [x] 기존 Document Source 목록과 생성 API 확인
-- [x] 기존 Source를 읽어 새 자동 source_id로 복제 등록하는 함수 추가
-- [x] Document Source 목록에 ID 재생성 버튼 연결
-- [x] 생성 후 새 Source를 컨텍스트 선택값으로 반영
+- [x] 현재 버튼 동작과 문구 불일치 확인
+- [x] 버튼 문구를 새 ID로 복제로 변경
 - [x] 정적 검사 실행
-- [ ] 변경 사항 커밋
+- [x] 변경 사항 커밋

@@ -81,3 +81,4 @@
 - 기존에 한글 또는 관리하기 어려운 `source_id`로 저장된 Document Source를 새 자동 source_id로 다시 등록할 수 있어야 한다.
 - 기존 레코드를 바로 삭제하거나 primary key를 수정하면 참조가 깨질 수 있으므로, 목록에서 기존 값을 읽어 새 레코드로 복제 생성하는 방식을 사용한다.
 - 복제 생성 시 `source_id`는 보내지 않고 서버 자동 생성값을 사용하며, `client_id`, `source_name`, `source_type`, `source_uri`, `mount_path`, `root_subpath`, `readonly`, `enabled`만 넘긴다.
+- 버튼 동작은 기존 Source 수정이 아니라 복제 생성이므로 표시 문구는 `새 ID로 복제`가 더 정확하다.
