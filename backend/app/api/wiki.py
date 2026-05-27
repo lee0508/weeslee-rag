@@ -156,6 +156,7 @@ async def get_wiki_project(slug: str, source_id: Optional[str] = None):
 async def build_wiki(
     slug: Optional[str] = None,
     source_id: Optional[str] = None,
+    snapshot: Optional[str] = None,
     from_inventory: bool = False,
     max_projects: int = 0,
 ):
@@ -190,6 +191,8 @@ async def build_wiki(
 
     if max_projects > 0:
         cmd += ["--max-projects", str(max_projects)]
+    if snapshot:
+        cmd += ["--snapshot", snapshot]
 
     try:
         proc = subprocess.run(

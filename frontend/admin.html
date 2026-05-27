@@ -7486,6 +7486,29 @@ POST /api/admin/faiss/activate</code>
       return false;
     }
 
+    if (step === 8) {
+      const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
+      const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
+      const params = new URLSearchParams();
+      if (sourceId) params.set('source_id', sourceId);
+      if (snapshot) params.set('snapshot', snapshot);
+      const url = params.toString() ? `${cfg.api}?${params.toString()}` : cfg.api;
+      _wizardSetStatus(step, '실행 중...', 'running');
+      _wizardAppendLog(step, `${cfg.method} ${url} ...`);
+      try {
+        const r = await fetch(apiUrl(url), {
+          method: cfg.method,
+          headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatWizardErrorDetail(d.detail || d.message || d, `HTTP ${r.status}`));
+        _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 600));
+        _wizardMarkDone(step);
+        _wizardSetRunSummary(_wizardBuildSummary(step, _wizardFormatResponseSummary(step, d)), 'ok');
+        return true;
+      } catch (e) { _wizardMarkError(step, e.message); return false; }
+    }
+
     // ── 일반 API 호출 ────────────────────────────────────────────────────────
     _wizardSetStatus(step, '실행 중...', 'running');
     _wizardAppendLog(step, `${cfg.method} ${cfg.api} ...`);

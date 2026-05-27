@@ -38,6 +38,7 @@ INVENTORY_PATH = STAGED_DIR / "project_inventory.json"
 RAG_API_BASE = os.getenv("RAG_API_BASE", "http://127.0.0.1:8080")
 OLLAMA_BASE = os.getenv("OLLAMA_BASE", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+RAG_QUERY_TIMEOUT = int(os.getenv("WIKI_RAG_QUERY_TIMEOUT", "120"))
 
 SSL_CTX = ssl.create_default_context()
 SSL_CTX.check_hostname = False
@@ -198,8 +199,28 @@ def get_active_snapshot() -> str:
         return "unknown"
 
 
+def _snapshot_paths(snapshot: str, category: str) -> dict:
+    if not snapshot:
+        return {}
+    faiss_dir = DATA_DIR / "indexes" / "faiss"
+    chunks_dir = DATA_DIR / "staged" / "chunks"
+    index_path = faiss_dir / f"{snapshot}_{category}_ollama.index"
+    metadata_path = faiss_dir / f"{snapshot}_{category}_ollama_metadata.jsonl"
+    if not index_path.exists() or not metadata_path.exists():
+        index_path = faiss_dir / f"{snapshot}_ollama.index"
+        metadata_path = faiss_dir / f"{snapshot}_ollama_metadata.jsonl"
+    chunks_jsonl = chunks_dir / f"{snapshot}_chunks.jsonl"
+    paths = {}
+    if index_path.exists() and metadata_path.exists():
+        paths["index_path"] = str(index_path)
+        paths["metadata_path"] = str(metadata_path)
+    if chunks_jsonl.exists():
+        paths["chunks_jsonl"] = str(chunks_jsonl)
+    return paths
+
+
 def query_rag_for_project(
-    project_name: str, category: str, top_docs: int = 3, timeout: int = 45
+    project_name: str, category: str, top_docs: int = 3, timeout: int = RAG_QUERY_TIMEOUT, snapshot: str = ""
 ) -> list[dict]:
     """Search RAG for a specific project+category and return document results."""
     query = f"{project_name} {CATEGORY_QUERY_SUFFIX.get(category, '')}"
@@ -214,6 +235,7 @@ def query_rag_for_project(
         "category": category,
         "max_chunks_per_doc": 3,
     }
+    payload.update(_snapshot_paths(snapshot, category))
     try:
         result = _http_post(f"{RAG_API_BASE}/api/rag/query", payload, timeout=timeout)
         return result.get("documents", [])
@@ -222,7 +244,7 @@ def query_rag_for_project(
         return []
 
 
-def collect_evidence(folder_name: str, meta: dict, inventory: dict) -> dict[str, list[str]]:
+def collect_evidence(folder_name: str, meta: dict, inventory: dict, snapshot: str = "") -> dict[str, list[str]]:
     """Collect evidence snippets per category via RAG API."""
     search_name = meta["search_name"]
     inv = inventory.get(folder_name, {})
@@ -233,7 +255,7 @@ def collect_evidence(folder_name: str, meta: dict, inventory: dict) -> dict[str,
         if cat not in categories_in_project:
             continue
         print(f"  [{cat}] Querying RAG...", end=" ", flush=True)
-        docs = query_rag_for_project(search_name, cat)
+        docs = query_rag_for_project(search_name, cat, snapshot=snapshot)
         snippets: list[str] = []
         for doc in docs:
             headings = doc.get("section_headings") or [""]
@@ -396,7 +418,7 @@ def generate_wiki(folder_name: str, meta: dict, inventory: dict, snapshot: str) 
 
     # Step 1: Collect RAG evidence
     print("  Collecting evidence from RAG API...")
-    evidence = collect_evidence(folder_name, meta, inventory)
+    evidence = collect_evidence(folder_name, meta, inventory, snapshot)
 
     # Step 2: Generate AI summary via Ollama
     print("  Generating AI summary via Ollama...", end=" ", flush=True)
@@ -463,6 +485,11 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Maximum number of projects to process (0 = unlimited)",
     )
+    parser.add_argument(
+        "--snapshot",
+        default=None,
+        help="FAISS snapshot to use for RAG evidence collection.",
+    )
     return parser.parse_args()
 
 
@@ -512,7 +539,7 @@ def main() -> None:
         return
 
     inventory = load_inventory(source_id=args.source_id)
-    snapshot = get_active_snapshot()
+    snapshot = args.snapshot or get_active_snapshot()
     print(f"RAG API base: {RAG_API_BASE}")
     print(f"Ollama base: {OLLAMA_BASE}")
     print(f"Active snapshot: {snapshot}")

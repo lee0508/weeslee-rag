@@ -143,3 +143,11 @@
 - Step 5/6 job 요청은 원본 `source_id` 값을 그대로 보내고, 스냅샷명에만 안전한 문자열로 변환한 키를 사용해야 한다.
 - 기존 스냅샷 선택 기능은 유지하되 Step 5/6 로그에 Document Source ID를 남겨, 어떤 Source 기준으로 기존 스냅샷을 재사용하거나 이어서 실행했는지 확인할 수 있게 한다.
 - `59bf7f1`을 서버에 배포하고 `weeslee-rag-api.service` 재시작 후 `/api/health/all` HTTP 200을 확인했다.
+
+## 2026-05-27 LLM Wiki 8단계 RAG timeout
+
+- `/api/wiki/build`는 `build_project_wiki.py`를 subprocess로 실행한다.
+- 스크립트의 `query_rag_for_project()`는 카테리별 RAG 근거 수집을 `/api/rag/query`로 호출하고, 기본 개별 timeout은 45초다.
+- 사용자가 본 `[WARN] RAG query failed (rfp): timed out`은 RFP 카테고리 RAG 근거 수집이 45초를 넘긴 경고다.
+- 해당 경고 자체는 빈 evidence로 계속 진행하도록 설계되어 있지만, 서버 로그상 12:26:36에 `/api/wiki/build` 500이 찍힌 직후 서비스 재시작이 발생해 진행 중 요청도 끊겼다.
+- 현재 Dataset Builder Step 8은 선택 Source와 Step 6 스냅샷을 `/api/wiki/build`에 넘기지 않아 active snapshot 기준으로 Wiki를 만들 수 있다.
