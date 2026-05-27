@@ -42,6 +42,7 @@ CHUNKS_DIR = STAGED_DIR / "chunks"
 MANIFEST_DIR = STAGED_DIR / "manifest"
 DB_PATH = DATA_DIR / "metadata.db"
 PLATFORM_STORE_PATH = DATA_DIR / "platform_store.json"
+PLATFORM_CONFIG_DOCUMENT_SOURCES_PATH = PROJECT_ROOT / "platform_config" / "document_sources.json"
 
 # 카테고리 매핑 (document_group → category)
 CATEGORY_MAP = {
@@ -76,7 +77,13 @@ def load_platform_store() -> dict:
 
 
 def get_document_sources() -> list[dict]:
-    """platform_store.json에서 document_sources 목록을 반환한다."""
+    """현재 저장소에서 document_sources 목록을 반환한다."""
+    if PLATFORM_CONFIG_DOCUMENT_SOURCES_PATH.exists():
+        try:
+            rows = json.loads(PLATFORM_CONFIG_DOCUMENT_SOURCES_PATH.read_text(encoding="utf-8"))
+            return rows if isinstance(rows, list) else []
+        except Exception:
+            pass
     store = load_platform_store()
     return store.get("document_sources", [])
 
@@ -121,15 +128,14 @@ def normalize_category(raw: str) -> str:
 
 def build_inventory_from_db(source_id: str = "rag_source") -> dict[str, Any]:
     """metadata.db의 documents 테이블에서 source_id에 해당하는 문서로 inventory를 생성한다."""
-    store = load_platform_store()
     source_record = None
-    for rec in store.get("document_sources", []):
+    for rec in get_document_sources():
         if rec.get("source_id") == source_id:
             source_record = rec
             break
 
     if not source_record:
-        print(f"[WARN] source_id '{source_id}' not found in platform_store.json")
+        print(f"[WARN] source_id '{source_id}' not found in document source store")
         mount_path = None
     else:
         mount_path = source_record.get("mount_path") or source_record.get("source_uri")
@@ -191,7 +197,7 @@ def build_inventory_from_db(source_id: str = "rag_source") -> dict[str, Any]:
     }
 
 
-def build_inventory_from_chunks(snapshot: Optional[str] = None) -> dict[str, Any]:
+def build_inventory_from_chunks(snapshot: Optional[str] = None, source_id: Optional[str] = None) -> dict[str, Any]:
     """staged/chunks의 JSONL 파일에서 inventory를 생성한다."""
     if not snapshot:
         snapshot = get_active_snapshot()
@@ -219,6 +225,8 @@ def build_inventory_from_chunks(snapshot: Optional[str] = None) -> dict[str, Any
 
             # 청크의 metadata에서 정보 추출
             metadata = chunk.get("metadata", {})
+            if source_id and metadata.get("source_id") and metadata.get("source_id") != source_id:
+                continue
             source_path = metadata.get("source_path") or chunk.get("source_path") or ""
             folder_name = metadata.get("folder_name") or extract_folder_name(source_path)
             doc_id = chunk.get("document_id") or metadata.get("document_id") or ""
@@ -257,6 +265,7 @@ def build_inventory_from_chunks(snapshot: Optional[str] = None) -> dict[str, Any
 
     return {
         "source": "chunks",
+        "source_id": source_id or "",
         "snapshot": snapshot,
         "chunks_file": str(chunks_path),
         "generated_at": datetime.now().isoformat(),
@@ -303,8 +312,13 @@ def main() -> int:
 
     if args.from_chunks:
         print("Building inventory from chunks JSONL...")
-        data = build_inventory_from_chunks(args.snapshot)
-        output_path = Path(args.output) if args.output else STAGED_DIR / "project_inventory.json"
+        data = build_inventory_from_chunks(args.snapshot, args.source_id)
+        if args.output:
+            output_path = Path(args.output)
+        elif args.source_id:
+            output_path = STAGED_DIR / f"{args.source_id}_inventory.json"
+        else:
+            output_path = STAGED_DIR / "project_inventory.json"
         save_inventory(data, output_path)
         print(f"Generated: {output_path}")
         print(f"  Folders: {data['total_folders']}")

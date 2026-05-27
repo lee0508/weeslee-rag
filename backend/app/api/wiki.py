@@ -175,6 +175,8 @@ async def build_wiki(
     # source_id 지정 시 먼저 inventory 생성
     if source_id and _INVENTORY_SCRIPT.exists():
         inv_cmd = [sys.executable, str(_INVENTORY_SCRIPT), "--source-id", source_id]
+        if snapshot:
+            inv_cmd += ["--from-chunks", "--snapshot", snapshot]
         try:
             await asyncio.to_thread(
                 subprocess.run,

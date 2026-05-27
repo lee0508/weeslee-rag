@@ -155,3 +155,10 @@
 - Wiki build subprocess 실행은 `asyncio.to_thread()`로 넘겨 API 서버가 내부 RAG 요청을 동시에 처리할 수 있게 해야 한다.
 - `3d8d706` 배포 후 `source_id=01_rfp`, `snapshot=snapshot_20260527_01_rfp`, `max_projects=1`로 `/api/wiki/build`를 호출해 HTTP 200을 확인했다.
 - 응답 stdout에서 지정 스냅샷을 사용했고 `data/wiki/01_rfp/projects/old.md` 1건이 생성됐다. 다만 source inventory의 첫 프로젝트가 `old`로 잡히는 것은 별도 데이터 품질 점검 대상이다.
+
+## 2026-05-27 LLM Wiki source inventory 품질
+
+- 서버의 `data/staged/01_rfp_inventory.json`은 9,052개 폴더를 포함해 `01_rfp` 전용 inventory가 아니라 전체 문서 기반 inventory처럼 보인다.
+- `snapshot_20260527_01_rfp_chunks.jsonl` 샘플에는 `folder_name`과 `project_name`이 `축산유통 데이터랩 고도화`처럼 정상적으로 들어 있다.
+- 현재 `/api/wiki/build?source_id=01_rfp&snapshot=...`는 snapshot을 Wiki build에는 넘기지만, 선행 inventory 생성은 `build_project_inventory.py --source-id 01_rfp`만 호출해 DB 기반 inventory를 만든다.
+- snapshot이 지정된 Dataset Builder 흐름에서는 inventory도 같은 snapshot chunks에서 생성해야 Step 5/6 산출물과 Wiki 대상 프로젝트가 일치한다.
