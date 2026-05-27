@@ -6,6 +6,7 @@ GET  /api/graph/summary              — 전체 그래프 통계
 GET  /api/graph/projects             — 프로젝트 노드 목록
 GET  /api/graph/project/{name}       — 특정 프로젝트의 노드+엣지
 GET  /api/graph/document/{doc_id}    — 특정 문서의 노드+연결 엣지
+POST /api/graph/cytoscape/documents  — 검색 결과 문서 묶음의 Cytoscape 그래프
 POST /api/graph/build                — build_graph_jsonl.py 실행
 POST /api/graph/node                 — 노드 추가 (수동)
 DELETE /api/graph/node/{node_id}     — 노드 삭제
@@ -290,6 +291,12 @@ class EdgeCreateRequest(BaseModel):
     target: str = Field(..., description="타겟 노드 ID")
     relation: str = Field(..., description="관계 타입: belongs_to, has_category, sequence 등")
     weight: float = 1.0
+
+
+class DocumentGraphRequest(BaseModel):
+    document_ids: List[str] = Field(default_factory=list, description="RAG 검색 결과 document_id 목록")
+    source_id: Optional[str] = Field(default=None, description="Document Source ID")
+    limit: int = Field(default=160, ge=20, le=500, description="최대 노드 수")
 
 
 # ── CRUD Endpoints ──────────────────────────────────────────────────────────
@@ -605,6 +612,140 @@ def _to_cytoscape_elements(
         "nodeCount": len(cy_nodes),
         "edgeCount": len(cy_edges),
     }
+
+
+def _find_document_nodes(cache: dict, document_ids: list[str]) -> tuple[list[dict], list[str]]:
+    node_by_id = {n.get("id"): n for n in cache["nodes"]}
+    node_by_document_id = {
+        str(n.get("document_id")): n
+        for n in cache["nodes"]
+        if n.get("type") == "document" and n.get("document_id")
+    }
+
+    found: list[dict] = []
+    missing: list[str] = []
+    seen: set[str] = set()
+
+    for raw_id in document_ids:
+        document_id = str(raw_id or "").strip()
+        if not document_id:
+            continue
+
+        node = node_by_id.get(document_id)
+        if not node and not document_id.startswith("doc:"):
+            node = node_by_id.get(f"doc:{document_id}")
+        if not node:
+            node = node_by_document_id.get(document_id)
+
+        if not node:
+            missing.append(document_id)
+            continue
+
+        node_id = node.get("id")
+        if node_id not in seen:
+            seen.add(node_id)
+            found.append(node)
+
+    return found, missing
+
+
+def _build_document_result_graph(cache: dict, document_ids: list[str], limit: int) -> dict:
+    node_by_id = {n.get("id"): n for n in cache["nodes"]}
+    document_nodes, missing = _find_document_nodes(cache, document_ids)
+    result_doc_ids = {n.get("id") for n in document_nodes if n.get("id")}
+
+    selected_nodes: dict[str, dict] = {}
+    selected_edges: dict[str, dict] = {}
+
+    def add_node(node_id: str) -> None:
+        if node_id in selected_nodes:
+            return
+        node = node_by_id.get(node_id)
+        if node and len(selected_nodes) < limit:
+            selected_nodes[node_id] = node
+
+    def add_edge(edge: dict) -> None:
+        edge_id = edge.get("id") or f"{edge.get('source')}->{edge.get('target')}:{edge.get('relation', '')}"
+        if edge_id not in selected_edges:
+            selected_edges[edge_id] = edge
+
+    for node in document_nodes:
+        add_node(node["id"])
+
+    project_ids: set[str] = set()
+    for edge in cache["edges"]:
+        source = edge.get("source")
+        target = edge.get("target")
+        if source not in result_doc_ids and target not in result_doc_ids:
+            continue
+
+        other_id = target if source in result_doc_ids else source
+        add_node(other_id)
+        add_edge(edge)
+
+        other_node = node_by_id.get(other_id)
+        if other_node and other_node.get("type") == "project":
+            project_ids.add(other_id)
+
+    for node in document_nodes:
+        project_id = node.get("project_id")
+        if project_id:
+            add_node(project_id)
+            project_ids.add(project_id)
+
+    for edge in cache["edges"]:
+        source = edge.get("source")
+        target = edge.get("target")
+        if source not in project_ids and target not in project_ids:
+            continue
+
+        other_id = target if source in project_ids else source
+        other_node = node_by_id.get(other_id)
+        if not other_node:
+            continue
+        if other_node.get("type") == "document" and other_id not in result_doc_ids:
+            continue
+
+        add_node(source)
+        add_node(target)
+        add_edge(edge)
+
+    nodes = list(selected_nodes.values())
+    node_ids = {n.get("id") for n in nodes}
+    edges = [
+        e for e in selected_edges.values()
+        if e.get("source") in node_ids and e.get("target") in node_ids
+    ]
+    result = _to_cytoscape_elements(nodes, edges)
+    for node in result["nodes"]:
+        if node["data"].get("id") in result_doc_ids:
+            node["data"]["isCenter"] = True
+    result["requestedDocumentCount"] = len([d for d in document_ids if str(d or "").strip()])
+    result["matchedDocumentCount"] = len(document_nodes)
+    result["missingDocumentIds"] = missing
+    return result
+
+
+@router.post("/cytoscape/documents")
+async def cytoscape_by_documents(request: DocumentGraphRequest):
+    """
+    RAG 검색 결과 문서 목록을 중심으로 검증용 Cytoscape 그래프를 반환.
+    """
+    source_id = (request.source_id or "").strip() or None
+    cache = _load_graph(source_id)
+    result = _build_document_result_graph(cache, request.document_ids, request.limit)
+    used_source_id = source_id or "all"
+
+    if source_id and result["matchedDocumentCount"] == 0:
+        fallback_cache = _load_graph(None)
+        fallback = _build_document_result_graph(fallback_cache, request.document_ids, request.limit)
+        if fallback["matchedDocumentCount"] > 0:
+            result = fallback
+            used_source_id = "all"
+
+    result["source_id"] = used_source_id
+    result["graphPurpose"] = "query_result_validation"
+    return result
 
 
 @router.get("/cytoscape/organization")

@@ -2960,47 +2960,46 @@
       }
     }
 
-    // Graph RAG 모드에서 쿼리 기반 자동 그래프 로드
+    function resolveGraphSourceId(documents = []) {
+      const fromDocument = documents
+        .map(d => d.source_id || d.sourceId || '')
+        .find(Boolean);
+      if (fromDocument) return fromDocument;
+
+      const match = (_activeSnapshot || '').match(/^snapshot_\d{8}_(.+?)(?:_v\d+)?$/);
+      return match ? match[1] : '';
+    }
+
+    function getResultDocumentIds(documents = []) {
+      return Array.from(new Set(
+        documents
+          .map(d => d.document_id || d.id || '')
+          .map(v => String(v || '').trim())
+          .filter(Boolean)
+      ));
+    }
+
+    // Graph RAG 모드에서 검색 결과 문서 중심 검증 그래프 로드
     async function loadGraphFromQuery(query, documents = []) {
       const container = document.getElementById('graphCanvas');
       container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">⏳</div><div>${t('graph_loading')}</div></div>`;
 
       try {
-        // 1. 문서 결과에서 기관명 추출 (우선)
-        const orgsFromDocs = documents
-          .map(d => d.organization)
-          .filter(Boolean)
-          .filter((v, i, a) => a.indexOf(v) === i);
-
-        // 2. 쿼리에서 기관명 패턴 추출
-        /* const orgPatterns = [
-          /(\S+공사)/g, /(\S+공단)/g, /(\S+진흥원)/g, /(\S+연구원)/g,
-          /(\S+부)/g, /(\S+청)/g, /(\S+처)/g, /(\S+원)/g, /(\S+회)/g,
-          /(\S+센터)/g, /(\S+재단)/g, /(\S+조합)/g, /(\S+은행)/g
-        ]; */
-        const orgPatterns = [
-          /(\S+\uACF5\uC0AC)/g, /(\S+\uACF5\uB2E8)/g, /(\S+\uC9C4\uD765\uC6D0)/g, /(\S+\uC5F0\uAD6C\uC6D0)/g,
-          /(\S+\uBD80)/g, /(\S+\uCCAD)/g, /(\S+\uCC98)/g, /(\S+\uC6D0)/g, /(\S+\uAD00)/g,
-          /(\S+\uC13C\uD130)/g, /(\S+\uC7AC\uB2E8)/g, /(\S+\uC870\uD569)/g, /(\S+\uB300\uD559)/g
-        ];
-        let orgsFromQuery = [];
-        for (const pattern of orgPatterns) {
-          const matches = query.match(pattern);
-          if (matches) orgsFromQuery.push(...matches);
+        const documentIds = getResultDocumentIds(documents);
+        if (!documentIds.length) {
+          container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">🔍</div><div>${t('ks_none')}</div></div>`;
+          return;
         }
 
-        // 기관명 결정 (문서 > 쿼리 순으로 우선)
-        const targetOrg = orgsFromDocs[0] || orgsFromQuery[0];
-
-        let url;
-        if (targetOrg) {
-          url = `${API_BASE}/graph/cytoscape/organization?org_name=${encodeURIComponent(targetOrg)}&depth=2`;
-        } else {
-          // 기관명이 없으면 full 그래프 (제한적)
-          url = `${API_BASE}/graph/cytoscape/full?limit=50`;
-        }
-
-        const response = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+        const response = await fetch(`${API_BASE}/graph/cytoscape/documents`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            document_ids: documentIds,
+            source_id: resolveGraphSourceId(documents),
+            limit: 180,
+          }),
+        });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
@@ -3019,9 +3018,7 @@
         _kgCy.layout({ name: 'cose', padding: 30, nodeRepulsion: 8000, idealEdgeLength: 80, animate: false }).run();
         _kgCy.fit(undefined, 30);
 
-        const graphInfo = targetOrg
-          ? `${targetOrg}: ${data.nodeCount} ${t('graph_nodes_short')} · ${data.edgeCount} ${t('graph_edges_short')}`
-          : `${data.nodeCount} ${t('graph_nodes_short')} · ${data.edgeCount} ${t('graph_edges_short')}`;
+        const graphInfo = `${data.matchedDocumentCount || 0}/${data.requestedDocumentCount || documentIds.length} docs · ${data.nodeCount} ${t('graph_nodes_short')} · ${data.edgeCount} ${t('graph_edges_short')}`;
         showToast(graphInfo, 'success');
 
       } catch (err) {

@@ -173,3 +173,17 @@
 - 현재 운영 흐름은 Dataset Builder가 Source별 Step 5, Step 6, Step 7, Step 8을 관리하므로 FAISS Index 탭에서는 직접 실행 대신 Dataset Builder로 이동시키는 것이 안전하다.
 - staged 준비 현황의 스냅샷 사용 버튼은 Dataset Builder의 스냅샷 선택값으로 연결한다.
 - `d128823` 배포 후 서비스를 재시작했고 `/api/health/all` HTTP 200을 확인했다.
+
+## 2026-05-27 RAG Assistant 검색 결과 Graph 탭
+
+- 사용자 페이지의 Graph 탭 목적은 전체 Knowledge Graph 탐색이 아니라 이번 쿼리로 반환된 문서들이 왜 함께 표시됐는지 검증하는 것이다.
+- 기존 `loadGraphFromQuery()`는 검색 결과 문서의 `organization` 값이나 쿼리 문자열에서 기관명을 추정해 조직 중심 또는 전체 그래프를 불러왔다.
+- 이 방식은 `documents[].document_id` 목록과 그래프 노드를 직접 연결하지 못해 검색 결과 검증용 화면이라는 목적과 맞지 않는다.
+- 백엔드에는 단일 문서용 `/api/graph/document/{document_id}`가 있지만 Cytoscape 형식이 아니고 여러 검색 결과 문서를 한 번에 묶는 API가 없다.
+- 수정 방향은 `document_ids`와 선택 가능한 `source_id`를 받아 결과 문서, 연결 프로젝트, 기관, 카테고리, 기술, 방법론 노드를 Cytoscape 형식으로 반환하는 API를 추가하는 것이다.
+- `/api/graph/cytoscape/documents`를 추가해 검색 결과 문서 노드를 중심으로 프로젝트, 카테고리, 기관, 기술, 방법론 연결을 반환하게 했다.
+- 프론트 Graph 탭은 더 이상 기관명을 추정하지 않고 `documents[].document_id` 목록을 POST로 전달한다.
+- `source_id`는 문서 응답에 있으면 그 값을 사용하고, 없으면 active snapshot 이름에서 `snapshot_YYYYMMDD_{source_id}` 패턴으로 추정한다.
+- source별 그래프에서 문서를 찾지 못하면 기본 그래프로 fallback해 기존 GraphRAG 산출물이 있는 환경에서도 화면이 비지 않게 했다.
+- 검증은 `python3 -m compileall backend/app/api/graph.py`, `node --check /tmp/rag-assistant-inline.js`, 샘플 문서 2건 helper 실행으로 진행했다.
+- `git diff --check`는 저장소의 기존 미추적/변경 파일과 CRLF 추가 줄을 trailing whitespace로 보고해 별도 잔여 리스크로 기록한다.
