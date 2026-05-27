@@ -141,6 +141,45 @@ def _write_derived_outputs(document_id: str, content: str, metadata: dict) -> No
     )
 
 
+def _existing_outputs_are_current(input_path: Path, text_path: Path, metadata_path: Path) -> bool:
+    if not text_path.is_file() or not metadata_path.is_file():
+        return False
+    if not input_path.is_file():
+        return True
+    output_mtime = min(text_path.stat().st_mtime, metadata_path.stat().st_mtime)
+    return output_mtime >= input_path.stat().st_mtime
+
+
+def _merge_existing_metadata(metadata_path: Path, row: dict[str, str], input_path: Path, source_path: Path, extension: str) -> dict:
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except Exception:
+        metadata = {}
+    metadata.update({
+        "document_id": row.get("document_id", metadata.get("document_id", "")),
+        "source_id": row.get("source_id", metadata.get("source_id", "")),
+        "source_name": row.get("source_name", metadata.get("source_name", "")),
+        "category": row.get("category", metadata.get("category", "")),
+        "collection_name": row.get("collection_name", metadata.get("collection_name", "weeslee_rag_main")),
+        "document_group": row.get("document_group", metadata.get("document_group", "")),
+        "document_category": row.get("document_category", metadata.get("document_category", "")),
+        "document_type": row.get("document_type", metadata.get("document_type", "")),
+        "proposal_section": row.get("proposal_section", metadata.get("proposal_section", "")),
+        "deliverable_section": row.get("deliverable_section", metadata.get("deliverable_section", "")),
+        "collection_key": row.get("collection_key", metadata.get("collection_key", "")),
+        "source_path": str(source_path),
+        "input_path": str(input_path),
+        "snapshot_path": row.get("snapshot_path", metadata.get("snapshot_path", "")),
+        "extension": extension,
+        "project_name": row.get("project_name", metadata.get("project_name", "")),
+        "organization": row.get("organization", metadata.get("organization", "")),
+        "folder_year": row.get("project_year", metadata.get("folder_year", "")),
+        "folder_name": row.get("folder_name", metadata.get("folder_name", "")),
+    })
+    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    return metadata
+
+
 async def run_batch(args: argparse.Namespace) -> int:
     manifest_csv = Path(args.manifest_csv).resolve()
     text_dir = Path(args.text_dir).resolve()
@@ -179,6 +218,25 @@ async def run_batch(args: argparse.Namespace) -> int:
         extension = input_path.suffix.lower() or source_path.suffix.lower()
         category = row.get("category", "")
         text_path, metadata_path = build_output_paths(text_dir, metadata_dir, document_id)
+
+        if _existing_outputs_are_current(input_path, text_path, metadata_path):
+            metadata = _merge_existing_metadata(metadata_path, row, input_path, source_path, extension)
+            content = text_path.read_text(encoding="utf-8")
+            _write_derived_outputs(document_id, content, metadata)
+            results.append(
+                ExtractionRow(
+                    document_id=document_id,
+                    category=category,
+                    source_path=str(input_path),
+                    extension=extension,
+                    extraction_status="skipped_existing",
+                    extraction_method=metadata.get("extraction_method", "existing"),
+                    output_text_path=str(text_path),
+                    output_metadata_path=str(metadata_path),
+                    error="",
+                )
+            )
+            continue
 
         if extension in UNSUPPORTED_FOR_PHASE1:
             results.append(

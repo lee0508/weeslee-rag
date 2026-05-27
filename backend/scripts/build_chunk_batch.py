@@ -27,6 +27,8 @@ HEADING_PATTERNS = [
     re.compile(r"^\s*\[[^\]]+\]\s*.+$"),
 ]
 
+CHUNKABLE_EXTRACTION_STATUSES = {"success", "skipped_existing"}
+
 
 @dataclass
 class ChunkRow:
@@ -238,10 +240,10 @@ def main() -> int:
     # 전체 문서 수 파악을 위해 먼저 CSV를 읽음
     with summary_csv.open("r", encoding="utf-8-sig", newline="") as handle:
         csv_rows = list(csv.DictReader(handle))
-    total_docs = len([r for r in csv_rows if r.get("extraction_status") == "success"])
+    total_docs = len([r for r in csv_rows if r.get("extraction_status") in CHUNKABLE_EXTRACTION_STATUSES])
 
     for idx, row in enumerate(csv_rows):
-        if row.get("extraction_status") != "success":
+        if row.get("extraction_status") not in CHUNKABLE_EXTRACTION_STATUSES:
             continue
 
         # 진행률 출력 (JSON 형식으로 파싱 가능하게)

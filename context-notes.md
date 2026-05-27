@@ -109,3 +109,9 @@
 - `rag-assistant.html`의 문서 클릭은 `openDocDetail()`과 `openFilePreview()`로 이어지며, 미리보기는 `/api/documents/{document_id}` 상세 API를 먼저 조회한다.
 - 백엔드 문서 상세 API는 Step 5 산출물인 `data/extracted_text/{document_id}/document.html`, `document.md`, `raw_text.txt`와 `data/staged/text/{document_id}.txt`를 이미 fallback으로 읽는다.
 - 전체 본문 보기 연결은 되어 있으나 요약은 `available_formats.summary`가 있어도 미리보기 탭에 표시되지 않았다.
+
+## 2026-05-27 Step 5 OCR/청킹 증분 처리
+
+- Step 5 재실행 시간을 줄이려면 문서별 `data/staged/text/{document_id}.txt`와 `data/staged/metadata/{document_id}.json`을 재사용해야 한다.
+- 기존 산출물이 원본 파일보다 최신이면 텍스트 추출/OCR은 건너뛰고 summary CSV에는 `skipped_existing`으로 남긴다.
+- 청킹은 전체 snapshot chunks를 다시 만들 수 있어야 하므로 `success`뿐 아니라 `skipped_existing` row도 입력으로 처리해야 한다.
