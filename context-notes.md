@@ -199,3 +199,13 @@
 - Graph Build 메뉴, Legacy Graph View의 Build 버튼, 문서 선택 Graph 반영, Wiki의 Graphify 버튼, RAG Source의 Graph 생성 버튼을 모두 7단계 이동으로 바꿨다.
 - Dataset Builder 7단계는 현재 `ctxSource` 값을 읽어 `/api/graph/build?source_id={source_id}`로 호출한다.
 - 직접 Build를 남기는 유일한 위치는 7단계 실행 코드이며, 사용자가 Source 선택 후 실행하는 경로로 통일됐다.
+
+## 2026-05-27 P0 RAG 응답 구조 표준화
+
+- 사용자 페이지의 문서 카드 개선안은 백엔드 RAG 응답에 `source_id`, `document_id`, 원본 경로, 문서 그룹, 섹션, 사용 가능 산출물, 검색 근거 chunk, 관계 요약이 안정적으로 포함되어야 한다.
+- 기존 `/api/rag/query`의 내부 답변 생성 프롬프트는 `evidence_snippets`를 문자열 목록으로 사용하므로, 검색과 답변 생성이 끝난 뒤 API 반환 직전에 구조화된 응답으로 정규화하는 방식이 안전하다.
+- 프론트 `rag-assistant.html`은 현재 `evidence_snippets[0].slice()`와 `escapeHtml(snippet)` 형태로 문자열만 가정한다.
+- 따라서 백엔드는 구조화된 `evidence_snippets`와 문자열 호환용 `content_snippets`를 함께 반환하고, 프론트는 snippet 객체와 문자열을 모두 표시할 수 있게 한다.
+- `/api/rag/query`와 `/api/rag/similar-files` 응답에는 `source_id`, `snapshot`, 문서별 `original_path`, `document_group`, `document_type`, `file_ext`, 사용 가능 산출물 flag, `relation_summary`를 포함한다.
+- `/api/rag/query`는 기존 `draft_answer`를 유지하면서 표준 응답용 `answer` alias도 함께 반환한다.
+- `assemble_rag_response.py`는 기존 문자열 `evidence_snippets`를 유지하면서 `evidence_chunks`에 `chunk_id`, `text`, `page`, `score`를 추가해 API 정규화 단계에서 구조화 근거로 사용할 수 있게 했다.

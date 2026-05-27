@@ -449,8 +449,10 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "hit_count": 0,
                 "sections": [],
                 "snippets": [],
+                "evidence_chunks": [],
                 "source_path_match": False,
                 "category_intent_match": False,
+                "organization": hit.organization,
                 "root_group": hit.root_group,
                 "sub_group": hit.sub_group,
                 "section_label": hit.section_label,
@@ -472,6 +474,14 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
         snippet = shorten(hit.chunk_text)
         if snippet and snippet not in group["snippets"]:
             group["snippets"].append(snippet)
+            group["evidence_chunks"].append(
+                {
+                    "chunk_id": hit.chunk_id,
+                    "text": snippet,
+                    "page": None,
+                    "score": hit.score,
+                }
+            )
         if compact_query and compact_query in compact_text(hit.source_path):
             group["source_path_match"] = True
         if intents and hit.category in intents:
@@ -562,6 +572,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "document_id": group["document_id"],
                 "category": group["category"],
                 "project_name": group.get("project_name", ""),
+                "organization": group["organization"],
+                "organization_name": group["organization"],
                 "source_path": group["source_path"],
                 "original_source_path": group["original_source_path"],
                 "input_path": group["input_path"],
@@ -579,6 +591,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "hit_count": group["hit_count"],
                 "section_headings": group["sections"][:5],
                 "evidence_snippets": group["snippets"][:3],
+                "evidence_chunks": group["evidence_chunks"][:3],
+                "content_snippets": group["snippets"][:3],
                 "reasons": reason_list(query, group),
             }
         )

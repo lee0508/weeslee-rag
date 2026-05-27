@@ -13,7 +13,7 @@ import subprocess
 import tempfile
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -27,6 +27,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PROPOSAL_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "generate_proposal_draft.py"
 ACTIVE_INDEX_PATH = PROJECT_ROOT / "data" / "active_index.json"
 WIKI_PROJECT_DIR = PROJECT_ROOT / "data" / "wiki" / "projects"
+EXTRACTED_TEXT_DIR = PROJECT_ROOT / "data" / "extracted_text"
+SUMMARIES_DIR = PROJECT_ROOT / "data" / "summaries"
 
 
 def _rag_runtime():
@@ -227,6 +229,11 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
     if effective_mode == "graph_rag":
         payload = _enrich_with_graph_context(payload, request.query)
 
+    payload = _standardize_rag_payload(
+        payload,
+        snapshot=snapshot,
+        max_chunks_per_doc=request.max_chunks_per_doc,
+    )
     return payload, effective_mode, mode_detection
 
 
@@ -297,6 +304,249 @@ def _match_label(best_score: float) -> str:
     return "관련"
 
 
+def _snapshot_source_id(snapshot: str) -> str:
+    match = re.match(r"^snapshot_\d{8}_(.+?)(?:_v\d+)?$", snapshot or "")
+    if match:
+        return match.group(1)
+    return "rag_source"
+
+
+def _safe_score(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def _snippet_text(snippet: Any) -> str:
+    if isinstance(snippet, dict):
+        return str(snippet.get("text") or snippet.get("content") or "").strip()
+    return str(snippet or "").strip()
+
+
+def _document_group(doc: dict) -> str:
+    existing = str(doc.get("document_group") or "").strip()
+    if existing:
+        return existing
+
+    category = str(doc.get("category") or "").lower()
+    root_group = str(doc.get("root_group") or "")
+    path = str(doc.get("relative_path") or doc.get("source_path") or "")
+    haystack = f"{category} {root_group} {path}".lower()
+
+    if "rfp" in haystack or "제안요청" in haystack:
+        return "rfp"
+    if "proposal" in haystack or "제안서" in haystack:
+        return "proposal"
+    if "deliverable" in haystack or "산출물" in haystack:
+        return "deliverable"
+    return category or "unknown"
+
+
+def _document_type_label(document_group: str, doc: dict) -> str:
+    existing = str(doc.get("document_type") or "").strip()
+    if existing:
+        return existing
+    if document_group == "rfp":
+        return "RFP"
+    if document_group == "proposal":
+        return "제안서"
+    if document_group == "deliverable":
+        return "산출물"
+    return document_group or "문서"
+
+
+def _sub_group_key(doc: dict) -> str:
+    existing = str(doc.get("sub_group_key") or "").strip()
+    if existing:
+        return existing
+    values = [
+        doc.get("document_group"),
+        doc.get("proposal_section"),
+        doc.get("deliverable_section"),
+        doc.get("section_label"),
+        doc.get("sub_group"),
+    ]
+    parts = [
+        re.sub(r"[^0-9a-zA-Z가-힣]+", "_", str(value).strip()).strip("_").lower()
+        for value in values
+        if str(value or "").strip()
+    ]
+    return "_".join(parts)
+
+
+def _file_name(doc: dict) -> str:
+    return (
+        str(doc.get("file_name") or "").strip()
+        or Path(str(doc.get("source_path") or doc.get("original_source_path") or "")).name
+        or str(doc.get("document_id") or "")
+    )
+
+
+def _format_available(document_id: str, doc: dict) -> dict:
+    if not document_id:
+        return {
+            "ocr_available": False,
+            "markdown_available": False,
+            "html_available": False,
+            "summary_available": False,
+            "text_available": False,
+        }
+
+    extracted_dir = EXTRACTED_TEXT_DIR / document_id
+    text_available = bool(
+        doc.get("text_available")
+        or (extracted_dir / "raw_text.txt").exists()
+        or (extracted_dir / "document.txt").exists()
+    )
+    markdown_available = bool(doc.get("markdown_available") or (extracted_dir / "document.md").exists())
+    html_available = bool(doc.get("html_available") or (extracted_dir / "document.html").exists())
+    summary_available = bool(doc.get("summary_available") or (SUMMARIES_DIR / document_id / "summary.md").exists())
+
+    return {
+        "ocr_available": bool(doc.get("ocr_available") or text_available),
+        "markdown_available": markdown_available,
+        "html_available": html_available,
+        "summary_available": summary_available,
+        "text_available": text_available,
+    }
+
+
+def _structured_evidence(doc: dict, max_chunks_per_doc: int) -> tuple[list[dict], list[str]]:
+    raw_snippets = (
+        doc.get("evidence_chunks")
+        or doc.get("evidence_snippets")
+        or doc.get("content_snippets")
+        or doc.get("snippets")
+        or []
+    )
+    if not isinstance(raw_snippets, list):
+        raw_snippets = [raw_snippets]
+
+    best_score = _safe_score(doc.get("best_score", doc.get("score", 0)))
+    evidence = []
+    content = []
+    for idx, snippet in enumerate(raw_snippets[:max_chunks_per_doc], start=1):
+        text = _normalize_snippet(_snippet_text(snippet))
+        if not text:
+            continue
+
+        if isinstance(snippet, dict):
+            chunk_id = str(snippet.get("chunk_id") or "").strip()
+            page = snippet.get("page")
+            score = _safe_score(snippet.get("score"), best_score)
+        else:
+            chunk_id = ""
+            page = None
+            score = best_score
+
+        evidence.append(
+            {
+                "chunk_id": chunk_id or f"chunk_{idx:05d}",
+                "text": text,
+                "page": page,
+                "score": score,
+            }
+        )
+        content.append(text)
+
+    return evidence, content
+
+
+def _relation_summary(doc: dict, document_group: str) -> list[str]:
+    existing = doc.get("relation_summary")
+    if isinstance(existing, list) and existing:
+        return [str(item) for item in existing if str(item or "").strip()]
+
+    summary = []
+    project_name = str(doc.get("project_name") or "").strip()
+    section = str(
+        doc.get("proposal_section")
+        or doc.get("deliverable_section")
+        or doc.get("section_label")
+        or doc.get("sub_group")
+        or ""
+    ).strip()
+
+    if project_name:
+        summary.append(f"이 문서는 '{project_name}' 프로젝트 검색 결과와 연결되어 있습니다.")
+    if document_group == "proposal" and section:
+        summary.append(f"제안서의 '{section}' 섹션 근거가 검색어와 매칭되었습니다.")
+    elif document_group == "rfp":
+        summary.append("RFP 문서가 요구사항 근거 자료로 검색되었습니다.")
+    elif document_group == "deliverable" and section:
+        summary.append(f"산출물의 '{section}' 영역이 검색 근거로 사용되었습니다.")
+
+    related = doc.get("related_documents") or []
+    if related:
+        summary.append(f"GraphRAG 기준 관련 문서 {len(related)}건과 연결되어 있습니다.")
+    return summary
+
+
+def _standardize_rag_document(doc: dict, rank: int, source_id: str, max_chunks_per_doc: int) -> dict:
+    document_id = str(doc.get("document_id") or doc.get("id") or "").strip()
+    file_name = _file_name(doc)
+    original_path = (
+        doc.get("original_path")
+        or doc.get("original_source_path")
+        or doc.get("relative_path")
+        or doc.get("source_path")
+        or ""
+    )
+    document_group = _document_group(doc)
+    normalized = dict(doc)
+    normalized["rank"] = doc.get("rank") or rank
+    normalized["source_id"] = str(doc.get("source_id") or source_id or "rag_source")
+    normalized["document_id"] = document_id
+    normalized["file_name"] = file_name
+    normalized["original_path"] = str(original_path)
+    normalized["source_path"] = str(doc.get("source_path") or original_path or "")
+    normalized["project_name"] = str(doc.get("project_name") or doc.get("title") or "")
+    normalized["organization_name"] = str(
+        doc.get("organization_name")
+        or doc.get("organization")
+        or ""
+    )
+    normalized["organization"] = normalized["organization_name"]
+    normalized["document_group"] = document_group
+    normalized["proposal_section"] = doc.get("proposal_section") or None
+    normalized["deliverable_section"] = doc.get("deliverable_section") or None
+    normalized["document_type"] = _document_type_label(document_group, doc)
+    normalized["file_ext"] = Path(file_name).suffix.lstrip(".").lower()
+    normalized["score"] = _safe_score(doc.get("score", doc.get("best_score", 0)))
+    normalized["best_score"] = _safe_score(doc.get("best_score", normalized["score"]))
+    normalized["ranking_score"] = _safe_score(doc.get("ranking_score", normalized["best_score"]))
+    normalized["match_label"] = doc.get("match_label") or _match_label(normalized["best_score"])
+
+    normalized["sub_group_key"] = _sub_group_key(normalized)
+    if not normalized.get("category"):
+        normalized["category"] = normalized["sub_group_key"] or document_group
+
+    evidence, content = _structured_evidence(doc, max_chunks_per_doc)
+    normalized["evidence_snippets"] = evidence
+    normalized["content_snippets"] = content
+    normalized.update(_format_available(document_id, doc))
+    normalized["graph_available"] = bool(doc.get("graph_available") or doc.get("related_documents") or document_id)
+    normalized["wiki_available"] = bool(doc.get("wiki_available"))
+    normalized["relation_summary"] = _relation_summary(normalized, document_group)
+    return normalized
+
+
+def _standardize_rag_payload(payload: dict, snapshot: str, max_chunks_per_doc: int) -> dict:
+    source_id = str(payload.get("source_id") or _snapshot_source_id(snapshot))
+    documents = [
+        _standardize_rag_document(doc, idx, source_id, max_chunks_per_doc)
+        for idx, doc in enumerate(payload.get("documents", []) or [], start=1)
+    ]
+    payload["source_id"] = source_id
+    payload["snapshot"] = snapshot
+    payload["answer"] = payload.get("draft_answer", "")
+    payload["documents"] = documents
+    payload["results"] = documents
+    payload["document_count"] = len(documents)
+    return payload
+
+
 def _to_similar_file_doc(doc: dict, rank: int, max_chunks_per_doc: int) -> dict:
     """
     run_rag_query()가 반환한 문서 객체를 프론트엔드 표시용 구조로 변환합니다.
@@ -321,29 +571,31 @@ def _to_similar_file_doc(doc: dict, rank: int, max_chunks_per_doc: int) -> dict:
     )
 
     content_snippets = [
-        _normalize_snippet(snippet)
+        _normalize_snippet(_snippet_text(snippet))
         for snippet in snippets[:max_chunks_per_doc]
-        if str(snippet or "").strip()
+        if _snippet_text(snippet)
     ]
 
     best_score = doc.get("best_score", doc.get("score", 0))
     ranking_score = doc.get("ranking_score", best_score)
 
-    return {
+    standard_doc = _standardize_rag_document(
+        doc,
+        rank,
+        str(doc.get("source_id") or "rag_source"),
+        max_chunks_per_doc,
+    )
+    standard_doc.update({
         "rank": rank,
         "match_label": _match_label(best_score),
-        "document_id": doc.get("document_id") or doc.get("id") or "",
-        "project_name": doc.get("project_name") or doc.get("title") or "",
-        "category": doc.get("category") or doc.get("document_type") or "unknown",
-        "source_path": doc.get("source_path") or doc.get("source") or "",
         "input_path": doc.get("input_path") or "",
         "best_score": best_score,
         "ranking_score": ranking_score,
         "hit_count": doc.get("hit_count", len(content_snippets)),
         "reasons": doc.get("reasons", []),
-        "evidence_snippets": content_snippets,
         "content_snippets": content_snippets,
-    }
+    })
+    return standard_doc
 
 
 @router.post("/similar-files")
@@ -398,6 +650,8 @@ async def similar_files(request: SimilarFilesRequest):
             "query": request.query,
             "effective_mode": effective_mode,
             "mode_detection": mode_detection,
+            "source_id": payload.get("source_id"),
+            "snapshot": payload.get("snapshot"),
             "document_count": len(documents),
             "documents": documents,
             "graph_context": payload.get("graph_context", []),
@@ -487,12 +741,15 @@ async def search_documents(request: SearchRequest):
     results = []
     for doc in payload.get("documents", []):
         for snippet in doc.get("evidence_snippets", [])[:2]:
+            snippet_text = _snippet_text(snippet)
+            if not snippet_text:
+                continue
             results.append(
                 {
                     "document_id": doc.get("project_name") or doc.get("source_path", "")[:50],
                     "source": doc.get("source_path", ""),
                     "category": doc.get("category", "unknown"),
-                    "content": snippet,
+                    "content": snippet_text,
                     "score": doc.get("score", 0),
                 }
             )

@@ -3713,10 +3713,11 @@
         if (doc.project_year) metaChips.push(`<span class="doc-card-chip year">${escapeHtml(doc.project_year)}</span>`);
         if (doc.document_group) metaChips.push(`<span class="doc-card-chip">${escapeHtml(doc.document_group)}</span>`);
 
+        const evidencePreview = snippetText(doc.evidence_snippets && doc.evidence_snippets[0]);
         const preview = (doc.chunks && doc.chunks[0]?.text)
           ? doc.chunks[0].text.slice(0, 120) + (doc.chunks[0].text.length > 120 ? '...' : '')
-          : (doc.evidence_snippets && doc.evidence_snippets[0])
-            ? doc.evidence_snippets[0].slice(0, 120)
+          : evidencePreview
+            ? evidencePreview.slice(0, 120)
             : '';
 
         return `
@@ -3833,6 +3834,12 @@
       return String(text)
         .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    }
+
+    function snippetText(snippet) {
+      if (!snippet) return '';
+      if (typeof snippet === 'object') return String(snippet.text || snippet.content || '');
+      return String(snippet);
     }
 
     // ── Main tab switching ────────────────────────────────────────────
@@ -4006,7 +4013,7 @@
           ${doc.source_path ? `<div style="font-size:11px;color:var(--text-s);word-break:break-all;">${escapeHtml(doc.source_path)}</div>` : ''}
           ${(doc.evidence_snippets || []).length ? `
             <div class="ks-doc-snippets">
-              ${doc.evidence_snippets.slice(0, 4).map(s => `<span class="ks-snippet">${escapeHtml(s)}</span>`).join('')}
+              ${doc.evidence_snippets.slice(0, 4).map(s => `<span class="ks-snippet">${escapeHtml(snippetText(s))}</span>`).join('')}
             </div>` : ''}
           ${downloadUrl ? `
             <div class="ks-doc-actions">
