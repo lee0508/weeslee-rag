@@ -187,3 +187,5 @@
 - source별 그래프에서 문서를 찾지 못하면 기본 그래프로 fallback해 기존 GraphRAG 산출물이 있는 환경에서도 화면이 비지 않게 했다.
 - 검증은 `python3 -m compileall backend/app/api/graph.py`, `node --check /tmp/rag-assistant-inline.js`, 샘플 문서 2건 helper 실행으로 진행했다.
 - `git diff --check`는 저장소의 기존 미추적/변경 파일과 CRLF 추가 줄을 trailing whitespace로 보고해 별도 잔여 리스크로 기록한다.
+- 서버 API 확인 중 `similar_project` 엣지로 다른 프로젝트가 많이 포함되어 결과 검증 그래프가 흐려지는 것을 확인했다.
+- 검색 결과 문서의 프로젝트가 아닌 다른 프로젝트 노드는 제외하고, 결과 문서와 직접 설명 노드 중심으로 유지하도록 필터를 추가했다.

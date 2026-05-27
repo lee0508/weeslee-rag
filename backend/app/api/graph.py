@@ -705,6 +705,8 @@ def _build_document_result_graph(cache: dict, document_ids: list[str], limit: in
             continue
         if other_node.get("type") == "document" and other_id not in result_doc_ids:
             continue
+        if other_node.get("type") == "project" and other_id not in project_ids:
+            continue
 
         add_node(source)
         add_node(target)
