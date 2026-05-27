@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 from pathlib import PurePosixPath, PureWindowsPath
@@ -49,7 +50,7 @@ router = APIRouter(
 
 
 class DocumentSourceCreate(BaseModel):
-    source_id: str
+    source_id: Optional[str] = ""
     client_id: str
     source_name: str
     source_type: str = "smb"
@@ -163,6 +164,15 @@ def _next_action(new_count: int, changed_count: int, removed_count: int, initial
     return "새로 처리할 Source Document가 없습니다. 현재 인덱스를 유지해도 됩니다."
 
 
+def _generate_source_id() -> str:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    for _ in range(10):
+        source_id = f"src_{stamp}_{secrets.token_hex(3)}"
+        if not get_record(STORE, ID_FIELD, source_id):
+            return source_id
+    raise HTTPException(status_code=500, detail="source_id 생성에 실패했습니다.")
+
+
 @router.get("")
 async def list_sources(client_id: Optional[str] = None):
     _seed()
@@ -175,9 +185,11 @@ async def list_sources(client_id: Optional[str] = None):
 @router.post("", status_code=201)
 async def create_source(body: DocumentSourceCreate):
     _seed()
-    if get_record(STORE, ID_FIELD, body.source_id):
-        raise HTTPException(status_code=409, detail=f"source_id '{body.source_id}' already exists")
+    source_id = (body.source_id or "").strip() or _generate_source_id()
+    if get_record(STORE, ID_FIELD, source_id):
+        raise HTTPException(status_code=409, detail=f"source_id '{source_id}' already exists")
     data = body.model_dump()
+    data["source_id"] = source_id
     data["status"] = "unknown"
     data["last_checked_at"] = None
     data["last_scanned_at"] = None

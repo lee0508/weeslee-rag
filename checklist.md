@@ -1,9 +1,8 @@
-# Dataset Builder 5/6단계 분리 체크리스트
+# Document Source source_id 자동 생성 체크리스트
 
-- [x] Step 5 프론트 실행 흐름과 SSE 실패 처리 확인
-- [x] FAISS job runner의 stage 구성과 실패 이벤트 구조 확인
-- [x] Step 5를 OCR 텍스트 추출과 청킹까지만 수행하도록 백엔드 분리
-- [x] Step 6을 임베딩, Vector, FAISS 진행 단계로 분리
-- [x] 실패 Job이 프론트에서 오류로 표시되도록 SSE 완료 이벤트 수정
-- [x] 관련 정적 검사와 최소 실행 검증
+- [x] Document Source 등록 경로와 source_id 사용 지점 확인
+- [x] 백엔드에서 빈 source_id를 날짜+랜덤 ID로 생성
+- [x] 프론트 신규 Source 등록 시 source_id 수동 생성 제거
+- [x] Dataset Builder 선택값과 기존 source_id 호환성 확인
+- [x] 정적 검사와 최소 검증 실행
 - [x] 변경 사항 커밋

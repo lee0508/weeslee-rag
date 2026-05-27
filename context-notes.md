@@ -62,3 +62,11 @@
 - `/api/admin/faiss/jobs` 요청에 `end_stage`를 추가해 Step 5는 1-3, Step 6은 4-5만 실행하도록 했다.
 - 기존 FAISS 탭의 직접 job 실행은 `end_stage` 기본값 6을 유지하므로 기존 전체 파이프라인 동작은 유지된다.
 - 검증은 `python3 -m compileall`, `admin.html` inline script 파싱, `git diff --check`로 수행했다.
+
+## 2026-05-27 Document Source source_id 자동 생성
+
+- Source 이름이나 폴더명이 한글일 수 있으므로 내부 작업 키인 `source_id`를 사용자 입력에서 slug로 만들지 않는다.
+- 서버가 신규 Document Source 생성 시 `source_id`가 비어 있으면 `src_YYYYMMDD_HHMMSS_랜덤` 형식으로 생성하는 것이 Dataset Builder 단계에서 안정적이다.
+- 기존 `rag_source`와 이미 저장된 source_id는 그대로 유지해 기존 데이터와 URL을 깨지 않도록 한다.
+- Legacy Document Source 폼과 새 Source 등록 흐름 모두 신규 등록 시 source_id를 보내지 않고 서버 응답값을 사용한다.
+- 기본 Python 환경에는 `fastapi`가 없어 API 모듈 직접 import 검증은 실행하지 못했고, compileall과 admin inline script 파싱으로 정적 검증했다.

@@ -2741,7 +2741,7 @@ POST /api/admin/faiss/activate</code>
     <!-- 신규/수정 폼 -->
     <div id="sourceForm" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label>Source ID *</label><input type="text" id="sfSourceId" placeholder="예: rag_source"></div>
+        <div class="form-group"><label>Source ID</label><input type="text" id="sfSourceId" placeholder="새 등록 시 자동 생성"></div>
         <div class="form-group"><label>고객사 *</label>
           <select id="sfClientId" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
             <option value="">-- 선택 --</option>
@@ -4767,7 +4767,7 @@ POST /api/admin/faiss/activate</code>
 
   function openSourceForm(data) {
     document.getElementById('sfSourceId').value = data?.source_id || '';
-    document.getElementById('sfSourceId').disabled = !!data;
+    document.getElementById('sfSourceId').disabled = true;
     document.getElementById('sfClientId').value = data?.client_id || '';
     document.getElementById('sfSourceName').value = data?.source_name || '';
     document.getElementById('sfSourceType').value = data?.source_type || 'smb';
@@ -4789,8 +4789,9 @@ POST /api/admin/faiss/activate</code>
 
   async function saveSource() {
     const isEdit = !!document.getElementById('sfEditId').value;
+    const sourceId = document.getElementById('sfSourceId').value.trim();
     const body = {
-      source_id: document.getElementById('sfSourceId').value.trim(),
+      source_id: isEdit ? sourceId : '',
       client_id: document.getElementById('sfClientId').value,
       source_name: document.getElementById('sfSourceName').value.trim(),
       source_type: document.getElementById('sfSourceType').value,
@@ -4801,7 +4802,7 @@ POST /api/admin/faiss/activate</code>
     };
     try {
       if (isEdit) {
-        await platformFetch(`/admin/document-sources/${body.source_id}`, { method: 'PUT', body: JSON.stringify(body) });
+        await platformFetch(`/admin/document-sources/${sourceId}`, { method: 'PUT', body: JSON.stringify(body) });
       } else {
         await platformFetch('/admin/document-sources', { method: 'POST', body: JSON.stringify(body) });
       }
@@ -6558,15 +6559,7 @@ POST /api/admin/faiss/activate</code>
     if (!name) { alert('Source 이름을 입력하세요.'); return; }
     if (!origPath && !mountPath) { alert('원본 경로 또는 마운트 경로를 입력하세요.'); return; }
 
-    // source_id: 이름을 slug로 변환
-    const sourceId = name.toLowerCase()
-      .replace(/[^a-z0-9가-힣\s_-]/g, '')
-      .replace(/\s+/g, '_')
-      .replace(/_+/g, '_')
-      .slice(0, 64) || ('src_' + Date.now());
-
     const payload = {
-      source_id:    sourceId,
       client_id:    clientId,
       source_name:  name,
       source_type:  'smb',
@@ -6586,19 +6579,19 @@ POST /api/admin/faiss/activate</code>
       });
       const d = await r.json().catch(() => ({}));
       if (r.status === 409) {
-        if (resultEl) resultEl.innerHTML = `<span style="color:var(--amber)">⚠️ 이미 등록된 source_id입니다: ${esc(sourceId)}</span>`;
+        if (resultEl) resultEl.innerHTML = `<span style="color:var(--amber)">⚠️ 이미 등록된 source_id입니다: ${esc(d.detail || '')}</span>`;
         return;
       }
       if (!r.ok) {
         if (resultEl) resultEl.innerHTML = `<span style="color:var(--red)">❌ 저장 실패 (${r.status}): ${esc(d.detail || '')}</span>`;
         return;
       }
-      if (resultEl) resultEl.innerHTML = `<span style="color:var(--green)">✅ "${esc(name)}" 저장 완료 (source_id: ${esc(d.source_id || sourceId)})</span>`;
+      if (resultEl) resultEl.innerHTML = `<span style="color:var(--green)">✅ "${esc(name)}" 저장 완료 (source_id: ${esc(d.source_id || '')})</span>`;
 
       // 컨텍스트 바 드롭다운 갱신 후 새 항목 선택
       await refreshCtxSourceSelect();
       const sel = document.getElementById('ctxSource');
-      if (sel) sel.value = d.source_id || sourceId;
+      if (sel) sel.value = d.source_id || '';
       onCtxChange();
 
       // Document Source 목록 새로고침
