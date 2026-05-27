@@ -162,3 +162,6 @@
 - `snapshot_20260527_01_rfp_chunks.jsonl` 샘플에는 `folder_name`과 `project_name`이 `축산유통 데이터랩 고도화`처럼 정상적으로 들어 있다.
 - 현재 `/api/wiki/build?source_id=01_rfp&snapshot=...`는 snapshot을 Wiki build에는 넘기지만, 선행 inventory 생성은 `build_project_inventory.py --source-id 01_rfp`만 호출해 DB 기반 inventory를 만든다.
 - snapshot이 지정된 Dataset Builder 흐름에서는 inventory도 같은 snapshot chunks에서 생성해야 Step 5/6 산출물과 Wiki 대상 프로젝트가 일치한다.
+- `build_project_inventory.py --source-id 01_rfp --from-chunks --snapshot snapshot_20260527_01_rfp` 실행 결과 inventory가 45개 프로젝트, 45개 문서로 재생성됐다.
+- `/api/wiki/build?source_id=01_rfp&snapshot=snapshot_20260527_01_rfp&max_projects=1`은 `축산유통-데이터랩-고도화.md`를 생성했다.
+- 이전 검증 중 잘못 생성된 `data/wiki/01_rfp/projects/old.md`는 서버에서 삭제했다.
