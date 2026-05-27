@@ -12,6 +12,7 @@ import json
 import re
 import subprocess
 import sys
+import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -175,7 +176,13 @@ async def build_wiki(
     if source_id and _INVENTORY_SCRIPT.exists():
         inv_cmd = [sys.executable, str(_INVENTORY_SCRIPT), "--source-id", source_id]
         try:
-            subprocess.run(inv_cmd, capture_output=True, timeout=60, cwd=str(PROJECT_ROOT))
+            await asyncio.to_thread(
+                subprocess.run,
+                inv_cmd,
+                capture_output=True,
+                timeout=60,
+                cwd=str(PROJECT_ROOT),
+            )
         except Exception:
             pass  # inventory 생성 실패해도 계속 진행
 
@@ -195,7 +202,8 @@ async def build_wiki(
         cmd += ["--snapshot", snapshot]
 
     try:
-        proc = subprocess.run(
+        proc = await asyncio.to_thread(
+            subprocess.run,
             cmd,
             capture_output=True,
             text=True,

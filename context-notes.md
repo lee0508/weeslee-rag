@@ -151,3 +151,5 @@
 - 사용자가 본 `[WARN] RAG query failed (rfp): timed out`은 RFP 카테고리 RAG 근거 수집이 45초를 넘긴 경고다.
 - 해당 경고 자체는 빈 evidence로 계속 진행하도록 설계되어 있지만, 서버 로그상 12:26:36에 `/api/wiki/build` 500이 찍힌 직후 서비스 재시작이 발생해 진행 중 요청도 끊겼다.
 - 현재 Dataset Builder Step 8은 선택 Source와 Step 6 스냅샷을 `/api/wiki/build`에 넘기지 않아 active snapshot 기준으로 Wiki를 만들 수 있다.
+- 추가 검증 중 `/api/wiki/build`의 `async` 엔드포인트가 `subprocess.run()`으로 이벤트 루프를 blocking하고, 그 subprocess가 다시 같은 서버의 `/api/rag/query`를 호출해 내부 요청을 처리하지 못하는 구조를 확인했다.
+- Wiki build subprocess 실행은 `asyncio.to_thread()`로 넘겨 API 서버가 내부 RAG 요청을 동시에 처리할 수 있게 해야 한다.
