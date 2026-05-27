@@ -142,3 +142,4 @@
 - Source option 표시를 `Source 이름 (source_id)` 형식으로 바꾸고, 선택 박스 옆에 `source_id=...` 힌트를 별도로 표시한다.
 - Step 5/6 job 요청은 원본 `source_id` 값을 그대로 보내고, 스냅샷명에만 안전한 문자열로 변환한 키를 사용해야 한다.
 - 기존 스냅샷 선택 기능은 유지하되 Step 5/6 로그에 Document Source ID를 남겨, 어떤 Source 기준으로 기존 스냅샷을 재사용하거나 이어서 실행했는지 확인할 수 있게 한다.
+- `59bf7f1`을 서버에 배포하고 `weeslee-rag-api.service` 재시작 후 `/api/health/all` HTTP 200을 확인했다.
