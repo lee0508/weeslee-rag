@@ -1887,16 +1887,14 @@ POST /api/admin/faiss/activate</code>
       </button>
     </div>
 
-    <!-- Run Pipeline -->
+    <!-- Dataset Builder Entry -->
     <div class="card">
-      <div class="card-title">파이프라인 실행</div>
-      <div class="form-group">
-        <label>스냅샷 이름</label>
-        <input type="text" id="jobSnapshot"
-          placeholder="snapshot_YYYY-MM-DD_batch-XXX-vN">
+      <div class="card-title">Dataset Builder 실행</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px">
+        Source별 OCR, 청킹, 임베딩, FAISS 생성은 Dataset Builder에서 단계별로 진행합니다.
       </div>
-      <button class="btn btn-primary" id="runBtn" onclick="startJob()" style="width:100%">
-        ▶ 파이프라인 시작
+      <button class="btn btn-primary" onclick="openBuildWizard()" style="width:100%">
+        → Dataset Builder로 이동
       </button>
       <div class="progress-wrap" id="progressWrap" style="display:none">
         <div class="progress-track">
@@ -3528,24 +3526,7 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function startJob() {
-    const snapshot = document.getElementById('jobSnapshot').value.trim();
-    if (!snapshot) { alert('스냅샷 이름을 입력하세요.'); return; }
-
-    document.getElementById('runBtn').disabled = true;
-    document.getElementById('progressWrap').style.display = '';
-    setProgress(0, '잡 시작 중...');
-    clearLog();
-
-    try {
-      const data = await api('/admin/faiss/jobs', {
-        method: 'POST',
-        body: JSON.stringify({ snapshot }),
-      });
-      streamJob(data.job_id);
-    } catch (e) {
-      alert('잡 시작 실패: ' + e.message);
-      document.getElementById('runBtn').disabled = false;
-    }
+    openBuildWizard();
   }
 
   function streamJob(jobId) {
@@ -3561,7 +3542,8 @@ POST /api/admin/faiss/activate</code>
       if (ev.done) {
         _sseSource.close();
         stopJobPolling();
-        document.getElementById('runBtn').disabled = false;
+        const runBtn = document.getElementById('runBtn');
+        if (runBtn) runBtn.disabled = false;
         if (ev.error) appendLog('실패: ' + ev.error, true);
         else          appendLog('✓ 파이프라인 완료');
         loadJobs();
@@ -3573,7 +3555,8 @@ POST /api/admin/faiss/activate</code>
     _sseSource.onerror = () => {
       _sseSource.close();
       stopJobPolling();
-      document.getElementById('runBtn').disabled = false;
+      const runBtn = document.getElementById('runBtn');
+      if (runBtn) runBtn.disabled = false;
       appendLog('SSE 연결 오류', true);
     };
   }
@@ -3893,19 +3876,28 @@ POST /api/admin/faiss/activate</code>
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${esc(s.manifest_file)}</div>
           ${!s.faiss_indexed ? `
           <button class="staged-use-btn" onclick="fillPipelineSnapshot('${esc(s.snapshot)}')">
-            → 파이프라인에 사용
+            → Dataset Builder에서 사용
           </button>` : ''}
         </div>
       `;
     }).join('');
   }
 
-  // 작성일: 2026-05-12 | 기능: staged 카드의 스냅샷 이름을 파이프라인 입력란에 자동 입력
+  // 작성일: 2026-05-12 | 기능: staged 카드의 스냅샷 이름을 Dataset Builder에 자동 입력
   function fillPipelineSnapshot(snapshot) {
-    document.getElementById('jobSnapshot').value = snapshot;
-    document.getElementById('jobSnapshot').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    document.getElementById('jobSnapshot').focus();
-    showToast(`스냅샷 이름 입력 완료: ${snapshot}`, 'success');
+    const sel = document.getElementById('ctxSnapshot');
+    if (sel) {
+      if (![...sel.options].some(option => option.value === snapshot)) {
+        const option = document.createElement('option');
+        option.value = snapshot;
+        option.textContent = snapshot;
+        sel.appendChild(option);
+      }
+      sel.value = snapshot;
+      onSnapshotChange();
+    }
+    switchTab('wizard');
+    showToast(`Dataset Builder 스냅샷 선택 완료: ${snapshot}`, 'success');
   }
 
   function refreshAll() {

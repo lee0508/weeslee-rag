@@ -165,3 +165,10 @@
 - `build_project_inventory.py --source-id 01_rfp --from-chunks --snapshot snapshot_20260527_01_rfp` 실행 결과 inventory가 45개 프로젝트, 45개 문서로 재생성됐다.
 - `/api/wiki/build?source_id=01_rfp&snapshot=snapshot_20260527_01_rfp&max_projects=1`은 `축산유통-데이터랩-고도화.md`를 생성했다.
 - 이전 검증 중 잘못 생성된 `data/wiki/01_rfp/projects/old.md`는 서버에서 삭제했다.
+
+## 2026-05-27 FAISS Index 직접 파이프라인 버튼
+
+- FAISS Index 탭의 `파이프라인 시작` 버튼은 초기 개발용 전체 파이프라인 실행 경로로 남아 있었다.
+- 기존 `startJob()`은 `/api/admin/faiss/jobs`에 `{snapshot}`만 보내므로 백엔드 기본값인 `source_id=rag_source`, `start_from_stage=1`, `end_stage=6`으로 전체 파이프라인을 실행한다.
+- 현재 운영 흐름은 Dataset Builder가 Source별 Step 5, Step 6, Step 7, Step 8을 관리하므로 FAISS Index 탭에서는 직접 실행 대신 Dataset Builder로 이동시키는 것이 안전하다.
+- staged 준비 현황의 스냅샷 사용 버튼은 Dataset Builder의 스냅샷 선택값으로 연결한다.
