@@ -745,15 +745,15 @@
         </div>
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">DATASET BUILDER</h2>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(1)">Step 1: OCR/파싱</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(1)">Step 1: OCR/파싱 (근거 생성)</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(2)">Step 2: 청킹/임베딩</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(3)">Step 3: 메타데이터</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(4)">Step 4: 온톨로지</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(5)">Step 5: 엔티티/관계</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(6)">Step 6: Graph 저장</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(7)">Step 7: 하이브리드 검색</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(5)">Step 5: 엔티티/관계 (근거 산출)</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(6)">Step 6: Graph 저장 (색인 완료)</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(7)">Step 7: 하이브리드 검색 (Graph 근거)</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(8)">Step 8: LLM 답변</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(9)">Step 9: Wiki 생성</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(9)">Step 9: Wiki 생성 (지식 체계)</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(10)">Step 10: 관리자 검수</button>
         </div>
         <div class="wr-nav-section">
@@ -1800,7 +1800,7 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">5</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 1 실행: OCR/파싱</div>
+          <div style="font-size:13px;font-weight:700">Step 1 실행: OCR/파싱 (사용자 검증용 근거 생성)</div>
           <div style="font-size:11px;color:var(--muted)">PDF/HWP/HWPX/DOCX/PPTX/XLSX에서 텍스트를 추출하고 검색 단위로 분할합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-5">-</span>
@@ -1821,7 +1821,7 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">6</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 2 실행: 청킹/임베딩</div>
+          <div style="font-size:13px;font-weight:700">Step 2 실행: 청킹/임베딩 (검색 검증용 색인 완료)</div>
           <div style="font-size:11px;color:var(--muted)">청크를 벡터로 변환하고 FAISS 검색 인덱스를 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-6">-</span>
@@ -1842,7 +1842,7 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">7</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 4-6 실행: 온톨로지/엔티티/Graph 저장</div>
+          <div style="font-size:13px;font-weight:700">Step 4-6 실행: 온톨로지/엔티티/Graph 저장 (관계 근거 Graph 생성)</div>
           <div style="font-size:11px;color:var(--muted)">프로젝트 간 관련 문서를 연결하는 관계 그래프를 생성하고 저장합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-7">-</span>
@@ -1863,7 +1863,7 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">8</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 9 실행: Wiki 생성</div>
+          <div style="font-size:13px;font-weight:700">Step 9 실행: Wiki 생성 (지식 체계 Wiki 구축)</div>
           <div style="font-size:11px;color:var(--muted)">프로젝트별 자동 지식 문서를 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-8">-</span>
@@ -2573,6 +2573,9 @@ POST /api/admin/faiss/activate</code>
             <div class="rs-tree-item" onclick="filterRagSource('proposal_pm')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">프로젝트관리</div>
             <div class="rs-tree-item" onclick="filterRagSource('proposal_support')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">프로젝트지원</div>
             <div class="rs-tree-item" onclick="filterRagSource('proposal_research')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">연구과제</div>
+            <div class="rs-tree-item" onclick="filterRagSource('proposal_audit')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">감리</div>
+            <div class="rs-tree-item" onclick="filterRagSource('proposal_pmo')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">PMO</div>
+            <div class="rs-tree-item" onclick="filterRagSource('proposal_poc')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">PoC</div>
             <div style="padding:5px 8px;font-size:12px;color:var(--muted);font-weight:600">📂 산출물</div>
             <div class="rs-tree-item" onclick="filterRagSource('deliverable')" style="padding:3px 8px 3px 24px;cursor:pointer;border-radius:5px;font-size:12px">전체</div>
             <div class="rs-tree-item" onclick="filterRagSource('deliverable_env')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">환경분석</div>
@@ -2580,6 +2583,9 @@ POST /api/admin/faiss/activate</code>
             <div class="rs-tree-item" onclick="filterRagSource('deliverable_target')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">목표모델</div>
             <div class="rs-tree-item" onclick="filterRagSource('deliverable_plan')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">이행계획</div>
             <div class="rs-tree-item" onclick="filterRagSource('deliverable_research')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">연구과제</div>
+            <div class="rs-tree-item" onclick="filterRagSource('deliverable_audit')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">감리</div>
+            <div class="rs-tree-item" onclick="filterRagSource('deliverable_pmo')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">PMO</div>
+            <div class="rs-tree-item" onclick="filterRagSource('deliverable_poc')" style="padding:3px 8px 3px 32px;cursor:pointer;border-radius:5px;font-size:12px">PoC</div>
           </div>
         </div>
       </div>
@@ -4189,6 +4195,39 @@ POST /api/admin/faiss/activate</code>
     document.getElementById('rsDeliverable').textContent = files.filter(f =>
       (f.document_type || '').includes('deliverable') || (f.file_path || '').includes('산출물')
     ).length;
+
+    // Update tree items with file count badges (including 0 counts)
+    for (const [filterKey, keyword] of Object.entries(_RS_FILTER_MAP)) {
+      if (!filterKey || !keyword) continue;
+      const count = files.filter(f => {
+        const p = (f.file_path || f.relative_path || '').toLowerCase();
+        return p.includes(keyword.toLowerCase()) ||
+          (f.document_type || '').toLowerCase().includes(keyword.toLowerCase());
+      }).length;
+
+      const treeItem = document.querySelector(`.rs-tree-item[onclick="filterRagSource('${filterKey}')"]`);
+      if (treeItem) {
+        const existingBadge = treeItem.querySelector('.rs-count-badge');
+        if (existingBadge) existingBadge.remove();
+
+        const badge = document.createElement('span');
+        badge.className = 'rs-count-badge';
+        badge.textContent = count;
+        badge.style.cssText = `
+          display: inline-block;
+          min-width: 18px;
+          padding: 1px 5px;
+          margin-left: 6px;
+          font-size: 10px;
+          font-weight: 600;
+          text-align: center;
+          border-radius: 9px;
+          background: ${count === 0 ? 'var(--surface2)' : 'var(--amber)'};
+          color: ${count === 0 ? 'var(--muted)' : 'var(--bg)'};
+        `;
+        treeItem.appendChild(badge);
+      }
+    }
   }
 
   const _RS_FILTER_MAP = {
@@ -4200,12 +4239,18 @@ POST /api/admin/faiss/activate</code>
     'proposal_pm': '프로젝트관리',
     'proposal_support': '프로젝트지원',
     'proposal_research': '연구과제',
+    'proposal_audit': '감리',
+    'proposal_pmo': 'PMO',
+    'proposal_poc': 'PoC',
     'deliverable': '산출물',
     'deliverable_env': '환경분석',
     'deliverable_current': '현황분석',
     'deliverable_target': '목표모델',
     'deliverable_plan': '이행계획',
     'deliverable_research': '연구과제',
+    'deliverable_audit': '감리',
+    'deliverable_pmo': 'PMO',
+    'deliverable_poc': 'PoC',
   };
 
   function filterRagSource(type) {
@@ -4443,6 +4488,9 @@ POST /api/admin/faiss/activate</code>
       { name: 'project_management', display_name: '프로젝트관리' },
       { name: 'project_support', display_name: '프로젝트지원' },
       { name: 'research', display_name: '연구과제' },
+      { name: 'audit', display_name: '감리' },
+      { name: 'pmo', display_name: 'PMO' },
+      { name: 'poc', display_name: 'PoC' },
     ],
     deliverable_section: [
       { name: 'environment_analysis', display_name: '환경분석' },
@@ -4450,6 +4498,9 @@ POST /api/admin/faiss/activate</code>
       { name: 'target_model', display_name: '목표모델' },
       { name: 'implementation_plan', display_name: '이행계획' },
       { name: 'research_report', display_name: '연구과제' },
+      { name: 'audit', display_name: '감리' },
+      { name: 'pmo', display_name: 'PMO' },
+      { name: 'poc', display_name: 'PoC' },
     ],
     project_type: [
       { name: 'ISP', display_name: 'ISP' },
@@ -7444,7 +7495,69 @@ POST /api/admin/faiss/activate</code>
     if (step === 2) return _formatCollectionBootstrapSummary(data);
     if (step === 3) return _formatMetadataBuildSummary(data);
     if (step === 1) return `생성 ${Number(data?.created || 0)}건, 업데이트 ${Number(data?.updated || 0)}건, 건너뜀 ${Number(data?.skipped || 0)}건`;
-    if (step === 7 || step === 8) return data?.message || '요청이 정상 처리되었습니다.';
+
+    // P3-1: Step 5 완료 결과 - 문서별 OCR 산출물 생성 여부 표시
+    if (step === 5) {
+      const processed = Number(data?.documents_processed || data?.processed || 0);
+      const ocrSuccess = Number(data?.ocr_success || 0);
+      const ocrFailed = Number(data?.ocr_failed || 0);
+      const chunkingSuccess = Number(data?.chunking_success || 0);
+      let summary = `처리 ${processed}건`;
+      if (ocrSuccess > 0) summary += `, OCR 성공 ${ocrSuccess}건`;
+      if (ocrFailed > 0) summary += `, OCR 실패 ${ocrFailed}건`;
+      if (chunkingSuccess > 0) summary += `, 청킹 성공 ${chunkingSuccess}건`;
+      summary += ' (사용자 검증용 근거 생성)';
+      return summary;
+    }
+
+    // P3-2: Step 6 완료 결과 - snapshot, chunk 수, 색인 문서 수 표시
+    if (step === 6) {
+      const snapshot = data?.snapshot || _wizardFaissSnapshot || '-';
+      const chunkCount = Number(data?.chunk_count || data?.chunks || 0);
+      const docCount = Number(data?.document_count || data?.indexed_documents || 0);
+      const embeddingCount = Number(data?.embedding_count || data?.embeddings || 0);
+      let summary = `스냅샷: ${snapshot}`;
+      if (docCount > 0) summary += `, 문서 ${docCount}건`;
+      if (chunkCount > 0) summary += `, 청크 ${chunkCount}개`;
+      if (embeddingCount > 0) summary += `, 임베딩 ${embeddingCount}개`;
+      summary += ' (검색 검증용 색인 완료)';
+      return summary;
+    }
+
+    // P3-3: Step 7 완료 결과 - source_id별 graph node, edge, document 수 표시
+    if (step === 7) {
+      const sourceId = data?.source_id || document.getElementById('ctxSource')?.value || 'rag_source';
+      const nodeCount = Number(data?.node_count || data?.nodes || 0);
+      const edgeCount = Number(data?.edge_count || data?.edges || data?.relationships || 0);
+      const docCount = Number(data?.document_count || data?.documents || 0);
+      let summary = `[${sourceId}]`;
+      if (nodeCount > 0) summary += ` 노드 ${nodeCount}개`;
+      if (edgeCount > 0) summary += `, 엣지 ${edgeCount}개`;
+      if (docCount > 0) summary += `, 문서 ${docCount}건`;
+      summary += ' (관계 근거 Graph 생성 완료)';
+      return data?.message ? `${summary} - ${data.message}` : summary;
+    }
+
+    // P3-4: Step 8 완료 결과 - source_id별 Wiki 프로젝트 수와 실패 프로젝트 표시
+    if (step === 8) {
+      const sourceId = data?.source_id || document.getElementById('ctxSource')?.value || 'rag_source';
+      const projectCount = Number(data?.project_count || data?.projects || 0);
+      const successCount = Number(data?.success_count || data?.successful_projects || 0);
+      const failedCount = Number(data?.failed_count || data?.failed_projects || 0);
+      const failedProjects = data?.failed_projects || [];
+      let summary = `[${sourceId}] Wiki 프로젝트 ${projectCount}개`;
+      if (successCount > 0) summary += `, 성공 ${successCount}개`;
+      if (failedCount > 0) {
+        summary += `, 실패 ${failedCount}개`;
+        if (failedProjects.length > 0) {
+          const failedNames = failedProjects.slice(0, 3).map(p => p.name || p).join(', ');
+          summary += ` (${failedNames}${failedProjects.length > 3 ? ' 외' : ''})`;
+        }
+      }
+      summary += ' (지식 체계 Wiki 구축 완료)';
+      return data?.message ? `${summary} - ${data.message}` : summary;
+    }
+
     return '요청이 정상 처리되었습니다.';
   }
 

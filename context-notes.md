@@ -327,3 +327,49 @@
 - `syncWizardStepperState()`는 Figma Step 상태를 같은 번호의 Legacy Step이 아니라 매핑된 Legacy Step 상태에서 가져오도록 수정했다.
 - 예: Figma Step 1 OCR/파싱은 Legacy Step 5 OCR/청킹 상태를 표시한다.
 - 실제 브라우저에서는 `frontend/assets/js/admin/admin-docs-layout.js`의 `syncWizardStepperState()`가 나중에 로드되어 inline 함수를 덮어쓰므로, 외부 스크립트에도 같은 Figma-to-Legacy 매핑을 반영했다.
+
+## 2026-05-28 P3-P4 RAG 근거자료 표시 개선
+
+### P3: Dataset Builder 완료 메시지 보강
+
+**위치:** `frontend/admin.html:7494-7562` (_wizardFormatResponseSummary 함수)
+
+**변경 내용:**
+- Step 5 (OCR/파싱): OCR 성공/실패 건수, 청킹 성공 건수 표시 + "(사용자 검증용 근거 생성)" 목적 표시
+- Step 6 (청킹/임베딩): 스냅샷명, 문서 수, 청크 수, 임베딩 수 표시 + "(검색 검증용 색인 완료)" 목적 표시
+- Step 7 (Graph RAG): source_id, 노드/엣지/문서 수 표시 + "(관계 근거 Graph 생성 완료)" 목적 표시
+- Step 8 (Wiki 생성): source_id, 프로젝트 수, 성공/실패 건수 + 실패 프로젝트명(최대 3개) 표시 + "(지식 체계 Wiki 구축 완료)" 목적 표시
+
+**UI 라벨 보강:**
+- 사이드바 메뉴 버튼 (frontend/admin.html:748-756)에 목적 괄호 표시 추가
+  - Step 1: OCR/파싱 (근거 생성)
+  - Step 5: 엔티티/관계 (근거 산출)
+  - Step 6: Graph 저장 (색인 완료)
+  - Step 7: 하이브리드 검색 (Graph 근거)
+  - Step 9: Wiki 생성 (지식 체계)
+- 단계 상세 헤더 (frontend/admin.html:1803, 1824, 1845, 1866)에 목적 괄호 표시 추가
+
+**목적:**
+- 관리자가 각 단계 완료 후 결과를 명확히 확인
+- 각 단계의 목적(사용자 검증용 근거 생성, 색인 완료, Graph 생성, Wiki 구축)을 UI에 명시
+
+### P4: Graphify 문장형 근거 요약
+
+**위치:** `frontend/rag-assistant.html:3418-3450` (renderAnswerPanel 함수)
+
+**변경 내용:**
+- 답변 하단에 "📊 관계 근거 (검색 결과 검증용 Graph)" 섹션 추가
+- 검색 결과 문서들의 graph_context/relations 필드에서 상위 3개 관계 추출
+- 엣지 관계: "source → 관계유형 → target" 형태로 표시
+- 프로젝트 체인: "🔗 프로젝트명 (N단계 문서 체인)" 형태로 표시
+- 3개 초과 시 "외 N개 관계" 표시
+
+**UI 구분:**
+- 문서 카드의 graphSummary (frontend/rag-assistant.html:3725-3744): 개별 문서의 Graph 관계 간단 요약
+- 답변 하단의 graphSummaryHtml: 전체 검색 결과의 Graph 관계 종합 요약
+- "검색 결과 검증용 Graph"라는 명시적 라벨로 전체 Knowledge Graph 탐색과 구분
+
+**목적:**
+- Graphify 형태의 문장형 근거를 사용자에게 제공
+- 검색 결과의 신뢰도를 Graph 관계로 검증 가능
+- 문서 간 연관성을 한눈에 파악

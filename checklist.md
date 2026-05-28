@@ -76,17 +76,17 @@
 
 ## 오늘 P3. Dataset Builder 완료 메시지 보강
 
-- [ ] Step 5 완료 결과에 문서별 OCR 산출물 생성 여부를 표시한다.
-- [ ] Step 6 완료 결과에 snapshot, chunk 수, 색인 문서 수를 표시한다.
-- [ ] Step 7 완료 결과에 source_id별 graph node, edge, document 수를 표시한다.
-- [ ] Step 8 완료 결과에 source_id별 Wiki 프로젝트 수와 실패 프로젝트를 표시한다.
-- [ ] 단계 설명에 사용자 검증용 근거 생성 목적을 표시한다.
+- [x] Step 5 완료 결과에 문서별 OCR 산출물 생성 여부를 표시한다.
+- [x] Step 6 완료 결과에 snapshot, chunk 수, 색인 문서 수를 표시한다.
+- [x] Step 7 완료 결과에 source_id별 graph node, edge, document 수를 표시한다.
+- [x] Step 8 완료 결과에 source_id별 Wiki 프로젝트 수와 실패 프로젝트를 표시한다.
+- [x] 단계 설명에 사용자 검증용 근거 생성 목적을 표시한다.
 
 ## 오늘 P4. Graphify 문장형 근거 요약
 
-- [ ] Graphify 형태의 문장형 근거 요약 위치를 정한다.
-- [ ] 문서 카드 또는 답변 하단에 짧은 관계 설명을 추가한다.
-- [ ] 전체 Knowledge Graph 탐색과 검색 결과 검증용 Graph를 UI 문구로 구분한다.
+- [x] Graphify 형태의 문장형 근거 요약 위치를 정한다.
+- [x] 문서 카드 또는 답변 하단에 짧은 관계 설명을 추가한다.
+- [x] 전체 Knowledge Graph 탐색과 검색 결과 검증용 Graph를 UI 문구로 구분한다.
 
 ## 별도 트랙
 
