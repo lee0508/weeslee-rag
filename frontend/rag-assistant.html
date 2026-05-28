@@ -1875,23 +1875,14 @@
         </div>
         <div class="sidebar-controls">
           <div>
-            <label data-i18n="search_mode">Search Mode</label>
-            <div class="mode-chips" id="searchModeChips">
-              <button type="button" class="mode-chip active" data-mode="general" onclick="selectSearchMode('general')">
-                <span class="chip-icon">🔍</span>일반 문서
-              </button>
-              <button type="button" class="mode-chip" data-mode="bid_project" onclick="selectSearchMode('bid_project')">
-                <span class="chip-icon">📋</span>유사 사업
-              </button>
-              <button type="button" class="mode-chip" data-mode="rfp_analysis" onclick="selectSearchMode('rfp_analysis')">
-                <span class="chip-icon">📄</span>RFP 분석
-              </button>
-              <button type="button" class="mode-chip" data-mode="graph_rag" onclick="selectSearchMode('graph_rag')">
-                <span class="chip-icon">🔗</span>관계 기반
-              </button>
-            </div>
-            <input type="hidden" id="searchMode" value="general">
-          </div>
+            <label for="searchMode" data-i18n="search_mode">검색 모드</label>
+            <select id="searchMode" onchange="selectSearchMode(this.value)">
+              <option value="" data-i18n="cat_all">전체</option>
+              <option value="general" selected data-i18n="mode_general">일반 문서</option>
+              <option value="bid_project" data-i18n="mode_bid">유사 사업</option>
+              <option value="rfp_analysis" data-i18n="mode_rfp">RFP 분석</option>
+              <option value="graph_rag" data-i18n="mode_graph">관계 기반</option>
+            </select>
           <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
           <!-- 기본 설정: 항상 표시 -->
           <div>
