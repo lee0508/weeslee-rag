@@ -211,3 +211,69 @@
 - `assemble_rag_response.py`는 기존 문자열 `evidence_snippets`를 유지하면서 `evidence_chunks`에 `chunk_id`, `text`, `page`, `score`를 추가해 API 정규화 단계에서 구조화 근거로 사용할 수 있게 했다.
 - 실제 `main.py`에 등록된 RAG 라우터는 `backend/app/api/rag.py`이다. `rag_with_similar_files.py`는 같은 목적의 보조 파일이지만 현재 서비스 라우터가 아니므로, P0 표준화 호출은 `rag.py`의 `_run_query()`에 들어가야 한다.
 - 서버 프로젝트 경로는 항상 `/data/weeslee/{프로젝트 폴더}` 기준으로 확인한다. `weeslee-rag`의 운영 경로는 `/data/weeslee/weeslee-rag`이다.
+
+## 2026-05-28 오늘 작업 표시
+
+- 오늘 작업 기준 파일은 `docs/2026-05-28_Claude_작업목록.md`로 확인했다.
+- 루트 `checklist.md`는 이전 P0 RAG 응답 구조 표준화 완료 목록만 담고 있어, 오늘 실행용 체크리스트로 교체했다.
+- 실제 개발 구현은 아직 수행하지 않았으므로 P0, P1, P2, P3 개발 항목은 모두 미완료 상태로 표시했다.
+- 완료로 표시한 항목은 작업목록 확인, 체크박스 변환, 루트 체크리스트 반영, context notes 기록뿐이다.
+- 검증은 `sed`로 수정 문서 내용을 확인하고 `git diff -- checklist.md context-notes.md docs/2026-05-28_Claude_작업목록.md`로 tracked 파일 diff를 확인했다.
+
+## 2026-05-28 Codex 문서 기준 오늘 작업 재표시
+
+- 사용자가 어제 Codex가 작성한 문서를 기준으로 오늘 작업을 다시 표시해 달라고 요청했다.
+- 확인한 기준 문서는 `docs/2026-05-27_Codex_RAG근거자료_수정권고.md`이다.
+- 이 문서의 권고 실행 순서는 RAG Source 트리와 Collection Template 정합성, 사용자 문서 상세 근거 확인, Graph 엣지 라벨 개선, Step 5~8 산출물 통계 표시, Graphify 문장형 근거 요약이다.
+- 따라서 `checklist.md`를 Codex 권고 실행 순서 중심으로 재정리했다.
+- `docs/2026-05-28_Claude_작업목록.md`의 XSS, API 인증, 에러 핸들링은 별도 보안 트랙으로 두고 이번 RAG 근거자료 작업과 섞지 않는다.
+
+## 2026-05-28 admin.html 디자인 개선 통합 실행순서
+
+- 사용자가 `docs/2026-05-28_Claude_DesignUX.md`도 확인해 `admin.html` 디자인 개선안을 실행 순서대로 작성하고 이전 문서를 통합해 달라고 요청했다.
+- 확인한 문서는 `docs/2026-05-28_Claude_DesignUX.md`, `docs/2026-05-28_Claude_관리자페이지_전면개편안.md`, `docs/2026-05-23_Codex_관리자페이지_디자인개선안.md`, `docs/2026-05-23_관리자html_UX_UI_개선안.md`, `docs/2026-05-26_관리자페이지_UX_UI_개선안.md`, `docs/2026-05-27_Codex_RAG근거자료_수정권고.md`, `frontend/admin.html`이다.
+- live URL `https://server.weeslee.co.kr/weeslee-rag/frontend/admin.html`은 `curl -I -L --max-time 15`로 HTTP 200, `Content-Length: 387375`, `last-modified: Wed, 27 May 2026 07:18:07 GMT`를 확인했다.
+- 현재 `admin.html`은 Docs 스타일 화면, Overview, Source Documents, RAG Build Wizard, FAISS, Graph/Wiki, Jobs/Logs, Search Quality, Settings, Legacy Console을 이미 포함한다.
+- 통합 실행 문서는 전면 재작성보다 현재 구조를 유지하면서 Legacy 분리, Dashboard 상태 중심 개편, RAG Source 트리 정합성, 신규 문서 알림, Dataset Builder Step 5~8 근거 목적 표시 순서로 작성했다.
+- 산출물은 `docs/2026-05-28_admin_html_디자인개선_통합실행순서.md`이다.
+
+## 2026-05-28 온프라미스 메뉴 구성 원칙 반영
+
+- 사용자가 관리자 메뉴별로 작업 실행에 필요한 필수 설정값 입력폼과 실행 후 확인 섹션을 같은 페이지에 표시해야 한다고 요구했다.
+- 이 요구사항은 온프라미스 운영 콘솔 기준으로 맞다. 사내 서버, NAS mount, 로컬 DB, FAISS index, LLM endpoint, Job timeout 같은 값은 메뉴 이동 없이 확인 가능해야 한다.
+- `docs/2026-05-28_admin_html_디자인개선_통합실행순서.md`에 메뉴별 화면 구성 표준, 온프라미스 구성 기준, 메뉴별 필수 입력폼과 실행 후 확인 섹션을 추가했다.
+- 실행 순서의 각 메뉴 작업에도 Source ID, Snapshot, 경로, 모델, 필터 같은 필수 입력폼을 상단에 둔다는 항목을 추가했다.
+
+## 2026-05-28 Codex LLM RAG 온톨로지 적용제안 문서화
+
+- 사용자가 방금 작성한 답변 내용을 `2026-05-28_Codex_`로 시작하는 문서로 작성했는지 확인했다.
+- 기존에는 해당 이름의 문서가 없어서 `docs/2026-05-28_Codex_LLM_RAG_온톨로지_적용제안.md`를 새로 작성했다.
+- 문서에는 기존 FAISS RAG 구조 유지, metadata 정규화, ontology schema 추가, 기존 `build_graph_jsonl.py` 확장, JSONL Graph 유지, Hybrid Search API 추가, LLM context 분리, 관리자 Ontology Manager와 Relation Review 추가 순서를 담았다.
+
+## 2026-05-28 LLM RAG 온톨로지 P0 실행순서
+
+- 사용자가 실행 순서를 P0부터 작성해 달라고 요청했다.
+- `docs/2026-05-28_Codex_LLM_RAG_온톨로지_적용제안.md`에 P0부터 P9까지 목표, 작업 파일, 구현 항목, 검증 기준, 완료 조건을 추가했다.
+- P0은 기준 스키마와 메타데이터 계약 확정으로 두었다.
+- 오늘 착수 권장 범위는 `ontology_schema.json` 생성, metadata/chunk 필수 필드 점검, 현재 Graph node/relation 목록 추출, schema와 현재 산출물 차이 문서화, P1 구현 범위 확정으로 제한했다.
+
+## 2026-05-28 Figma 와이어프레임 화면 구조 확인
+
+- 사용자가 공유한 Figma 주소는 `https://www.figma.com/design/xL27BRiX1TTxV00OpFIB9W/WEESLEE-RAG-Admin-Dashboard---Wireframe?node-id=0-1&t=Jip7hCj0ni20lofi-1`이다.
+- 현재 세션의 Figma MCP 도구는 노출되지 않았고, URL 직접 조회는 CloudFront 403으로 막혔다.
+- 대신 저장소에 있는 `docs/figma_dashboard_wireframe.png`와 `docs/figma_step1_wireframe.png`를 확인했다.
+- 확인된 공통 레이아웃은 상단 브랜드 바, 좌측 고정 사이드바, 본문 작업 영역, 카드 기반 상태 및 결과 패널이다.
+- 대시보드 화면은 Dataset Alert, 문서소스/스캔 파일/메타데이터/FAISS/Graph-Wiki/검색 상태 카드, 대시보드 설정, 시스템 현황 패널로 구성된다.
+- Dataset Builder 사이드바는 Step 1 OCR/파싱, Step 2 청킹/임베딩, Step 3 메타데이터, Step 4 온톨로지, Step 5 엔티티/관계, Step 6 Graph 저장, Step 7 하이브리드 검색, Step 8 LLM 답변, Step 9 Wiki 생성, Step 10 관리자 검수 순서다.
+- 확인된 Step 1 화면은 텍스트 추출 설정, OCR 설정, 파일 제한, 대상 선택, 출력 형식, Step 1 실행 결과, 실패 문서 재처리 흐름을 포함한다.
+- 다음 구현 비교는 `frontend/admin.html`과 `frontend/assets/js/admin/admin-docs-layout.js`를 기준으로 Figma의 사이드바 단계와 대시보드 카드 구성을 맞추는 방향이 적절하다.
+
+## 2026-05-28 Figma 와이어프레임 구현 매핑
+
+- 현재 `frontend/admin.html`은 `#wrAdminDocsApp` 신규 Docs 스타일 화면과 `tab-*` Legacy Console이 공존한다.
+- 신규 Docs 화면은 상단 바, 좌측 메뉴, Overview, Source Documents, RAG Build Wizard, FAISS, Graph, Wiki, Jobs, Logs, Search Quality, Settings를 제공한다.
+- Legacy Console은 Dataset Builder 상세 실행, FAISS, Graph View, LLM Wiki, 문서 관리 기능을 실제 실행 경로로 보존한다.
+- Figma 대시보드에는 Dataset Alert, 6개 상태 카드, Dashboard 설정, 시스템 현황 패널이 있으나 현재 Overview는 다음 작업 안내와 순차 작업 가이드 중심이다.
+- Figma Dataset Builder는 Step 1 OCR/파싱부터 Step 10 관리자 검수까지 표시하지만, 현재 구현은 파일 스캔, Collection, Metadata, Tag/Keyword, OCR/청킹, FAISS, Graph, Wiki, 검색 테스트, FAISS 활성화 순서다.
+- Step 번호를 바로 바꾸면 `wizardRun(step)` 실행 의미가 깨질 수 있으므로, 표시 단계와 기존 실행 단계의 매핑 테이블을 먼저 두는 방식이 안전하다.
+- 구현 매핑 문서는 `docs/2026-05-28_Codex_Figma와이어프레임_구현매핑.md`에 저장했다.
