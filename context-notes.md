@@ -318,3 +318,12 @@
 - 실행 결과 패널에는 처리 문서, 추출 성공, OCR 사용, 추출 실패 카드와 실패 문서 안내 영역을 추가했다.
 - 새 API를 만들지 않고 `runStep1Parsing()`에서 기존 `wizardRun(5)` OCR/청킹 실행 흐름을 호출한다.
 - 설정 저장은 현재 표시용이며 `saveStep1ParsingSettings()`에서 사용자 피드백만 제공한다. 실제 백엔드 파라미터 연결은 후속 작업으로 남긴다.
+
+## 2026-05-28 Figma P4 Step UI 연결 검증
+
+- P4 범위는 Figma 기준 Step UI와 기존 Legacy Wizard 실행 단계의 연결을 보강하는 작업으로 제한했다.
+- `DATASET_BUILDER_LEGACY_STEP_MAP`과 `getDatasetBuilderLegacyStep()`을 추가해 표시 단계와 실행 단계를 명시적으로 분리했다.
+- `openDatasetBuilderStep(figmaStep)`는 이제 Figma Step 카드를 우선 강조하고, 연결된 Legacy Step도 함께 강조한다.
+- `syncWizardStepperState()`는 Figma Step 상태를 같은 번호의 Legacy Step이 아니라 매핑된 Legacy Step 상태에서 가져오도록 수정했다.
+- 예: Figma Step 1 OCR/파싱은 Legacy Step 5 OCR/청킹 상태를 표시한다.
+- 실제 브라우저에서는 `frontend/assets/js/admin/admin-docs-layout.js`의 `syncWizardStepperState()`가 나중에 로드되어 inline 함수를 덮어쓰므로, 외부 스크립트에도 같은 Figma-to-Legacy 매핑을 반영했다.

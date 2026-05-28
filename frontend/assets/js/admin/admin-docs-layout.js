@@ -364,36 +364,69 @@
     syncWizardStepperState();
   }
 
+  function getLegacyWizardStepForDisplay(step) {
+    const map = {
+      1: 5,
+      2: 6,
+      3: 3,
+      4: 7,
+      5: 7,
+      6: 7,
+      7: 9,
+      8: 9,
+      9: 8,
+      10: 9,
+    };
+    return map[step] || step;
+  }
+
   function syncWizardStepperState() {
     const stepper = app.querySelector('#wrWizardStepper');
     if (!stepper) return;
 
     for (let step = 1; step <= 10; step++) {
-      const legacyStep = document.querySelector(`.wizard-step[data-step="${step}"]`);
+      const legacyStepNumber = getLegacyWizardStepForDisplay(step);
+      const legacyStep = document.querySelector(`.wizard-step[data-step="${legacyStepNumber}"]`);
       const wrStep = stepper.querySelector(`[data-wr-step="${step}"]`);
       const statusEl = stepper.querySelector(`[data-wr-step-status="${step}"]`);
       if (!wrStep) continue;
 
       wrStep.classList.remove('wr-done', 'wr-running', 'wr-error');
+      if (statusEl) statusEl.className = 'wr-step-status';
 
       if (legacyStep) {
         const isDone = legacyStep.classList.contains('done');
         const isActive = legacyStep.classList.contains('active-step');
-        const legacyStatus = document.getElementById(`wstatus-${step}`);
+        const legacyStatus = document.getElementById(`wstatus-${legacyStepNumber}`);
         const statusText = legacyStatus?.textContent?.trim() || '-';
+        const isStatusOk = legacyStatus?.classList.contains('ok');
         const isError = legacyStatus?.classList.contains('err');
 
-        if (isDone) {
+        if (isDone || isStatusOk) {
           wrStep.classList.add('wr-done');
-          if (statusEl) statusEl.textContent = '완료';
+          if (statusEl) {
+            statusEl.textContent = '완료';
+            statusEl.classList.add('ok');
+          }
         } else if (isError) {
           wrStep.classList.add('wr-error');
-          if (statusEl) statusEl.textContent = '오류';
+          if (statusEl) {
+            statusEl.textContent = '오류';
+            statusEl.classList.add('err');
+          }
         } else if (isActive) {
           wrStep.classList.add('wr-running');
-          if (statusEl) statusEl.textContent = '실행 중';
+          if (statusEl) {
+            statusEl.textContent = '실행 중';
+            statusEl.classList.add('running');
+          }
         } else {
-          if (statusEl) statusEl.textContent = statusText !== '-' ? statusText : '-';
+          if (statusEl) {
+            statusEl.textContent = statusText !== '-' ? statusText : '-';
+            if (legacyStatus?.classList.contains('ok')) statusEl.classList.add('ok');
+            if (legacyStatus?.classList.contains('running')) statusEl.classList.add('running');
+            if (legacyStatus?.classList.contains('err')) statusEl.classList.add('err');
+          }
         }
       } else {
         if (statusEl) statusEl.textContent = '-';

@@ -15,6 +15,9 @@
 - [x] 기존 Legacy Wizard 실행 번호는 유지하고 표시 단계와 연결 안내를 분리
 - [x] P3 Step 1 OCR/파싱 설정 패널 추가
 - [x] P3 Step 1 실행 결과 패널과 기존 Legacy Step 5 실행 연결
+- [x] P4 Figma Step과 Legacy 실행 Step 매핑 보강
+- [x] P4 신규 Step UI 상태 동기화 검증
+- [x] `admin-docs-layout.js`의 Docs Step 상태 동기화도 Figma-to-Legacy 매핑으로 보강
 - [x] 기존 관리자 디자인 개선 문서 확인
 - [x] 현재 `frontend/admin.html` Docs 화면 구조 확인
 - [x] live admin.html URL HTTP 200 확인
