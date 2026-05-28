@@ -277,3 +277,13 @@
 - Figma Dataset Builder는 Step 1 OCR/파싱부터 Step 10 관리자 검수까지 표시하지만, 현재 구현은 파일 스캔, Collection, Metadata, Tag/Keyword, OCR/청킹, FAISS, Graph, Wiki, 검색 테스트, FAISS 활성화 순서다.
 - Step 번호를 바로 바꾸면 `wizardRun(step)` 실행 의미가 깨질 수 있으므로, 표시 단계와 기존 실행 단계의 매핑 테이블을 먼저 두는 방식이 안전하다.
 - 구현 매핑 문서는 `docs/2026-05-28_Codex_Figma와이어프레임_구현매핑.md`에 저장했다.
+
+## 2026-05-28 Figma P0 사이드바 구현
+
+- P0 범위는 `frontend/admin.html`의 신규 Docs 스타일 사이드바를 Figma 운영 메뉴 기준으로 재정렬하는 작업으로 제한했다.
+- 사이드바는 OVERVIEW, ALERTS, RAG SOURCE, DATASET BUILDER, FAISS INDEX, ANALYTICS 순서로 정리했다.
+- Dataset Builder에는 Figma 기준 Step 1 OCR/파싱부터 Step 10 관리자 검수까지의 버튼을 모두 노출했다.
+- 기존 `wizardRun(step)` 번호를 바꾸면 실행 의미가 깨질 수 있으므로, `openDatasetBuilderStep(figmaStep)`에서 Figma 표시 단계와 기존 구현 단계의 임시 매핑을 둔다.
+- 현재 매핑은 Step 1 -> 기존 Step 5, Step 2 -> 기존 Step 6, Step 3 -> 기존 Step 3, Step 4~6 -> 기존 Step 7, Step 7~8 -> 기존 Step 9, Step 9 -> 기존 Step 8, Step 10 -> 기존 Step 9이다.
+- `openDashboardAlerts()`는 대시보드 상태판 위치로 이동하도록 추가했다.
+- 다음 P1에서는 Overview 본문을 Dataset Alert, 6개 상태 카드, Dashboard 설정, 시스템 현황 패널 구조로 맞추는 작업이 필요하다.

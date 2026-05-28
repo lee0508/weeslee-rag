@@ -7,6 +7,8 @@
 - [x] Figma 와이어프레임 기준 화면 구조 1차 정리
 - [x] 현재 `admin.html` 구현 구조와 Figma 화면 매핑 정리
 - [x] `docs/2026-05-28_Codex_Figma와이어프레임_구현매핑.md` 생성
+- [x] P0 사이드바 메뉴를 Figma 운영 메뉴 기준으로 정리
+- [x] Dataset Builder Step 1-10 메뉴를 기존 Wizard 실행 흐름에 연결
 - [x] 기존 관리자 디자인 개선 문서 확인
 - [x] 현재 `frontend/admin.html` Docs 화면 구조 확인
 - [x] live admin.html URL HTTP 200 확인

@@ -727,44 +727,44 @@
 
   <div class="wr-shell">
     <aside class="wr-sidebar">
-      <nav aria-label="Admin documentation navigation">
+      <nav aria-label="Admin operations navigation">
         <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">Prologue</h2>
-          <button class="wr-nav-link wr-is-active" type="button" data-wr-page="overview">Overview</button>
+          <h2 class="wr-nav-heading">OVERVIEW</h2>
+          <button class="wr-nav-link wr-is-active" type="button" data-wr-page="overview">대시보드</button>
         </div>
         <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">Data Build</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="source-documents">Source Documents</button>
-          <button class="wr-nav-link" type="button" data-wr-page="rag-build-wizard">RAG Build Wizard</button>
+          <h2 class="wr-nav-heading">ALERTS</h2>
+          <button class="wr-nav-link" type="button" onclick="openDashboardAlerts()">신규 문서 알림</button>
+          <button class="wr-nav-link" type="button" data-wr-page="jobs">처리 대기 문서</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">RAG SOURCE</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="source-documents">RFP</button>
+          <button class="wr-nav-link" type="button" data-wr-legacy-tab="docsource">제안서</button>
+          <button class="wr-nav-link" type="button" data-wr-legacy-tab="documents">산출물</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">DATASET BUILDER</h2>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(1)">Step 1: OCR/파싱</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(2)">Step 2: 청킹/임베딩</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(3)">Step 3: 메타데이터</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(4)">Step 4: 온톨로지</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(5)">Step 5: 엔티티/관계</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(6)">Step 6: Graph 저장</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(7)">Step 7: 하이브리드 검색</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(8)">Step 8: LLM 답변</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(9)">Step 9: Wiki 생성</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(10)">Step 10: 관리자 검수</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">FAISS INDEX</h2>
           <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS Index</button>
         </div>
         <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">RAG</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="json-graph">JSON Graph</button>
-        </div>
-        <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">RAG Agent</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="jobs">Jobs</button>
-          <button class="wr-nav-link" type="button" data-wr-page="logs">Logs</button>
-        </div>
-        <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">Graph RAG</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="rag-build-wizard" onclick="openGraphRagBuildWizard()">Graph Build</button>
-        </div>
-        <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">LLM Wiki</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="llm-wiki">LLM Wiki</button>
-        </div>
-        <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">Documents</h2>
-          <button class="wr-nav-link" type="button" data-wr-legacy-tab="documents">Legacy Documents</button>
-          <button class="wr-nav-link" type="button" data-wr-legacy-tab="docsource">Legacy Document Source</button>
-        </div>
-        <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">Operations</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="settings">Settings</button>
+          <h2 class="wr-nav-heading">ANALYTICS</h2>
           <button class="wr-nav-link" type="button" data-wr-page="search-quality">Search Quality</button>
-          <button class="wr-nav-link" type="button" data-wr-legacy-tab="platform">Legacy Platform</button>
+          <button class="wr-nav-link" type="button" data-wr-page="json-graph">Graph/Wiki</button>
+          <button class="wr-nav-link" type="button" data-wr-page="settings">Settings</button>
         </div>
       </nav>
     </aside>
@@ -5984,6 +5984,48 @@ POST /api/admin/faiss/activate</code>
     switchTab('wizard');
     if (typeof renderWizardProgressBar === 'function') renderWizardProgressBar();
     if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
+  }
+
+  function openDashboardAlerts() {
+    if (window.openWrDocsPage?.('overview')) {
+      setTimeout(() => {
+        const target = document.getElementById('wr-overview-status') || document.getElementById('wrOverviewNextText');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
+      return;
+    }
+    switchTab('dashboard');
+  }
+
+  function openDatasetBuilderStep(figmaStep) {
+    const stepMap = {
+      1: 5,
+      2: 6,
+      3: 3,
+      4: 7,
+      5: 7,
+      6: 7,
+      7: 9,
+      8: 9,
+      9: 8,
+      10: 9,
+    };
+    const legacyStep = stepMap[figmaStep] || figmaStep;
+    openBuildWizard();
+    setTimeout(() => {
+      const docsStep = document.querySelector(`[data-wr-step="${legacyStep}"]`);
+      const legacyStepEl = document.querySelector(`.wizard-step[data-step="${legacyStep}"]`);
+      const target = docsStep || legacyStepEl;
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('active-step');
+        setTimeout(() => target.classList.remove('active-step'), 1800);
+      }
+      const message = figmaStep === legacyStep
+        ? `Dataset Builder Step ${figmaStep}로 이동했습니다.`
+        : `Figma Step ${figmaStep}는 현재 구현의 Step ${legacyStep} 실행 흐름과 연결됩니다.`;
+      showToast(message, 'info', 4000);
+    }, 120);
   }
 
   function openGraphRagBuildWizard() {
