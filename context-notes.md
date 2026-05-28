@@ -287,3 +287,18 @@
 - 현재 매핑은 Step 1 -> 기존 Step 5, Step 2 -> 기존 Step 6, Step 3 -> 기존 Step 3, Step 4~6 -> 기존 Step 7, Step 7~8 -> 기존 Step 9, Step 9 -> 기존 Step 8, Step 10 -> 기존 Step 9이다.
 - `openDashboardAlerts()`는 대시보드 상태판 위치로 이동하도록 추가했다.
 - 다음 P1에서는 Overview 본문을 Dataset Alert, 6개 상태 카드, Dashboard 설정, 시스템 현황 패널 구조로 맞추는 작업이 필요하다.
+
+## 2026-05-28 서버 배포 경로 확인
+
+- 사용자가 서버 배포 시 프로젝트 폴더는 `/data/weeslee/weeslee-rag`라고 재확인했다.
+- 이후 배포, 원격 검증, 운영 경로 설명은 이 경로를 기준으로 한다.
+
+## 2026-05-28 Figma P1 Overview 구현
+
+- P1 범위는 `frontend/admin.html` Overview 본문을 Figma Dashboard 구조로 재배치하는 작업으로 제한했다.
+- Overview 페이지는 `wr-page-wide` 클래스를 추가해 기존 920px 폭 제한을 풀었다.
+- Dataset Alert에는 신규 문서, 수정 문서, 처리 대기, 실패 작업 카드를 추가했다.
+- 기존 `wrOverviewSourceState`, `wrOverviewFileState`, `wrOverviewMetaState`, `wrOverviewFaissState`, `wrOverviewGraphWikiState`, `wrOverviewSearchState` ID는 유지해 기존 상태 조회 흐름을 깨지 않게 했다.
+- Dashboard 설정 패널과 시스템 현황 패널을 추가했다.
+- `loadOverviewStepStatus()`는 새 Alert 카드와 시스템 현황 ID를 초기화하고, 기존 API 응답에 값이 있으면 카운트를 채우도록 보강했다.
+- 검색 품질 히스토리 API가 응답하면 총 질문, 성공률, 평균 응답, 참조 문서, 최근 질문 목록을 표시한다.

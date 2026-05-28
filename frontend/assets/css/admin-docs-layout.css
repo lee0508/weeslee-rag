@@ -237,6 +237,10 @@
   max-width: 920px;
 }
 
+#wrAdminDocsApp .wr-page-wide {
+  max-width: 100%;
+}
+
 #wrAdminDocsApp .wr-page.wr-is-active {
   display: block;
 }

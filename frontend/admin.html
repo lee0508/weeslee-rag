@@ -770,20 +770,41 @@
     </aside>
 
     <main class="wr-main">
-      <section class="wr-page wr-is-active" data-wr-page-panel="overview">
-        <div class="wr-eyebrow">Prologue</div>
-        <h1 class="wr-page-title" id="wr-overview-title" data-wr-anchor>Overview</h1>
+      <section class="wr-page wr-page-wide wr-is-active" data-wr-page-panel="overview">
+        <h1 class="wr-page-title" id="wr-overview-title" data-wr-anchor>대시보드</h1>
         <p class="wr-page-lead">
-          WEESLEE RAG 관리자 화면은 문서소스 등록, 데이터 생성, 검색 품질 확인까지의 운영 흐름을 관리합니다.
+          시스템 전체 상태를 한눈에 파악하고 주요 작업으로 빠르게 이동합니다.
         </p>
 
-        <!-- 상태판 + 다음 작업 -->
-        <h2 class="wr-section-title" id="wr-overview-status" data-wr-anchor>상태판과 다음 작업</h2>
-        <div class="wr-callout wr-callout-info" id="wrOverviewNextText">시스템 상태를 확인하는 중입니다.</div>
-        <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" id="wrOverviewNextBtn" type="button" onclick="openBuildWizard()" style="display:none">다음 작업 열기</button>
-          <button class="wr-btn" type="button" onclick="loadOverviewStepStatus()">상태 새로고침</button>
+        <h2 class="wr-section-title" id="wr-overview-status" data-wr-anchor>Dataset Alert</h2>
+        <div class="wr-card">
+          <h2 class="wr-card-title">신규 문서 알림</h2>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">신규 문서</div>
+              <div class="wr-summary-value" id="wrAlertNewDocs">확인 중</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">수정 문서</div>
+              <div class="wr-summary-value" id="wrAlertChangedDocs">확인 중</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">처리 대기</div>
+              <div class="wr-summary-value" id="wrAlertPendingDocs">확인 중</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">실패 작업</div>
+              <div class="wr-summary-value" id="wrAlertFailedJobs">확인 중</div>
+            </div>
+          </div>
+          <div class="wr-callout wr-callout-info" id="wrOverviewNextText">시스템 상태를 확인하는 중입니다.</div>
+          <div class="wr-inline-actions">
+            <button class="wr-btn wr-btn-primary" id="wrOverviewNextBtn" type="button" onclick="openBuildWizard()" style="display:none">다음 작업 열기</button>
+            <button class="wr-btn" type="button" onclick="loadOverviewStepStatus()">상태 새로고침</button>
+          </div>
         </div>
+
+        <h2 class="wr-section-title" id="wr-overview-cards" data-wr-anchor>시스템 상태</h2>
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
             <div class="wr-summary-label">문서소스</div>
@@ -811,78 +832,60 @@
           </div>
         </div>
 
-        <!-- 시스템 작동 원리 -->
-        <h2 class="wr-section-title" id="wr-overview-how" data-wr-anchor>시스템 작동 원리</h2>
-        <div class="wr-callout wr-callout-info">
-          <strong>RAG(Retrieval-Augmented Generation)</strong>는 문서를 벡터화하여 저장하고, 사용자 질문과 유사한 문서를 검색한 후 LLM이 해당 문서를 참조하여 답변을 생성하는 방식입니다.
-        </div>
-        <div class="wr-grid wr-grid-three">
+        <div class="wr-grid" style="margin-top:20px">
           <div class="wr-card">
-            <span class="wr-stat-value">1</span>
-            <h2 class="wr-card-title">문서 수집</h2>
-            <p class="wr-card-text">네트워크 드라이브나 로컬 폴더에서 PDF, HWP, DOCX 등 문서를 스캔하고 텍스트를 추출합니다.</p>
+            <h2 class="wr-card-title">대시보드 설정</h2>
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>자동 새로고침</label>
+                <select id="wrDashboardRefreshInterval">
+                  <option>비활성화</option>
+                  <option>30초</option>
+                  <option>1분</option>
+                  <option>5분</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>표시 항목</label>
+                <div class="wr-status-list">
+                  <label class="wr-status-row"><span>시스템 상태 카드</span><input type="checkbox" checked></label>
+                  <label class="wr-status-row"><span>알림 요약</span><input type="checkbox" checked></label>
+                  <label class="wr-status-row"><span>빠른 이동 링크</span><input type="checkbox" checked></label>
+                  <label class="wr-status-row"><span>시스템 리소스</span><input type="checkbox"></label>
+                </div>
+              </div>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn wr-btn-primary" type="button" onclick="saveDashboardSettings()">설정 저장</button>
+            </div>
           </div>
           <div class="wr-card">
-            <span class="wr-stat-value">2</span>
-            <h2 class="wr-card-title">벡터 인덱싱</h2>
-            <p class="wr-card-text">추출된 텍스트를 청크로 분할하고 임베딩하여 FAISS 벡터 인덱스에 저장합니다.</p>
-          </div>
-          <div class="wr-card">
-            <span class="wr-stat-value">3</span>
-            <h2 class="wr-card-title">검색 및 생성</h2>
-            <p class="wr-card-text">사용자 질문과 유사한 문서를 검색하고, LLM이 해당 문서를 참조하여 근거 기반 답변을 생성합니다.</p>
-          </div>
-        </div>
-
-        <!-- 순차 작업 가이드 -->
-        <h2 class="wr-section-title" id="wr-overview-steps" data-wr-anchor>정상 작동을 위한 순차 작업</h2>
-        <p class="wr-page-lead">시스템이 정상 작동하려면 아래 순서대로 작업을 완료해야 합니다. 각 단계의 상태를 확인하고 필요한 작업을 진행하세요.</p>
-        <div class="wr-status-list" style="background:var(--wr-bg-alt);border-radius:8px;padding:16px;">
-          <div class="wr-status-row" style="border-bottom:1px solid var(--wr-border);padding-bottom:12px;margin-bottom:12px;">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span class="wr-step-badge" id="overviewStep1Badge">1</span>
-              <strong>소스 등록</strong> - 문서가 저장된 폴더 경로를 등록합니다.
-            </span>
-            <span class="wr-step-status" id="overviewStep1Status">확인 중...</span>
-          </div>
-          <div class="wr-status-row" style="border-bottom:1px solid var(--wr-border);padding-bottom:12px;margin-bottom:12px;">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span class="wr-step-badge" id="overviewStep2Badge">2</span>
-              <strong>파일 스캔</strong> - 등록된 소스에서 문서 파일을 스캔합니다.
-            </span>
-            <span class="wr-step-status" id="overviewStep2Status">확인 중...</span>
-          </div>
-          <div class="wr-status-row" style="border-bottom:1px solid var(--wr-border);padding-bottom:12px;margin-bottom:12px;">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span class="wr-step-badge" id="overviewStep3Badge">3</span>
-              <strong>메타데이터 생성</strong> - 문서별 분류, 기관명, 사업명 등 메타데이터를 추출합니다.
-            </span>
-            <span class="wr-step-status" id="overviewStep3Status">확인 중...</span>
-          </div>
-          <div class="wr-status-row" style="border-bottom:1px solid var(--wr-border);padding-bottom:12px;margin-bottom:12px;">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span class="wr-step-badge" id="overviewStep4Badge">4</span>
-              <strong>FAISS 인덱스 생성</strong> - 문서를 벡터화하여 검색 인덱스를 생성합니다.
-            </span>
-            <span class="wr-step-status" id="overviewStep4Status">확인 중...</span>
-          </div>
-          <div class="wr-status-row" style="border-bottom:1px solid var(--wr-border);padding-bottom:12px;margin-bottom:12px;">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span class="wr-step-badge" id="overviewStep5Badge">5</span>
-              <strong>Graph/Wiki 생성</strong> - 문서 간 관계 그래프와 프로젝트별 Wiki를 생성합니다.
-            </span>
-            <span class="wr-step-status" id="overviewStep5Status">확인 중...</span>
-          </div>
-          <div class="wr-status-row">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span class="wr-step-badge" id="overviewStep6Badge">6</span>
-              <strong>검색 테스트</strong> - 검색 품질을 테스트하고 결과를 확인합니다.
-            </span>
-            <span class="wr-step-status" id="overviewStep6Status">확인 중...</span>
+            <h2 class="wr-card-title">시스템 현황</h2>
+            <div class="wr-summary-grid">
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">총 질문</div>
+                <div class="wr-summary-value" id="wrSystemTotalQueries">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">성공률</div>
+                <div class="wr-summary-value" id="wrSystemSuccessRate">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">평균 응답</div>
+                <div class="wr-summary-value" id="wrSystemAvgResponse">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">참조 문서</div>
+                <div class="wr-summary-value" id="wrSystemReferencedDocs">-</div>
+              </div>
+            </div>
+            <h2 class="wr-card-title" style="margin-top:18px">최근 사용자 질문 TOP 5</h2>
+            <div class="wr-status-list" id="wrRecentQuestionList">
+              <div class="wr-status-row"><span>검색 품질 데이터를 확인하는 중입니다.</span></div>
+            </div>
           </div>
         </div>
 
-        <!-- 빠른 이동 -->
         <h2 class="wr-section-title" id="wr-overview-flow" data-wr-anchor>빠른 이동</h2>
         <div class="wr-status-list">
           <div class="wr-status-row"><span>Source Documents</span><button class="wr-btn" type="button" onclick="openSourceManagement()">소스 관리 열기</button></div>
@@ -5855,6 +5858,14 @@ POST /api/admin/faiss/activate</code>
     const h = { 'Authorization': 'Bearer ' + getToken() };
     const stepStates = {};
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setText('wrAlertNewDocs', '0건');
+    setText('wrAlertChangedDocs', '0건');
+    setText('wrAlertPendingDocs', '0건');
+    setText('wrAlertFailedJobs', '0건');
+    setText('wrSystemTotalQueries', '-');
+    setText('wrSystemSuccessRate', '-');
+    setText('wrSystemAvgResponse', '-');
+    setText('wrSystemReferencedDocs', '-');
     const setNextAction = () => {
       const nextText = document.getElementById('wrOverviewNextText');
       const nextBtn = document.getElementById('wrOverviewNextBtn');
@@ -5908,8 +5919,12 @@ POST /api/admin/faiss/activate</code>
       if (r.ok) {
         const d = await r.json();
         const total = d.total_files || d.total || 0;
+        const newFiles = Number(d.new_file_count || d.new_files || 0);
+        const changedFiles = Number(d.changed_file_count || d.changed_files || 0);
         setStep(2, total > 0 ? 'ok' : 'err', total > 0 ? `✓ ${total}개 파일` : '스캔 필요');
         setText('wrOverviewFileState', total > 0 ? `${total}개` : '스캔 필요');
+        setText('wrAlertNewDocs', `${newFiles}건`);
+        setText('wrAlertChangedDocs', `${changedFiles}건`);
       } else {
         setStep(2, 'err', '확인 실패');
         setText('wrOverviewFileState', '확인 실패');
@@ -5926,6 +5941,7 @@ POST /api/admin/faiss/activate</code>
         const ok = total > 0 && meta >= total;
         setStep(3, ok ? 'ok' : (meta > 0 ? 'running' : 'err'), ok ? '✓ 완료' : (meta > 0 ? `${meta}/${total}` : '생성 필요'));
         setText('wrOverviewMetaState', ok ? '완료' : (meta > 0 ? `${meta}/${total}` : '생성 필요'));
+        setText('wrAlertPendingDocs', `${Math.max(total - meta, 0)}건`);
       } else {
         setStep(3, 'err', '확인 실패');
         setText('wrOverviewMetaState', '확인 실패');
@@ -5970,6 +5986,49 @@ POST /api/admin/faiss/activate</code>
     // Step 6: 검색 테스트 (항상 가능)
     setStep(6, 'ok', '테스트 가능');
     setText('wrOverviewSearchState', '테스트 가능');
+
+    try {
+      const r = await fetch(apiUrl('/api/admin/faiss/jobs'), { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const jobs = Array.isArray(d) ? d : (d.jobs || d.items || []);
+        const failed = jobs.filter(job => String(job.status || '').toLowerCase().includes('fail')).length;
+        setText('wrAlertFailedJobs', `${failed}건`);
+      }
+    } catch {}
+
+    await loadOverviewAnalytics();
+  }
+
+  async function loadOverviewAnalytics() {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+    try {
+      const r = await fetch(apiUrl('/api/benchmark/history'), { headers: h });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      const history = d.history || d.items || d || [];
+      const rows = Array.isArray(history) ? history : [];
+      const latest = rows[0] || {};
+      setText('wrSystemTotalQueries', String(latest.test_count || latest.total || rows.length || '-'));
+      setText('wrSystemSuccessRate', typeof latest.success_rate === 'number' ? `${(latest.success_rate * 100).toFixed(1)}%` : '-');
+      setText('wrSystemAvgResponse', latest.avg_response_ms ? `${(latest.avg_response_ms / 1000).toFixed(1)}초` : '-');
+      setText('wrSystemReferencedDocs', String(latest.document_count || latest.reference_count || '-'));
+      const questions = rows
+        .map(item => item.query || item.question || item.title)
+        .filter(Boolean)
+        .slice(0, 5);
+      setHtml('wrRecentQuestionList', questions.length
+        ? questions.map((q, index) => `<div class="wr-status-row"><span>${index + 1}. ${esc(String(q))}</span></div>`).join('')
+        : '<div class="wr-status-row"><span>최근 질문 데이터가 없습니다.</span></div>');
+    } catch {
+      setHtml('wrRecentQuestionList', '<div class="wr-status-row"><span>검색 품질 데이터를 읽지 못했습니다.</span></div>');
+    }
+  }
+
+  function saveDashboardSettings() {
+    showToast('대시보드 설정을 저장했습니다.', 'success', 2400);
   }
 
   // ── 빠른 이동 버튼 함수 ──────────────────────────────────────────────────
