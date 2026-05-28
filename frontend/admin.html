@@ -934,9 +934,9 @@
 
       <section class="wr-page" data-wr-page-panel="rag-build-wizard">
         <div class="wr-eyebrow">Data Build</div>
-        <h1 class="wr-page-title" id="wr-wizard-title" data-wr-anchor>RAG Build Wizard</h1>
-        <p class="wr-page-lead">문서 스캔부터 검색 인덱스 활성화까지 10단계로 RAG 데이터를 구축합니다. 각 단계를 순서대로 실행하거나 전체 자동 실행할 수 있습니다.</p>
-        <div class="wr-callout wr-callout-info">이 페이지에서 직접 실행하거나, Legacy Wizard에서 상세 로그를 확인하며 실행할 수 있습니다.</div>
+        <h1 class="wr-page-title" id="wr-wizard-title" data-wr-anchor>Dataset Builder</h1>
+        <p class="wr-page-lead">Figma 와이어프레임 기준 10단계 흐름으로 RAG 데이터셋을 구축합니다. 각 단계는 현재 운영 중인 Legacy Wizard 실행 흐름에 연결됩니다.</p>
+        <div class="wr-callout wr-callout-info">표시 단계는 Figma 기준입니다. 실행 버튼은 기존 안정화된 API 단계로 연결되며, 상세 로그는 Legacy Wizard에서 계속 확인합니다.</div>
         <div class="wr-inline-actions">
           <button class="wr-btn wr-btn-primary" type="button" onclick="wrWizardRunAll()">▶ 전체 순차 실행</button>
           <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">Legacy Wizard 열기</button>
@@ -956,16 +956,16 @@
         </div>
         <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>파이프라인 단계</h2>
         <div class="wr-stepper" id="wrWizardStepper">
-          <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">파일 스캔</div><div class="wr-step-meta">문서 소스 폴더를 스캔하여 파일 목록을 DB에 저장합니다.</div></div><span class="wr-step-status" data-wr-step-status="1">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(1)">실행</button></div>
-          <div class="wr-step" data-wr-step="2"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">Collection 동기화</div><div class="wr-step-meta">Collection 메타데이터를 생성하고 동기화합니다.</div></div><span class="wr-step-status" data-wr-step-status="2">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(2)">실행</button></div>
-          <div class="wr-step" data-wr-step="3"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">메타데이터 생성</div><div class="wr-step-meta">파일명과 경로에서 프로젝트명, 기관명, 연도 등을 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="3">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(3)">실행</button></div>
-          <div class="wr-step" data-wr-step="4"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">태그/키워드 생성</div><div class="wr-step-meta">문서 내용 기반으로 검색 태그와 키워드를 자동 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="4">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(4)">실행</button></div>
-          <div class="wr-step" data-wr-step="5"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">텍스트 추출 + 청킹</div><div class="wr-step-meta">PDF/HWP/HWPX/DOCX/PPTX/XLSX에서 텍스트를 추출하고 검색 단위로 분할합니다.</div></div><span class="wr-step-status" data-wr-step-status="5">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(5)">실행</button></div>
-          <div class="wr-step" data-wr-step="6"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">임베딩 + FAISS 생성</div><div class="wr-step-meta">청크를 벡터로 변환하고 FAISS 검색 인덱스를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="6">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(6)">실행</button></div>
-          <div class="wr-step" data-wr-step="7"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">Graph RAG 생성</div><div class="wr-step-meta">프로젝트/문서 간 관계 그래프를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="7">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(7)">실행</button></div>
-          <div class="wr-step" data-wr-step="8"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM Wiki 생성</div><div class="wr-step-meta">프로젝트별 자동 지식 문서를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="8">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(8)">실행</button></div>
-          <div class="wr-step" data-wr-step="9"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">검색 품질 확인</div><div class="wr-step-meta">생성된 데이터로 검색 품질을 테스트합니다.</div></div><span class="wr-step-status" data-wr-step-status="9">대기</span><button class="wr-btn wr-btn-sm" data-wr-legacy-tab="benchmark">품질 확인 →</button></div>
-          <div class="wr-step" data-wr-step="10"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">인덱스 활성화</div><div class="wr-step-meta">생성된 FAISS 인덱스를 검색 서버에 적용합니다.</div></div><span class="wr-step-status" data-wr-step-status="10">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(10)">실행</button></div>
+          <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">OCR/파싱</div><div class="wr-step-meta">문서에서 텍스트를 추출하고 OCR fallback을 적용합니다. 현재 실행은 Legacy Step 5와 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="1">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(1)">이동</button></div>
+          <div class="wr-step" data-wr-step="2"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">청킹/임베딩</div><div class="wr-step-meta">추출 텍스트를 검색 chunk로 나누고 벡터 인덱스를 생성합니다. 현재 실행은 Legacy Step 6과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="2">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(2)">이동</button></div>
+          <div class="wr-step" data-wr-step="3"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">메타데이터</div><div class="wr-step-meta">파일명과 경로에서 프로젝트명, 기관명, 문서 유형, 연도 등을 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="3">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(3)">실행</button></div>
+          <div class="wr-step" data-wr-step="4"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">온톨로지</div><div class="wr-step-meta">문서 분류와 관계 기준을 온톨로지 스키마에 맞춥니다. 현재 실행은 Graph RAG 생성 단계와 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="4">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(4)">이동</button></div>
+          <div class="wr-step" data-wr-step="5"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">엔티티/관계</div><div class="wr-step-meta">프로젝트, 기관, 문서, 기술 엔티티와 관계를 추출합니다. 현재 실행은 Graph RAG 생성 단계와 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="5">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(5)">이동</button></div>
+          <div class="wr-step" data-wr-step="6"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">Graph 저장</div><div class="wr-step-meta">추출된 노드와 엣지를 JSON Graph 산출물로 저장합니다. 현재 실행은 Legacy Step 7과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="6">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(6)">이동</button></div>
+          <div class="wr-step" data-wr-step="7"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">하이브리드 검색</div><div class="wr-step-meta">FAISS 검색 결과와 Graph 관계 근거를 함께 확인합니다. 검색 품질 화면과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="7">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(7)">이동</button></div>
+          <div class="wr-step" data-wr-step="8"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM 답변</div><div class="wr-step-meta">검색 근거를 기반으로 LLM 답변 품질을 확인합니다. 검색 품질 화면과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="8">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(8)">이동</button></div>
+          <div class="wr-step" data-wr-step="9"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">Wiki 생성</div><div class="wr-step-meta">프로젝트별 자동 지식 문서를 생성합니다. 현재 실행은 Legacy Step 8과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="9">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(9)">이동</button></div>
+          <div class="wr-step" data-wr-step="10"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">관리자 검수</div><div class="wr-step-meta">검색 결과와 산출물을 검수하고 다음 보정 작업을 결정합니다. 현재는 검색 품질 화면으로 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="10">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(10)">이동</button></div>
         </div>
         <h2 class="wr-section-title" id="wr-wizard-api-title" data-wr-anchor>Execution APIs</h2>
         <code class="wr-code-block">POST /api/admin/rag-source/scan
@@ -1640,8 +1640,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">1</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">파일 스캔</div>
-          <div style="font-size:11px;color:var(--muted)">문서소스를 스캔하여 파일 목록을 DB에 저장합니다.</div>
+          <div style="font-size:13px;font-weight:700">Step 1: OCR/파싱 준비</div>
+          <div style="font-size:11px;color:var(--muted)">문서소스를 스캔하여 OCR/파싱 대상 파일 목록을 준비합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-1">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(1)">실행</button>
@@ -1661,8 +1661,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">2</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Collection 메타 동기화</div>
-          <div style="font-size:11px;color:var(--muted)">단일 Collection `weeslee_rag_main` 정보를 동기화합니다. 문서 그룹과 문서 카테고리는 metadata filter로 처리합니다. 전체 순차 실행에서는 자동으로 건너뜁니다.</div>
+          <div style="font-size:13px;font-weight:700">Step 2: 청킹/임베딩 준비</div>
+          <div style="font-size:11px;color:var(--muted)">단일 Collection `weeslee_rag_main` 정보를 동기화하고 청킹/임베딩 대상 기준을 준비합니다. 전체 순차 실행에서는 자동으로 건너뜁니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-2">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(2)">실행</button>
@@ -1682,7 +1682,7 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">3</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Metadata 생성</div>
+          <div style="font-size:13px;font-weight:700">Step 3: 메타데이터</div>
           <div style="font-size:11px;color:var(--muted)">규칙 기반으로 파일명·경로에서 메타데이터를 추출합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-3">-</span>
@@ -1703,8 +1703,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">4</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Tag / Keyword 생성</div>
-          <div style="font-size:11px;color:var(--muted)">기본 Tag 및 Keyword를 자동 생성합니다.</div>
+          <div style="font-size:13px;font-weight:700">Step 4: 온톨로지 보조 태그</div>
+          <div style="font-size:11px;color:var(--muted)">온톨로지 분류에 사용할 기본 Tag 및 Keyword를 자동 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-4">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(4)">실행</button>
@@ -1724,7 +1724,7 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">5</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">텍스트 추출 → Chunk 생성</div>
+          <div style="font-size:13px;font-weight:700">Step 1 실행: OCR/파싱</div>
           <div style="font-size:11px;color:var(--muted)">PDF/HWP/HWPX/DOCX/PPTX/XLSX에서 텍스트를 추출하고 검색 단위로 분할합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-5">-</span>
@@ -1745,8 +1745,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">6</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">FAISS / VectorDB 생성</div>
-          <div style="font-size:11px;color:var(--muted)">청크를 벡터로 변환하고 검색 인덱스를 생성합니다.</div>
+          <div style="font-size:13px;font-weight:700">Step 2 실행: 청킹/임베딩</div>
+          <div style="font-size:11px;color:var(--muted)">청크를 벡터로 변환하고 FAISS 검색 인덱스를 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-6">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(6)">실행</button>
@@ -1766,8 +1766,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">7</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Graph RAG 생성</div>
-          <div style="font-size:11px;color:var(--muted)">프로젝트 간 관련 문서를 연결하는 관계 그래프를 생성합니다.</div>
+          <div style="font-size:13px;font-weight:700">Step 4-6 실행: 온톨로지/엔티티/Graph 저장</div>
+          <div style="font-size:11px;color:var(--muted)">프로젝트 간 관련 문서를 연결하는 관계 그래프를 생성하고 저장합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-7">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(7)">실행</button>
@@ -1787,7 +1787,7 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">8</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">LLM Wiki 생성</div>
+          <div style="font-size:13px;font-weight:700">Step 9 실행: Wiki 생성</div>
           <div style="font-size:11px;color:var(--muted)">프로젝트별 자동 지식 문서를 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-8">-</span>
@@ -1808,8 +1808,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">9</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">검색 테스트</div>
-          <div style="font-size:11px;color:var(--muted)">생성된 데이터로 검색 품질을 확인합니다.</div>
+          <div style="font-size:13px;font-weight:700">Step 7/8/10: 검색·답변·관리자 검수</div>
+          <div style="font-size:11px;color:var(--muted)">생성된 데이터로 하이브리드 검색, LLM 답변, 관리자 검수를 확인합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-9">대기</span>
         <button class="btn btn-outline btn-sm" onclick="switchTab('benchmark')">검색 품질 탭으로 →</button>
@@ -1825,8 +1825,8 @@ POST /api/admin/faiss/activate</code>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">10</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">FAISS 인덱스 활성화</div>
-          <div style="font-size:11px;color:var(--muted)">생성된 인덱스를 검색 서버에 적용합니다.</div>
+          <div style="font-size:13px;font-weight:700">운영 반영: FAISS 인덱스 활성화</div>
+          <div style="font-size:11px;color:var(--muted)">검수된 인덱스를 검색 서버에 적용합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-10">대기</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(10)">실행</button>
@@ -6933,8 +6933,8 @@ POST /api/admin/faiss/activate</code>
       const title = step5.querySelector('div[style="font-size:13px;font-weight:700"]');
       const desc = step5.querySelector('div[style="font-size:11px;color:var(--muted)"]');
       const api = step5.querySelector('.api-hint-body');
-      if (title) title.textContent = 'OCR 작업 + 청킹 시작';
-      if (desc) desc.textContent = 'PDF/HWP/HWPX/DOCX/PPTX/XLSX 텍스트 추출, OCR fallback, 청킹 작업은 하나의 FAISS job 파이프라인으로 시작됩니다.';
+      if (title) title.textContent = 'Step 1 실행: OCR/파싱';
+      if (desc) desc.textContent = 'PDF/HWP/HWPX/DOCX/PPTX/XLSX 텍스트 추출, OCR fallback, 청킹 작업을 현재 FAISS job 파이프라인으로 시작합니다.';
       if (api) api.innerHTML = 'POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs/{job_id}/stream';
     }
     const step6 = document.querySelector('.wizard-step[data-step="6"]');
@@ -6942,7 +6942,7 @@ POST /api/admin/faiss/activate</code>
       const title = step6.querySelector('div[style="font-size:13px;font-weight:700"]');
       const desc = step6.querySelector('div[style="font-size:11px;color:var(--muted)"]');
       const api = step6.querySelector('.api-hint-body');
-      if (title) title.textContent = '임베이딩 + Vector + FAISS 진행';
+      if (title) title.textContent = 'Step 2 실행: 청킹/임베딩';
       if (desc) desc.textContent = 'Chunk를 임베딩하고 FAISS index와 category index를 이어서 생성합니다.';
       if (api) api.innerHTML = 'POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/status';
     }

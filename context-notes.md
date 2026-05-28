@@ -302,3 +302,11 @@
 - Dashboard 설정 패널과 시스템 현황 패널을 추가했다.
 - `loadOverviewStepStatus()`는 새 Alert 카드와 시스템 현황 ID를 초기화하고, 기존 API 응답에 값이 있으면 카운트를 채우도록 보강했다.
 - 검색 품질 히스토리 API가 응답하면 총 질문, 성공률, 평균 응답, 참조 문서, 최근 질문 목록을 표시한다.
+
+## 2026-05-28 Figma P2 Dataset Builder 단계명 정렬
+
+- P2 범위는 `frontend/admin.html`의 Docs 스타일 Dataset Builder와 Legacy Wizard의 표시 단계명을 Figma 기준으로 맞추는 작업으로 제한했다.
+- Docs 스타일 Wizard 제목을 `Dataset Builder`로 변경하고, Figma 기준 표시 단계와 기존 Legacy 실행 흐름이 연결된다는 안내를 추가했다.
+- Docs 스타일 Step 1~10은 OCR/파싱, 청킹/임베딩, 메타데이터, 온톨로지, 엔티티/관계, Graph 저장, 하이브리드 검색, LLM 답변, Wiki 생성, 관리자 검수 순서로 표시한다.
+- Legacy Wizard 상세 목록도 동일한 Figma 단계 문구를 반영하되, 기존 API 경로와 `wizardRun(step)` 번호는 유지했다.
+- `syncWizardPipelineCopy()`가 Step 5/6 문구를 예전 이름으로 되돌리지 않도록 Figma 기준 문구로 갱신했다.
