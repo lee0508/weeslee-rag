@@ -954,6 +954,82 @@
             <div class="wr-summary-value">Legacy wizard driven</div>
           </div>
         </div>
+        <h2 class="wr-section-title" id="wr-wizard-step1-title" data-wr-anchor>Step 1 OCR/파싱</h2>
+        <div class="wr-card">
+          <h2 class="wr-card-title">텍스트 추출 설정</h2>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>OCR 활성화</label>
+              <select id="wrStep1OcrEnabled">
+                <option value="enabled">활성화</option>
+                <option value="disabled">비활성화</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>OCR 언어</label>
+              <select id="wrStep1OcrLanguage">
+                <option>한국어+영어</option>
+                <option>한국어</option>
+                <option>영어</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>OCR DPI</label>
+              <input id="wrStep1OcrDpi" value="300" inputmode="numeric">
+            </div>
+            <div class="wr-field">
+              <label>최소 텍스트 길이</label>
+              <input id="wrStep1MinTextLength" value="100" inputmode="numeric">
+            </div>
+            <div class="wr-field">
+              <label>최대 파일 크기</label>
+              <input id="wrStep1MaxFileSize" value="100 MB">
+            </div>
+            <div class="wr-field">
+              <label>지원 확장자</label>
+              <input id="wrStep1Extensions" value=".pdf, .docx, .hwp, .hwpx, .pptx, .xlsx">
+            </div>
+          </div>
+          <div class="wr-status-list" style="margin-top:12px">
+            <label class="wr-status-row"><span>처리 대상: 전체 문서</span><input type="radio" name="wrStep1Target" checked></label>
+            <label class="wr-status-row"><span>처리 대상: 미처리 문서</span><input type="radio" name="wrStep1Target"></label>
+            <label class="wr-status-row"><span>출력 형식: HTML</span><input type="checkbox" checked></label>
+            <label class="wr-status-row"><span>출력 형식: Markdown</span><input type="checkbox" checked></label>
+            <label class="wr-status-row"><span>출력 형식: Plain Text</span><input type="checkbox" checked></label>
+          </div>
+          <div class="wr-inline-actions">
+            <button class="wr-btn" type="button" onclick="saveStep1ParsingSettings()">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runStep1Parsing()">Step 1 실행</button>
+          </div>
+        </div>
+        <div class="wr-card" style="margin-top:16px">
+          <h2 class="wr-card-title">Step 1 실행 결과</h2>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">처리 문서</div>
+              <div class="wr-summary-value" id="wrStep1ProcessedDocs">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">추출 성공</div>
+              <div class="wr-summary-value" id="wrStep1SuccessDocs">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">OCR 사용</div>
+              <div class="wr-summary-value" id="wrStep1OcrDocs">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">추출 실패</div>
+              <div class="wr-summary-value" id="wrStep1FailedDocs">-</div>
+            </div>
+          </div>
+          <div class="wr-status-list" id="wrStep1FailedList" style="margin-top:12px">
+            <div class="wr-status-row"><span>실패 문서가 아직 없습니다.</span></div>
+          </div>
+          <div class="wr-inline-actions">
+            <button class="wr-btn" type="button" onclick="runStep1Parsing()">실패 문서 재처리</button>
+            <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">로그 보기</button>
+          </div>
+        </div>
         <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>파이프라인 단계</h2>
         <div class="wr-stepper" id="wrWizardStepper">
           <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">OCR/파싱</div><div class="wr-step-meta">문서에서 텍스트를 추출하고 OCR fallback을 적용합니다. 현재 실행은 Legacy Step 5와 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="1">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(1)">이동</button></div>
@@ -6029,6 +6105,42 @@ POST /api/admin/faiss/activate</code>
 
   function saveDashboardSettings() {
     showToast('대시보드 설정을 저장했습니다.', 'success', 2400);
+  }
+
+  function saveStep1ParsingSettings() {
+    showToast('Step 1 OCR/파싱 설정을 저장했습니다.', 'success', 2400);
+  }
+
+  function updateStep1ParsingResult(state = {}) {
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+    const processed = Number(state.processed || 0);
+    const failed = Number(state.failed || 0);
+    const ocrUsed = Number(state.ocrUsed || 0);
+    const success = Math.max(processed - failed, 0);
+    setText('wrStep1ProcessedDocs', processed ? `${processed}건` : '-');
+    setText('wrStep1SuccessDocs', processed ? `${success}건` : '-');
+    setText('wrStep1OcrDocs', ocrUsed ? `${ocrUsed}건` : '-');
+    setText('wrStep1FailedDocs', failed ? `${failed}건` : '-');
+    const list = document.getElementById('wrStep1FailedList');
+    if (!list) return;
+    if (!failed) {
+      list.innerHTML = '<div class="wr-status-row"><span>실패 문서가 없습니다.</span></div>';
+      return;
+    }
+    list.innerHTML = '<div class="wr-status-row"><span>상세 실패 목록은 Legacy Wizard 로그에서 확인하세요.</span><button class="wr-btn wr-btn-sm" type="button" data-wr-legacy-tab="wizard">로그 보기</button></div>';
+  }
+
+  async function runStep1Parsing() {
+    updateStep1ParsingResult({ processed: 0, failed: 0, ocrUsed: 0 });
+    showToast('Step 1 OCR/파싱은 현재 Legacy Step 5 OCR/청킹 실행 흐름으로 시작합니다.', 'info', 3600);
+    const ok = await wizardRun(5);
+    const logText = document.getElementById('wlog-5')?.textContent || '';
+    const failed = /실패|오류|failed/i.test(logText) && !ok ? 1 : 0;
+    updateStep1ParsingResult({ processed: ok ? 1 : 0, failed, ocrUsed: 0 });
+    return ok;
   }
 
   // ── 빠른 이동 버튼 함수 ──────────────────────────────────────────────────

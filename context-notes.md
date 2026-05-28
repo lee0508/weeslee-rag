@@ -310,3 +310,11 @@
 - Docs 스타일 Step 1~10은 OCR/파싱, 청킹/임베딩, 메타데이터, 온톨로지, 엔티티/관계, Graph 저장, 하이브리드 검색, LLM 답변, Wiki 생성, 관리자 검수 순서로 표시한다.
 - Legacy Wizard 상세 목록도 동일한 Figma 단계 문구를 반영하되, 기존 API 경로와 `wizardRun(step)` 번호는 유지했다.
 - `syncWizardPipelineCopy()`가 Step 5/6 문구를 예전 이름으로 되돌리지 않도록 Figma 기준 문구로 갱신했다.
+
+## 2026-05-28 Figma P3 Step 1 OCR/파싱 패널
+
+- P3 범위는 `frontend/admin.html`의 Docs 스타일 Dataset Builder 안에 Step 1 OCR/파싱 설정과 실행 결과 패널을 추가하는 작업으로 제한했다.
+- 설정 패널에는 OCR 활성화, OCR 언어, OCR DPI, 최소 텍스트 길이, 최대 파일 크기, 지원 확장자, 처리 대상, 출력 형식을 배치했다.
+- 실행 결과 패널에는 처리 문서, 추출 성공, OCR 사용, 추출 실패 카드와 실패 문서 안내 영역을 추가했다.
+- 새 API를 만들지 않고 `runStep1Parsing()`에서 기존 `wizardRun(5)` OCR/청킹 실행 흐름을 호출한다.
+- 설정 저장은 현재 표시용이며 `saveStep1ParsingSettings()`에서 사용자 피드백만 제공한다. 실제 백엔드 파라미터 연결은 후속 작업으로 남긴다.
