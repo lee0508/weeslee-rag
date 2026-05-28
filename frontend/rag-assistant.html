@@ -1631,7 +1631,13 @@
       color: var(--gray-700);
       font-weight: 500;
     }
+    .agent-expanded-query-wrapper {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
     .agent-expanded-query {
+      flex: 1;
       padding: 10px;
       background: #fff;
       border: 1px solid var(--gray-200);
@@ -1641,6 +1647,28 @@
       color: var(--gray-600);
       max-height: 80px;
       overflow-y: auto;
+    }
+    .btn-apply-query {
+      padding: 8px 12px;
+      background: var(--navy);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-apply-query:hover {
+      background: var(--navy-m);
+      transform: translateY(-1px);
+    }
+    .btn-apply-query:active {
+      transform: translateY(0);
     }
     .agent-multi-queries {
       display: flex;
@@ -3637,7 +3665,12 @@
 
           <div class="agent-section">
             <div class="agent-section-title"><span class="icon">📝</span>${t('agent_expanded')}</div>
-            <div class="agent-expanded-query">${escapeHtml(expandedQuery)}</div>
+            <div class="agent-expanded-query-wrapper">
+              <div class="agent-expanded-query">${escapeHtml(expandedQuery)}</div>
+              <button class="btn-apply-query" onclick="applyExpandedQuery('${escapeHtml(expandedQuery)}')" title="이 쿼리로 재검색">
+                <span>🔍</span> 검색
+              </button>
+            </div>
           </div>
 
           ${multiQueries.length ? `
@@ -3691,6 +3724,21 @@
       if (queryInput) {
         queryInput.value = query;
         showToast('다중 쿼리 적용됨', 'success');
+      }
+    }
+
+    function applyExpandedQuery(query) {
+      const queryInput = document.getElementById('queryInput');
+      if (queryInput) {
+        queryInput.value = query;
+        showToast('확장 쿼리가 입력되었습니다. 검색 버튼을 눌러주세요.', 'success');
+        // 자동으로 검색 실행
+        setTimeout(() => {
+          const searchBtn = document.querySelector('.search-action button.btn-primary');
+          if (searchBtn && !searchBtn.disabled) {
+            searchBtn.click();
+          }
+        }, 500);
       }
     }
 
