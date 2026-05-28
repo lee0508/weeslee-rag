@@ -3876,13 +3876,13 @@
     }
 
     function applyExpandedQuery(query) {
-      const queryInput = document.getElementById('queryInput');
+      const queryInput = document.getElementById('query');
       if (queryInput) {
         queryInput.value = query;
-        showToast('확장 쿼리가 입력되었습니다. 검색 버튼을 눌러주세요.', 'success');
+        showToast('확장 쿼리가 입력되었습니다. 자동으로 검색을 실행합니다.', 'success');
         // 자동으로 검색 실행
         setTimeout(() => {
-          const searchBtn = document.querySelector('.search-action button.btn-primary');
+          const searchBtn = document.querySelector('button[onclick="runQuery()"]');
           if (searchBtn && !searchBtn.disabled) {
             searchBtn.click();
           }
