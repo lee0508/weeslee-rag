@@ -4603,6 +4603,14 @@
       return m ? m[1].toLowerCase() : '';
     }
 
+    function _canInlineOriginal(ext) {
+      return ext === 'pdf';
+    }
+
+    function _isOfficeLike(ext) {
+      return ['ppt', 'pptx', 'doc', 'docx', 'hwp', 'hwpx', 'xls', 'xlsx'].includes(ext);
+    }
+
     const _previewState = {
       docId: '',
       sourcePath: '',
@@ -4673,7 +4681,7 @@
       `).join('');
     }
 
-    async function openFilePreview(sourcePath, inputPath, docId) {
+    async function openFilePreview(sourcePath, inputPath, docId, preferOriginal = false) {
       const resolvedPath = inputPath || sourcePath;
       const ext = _fileExt(resolvedPath);
       const modal = document.getElementById('previewOverlay');
@@ -4698,6 +4706,24 @@
       _renderPreviewTabs([], '');
       modal.classList.add('open');
       document.body.style.overflow = 'hidden';
+
+      if (preferOriginal) {
+        if (_canInlineOriginal(ext) && resolvedPath) {
+          const viewUrl = `${API_BASE}/files/view?path=${encodeURIComponent(resolvedPath)}`;
+          body.innerHTML = `<iframe src="${escapeHtml(viewUrl)}" title="${escapeHtml(_previewState.fileName)}"></iframe>`;
+          _previewState.mode = 'iframe';
+          _previewState.format = 'original';
+          dlBtn.href = _previewDownloadUrl(docId, 'original', resolvedPath);
+          printBtn.style.display = '';
+          return;
+        }
+        if (_isOfficeLike(ext)) {
+          body.innerHTML = _renderPreviewMessage(
+            'loading',
+            `${ext.toUpperCase()} 파일은 브라우저 원문 보기 제한이 있어 추출본 미리보기로 전환합니다.`
+          );
+        }
+      }
 
       if (!docId) {
         if (ext === 'pdf') {
@@ -4725,7 +4751,7 @@
         const message = err.name === 'AbortError'
           ? '문서 정보 조회 시간이 초과되었습니다. 다시 시도하거나 원본을 다운로드하세요.'
           : `문서 미리보기를 불러오지 못했습니다: ${err.message}`;
-        body.innerHTML = _renderPreviewMessage('error', message, _previewActionButtons(`openFilePreview('${escapeHtml(sourcePath)}','${escapeHtml(inputPath || '')}','${escapeHtml(docId || '')}')`));
+        body.innerHTML = _renderPreviewMessage('error', message, _previewActionButtons(`openFilePreview('${escapeHtml(sourcePath)}','${escapeHtml(inputPath || '')}','${escapeHtml(docId || '')}', ${preferOriginal ? 'true' : 'false'})`));
       }
     }
 
@@ -4877,7 +4903,7 @@
       if (docDetailChunks) {
         const tabs = `
           <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px">
-            <button class="btn btn-sm ${viewMode === 'original' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('original')">📄 원문</button>
+            <button class="btn btn-sm ${viewMode === 'original' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('original'); openDocOriginalPreview();">📄 원문</button>
             ${doc.summary_available || doc.summary ? `<button class="btn btn-sm ${viewMode === 'summary' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('summary')">📝 요약</button>` : ''}
             ${doc.chunks && doc.chunks.length > 0 ? `<button class="btn btn-sm ${viewMode === 'chunks' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('chunks')">🔍 청크</button>` : ''}
             ${doc.evidence_snippets && doc.evidence_snippets.length > 0 ? `<button class="btn btn-sm ${viewMode === 'evidence' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('evidence')">💡 근거</button>` : ''}
@@ -4888,7 +4914,7 @@
         // 탭 콘텐츠 렌더링
         let content = '';
         if (viewMode === 'original') {
-          content = `<div style="font-size:12px;color:var(--text-s);margin-bottom:8px">원문을 보려면 "파일 열기" 버튼을 클릭하세요.</div>`;
+          content = `<div style="font-size:12px;color:var(--text-s);margin-bottom:8px">원문 버튼 클릭 시 파일 속성(PDF, PPTX, DOCX, HWP 등)을 확인해 팝업 미리보기로 연결합니다.</div>`;
         } else if (viewMode === 'summary') {
           content = doc.summary
             ? `<div class="doc-detail-chunk"><div>${escapeHtml(doc.summary)}</div></div>`
@@ -5070,6 +5096,17 @@
           docSourcePath(_currentDocDetail),
           docInputPath(_currentDocDetail),
           _currentDocDetail.document_id || ''
+        );
+      }
+    }
+
+    function openDocOriginalPreview() {
+      if (_currentDocDetail) {
+        openFilePreview(
+          docSourcePath(_currentDocDetail),
+          docInputPath(_currentDocDetail),
+          _currentDocDetail.document_id || '',
+          true
         );
       }
     }
