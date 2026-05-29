@@ -1,3 +1,20 @@
+## 2026-05-29 운영 RAG Assistant 결과 파일 UI 점검
+
+- 사용자는 운영 URL `https://server.weeslee.co.kr/weeslee-rag/rag-assistant.html`에서 쿼리 `AI 기반 차세대 교육 시스탬 구축`으로 RAG 실행 후 결과 탭 파일 클릭 UI를 직접 테스트하고 수정 사항 문서를 작성해 달라고 요청했다.
+- 작업은 실제 브라우저 자동화로 운영 화면을 열어 클릭 흐름을 확인하고, 코드 수정이 아니라 문서 작성 범위로 진행한다.
+- 문서에는 확인 환경, 재현 절차, 관찰 결과, 문제점, 수정 권고, 우선순위를 남긴다.
+- 사용자가 경로를 `https://server.weeslee.co.kr/weeslee-rag/rag-assistant.html`로 재확인했으므로 해당 URL 그대로 테스트했다.
+- `curl -i -L`와 Playwright 브라우저 접속 모두 HTTP 404와 `{"detail":"Not Found"}`를 반환했다.
+- 따라서 지정 URL에서는 쿼리 입력, RAG 실행, 결과 파일 클릭 UI까지 진행할 수 없다.
+- 별도 확인 결과 `/weeslee-rag/`는 `/weeslee-rag/frontend/rag-assistant.html`로 리다이렉트되고 해당 경로는 200 OK였지만, 사용자가 지정한 경로와 다르므로 직접 UI 테스트 대상에서는 분리한다.
+- 사용자가 최종 테스트 URL을 `https://server.weeslee.co.kr/weeslee-rag/frontend/rag-assistant.html`로 정정했다.
+- `docs/2026-05-29_Lee_rag-assistant.html_기능개선안.md`를 참조해 운영 테스트 결과와 개선 항목을 매핑했다.
+- Playwright로 쿼리 `AI 기반 차세대 교육 시스탬 구축`을 실행했고 결과 카드 10건, 우측 답변 패널 관련 파일 5건을 확인했다.
+- 카드 본문 클릭은 동작하지 않았고 카드 헤더 또는 `원문` 버튼만 문서 상세 패널을 열었다.
+- 우측 답변 패널의 `보기` 버튼은 미리보기 모달을 열었지만 테스트 시점에는 `불러오는 중...` 상태가 관찰됐다.
+- 직접 API 확인 결과 문서 114698의 상세 JSON은 약 981KB, text JSON은 약 489KB, original PPTX는 약 41.5MB로 응답했다.
+- 작성 문서는 `docs/2026-05-29_Codex_rag-assistant_운영UI_직접테스트_수정사항.md`이다.
+
 ## 2026-05-29 rag-assistant.html 분석 문서 작성
 
 - 사용자는 `frontend/rag-assistant.html` 수정 코드 분석을 어제 Codex 문서 형식으로 오늘 날짜 문서에 작성해 달라고 요청했다.

@@ -1,5 +1,16 @@
 # 2026-05-28 오늘 작업 체크리스트
 
+## 2026-05-29 운영 RAG Assistant 결과 파일 UI 점검
+
+- [x] 운영 URL `https://server.weeslee.co.kr/weeslee-rag/rag-assistant.html` 접속 확인.
+- [x] 정정 운영 URL `https://server.weeslee.co.kr/weeslee-rag/frontend/rag-assistant.html` 접속 확인.
+- [x] `docs/2026-05-29_Lee_rag-assistant.html_기능개선안.md` 참조.
+- [x] 쿼리 `AI 기반 차세대 교육 시스탬 구축` 입력 후 RAG 실행.
+- [x] 결과 탭에 표시되는 결과 파일 클릭 동작 확인.
+- [x] 문서 상세 패널, 미리보기, 다운로드, 닫기 동작 확인.
+- [x] 확인된 UI 문제와 수정 사항을 오늘 날짜 문서로 작성.
+- [x] 문서 작성 후 검증 결과 기록.
+
 ## 2026-05-29 rag-assistant.html 분석 문서 작성
 
 - [x] 어제 `2026-05-28_Codex_` 문서 형식 확인.
