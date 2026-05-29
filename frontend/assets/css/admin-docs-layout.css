@@ -1,19 +1,21 @@
 /* Laravel Docs 스타일 관리자 레이아웃을 정의하는 스타일 */
+/* Figma 기준 다크 테마 */
 #wrAdminDocsApp {
-  --wr-primary: #dc2626;
-  --wr-primary-soft: #fef2f2;
-  --wr-primary-hover: #b91c1c;
-  --wr-bg: #f8fafc;
-  --wr-surface: #ffffff;
-  --wr-surface-muted: #f1f5f9;
-  --wr-border: #e2e8f0;
-  --wr-border-strong: #cbd5e1;
-  --wr-text: #111827;
-  --wr-muted: #64748b;
-  --wr-soft-text: #334155;
-  --wr-green: #16a34a;
-  --wr-amber: #d97706;
-  --wr-red: #dc2626;
+  --wr-primary: #e8971f;
+  --wr-primary-soft: rgba(232, 151, 31, 0.15);
+  --wr-primary-hover: #d4850f;
+  --wr-bg: #0f1419;
+  --wr-surface: #1a2332;
+  --wr-surface-muted: #243044;
+  --wr-border: #2d3a4d;
+  --wr-border-strong: #3d4d63;
+  --wr-text: #e8edf4;
+  --wr-muted: #8b9ab0;
+  --wr-soft-text: #c1ccd9;
+  --wr-green: #22c55e;
+  --wr-amber: #e8971f;
+  --wr-red: #ef4444;
+  --wr-blue: #60a5fa;
   min-height: 100vh;
   background: var(--wr-bg);
   color: var(--wr-text);
@@ -34,7 +36,7 @@
   align-items: center;
   min-height: 64px;
   padding: 0 28px;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(15, 20, 25, 0.96);
   border-bottom: 1px solid var(--wr-border);
   backdrop-filter: blur(14px);
 }
@@ -120,7 +122,7 @@
   color: var(--wr-muted);
   font-size: 11px;
   line-height: 18px;
-  background: #f8fafc;
+  background: var(--wr-surface-muted);
 }
 
 #wrAdminDocsApp .wr-header-actions {
@@ -150,7 +152,7 @@
 
 #wrAdminDocsApp .wr-btn:hover {
   border-color: var(--wr-border-strong);
-  background: #f8fafc;
+  background: var(--wr-surface-muted);
 }
 
 #wrAdminDocsApp .wr-btn-primary {
@@ -327,7 +329,7 @@
   gap: 12px;
   padding: 9px 10px;
   border-radius: 7px;
-  background: #f8fafc;
+  background: var(--wr-surface-muted);
   color: var(--wr-soft-text);
   font-size: 13px;
 }
@@ -699,4 +701,132 @@
   #wrAdminDocsApp .wr-stepper {
     grid-template-columns: 1fr;
   }
+}
+
+/* ═══ Phase 3: 사이드바 고도화 ═══ */
+
+/* 네비게이션 배지 */
+#wrAdminDocsApp .wr-nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9px;
+  margin-left: auto;
+}
+
+#wrAdminDocsApp .wr-badge-amber {
+  background: var(--wr-amber, #e8971f);
+  color: #0f1419;
+}
+
+#wrAdminDocsApp .wr-badge-red {
+  background: var(--wr-red, #ef4444);
+  color: #fff;
+}
+
+#wrAdminDocsApp .wr-badge-green {
+  background: var(--wr-green, #22c55e);
+  color: #0f1419;
+}
+
+/* 네비게이션 카운트 (링크 옆 숫자) */
+#wrAdminDocsApp .wr-nav-count {
+  font-size: 11px;
+  color: var(--wr-muted, #8b9ab0);
+  margin-left: auto;
+}
+
+/* 접기/펼치기 토글 */
+#wrAdminDocsApp .wr-nav-collapsible {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+}
+
+#wrAdminDocsApp .wr-nav-collapsible:hover {
+  color: var(--wr-primary, #e8971f);
+}
+
+#wrAdminDocsApp .wr-nav-toggle {
+  margin-left: auto;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+#wrAdminDocsApp .wr-nav-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* 네비게이션 리스트 (접기/펼치기 대상) */
+#wrAdminDocsApp .wr-nav-list {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+  max-height: 500px;
+  opacity: 1;
+}
+
+#wrAdminDocsApp .wr-nav-list.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* 로딩 표시 */
+#wrAdminDocsApp .wr-nav-loading {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--wr-muted, #8b9ab0);
+  font-style: italic;
+}
+
+/* 헤딩 아이콘 */
+#wrAdminDocsApp .wr-nav-heading-icon {
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+/* RAG SOURCE 트리 아이템 */
+#wrAdminDocsApp .wr-nav-tree-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--wr-text, #e8edf4);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+#wrAdminDocsApp .wr-nav-tree-item:hover {
+  background: var(--wr-surface-muted, #243044);
+}
+
+#wrAdminDocsApp .wr-nav-tree-item.active {
+  background: var(--wr-primary-soft, rgba(232, 151, 31, 0.15));
+  color: var(--wr-primary, #e8971f);
+}
+
+#wrAdminDocsApp .wr-nav-tree-icon {
+  width: 16px;
+  margin-right: 8px;
+  text-align: center;
+  font-size: 12px;
+}
+
+#wrAdminDocsApp .wr-nav-tree-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wrAdminDocsApp .wr-nav-tree-count {
+  font-size: 11px;
+  color: var(--wr-muted, #8b9ab0);
+  margin-left: 6px;
 }

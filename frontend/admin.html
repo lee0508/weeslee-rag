@@ -676,8 +676,257 @@
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(59,130,246,.1);
     }
+
+    /* ── Dashboard Alert Banner (Figma) ──────────────────────────── */
+    .alert-banner {
+      background: var(--wr-surface, #1a2332);
+      border: 1px solid var(--wr-border, #2d3a4d);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+    }
+    .alert-banner-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--wr-amber, #e8971f);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .alert-cards {
+      display: flex;
+      gap: 12px;
+      flex-wrap: nowrap;
+    }
+    .alert-card {
+      flex: 1;
+      min-width: 120px;
+      max-width: 180px;
+      background: var(--wr-surface-muted, #243044);
+      border: 1px solid var(--wr-border, #2d3a4d);
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .alert-card:hover {
+      background: rgba(232, 151, 31, 0.1);
+      border-color: var(--wr-amber, #e8971f);
+    }
+    .alert-card-label {
+      font-size: 11px;
+      color: var(--wr-muted, #8b9ab0);
+      margin-bottom: 4px;
+    }
+    .alert-card-value {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .alert-card-value.blue { color: #60a5fa; }
+    .alert-card-value.amber { color: var(--wr-amber, #e8971f); }
+    .alert-card-value.red { color: #ef4444; }
+    .alert-card-value.green { color: #22c55e; }
+
+    /* ── Dashboard Status Cards (Figma) ──────────────────────────── */
+    .status-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 1400px) {
+      .status-cards-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 900px) {
+      .status-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .status-card {
+      background: var(--wr-surface, #1a2332);
+      border: 1px solid var(--wr-border, #2d3a4d);
+      border-radius: 8px;
+      padding: 14px 16px;
+      min-height: 100px;
+    }
+    .status-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .status-card-icon {
+      font-size: 16px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--wr-surface-muted, #243044);
+      border-radius: 6px;
+    }
+    .status-card-title {
+      font-size: 11px;
+      color: var(--wr-muted, #8b9ab0);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .status-card-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--wr-text, #e8edf4);
+      margin-bottom: 4px;
+    }
+    .status-card-status {
+      font-size: 12px;
+    }
+    .status-card-status.green { color: #22c55e; }
+    .status-card-status.amber { color: var(--wr-amber, #e8971f); }
+    .status-card-status.red { color: #ef4444; }
+
+    /* ── Dashboard 2-Column Grid (Figma) ─────────────────────────── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 1200px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .section-card {
+      background: var(--wr-surface, #1a2332);
+      border: 1px solid var(--wr-border, #2d3a4d);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--wr-surface-muted, #243044);
+      border-bottom: 1px solid var(--wr-border, #2d3a4d);
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--wr-text, #e8edf4);
+    }
+    .section-toggle {
+      font-size: 11px;
+      color: var(--wr-muted, #8b9ab0);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 2px 6px;
+    }
+    .section-toggle:hover {
+      color: var(--wr-text, #e8edf4);
+    }
+    .section-body {
+      padding: 16px;
+    }
+    .section-body.collapsed {
+      display: none;
+    }
+
+    /* ── Stats Grid (Result Section) ─────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .stat-item {
+      background: var(--wr-surface-muted, #243044);
+      border: 1px solid var(--wr-border, #2d3a4d);
+      border-radius: 8px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--wr-text, #e8edf4);
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--wr-muted, #8b9ab0);
+      margin-top: 4px;
+    }
+
+    /* ── Form Radio/Checkbox Groups ──────────────────────────────── */
+    .radio-group {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .radio-group label, .checkbox-grid label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--wr-text, #e8edf4);
+      cursor: pointer;
+    }
+    .radio-group input, .checkbox-grid input {
+      accent-color: var(--wr-amber, #e8971f);
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── Recent Queries List ─────────────────────────────────────── */
+    .recent-queries h4 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--wr-text, #e8edf4);
+      margin-bottom: 10px;
+    }
+    .recent-queries ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .recent-queries li {
+      font-size: 12px;
+      color: var(--wr-soft-text, #c1ccd9);
+      padding: 4px 0;
+    }
+
+    /* ── Page Header ─────────────────────────────────────────────── */
+    .page-header {
+      margin-bottom: 20px;
+    }
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--wr-text, #e8edf4);
+      margin-bottom: 6px;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--wr-muted, #8b9ab0);
+    }
   </style>
-  <link rel="stylesheet" href="assets/css/admin-docs-layout.css?v=20260523">
+  <link rel="stylesheet" href="assets/css/admin-docs-layout.css?v=20260529">
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
 <body>
@@ -732,16 +981,26 @@
           <h2 class="wr-nav-heading">OVERVIEW</h2>
           <button class="wr-nav-link wr-is-active" type="button" data-wr-page="overview">대시보드</button>
         </div>
-        <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">ALERTS</h2>
-          <button class="wr-nav-link" type="button" onclick="openDashboardAlerts()">신규 문서 알림</button>
-          <button class="wr-nav-link" type="button" data-wr-page="jobs">처리 대기 문서</button>
+        <div class="wr-nav-section" id="navSectionAlerts">
+          <h2 class="wr-nav-heading">
+            <span class="wr-nav-heading-icon">🔔</span> ALERTS
+            <span class="wr-nav-badge wr-badge-amber" id="alertsBadge" style="display:none">0</span>
+          </h2>
+          <button class="wr-nav-link" type="button" onclick="openDashboardAlerts()">
+            신규 문서 알림 <span class="wr-nav-count" id="navNewDocsCount"></span>
+          </button>
+          <button class="wr-nav-link" type="button" data-wr-page="jobs">
+            처리 대기 문서 <span class="wr-nav-count" id="navPendingCount"></span>
+          </button>
         </div>
-        <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">RAG SOURCE</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="source-documents">RFP</button>
-          <button class="wr-nav-link" type="button" data-wr-legacy-tab="docsource">제안서</button>
-          <button class="wr-nav-link" type="button" data-wr-legacy-tab="documents">산출물</button>
+        <div class="wr-nav-section" id="navSectionRagSource">
+          <h2 class="wr-nav-heading wr-nav-collapsible" onclick="toggleNavSection('ragSourceList')">
+            <span class="wr-nav-heading-icon">📁</span> RAG SOURCE
+            <span class="wr-nav-toggle" id="ragSourceToggle">▼</span>
+          </h2>
+          <div id="ragSourceList" class="wr-nav-list">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
         </div>
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">DATASET BUILDER</h2>
@@ -1575,7 +1834,172 @@ POST /api/admin/faiss/activate</code>
 <!-- ───────────────────────────────────────────────────────────── -->
 <div id="tab-dashboard" class="tab-panel active" style="padding:24px 24px 60px;flex-direction:column;gap:20px;overflow-y:auto">
 
-  <!-- 다음 작업 배너 -->
+  <!-- 페이지 헤더 (Figma) -->
+  <div class="page-header">
+    <h1 class="page-title">대시보드</h1>
+    <p class="page-subtitle">시스템 전체 상태를 한눈에 파악하고 주요 작업으로 빠르게 이동</p>
+  </div>
+
+  <!-- Alert Banner (Figma) -->
+  <div class="alert-banner">
+    <div class="alert-banner-title">🔔 Dataset Alert</div>
+    <div class="alert-cards">
+      <div class="alert-card" onclick="switchTab('ragsource')" title="신규 문서 목록 보기">
+        <div class="alert-card-label">신규 문서</div>
+        <div class="alert-card-value blue" id="alertNewDocs">-</div>
+      </div>
+      <div class="alert-card" onclick="switchTab('ragsource')" title="수정 문서 목록 보기">
+        <div class="alert-card-label">수정 문서</div>
+        <div class="alert-card-value blue" id="alertModifiedDocs">-</div>
+      </div>
+      <div class="alert-card" onclick="switchTab('wizard')" title="처리 대기 문서 보기">
+        <div class="alert-card-label">처리 대기</div>
+        <div class="alert-card-value amber" id="alertPendingDocs">-</div>
+      </div>
+      <div class="alert-card" onclick="switchTab('querylogs')" title="실패 작업 보기">
+        <div class="alert-card-label">실패 작업</div>
+        <div class="alert-card-value red" id="alertFailedJobs">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Cards Grid (Figma) -->
+  <div class="status-cards-grid">
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-icon">📁</span>
+        <span class="status-card-title">문서소스</span>
+        <span class="card-status-dot" id="dot-docsource" style="margin-left:auto"></span>
+      </div>
+      <div class="status-card-value" id="dash-docsource">-</div>
+      <div class="status-card-status green" id="dash-docsource-status">연결 상태</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-icon">🔍</span>
+        <span class="status-card-title">스캔 파일</span>
+        <span class="card-status-dot" id="dot-files" style="margin-left:auto"></span>
+      </div>
+      <div class="status-card-value" id="dash-files">-</div>
+      <div class="status-card-status amber" id="dash-files-status">인식된 파일 수</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-icon">📝</span>
+        <span class="status-card-title">메타데이터</span>
+        <span class="card-status-dot" id="dot-meta" style="margin-left:auto"></span>
+      </div>
+      <div class="status-card-value" id="dash-meta">-</div>
+      <div class="status-card-status amber" id="dash-meta-status">확정 완료</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-icon">📦</span>
+        <span class="status-card-title">FAISS</span>
+        <span class="card-status-dot" id="dot-faiss" style="margin-left:auto"></span>
+      </div>
+      <div class="status-card-value" id="dash-faiss">-</div>
+      <div class="status-card-status green" id="dash-faiss-status">활성 인덱스</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-icon">🕸️</span>
+        <span class="status-card-title">Graph/Wiki</span>
+        <span class="card-status-dot" id="dot-graph" style="margin-left:auto"></span>
+      </div>
+      <div class="status-card-value" id="dash-graph">-</div>
+      <div class="status-card-status green" id="dash-graph-status">노드 / 엣지</div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-header">
+        <span class="status-card-icon">🔎</span>
+        <span class="status-card-title">검색 상태</span>
+        <span class="card-status-dot" id="dot-bench" style="margin-left:auto"></span>
+      </div>
+      <div class="status-card-value" id="dash-bench">-</div>
+      <div class="status-card-status green" id="dash-bench-status">최근 성공률</div>
+    </div>
+  </div>
+
+  <!-- 2-Column Grid: Settings + Result (Figma) -->
+  <div class="dashboard-grid">
+    <!-- Settings Form Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">📝 대시보드 설정</span>
+        <button class="section-toggle" onclick="toggleDashboardSection('dashSettingsBody')">접기 ▲</button>
+      </div>
+      <div class="section-body" id="dashSettingsBody">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="form-group">
+            <label style="color:var(--wr-muted,#8b9ab0);font-size:12px;margin-bottom:8px;display:block">자동 새로고침</label>
+            <div class="radio-group">
+              <label><input type="radio" name="dashRefresh" value="0"> 비활성화</label>
+              <label><input type="radio" name="dashRefresh" value="30" checked> 30초</label>
+              <label><input type="radio" name="dashRefresh" value="60"> 1분</label>
+              <label><input type="radio" name="dashRefresh" value="300"> 5분</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label style="color:var(--wr-muted,#8b9ab0);font-size:12px;margin-bottom:8px;display:block">표시 항목</label>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" id="dashShowStatusCards" checked> 시스템 상태 카드</label>
+              <label><input type="checkbox" id="dashShowPipeline" checked> 파이프라인 시각화</label>
+              <label><input type="checkbox" id="dashShowAlerts" checked> 알림 요약</label>
+              <label><input type="checkbox" id="dashShowTopQueries" checked> 최근 질문 TOP 5</label>
+              <label><input type="checkbox" id="dashShowQuickLinks" checked> 빠른 이동 링크</label>
+              <label><input type="checkbox" id="dashShowResources"> 시스템 리소스</label>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveDashboardSettings()" style="margin-top:16px">설정 저장</button>
+      </div>
+    </div>
+
+    <!-- Result Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">📊 시스템 현황</span>
+        <span style="font-size:11px;color:var(--muted)">
+          마지막 갱신: <span id="dashLastUpdate">-</span>
+          <button class="icon-btn" onclick="loadDashboard()" title="새로고침" style="margin-left:4px">🔄</button>
+        </span>
+      </div>
+      <div class="section-body">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-value" id="statTotalQueries">-</div>
+            <div class="stat-label">총 질문</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statSuccessRate">-</div>
+            <div class="stat-label">성공률</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statAvgResponse">-</div>
+            <div class="stat-label">평균 응답</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statAvgRefs">-</div>
+            <div class="stat-label">참조 문서</div>
+          </div>
+        </div>
+        <div class="recent-queries" id="recentQueriesSection">
+          <h4>최근 사용자 질문 TOP 5</h4>
+          <ol id="topQueriesList">
+            <li style="color:var(--muted);font-style:italic">로딩 중...</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 다음 작업 배너 (기존 유지) -->
   <div id="dashNextAction" style="background:linear-gradient(135deg,var(--navy-light),var(--navy-dark));border:1px solid var(--amber);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:16px">
     <div style="font-size:24px">🎯</div>
     <div style="flex:1">
@@ -1585,85 +2009,8 @@ POST /api/admin/faiss/activate</code>
     <button id="dashNextBtn" class="btn btn-primary" style="display:none" onclick="switchTab('wizard')">마법사로 이동 →</button>
   </div>
 
-  <!-- 상태 카드 그리드 -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">
-
-    <div class="card" style="position:relative">
-      <div class="card-title">📂 문서소스 <span class="card-status-dot" id="dot-docsource"></span></div>
-      <div id="dash-docsource" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">연결 상태</div>
-      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
-        <summary>API</summary>
-        <div class="api-hint-body">GET /api/knowledge-sources/status</div>
-      </details>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📄 스캔 파일 <span class="card-status-dot" id="dot-files"></span></div>
-      <div id="dash-files" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">인식된 파일 수</div>
-      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
-        <summary>API</summary>
-        <div class="api-hint-body">GET /api/admin/rag-source/status</div>
-      </details>
-    </div>
-
-    <div class="card">
-      <div class="card-title">🏷️ Metadata <span class="card-status-dot" id="dot-meta"></span></div>
-      <div id="dash-meta" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">확정 완료</div>
-      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
-        <summary>API</summary>
-        <div class="api-hint-body">GET /api/admin/rag-source/status</div>
-      </details>
-    </div>
-
-    <div class="card">
-      <div class="card-title">🗂️ Collection <span class="card-status-dot" id="dot-col"></span></div>
-      <div id="dash-col" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">생성된 수</div>
-      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
-        <summary>API</summary>
-        <div class="api-hint-body">GET /api/collections</div>
-      </details>
-    </div>
-
-    <div class="card">
-      <div class="card-title">⚡ FAISS Index <span class="card-status-dot" id="dot-faiss"></span></div>
-      <div id="dash-faiss" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">활성 인덱스</div>
-      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
-        <summary>API</summary>
-        <div class="api-hint-body">GET /api/admin/faiss/status</div>
-      </details>
-    </div>
-
-    <div class="card">
-      <div class="card-title">🔗 Graph <span class="card-status-dot" id="dot-graph"></span></div>
-      <div id="dash-graph" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">노드 / 엣지</div>
-      <details class="api-hint-details" style="margin-top:8px;margin-bottom:0">
-        <summary>API</summary>
-        <div class="api-hint-body">GET /api/graph/summary</div>
-      </details>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📚 LLM Wiki <span class="card-status-dot" id="dot-wiki"></span></div>
-      <div id="dash-wiki" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">생성된 페이지</div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">🔍 검색 품질 <span class="card-status-dot" id="dot-bench"></span></div>
-      <div id="dash-bench" style="font-size:22px;font-weight:700">-</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">최근 성공률</div>
-    </div>
-
-  </div>
-
-  <!-- 빠른 이동 -->
-  <div class="card">
+  <!-- 빠른 이동 (기존 유지) -->
+  <div class="card" id="quickLinksSection">
     <div class="card-title">⚡ 빠른 이동</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px">
       <button class="btn btn-outline btn-sm" onclick="switchTab('wizard')">🧙 RAG 마법사</button>
@@ -5978,6 +6325,167 @@ POST /api/admin/faiss/activate</code>
     renderWizardProgressBar();
     _initCtxBar();
     loadOverviewStepStatus();
+    initSidebar();
+  }
+
+  // ══ Phase 3: 사이드바 고도화 ══════════════════════════════════════════════
+
+  // 사이드바 초기화
+  function initSidebar() {
+    restoreNavSectionStates();
+    loadRagSourceTree();
+    updateSidebarBadges();
+    initSearchShortcut();
+  }
+
+  // 메뉴 섹션 접기/펼치기
+  function toggleNavSection(listId) {
+    const list = document.getElementById(listId);
+    const toggle = document.getElementById(listId.replace('List', 'Toggle'));
+    if (!list) return;
+
+    const isCollapsed = list.classList.toggle('collapsed');
+    if (toggle) toggle.classList.toggle('collapsed', isCollapsed);
+
+    saveNavSectionStates();
+  }
+
+  // 메뉴 상태 localStorage 저장
+  function saveNavSectionStates() {
+    const states = {};
+    document.querySelectorAll('.wr-nav-list').forEach(el => {
+      states[el.id] = el.classList.contains('collapsed');
+    });
+    localStorage.setItem('wrNavSectionStates', JSON.stringify(states));
+  }
+
+  // 메뉴 상태 localStorage 복원
+  function restoreNavSectionStates() {
+    try {
+      const states = JSON.parse(localStorage.getItem('wrNavSectionStates') || '{}');
+      Object.entries(states).forEach(([id, collapsed]) => {
+        const list = document.getElementById(id);
+        const toggle = document.getElementById(id.replace('List', 'Toggle'));
+        if (list && collapsed) {
+          list.classList.add('collapsed');
+          if (toggle) toggle.classList.add('collapsed');
+        }
+      });
+    } catch (e) {
+      console.warn('메뉴 상태 복원 실패:', e);
+    }
+  }
+
+  // RAG SOURCE 트리 동적 로드
+  async function loadRagSourceTree() {
+    const container = document.getElementById('ragSourceList');
+    if (!container) return;
+
+    container.innerHTML = '<div class="wr-nav-loading">로딩 중...</div>';
+
+    try {
+      const h = { 'Authorization': 'Bearer ' + getToken() };
+      const r = await fetch(apiUrl('/api/admin/rag-source/tree'), { headers: h });
+
+      if (!r.ok) {
+        container.innerHTML = '<div class="wr-nav-loading">소스를 불러올 수 없습니다.</div>';
+        return;
+      }
+
+      const data = await r.json();
+      const sources = data.sources || data.items || data || [];
+
+      if (!Array.isArray(sources) || sources.length === 0) {
+        container.innerHTML = '<div class="wr-nav-loading">등록된 소스 없음</div>';
+        return;
+      }
+
+      container.innerHTML = sources.map(src => `
+        <div class="wr-nav-tree-item" onclick="selectRagSource('${src.id || src.source_id || ''}')">
+          <span class="wr-nav-tree-icon">📂</span>
+          <span class="wr-nav-tree-label" title="${src.path || src.name || ''}">${src.name || src.label || src.path || '소스'}</span>
+          <span class="wr-nav-tree-count">${src.file_count || src.count || 0}</span>
+        </div>
+      `).join('');
+    } catch (e) {
+      console.error('RAG SOURCE 로드 실패:', e);
+      container.innerHTML = '<div class="wr-nav-loading">연결 오류</div>';
+    }
+  }
+
+  // RAG SOURCE 선택
+  function selectRagSource(sourceId) {
+    document.querySelectorAll('.wr-nav-tree-item').forEach(el => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    // Dataset Builder 또는 관련 페이지로 이동하며 소스 필터 적용
+    console.log('선택된 소스:', sourceId);
+    // TODO: 소스 필터링 로직 연결
+  }
+
+  // 사이드바 배지 업데이트
+  async function updateSidebarBadges() {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+
+    try {
+      const r = await fetch(apiUrl('/api/admin/rag-source/status'), { headers: h });
+      if (!r.ok) return;
+
+      const d = await r.json();
+      const newDocs = Number(d.new_file_count || d.new_files || 0);
+      const pendingDocs = Number(d.pending_count || d.metadata_pending || 0);
+      const totalAlerts = newDocs + pendingDocs;
+
+      // ALERTS 배지
+      const alertsBadge = document.getElementById('alertsBadge');
+      if (alertsBadge) {
+        if (totalAlerts > 0) {
+          alertsBadge.textContent = totalAlerts > 99 ? '99+' : totalAlerts;
+          alertsBadge.style.display = '';
+        } else {
+          alertsBadge.style.display = 'none';
+        }
+      }
+
+      // 신규 문서 카운트
+      const newDocsCount = document.getElementById('navNewDocsCount');
+      if (newDocsCount) {
+        newDocsCount.textContent = newDocs > 0 ? newDocs : '';
+      }
+
+      // 처리 대기 카운트
+      const pendingCount = document.getElementById('navPendingCount');
+      if (pendingCount) {
+        pendingCount.textContent = pendingDocs > 0 ? pendingDocs : '';
+      }
+    } catch (e) {
+      console.warn('배지 업데이트 실패:', e);
+    }
+  }
+
+  // 검색바 키보드 단축키 (Ctrl+K)
+  function initSearchShortcut() {
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('.wr-header-search input') ||
+                           document.querySelector('#wrSearchInput') ||
+                           document.querySelector('input[type="search"]');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    });
+  }
+
+  // ALERTS 대시보드 열기
+  function openDashboardAlerts() {
+    showPage('overview');
+    setTimeout(() => {
+      const alertSection = document.getElementById('wr-overview-status');
+      if (alertSection) alertSection.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   }
 
   // ── Overview 페이지 순차 작업 상태 표시 ──────────────────────────────────
@@ -7078,6 +7586,163 @@ POST /api/admin/faiss/activate</code>
     if (nextText) nextText.textContent = msg;
     if (nextBtn) nextBtn.style.display = msg !== '모든 단계가 준비되었습니다.' ? '' : 'none';
   }
+
+  // ── Dashboard Figma 개선 함수들 ────────────────────────────────────
+  let _dashboardRefreshInterval = null;
+
+  // 대시보드 섹션 접기/펼치기
+  function toggleDashboardSection(sectionId) {
+    const body = document.getElementById(sectionId);
+    const btn = body?.previousElementSibling?.querySelector('.section-toggle');
+    if (!body) return;
+    body.classList.toggle('collapsed');
+    if (btn) {
+      btn.textContent = body.classList.contains('collapsed') ? '펼치기 ▼' : '접기 ▲';
+    }
+  }
+
+  // 대시보드 설정 저장
+  function saveDashboardSettings() {
+    const refreshVal = document.querySelector('input[name="dashRefresh"]:checked')?.value || '30';
+    const settings = {
+      refresh: parseInt(refreshVal),
+      showStatusCards: document.getElementById('dashShowStatusCards')?.checked ?? true,
+      showAlerts: document.getElementById('dashShowAlerts')?.checked ?? true,
+      showQuickLinks: document.getElementById('dashShowQuickLinks')?.checked ?? true,
+      showTopQueries: document.getElementById('dashShowTopQueries')?.checked ?? true
+    };
+    localStorage.setItem('dashboardSettings', JSON.stringify(settings));
+    applyDashboardSettings(settings);
+    alert('대시보드 설정이 저장되었습니다.');
+  }
+
+  // 대시보드 설정 적용
+  function applyDashboardSettings(settings) {
+    // 자동 새로고침
+    if (_dashboardRefreshInterval) clearInterval(_dashboardRefreshInterval);
+    if (settings.refresh > 0) {
+      _dashboardRefreshInterval = setInterval(() => {
+        loadDashboard();
+        loadDashboardAlerts();
+        loadDashboardStats();
+      }, settings.refresh * 1000);
+    }
+    // 표시 항목
+    const statusCards = document.querySelector('.status-cards-grid');
+    const alertBanner = document.querySelector('.alert-banner');
+    const quickLinks = document.getElementById('quickLinksSection');
+    const recentQueries = document.getElementById('recentQueriesSection');
+    if (statusCards) statusCards.style.display = settings.showStatusCards ? '' : 'none';
+    if (alertBanner) alertBanner.style.display = settings.showAlerts ? '' : 'none';
+    if (quickLinks) quickLinks.style.display = settings.showQuickLinks ? '' : 'none';
+    if (recentQueries) recentQueries.style.display = settings.showTopQueries ? '' : 'none';
+  }
+
+  // 대시보드 설정 로드
+  function loadDashboardSettings() {
+    try {
+      const saved = localStorage.getItem('dashboardSettings');
+      if (saved) {
+        const settings = JSON.parse(saved);
+        // 라디오 버튼 설정
+        const radio = document.querySelector(`input[name="dashRefresh"][value="${settings.refresh}"]`);
+        if (radio) radio.checked = true;
+        // 체크박스 설정
+        if (document.getElementById('dashShowStatusCards')) document.getElementById('dashShowStatusCards').checked = settings.showStatusCards ?? true;
+        if (document.getElementById('dashShowAlerts')) document.getElementById('dashShowAlerts').checked = settings.showAlerts ?? true;
+        if (document.getElementById('dashShowQuickLinks')) document.getElementById('dashShowQuickLinks').checked = settings.showQuickLinks ?? true;
+        if (document.getElementById('dashShowTopQueries')) document.getElementById('dashShowTopQueries').checked = settings.showTopQueries ?? true;
+        applyDashboardSettings(settings);
+      } else {
+        // 기본 30초 새로고침 시작
+        applyDashboardSettings({ refresh: 30, showStatusCards: true, showAlerts: true, showQuickLinks: true, showTopQueries: true });
+      }
+    } catch (e) {
+      console.warn('Dashboard settings load error:', e);
+    }
+  }
+
+  // Alert 데이터 로드 (신규/수정/대기/실패)
+  async function loadDashboardAlerts() {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    try {
+      // RAG Source에서 신규/수정 문서 수 확인
+      const r = await fetch(apiUrl('/api/admin/rag-source/status'), { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const newDocs = d.new_files || d.new_count || 0;
+        const modDocs = d.modified_files || d.modified_count || 0;
+        const pending = d.pending_count || d.pending || 0;
+        setText('alertNewDocs', newDocs + '건');
+        setText('alertModifiedDocs', modDocs + '건');
+        setText('alertPendingDocs', pending + '건');
+      }
+    } catch (e) {
+      setText('alertNewDocs', '-');
+      setText('alertModifiedDocs', '-');
+      setText('alertPendingDocs', '-');
+    }
+
+    try {
+      // 실패 작업 수 확인
+      const r = await fetch(apiUrl('/api/admin/faiss/jobs?status=failed'), { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        const failed = Array.isArray(d) ? d.length : (d.count || 0);
+        setText('alertFailedJobs', failed + '건');
+      }
+    } catch (e) {
+      setText('alertFailedJobs', '-');
+    }
+  }
+
+  // 시스템 현황 통계 로드
+  async function loadDashboardStats() {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // 마지막 갱신 시간
+    setText('dashLastUpdate', new Date().toLocaleTimeString('ko-KR'));
+
+    try {
+      // Query 로그 통계
+      const r = await fetch(apiUrl('/api/admin/query-logs/stats'), { headers: h });
+      if (r.ok) {
+        const d = await r.json();
+        setText('statTotalQueries', (d.total_queries || d.total || 0) + '건');
+        setText('statSuccessRate', (d.success_rate || d.rate || 0).toFixed(1) + '%');
+        setText('statAvgResponse', (d.avg_response_time || d.avg_time || 0).toFixed(1) + '초');
+        setText('statAvgRefs', (d.avg_references || d.avg_refs || 0).toFixed(1) + '건');
+
+        // TOP 5 질문
+        const topQueries = d.top_queries || d.recent_queries || [];
+        const listEl = document.getElementById('topQueriesList');
+        if (listEl && topQueries.length > 0) {
+          listEl.innerHTML = topQueries.slice(0, 5).map((q, i) =>
+            `<li>"${q.query || q.text}" (${q.count || q.frequency || 0}회)</li>`
+          ).join('');
+        } else if (listEl) {
+          listEl.innerHTML = '<li style="color:var(--muted);font-style:italic">질문 기록이 없습니다.</li>';
+        }
+      }
+    } catch (e) {
+      setText('statTotalQueries', '-');
+      setText('statSuccessRate', '-');
+      setText('statAvgResponse', '-');
+      setText('statAvgRefs', '-');
+    }
+  }
+
+  // 초기화 시 대시보드 설정 및 데이터 로드
+  const _origLoadDashboard = loadDashboard;
+  loadDashboard = async function() {
+    await _origLoadDashboard();
+    await loadDashboardAlerts();
+    await loadDashboardStats();
+    loadDashboardSettings();
+  };
 
   // ────────────────────────────────────────────────────
   // RAG Build Wizard
