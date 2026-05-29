@@ -1,3 +1,12 @@
+## 2026-05-29 rag-assistant.html 분석 문서 작성
+
+- 사용자는 `frontend/rag-assistant.html` 수정 코드 분석을 어제 Codex 문서 형식으로 오늘 날짜 문서에 작성해 달라고 요청했다.
+- 어제 Codex 문서 형식은 `docs/2026-05-28_Codex_LLM_RAG_온톨로지_적용제안.md`, `docs/2026-05-28_Codex_Figma와이어프레임_구현매핑.md`를 기준으로 삼는다.
+- `git diff --ignore-space-at-eol -- frontend/rag-assistant.html` 결과는 비어 있어, 현재 워킹트리의 `rag-assistant.html` 변경은 줄바꿈 또는 공백 끝 차이로 판단한다.
+- 따라서 문서는 "실제 내용 diff 없음"을 먼저 명시하고, 현재 파일에 들어 있는 문서 카드, 미리보기 모달, 상세 패널, Graph 근거, 선택 문서 답변 UI의 구조 분석과 잔여 리스크를 정리한다.
+- 작성 문서는 `docs/2026-05-29_Codex_rag-assistant_html_수정코드분석.md`이다.
+- 검증은 문서 내용 확인, `git diff --check -- checklist.md context-notes.md docs/2026-05-29_Codex_rag-assistant_html_수정코드분석.md`, 변경 상태 확인으로 수행했다.
+
 ## 2026-05-26 Overview 빠른 이동 버튼 점검
 
 - `frontend/admin.html`의 Overview 빠른 이동 버튼은 `openSourceManagement()`, `openBuildWizard()`, `openSearchQuality()` inline 함수를 호출한다.
