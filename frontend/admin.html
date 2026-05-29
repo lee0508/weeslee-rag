@@ -6384,29 +6384,31 @@ POST /api/admin/faiss/activate</code>
     container.innerHTML = '<div class="wr-nav-loading">로딩 중...</div>';
 
     try {
-      const h = { 'Authorization': 'Bearer ' + getToken() };
-      const r = await fetch(apiUrl('/api/admin/rag-source/tree'), { headers: h });
+      const r = await fetch(`${API_BASE}/admin/document-sources`, { headers: authHeaders() });
 
       if (!r.ok) {
         container.innerHTML = '<div class="wr-nav-loading">소스를 불러올 수 없습니다.</div>';
         return;
       }
 
-      const data = await r.json();
-      const sources = data.sources || data.items || data || [];
+      const sources = await r.json();
 
       if (!Array.isArray(sources) || sources.length === 0) {
         container.innerHTML = '<div class="wr-nav-loading">등록된 소스 없음</div>';
         return;
       }
 
-      container.innerHTML = sources.map(src => `
-        <div class="wr-nav-tree-item" onclick="selectRagSource('${src.id || src.source_id || ''}')">
+      container.innerHTML = sources.map(src => {
+        const sourceId = src.source_id || src.id || '';
+        const sourceName = src.source_name || src.name || sourceId;
+        const fileCount = src.file_count || src.count || 0;
+        return `
+        <div class="wr-nav-tree-item" onclick="selectRagSource('${sourceId}')">
           <span class="wr-nav-tree-icon">📂</span>
-          <span class="wr-nav-tree-label" title="${src.path || src.name || ''}">${src.name || src.label || src.path || '소스'}</span>
-          <span class="wr-nav-tree-count">${src.file_count || src.count || 0}</span>
-        </div>
-      `).join('');
+          <span class="wr-nav-tree-label" title="${sourceName}">${sourceName}</span>
+          <span class="wr-nav-tree-count">${fileCount}</span>
+        </div>`;
+      }).join('');
     } catch (e) {
       console.error('RAG SOURCE 로드 실패:', e);
       container.innerHTML = '<div class="wr-nav-loading">연결 오류</div>';
