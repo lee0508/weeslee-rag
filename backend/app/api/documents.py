@@ -301,21 +301,19 @@ def _available_formats(document_id: int, record: dict[str, Any], orm_doc: Option
     }
 
 
-def _document_detail_payload(document_id: int, record: dict[str, Any], orm_doc: Optional[Document]) -> dict[str, Any]:
+def _document_detail_payload(
+    document_id: int,
+    record: dict[str, Any],
+    orm_doc: Optional[Document],
+    include_content: bool = False,
+) -> dict[str, Any]:
     metadata_payload = _load_metadata_payload(document_id)
     original_path = _resolve_original_path(record, orm_doc)
-    try:
-        summary_text, _, _ = _build_summary(document_id, record, metadata_payload)
-    except HTTPException:
-        summary_text = record.get("summary") or metadata_payload.get("summary") or ""
-    try:
-        raw_text, _, text_path = _build_text(document_id)
-    except HTTPException:
-        raw_text = ""
-        text_path = _text_path(document_id)
+    summary_text = _read_text(_summary_path(document_id)) or record.get("summary") or metadata_payload.get("summary") or ""
     suggestion = metadata_db_service.get_suggestion(document_id)
+    text_path = _text_path(document_id)
 
-    return {
+    payload = {
         "document_id": document_id,
         "id": document_id,
         "file_name": record.get("file_name") or record.get("filename") or (original_path.name if original_path else ""),
@@ -330,7 +328,6 @@ def _document_detail_payload(document_id: int, record: dict[str, Any], orm_doc: 
         "business_domain": record.get("business_domain"),
         "chunk_count": record.get("chunk_count") or (orm_doc.chunk_count if orm_doc else 0),
         "summary": summary_text,
-        "raw_text": raw_text,
         "html_path": str(_content_path(document_id, "document.html")),
         "markdown_path": str(_content_path(document_id, "document.md")),
         "summary_path": str(_summary_path(document_id)),
@@ -344,6 +341,14 @@ def _document_detail_payload(document_id: int, record: dict[str, Any], orm_doc: 
             for fmt in ("original", "txt", "md", "html", "summary", "json", "docx", "hwpx")
         },
     }
+    if include_content:
+        try:
+            raw_text, _, text_path = _build_text(document_id)
+        except HTTPException:
+            raw_text = ""
+        payload["raw_text"] = raw_text
+        payload["text_path"] = str(text_path)
+    return payload
 
 
 def _attachment_headers(filename: str) -> dict[str, str]:
@@ -551,7 +556,7 @@ async def download_document(document_id: int, format: str, db: Session = Depends
         return Response(content=summary, media_type=_MIME[".md"], headers=_attachment_headers(_download_filename(file_name, "-summary.md")))
 
     if requested == "json":
-        payload = _document_detail_payload(document_id, record, orm_doc)
+        payload = _document_detail_payload(document_id, record, orm_doc, include_content=True)
         return Response(
             content=json.dumps(payload, ensure_ascii=False, indent=2),
             media_type=_MIME[".json"],

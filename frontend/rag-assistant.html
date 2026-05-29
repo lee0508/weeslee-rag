@@ -839,6 +839,10 @@
       transition: all .15s ease;
       cursor: pointer;
     }
+    .doc-card:focus-visible {
+      outline: 2px solid var(--amber);
+      outline-offset: 2px;
+    }
     .doc-card:hover {
       border-color: var(--navy-m);
       box-shadow: var(--shadow);
@@ -932,6 +936,15 @@
       font-weight: 600;
       color: var(--text);
       margin-bottom: 6px;
+    }
+    .doc-card-actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .doc-card-action {
+      min-height: 28px;
     }
 
     /* ── Grounded Answer Panel ──────────────────────────────────────── */
@@ -1041,6 +1054,32 @@
       padding: 16px 20px;
       border-bottom: 1px solid var(--gray-200);
       background: var(--gray-50);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .doc-detail-title-wrap {
+      min-width: 0;
+      flex: 1;
+    }
+    .doc-detail-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .doc-detail-action {
+      border: 1px solid var(--gray-200);
+      background: var(--white);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .doc-detail-action:hover {
+      border-color: var(--navy);
+      color: var(--navy);
     }
     .doc-detail-close {
       width: 32px;
@@ -1194,11 +1233,23 @@
     }
     .preview-loading {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100%;
       color: var(--text-s);
       font-size: 14px;
+      gap: 10px;
+      text-align: center;
+      padding: 24px;
+    }
+    .preview-message-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
     }
     .preview-footer {
       display: flex;
@@ -2814,6 +2865,7 @@
 
     // ── Category dynamic load ─────────────────────────────────────────────
     async function loadCategories() {
+      if (!window.__ENABLE_ADMIN_CATEGORY_LOAD__) return;
       try {
         const r = await fetch(`${API_BASE}/admin/faiss/category-status`);
         if (!r.ok) return;
@@ -3919,6 +3971,27 @@
     // 문서 카드 클릭을 위한 전역 배열
     var _renderedDocuments = [];
 
+    function docSourcePath(doc) {
+      return doc?.source_path || doc?.original_source_path || doc?.file_path || '';
+    }
+
+    function docInputPath(doc) {
+      return doc?.input_path || doc?.staged_path || '';
+    }
+
+    function openDocFileByIndex(idx) {
+      const doc = _renderedDocuments && _renderedDocuments[idx];
+      if (!doc) return;
+      openFilePreview(docSourcePath(doc), docInputPath(doc), doc.document_id || '');
+    }
+
+    function onDocCardKey(event, idx) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openDocDetailByIndex(idx);
+      }
+    }
+
     function renderDocumentCards(documents, compact) {
       // 전역 배열에 문서 저장
       _renderedDocuments = documents;
@@ -3926,6 +3999,7 @@
       return documents.map((doc, idx) => {
         const score = Number(doc.best_score || doc.ranking_score || 0);
         const scoreClass = score >= 0.8 ? '' : score >= 0.6 ? 'medium' : 'low';
+        const scoreLabel = score >= 0.995 ? `#${doc.rank || idx + 1}` : `${(score * 100).toFixed(0)}%`;
         const projectName = doc.project_name || '-';
         const fileName = doc.file_name || doc.document_id || '-';
 
@@ -3972,8 +4046,9 @@
         const hasGraph = doc.graph_context || doc.relations;
 
         const viewActions = `
-          <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
-            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'original')" title="원문 보기">📄 원문</button>
+          <div class="doc-card-actions">
+            <button class="btn btn-sm btn-outline doc-card-action" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'original')" title="상세 보기">상세 보기</button>
+            <button class="btn btn-sm btn-outline doc-card-action" onclick="event.stopPropagation(); openDocFileByIndex(${idx})" title="파일 보기">파일 보기</button>
             ${hasSummary ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'summary')" title="요약 보기">📝 요약</button>` : ''}
             ${hasChunks ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'chunks')" title="검색 청크 보기">🔍 청크</button>` : ''}
             ${hasEvidence ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'evidence')" title="근거 스니펫 보기">💡 근거</button>` : ''}
@@ -3982,15 +4057,16 @@
         `;
 
         return `
-        <div class="doc-card" data-doc-idx="${idx}">
+        <div class="doc-card" data-doc-idx="${idx}" role="button" tabindex="0"
+          onclick="openDocDetailByIndex(${idx})" onkeydown="onDocCardKey(event, ${idx})">
           <input type="checkbox" class="doc-card-checkbox" onclick="event.stopPropagation(); toggleDocSelection(${idx})" title="답변 생성에 사용할 문서 선택">
-          <div class="doc-card-header" onclick="openDocDetailByIndex(${idx})">
+          <div class="doc-card-header">
             <div class="doc-card-title">#${doc.rank || idx + 1} ${escapeHtml(projectName !== '-' ? projectName : fileName)}</div>
-            <div class="doc-card-score ${scoreClass}">${(score * 100).toFixed(0)}%</div>
+            <div class="doc-card-score ${scoreClass}">${escapeHtml(scoreLabel)}</div>
           </div>
-          ${projectName !== '-' ? `<div class="doc-card-file" onclick="openDocDetailByIndex(${idx})">${escapeHtml(fileName)}</div>` : ''}
+          ${projectName !== '-' ? `<div class="doc-card-file">${escapeHtml(fileName)}</div>` : ''}
           <div class="doc-card-meta">${metaChips.join('')}</div>
-          <div class="doc-card-path">${escapeHtml(doc.source_path || doc.original_source_path || '-')}</div>
+          <div class="doc-card-path">${escapeHtml(docSourcePath(doc) || '-')}</div>
           ${preview ? `<div class="doc-card-preview">${escapeHtml(preview)}</div>` : ''}
           ${graphSummary}
           ${viewActions}
@@ -4536,7 +4612,37 @@
       format: '',
       content: '',
       mode: 'text',
+      lastLoad: null,
     };
+
+    function _fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+    }
+
+    function _renderPreviewMessage(kind, message, actions = '') {
+      const color = kind === 'error' ? 'var(--bad)' : 'var(--text-s)';
+      return `
+        <div class="preview-loading" style="color:${color}">
+          <div>${escapeHtml(message)}</div>
+          ${actions ? `<div class="preview-message-actions">${actions}</div>` : ''}
+        </div>
+      `;
+    }
+
+    function _previewActionButtons(retryCall = '') {
+      const downloadUrl = _previewDownloadUrl(
+        _previewState.docId,
+        _previewState.format || 'original',
+        _previewState.inputPath || _previewState.sourcePath
+      );
+      return `
+        ${retryCall ? `<button class="doc-link" type="button" onclick="${retryCall}">다시 시도</button>` : ''}
+        <a class="doc-link" href="${escapeHtml(downloadUrl)}" download>다운로드</a>
+      `;
+    }
 
     function _previewFormats(detail) {
       const formats = [];
@@ -4586,7 +4692,7 @@
       _previewState.mode = 'text';
 
       title.textContent = _previewState.fileName;
-      body.innerHTML = `<div class="preview-loading">불러오는 중...</div>`;
+      body.innerHTML = _renderPreviewMessage('loading', '문서 정보를 불러오는 중입니다.');
       dlBtn.href = _previewDownloadUrl(docId, 'original', resolvedPath);
       printBtn.style.display = 'none';
       _renderPreviewTabs([], '');
@@ -4606,7 +4712,8 @@
       }
 
       try {
-        const detailRes = await fetch(`${API_BASE}/documents/${encodeURIComponent(docId)}`);
+        _previewState.lastLoad = () => openFilePreview(sourcePath, inputPath, docId);
+        const detailRes = await _fetchWithTimeout(`${API_BASE}/documents/${encodeURIComponent(docId)}`, {}, 10000);
         if (!detailRes.ok) throw new Error(`HTTP ${detailRes.status}`);
         const detail = await detailRes.json();
         title.textContent = detail.file_name || _previewState.fileName;
@@ -4615,7 +4722,10 @@
         _renderPreviewTabs(_previewState.formats, initialFormat);
         await loadPreviewFormat(initialFormat);
       } catch (err) {
-        body.innerHTML = `<div class="preview-text" style="color:var(--bad)">문서 미리보기를 불러오지 못했습니다: ${escapeHtml(err.message)}</div>`;
+        const message = err.name === 'AbortError'
+          ? '문서 정보 조회 시간이 초과되었습니다. 다시 시도하거나 원본을 다운로드하세요.'
+          : `문서 미리보기를 불러오지 못했습니다: ${err.message}`;
+        body.innerHTML = _renderPreviewMessage('error', message, _previewActionButtons(`openFilePreview('${escapeHtml(sourcePath)}','${escapeHtml(inputPath || '')}','${escapeHtml(docId || '')}')`));
       }
     }
 
@@ -4627,8 +4737,16 @@
       if (!docId) return;
 
       _previewState.format = format;
+      _previewState.lastLoad = () => loadPreviewFormat(format);
       _renderPreviewTabs(_previewState.formats, format);
-      body.innerHTML = `<div class="preview-loading">불러오는 중...</div>`;
+      const loadingText = format === 'html'
+        ? 'HTML 미리보기를 불러오는 중입니다.'
+        : format === 'summary'
+          ? '요약을 불러오는 중입니다.'
+          : format === 'md'
+            ? 'Markdown 추출본을 불러오는 중입니다.'
+            : '텍스트 추출본을 불러오는 중입니다. 파일이 크면 시간이 걸릴 수 있습니다.';
+      body.innerHTML = _renderPreviewMessage('loading', loadingText);
       dlBtn.href = _previewDownloadUrl(docId, format, _previewState.inputPath || _previewState.sourcePath);
 
       const endpoint = format === 'html'
@@ -4640,7 +4758,7 @@
           : `${API_BASE}/documents/${encodeURIComponent(docId)}/text`;
 
       try {
-        const res = await fetch(endpoint);
+        const res = await _fetchWithTimeout(endpoint, {}, 15000);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (format === 'html') {
@@ -4659,7 +4777,10 @@
         printBtn.style.display = '';
       } catch (err) {
         printBtn.style.display = 'none';
-        body.innerHTML = `<div class="preview-text" style="color:var(--bad)">미리보기를 불러오지 못했습니다: ${escapeHtml(err.message)}</div>`;
+        const message = err.name === 'AbortError'
+          ? '미리보기 조회 시간이 초과되었습니다. 다시 시도하거나 원본을 다운로드하세요.'
+          : `미리보기를 불러오지 못했습니다: ${err.message}`;
+        body.innerHTML = _renderPreviewMessage('error', message, _previewActionButtons(`loadPreviewFormat('${escapeHtml(format)}')`));
       }
     }
 
@@ -4946,8 +5067,8 @@
     function openDocDetailFile() {
       if (_currentDocDetail) {
         openFilePreview(
-          _currentDocDetail.source_path || _currentDocDetail.original_source_path || '',
-          _currentDocDetail.input_path || '',
+          docSourcePath(_currentDocDetail),
+          docInputPath(_currentDocDetail),
           _currentDocDetail.document_id || ''
         );
       }
@@ -4955,8 +5076,11 @@
 
     function downloadDocDetail() {
       if (_currentDocDetail) {
-        const path = _currentDocDetail.input_path || _currentDocDetail.source_path || '';
-        if (path) {
+        const docId = _currentDocDetail.document_id || '';
+        const path = docInputPath(_currentDocDetail) || docSourcePath(_currentDocDetail);
+        if (docId) {
+          window.location.href = _previewDownloadUrl(docId, 'original', path);
+        } else if (path) {
           window.location.href = `${API_BASE}/files/download?path=${encodeURIComponent(path)}`;
         }
       }
@@ -4964,7 +5088,7 @@
 
     function copyDocDetailPath() {
       if (_currentDocDetail) {
-        const path = _currentDocDetail.source_path || _currentDocDetail.original_source_path || '';
+        const path = docSourcePath(_currentDocDetail);
         if (navigator.clipboard) {
           navigator.clipboard.writeText(path).then(() => showToast('경로가 복사되었습니다', 'success'));
         }
@@ -5106,8 +5230,15 @@
   <!-- Document Detail Panel -->
   <div class="doc-detail-panel" id="docDetailPanel">
     <div class="doc-detail-header">
-      <div style="font-weight:600;font-size:14px;color:var(--navy)" id="docDetailTitle">문서 상세</div>
-      <button class="doc-detail-close" onclick="closeDocDetail()">×</button>
+      <div class="doc-detail-title-wrap">
+        <div style="font-weight:600;font-size:14px;color:var(--navy)" id="docDetailTitle">문서 상세</div>
+      </div>
+      <div class="doc-detail-actions">
+        <button class="doc-detail-action" type="button" onclick="openDocDetailFile()">파일 보기</button>
+        <button class="doc-detail-action" type="button" onclick="downloadDocDetail()">다운로드</button>
+        <button class="doc-detail-action" type="button" onclick="copyDocDetailPath()">경로 복사</button>
+        <button class="doc-detail-close" onclick="closeDocDetail()" aria-label="닫기">×</button>
+      </div>
     </div>
     <div class="doc-detail-body">
       <div class="doc-detail-section">
@@ -5125,7 +5256,7 @@
       <div class="doc-detail-section">
         <div class="doc-detail-section-title">액션</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="openDocDetailFile()">파일 열기</button>
+          <button class="btn btn-primary btn-sm" onclick="openDocDetailFile()">파일 보기</button>
           <button class="btn btn-outline btn-sm" onclick="downloadDocDetail()">다운로드</button>
           <button class="btn btn-outline btn-sm" onclick="copyDocDetailPath()">경로 복사</button>
         </div>

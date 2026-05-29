@@ -1,3 +1,16 @@
+## 2026-05-29 rag-assistant 파일 클릭/미리보기 안정화 구현
+
+- 사용자는 운영 UI 직접 테스트 문서의 결론에 따라 파일 클릭과 미리보기 안정화 작업을 구현 순서대로 진행하라고 요청했다.
+- 변경 범위는 `frontend/rag-assistant.html`의 결과 카드/상세 패널/미리보기 모달과 `backend/app/api/documents.py`의 문서 상세 API 경량화로 제한한다.
+- 기존 워킹트리에는 사용자가 만든 미커밋 변경이 많으므로, 관련 파일의 필요한 부분만 수정하고 다른 파일은 건드리지 않는다.
+- `/api/documents/{id}`는 현재 `raw_text`까지 포함한 큰 JSON을 반환하므로, 기본 상세 응답에서는 metadata와 available formats만 반환하고 본문은 `/text`, `/html`, `/markdown`, `/summary`에서 지연 로드하는 방향으로 수정한다.
+- 사용자 페이지에서 `/api/admin/faiss/category-status` 401이 보였으므로, 해당 호출은 실패해도 콘솔 오류를 만들지 않도록 인증 상태를 사전 확인하거나 조용히 fallback한다.
+- 구현 결과 카드 전체에 `onclick`, `role=button`, `tabindex=0`, Enter/Space 처리를 추가했고, 카드 액션은 `상세 보기`, `파일 보기`, 요약, 청크, 근거, Graph로 분리했다.
+- 상세 패널 헤더에 `파일 보기`, `다운로드`, `경로 복사` 액션을 고정했다.
+- 미리보기 모달은 metadata 조회와 형식별 조회에 timeout을 두고, 실패 시 `다시 시도`와 `다운로드` fallback을 표시한다.
+- 검증은 `python3 -m compileall backend/app/api/documents.py`, inline script 파싱, 로컬 Playwright 카드 클릭 테스트, `git diff --cached --check`로 수행했다.
+- `frontend/rag-assistant.html`의 워킹트리에는 기존 CRLF 줄바꿈 변경이 남아 있어, 커밋에는 `--ignore-space-at-eol` 기준 기능 변경만 staged patch로 반영했다.
+
 ## 2026-05-29 운영 RAG Assistant 결과 파일 UI 점검
 
 - 사용자는 운영 URL `https://server.weeslee.co.kr/weeslee-rag/rag-assistant.html`에서 쿼리 `AI 기반 차세대 교육 시스탬 구축`으로 RAG 실행 후 결과 탭 파일 클릭 UI를 직접 테스트하고 수정 사항 문서를 작성해 달라고 요청했다.

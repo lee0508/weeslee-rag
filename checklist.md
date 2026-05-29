@@ -1,5 +1,15 @@
 # 2026-05-28 오늘 작업 체크리스트
 
+## 2026-05-29 rag-assistant 파일 클릭/미리보기 안정화 구현
+
+- [x] 결과 카드 전체 클릭 시 상세 패널 열기.
+- [x] `원문` 버튼을 `상세 보기`로 정리하고 `파일 보기` 액션 추가.
+- [x] 상세 패널 헤더에 파일 보기, 다운로드, 경로 복사 액션 고정.
+- [x] 미리보기 모달 로딩 timeout, 재시도, 다운로드 fallback 추가.
+- [x] `/api/documents/{id}` 응답을 metadata 중심으로 경량화.
+- [x] 사용자 화면의 admin category-status 401 회피.
+- [x] 관련 정적 검증과 브라우저 UI 검증 실행.
+
 ## 2026-05-29 운영 RAG Assistant 결과 파일 UI 점검
 
 - [x] 운영 URL `https://server.weeslee.co.kr/weeslee-rag/rag-assistant.html` 접속 확인.
