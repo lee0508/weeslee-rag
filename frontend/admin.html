@@ -1132,6 +1132,13 @@
           <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS Index</button>
         </div>
         <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">GRAPH / ONTOLOGY</h2>
+          <button class="wr-nav-link" type="button" data-wr-page="graph-overview">Graph Overview</button>
+          <button class="wr-nav-link" type="button" data-wr-page="schema-viewer">Schema Viewer</button>
+          <button class="wr-nav-link" type="button" data-wr-page="text2cypher-test">Text2Cypher Test</button>
+          <button class="wr-nav-link" type="button" data-wr-page="agent-logs">Agent Retry Logs</button>
+        </div>
+        <div class="wr-nav-section">
           <h2 class="wr-nav-heading">ANALYTICS</h2>
           <button class="wr-nav-link" type="button" data-wr-page="search-quality">Search Quality</button>
           <button class="wr-nav-link" type="button" data-wr-page="json-graph">Graph/Wiki</button>
@@ -2014,6 +2021,178 @@ POST /api/admin/faiss/activate</code>
             <h2 class="wr-card-title">Legacy Wiki</h2>
             <p class="wr-card-text">기존 LLM-Wiki 탭의 생성 함수와 목록 영역은 보존되어 있습니다.</p>
             <button class="wr-btn" type="button" data-wr-legacy-tab="wiki">Legacy Wiki 열기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Phase 9: Graph / Ontology 관리 화면 ─────────────────────────── -->
+      <section class="wr-page" data-wr-page-panel="graph-overview">
+        <div class="wr-eyebrow">Graph / Ontology</div>
+        <h1 class="wr-page-title" data-wr-anchor>Graph Overview</h1>
+        <p class="wr-page-lead">GraphRAG 노드, 엣지, 스키마 현황을 한눈에 확인합니다.</p>
+
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 노드 수</div>
+            <div class="wr-summary-value" id="wrGraphTotalNodes">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 엣지 수</div>
+            <div class="wr-summary-value" id="wrGraphTotalEdges">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Organization</div>
+            <div class="wr-summary-value" id="wrGraphOrgCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Project</div>
+            <div class="wr-summary-value" id="wrGraphProjectCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Document</div>
+            <div class="wr-summary-value" id="wrGraphDocCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">마지막 빌드</div>
+            <div class="wr-summary-value" id="wrGraphLastBuild">-</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>노드 유형별 분포</h2>
+        <div class="wr-card">
+          <div id="wrGraphNodeDistribution" style="min-height:200px;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>최근 Graph 활동</h2>
+        <div class="wr-card">
+          <div id="wrGraphRecentActivity" style="max-height:300px;overflow-y:auto;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <div class="wr-inline-actions" style="margin-top:16px;">
+          <button class="wr-btn wr-btn-primary" type="button" onclick="loadGraphOverviewStats()">🔄 새로고침</button>
+          <button class="wr-btn" type="button" onclick="openGraphRagBuildWizard()">Dataset Builder 7단계</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="graph">Legacy Graph View</button>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="schema-viewer">
+        <div class="wr-eyebrow">Graph / Ontology</div>
+        <h1 class="wr-page-title" data-wr-anchor>Schema Viewer</h1>
+        <p class="wr-page-lead">GraphRAG에서 사용하는 노드 유형, 관계 유형, 속성 정의를 확인합니다.</p>
+
+        <div class="wr-grid">
+          <div class="wr-card">
+            <h2 class="wr-card-title">노드 유형 (Node Types)</h2>
+            <div id="wrSchemaNodeTypes" style="font-family:monospace;font-size:12px;line-height:1.8;">
+              <div class="wr-nav-loading">로딩 중...</div>
+            </div>
+          </div>
+          <div class="wr-card">
+            <h2 class="wr-card-title">관계 유형 (Relationship Types)</h2>
+            <div id="wrSchemaRelTypes" style="font-family:monospace;font-size:12px;line-height:1.8;">
+              <div class="wr-nav-loading">로딩 중...</div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>Schema Text (Text2Cypher용)</h2>
+        <div class="wr-card">
+          <pre id="wrSchemaText" style="background:var(--background);padding:12px;border-radius:6px;font-size:11px;max-height:400px;overflow:auto;white-space:pre-wrap;">로딩 중...</pre>
+          <div class="wr-inline-actions" style="margin-top:12px;">
+            <button class="wr-btn" type="button" onclick="copySchemaText()">📋 Schema 복사</button>
+            <button class="wr-btn" type="button" onclick="loadGraphSchema()">🔄 새로고침</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="text2cypher-test">
+        <div class="wr-eyebrow">Graph / Ontology</div>
+        <h1 class="wr-page-title" data-wr-anchor>Text2Cypher Test</h1>
+        <p class="wr-page-lead">자연어 질문을 Cypher 쿼리로 변환하고 Graph에서 실행합니다.</p>
+
+        <div class="wr-card">
+          <h2 class="wr-card-title">질문 입력</h2>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <textarea id="wrText2CypherInput" rows="3" placeholder="예: 행정안전부가 발주한 프로젝트와 관련 문서를 모두 찾아줘" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;"></textarea>
+            <div class="wr-inline-actions">
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runText2CypherTest()">▶ Cypher 생성 및 실행</button>
+              <button class="wr-btn" type="button" onclick="generateCypherOnly()">📝 Cypher만 생성</button>
+              <button class="wr-btn" type="button" onclick="clearText2CypherResult()">🗑️ 결과 초기화</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="wr-grid" style="margin-top:16px;">
+          <div class="wr-card">
+            <h2 class="wr-card-title">생성된 Cypher 쿼리</h2>
+            <pre id="wrGeneratedCypher" style="background:var(--background);padding:12px;border-radius:6px;font-size:11px;min-height:80px;max-height:200px;overflow:auto;white-space:pre-wrap;">질문을 입력하고 실행하세요.</pre>
+            <div class="wr-inline-actions" style="margin-top:8px;">
+              <button class="wr-btn" type="button" onclick="copyCypherQuery()">📋 쿼리 복사</button>
+              <button class="wr-btn" type="button" onclick="executeCypherOnly()">▶ 쿼리 재실행</button>
+            </div>
+          </div>
+          <div class="wr-card">
+            <h2 class="wr-card-title">실행 정보</h2>
+            <div id="wrCypherExecInfo" style="font-size:12px;line-height:1.8;">
+              <div><strong>상태:</strong> <span id="wrCypherStatus">대기</span></div>
+              <div><strong>재시도 횟수:</strong> <span id="wrCypherRetryCount">0</span></div>
+              <div><strong>질문 유형:</strong> <span id="wrCypherQuestionType">-</span></div>
+              <div><strong>실행 시간:</strong> <span id="wrCypherExecTime">-</span></div>
+              <div><strong>결과 수:</strong> <span id="wrCypherResultCount">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>실행 결과</h2>
+        <div class="wr-card">
+          <div id="wrCypherResult" style="max-height:400px;overflow:auto;">
+            <div style="color:var(--muted);font-size:12px;">질문을 입력하고 실행하면 결과가 표시됩니다.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wr-page" data-wr-page-panel="agent-logs">
+        <div class="wr-eyebrow">Graph / Ontology</div>
+        <h1 class="wr-page-title" data-wr-anchor>Agent Retry Logs</h1>
+        <p class="wr-page-lead">GraphRAG Agent의 자동 수정 로그와 실패 쿼리를 확인합니다.</p>
+
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 쿼리 수</div>
+            <div class="wr-summary-value" id="wrAgentTotalQueries">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">성공</div>
+            <div class="wr-summary-value" id="wrAgentSuccessCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">재시도 후 성공</div>
+            <div class="wr-summary-value" id="wrAgentRetrySuccessCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">실패 (Fallback)</div>
+            <div class="wr-summary-value" id="wrAgentFailedCount">-</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>최근 Agent 로그</h2>
+        <div class="wr-card">
+          <div class="wr-inline-actions" style="margin-bottom:12px;">
+            <select id="wrAgentLogFilter" onchange="filterAgentLogs()" style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;">
+              <option value="all">전체</option>
+              <option value="success">성공</option>
+              <option value="retry">재시도</option>
+              <option value="failed">실패</option>
+            </select>
+            <button class="wr-btn" type="button" onclick="loadAgentLogs()">🔄 새로고침</button>
+            <button class="wr-btn" type="button" onclick="exportAgentLogs()">📥 로그 내보내기</button>
+          </div>
+          <div id="wrAgentLogList" style="max-height:500px;overflow-y:auto;">
+            <div class="wr-nav-loading">로딩 중...</div>
           </div>
         </div>
       </section>
@@ -7664,6 +7843,344 @@ LIMIT 10`;
       showToast('Graph RAG 생성은 Dataset Builder 7단계에서 실행합니다.', 'info', 4000);
     }, 120);
   }
+
+  // ── Phase 9: Graph / Ontology 관리 함수 ─────────────────────────────────
+  // Graph Overview 통계 로드
+  async function loadGraphOverviewStats() {
+    try {
+      const r = await fetch(`${API_BASE}/graph/stats`, { headers: authHeaders() });
+      if (!r.ok) throw new Error('Graph stats API 실패');
+      const data = await r.json();
+
+      document.getElementById('wrGraphTotalNodes').textContent = data.total_nodes?.toLocaleString() || '0';
+      document.getElementById('wrGraphTotalEdges').textContent = data.total_edges?.toLocaleString() || '0';
+      document.getElementById('wrGraphOrgCount').textContent = data.node_counts?.organization || '0';
+      document.getElementById('wrGraphProjectCount').textContent = data.node_counts?.project || '0';
+      document.getElementById('wrGraphDocCount').textContent = data.node_counts?.document || '0';
+      document.getElementById('wrGraphLastBuild').textContent = data.last_build || '-';
+
+      // 노드 분포 렌더링
+      renderNodeDistribution(data.node_counts || {});
+      // 최근 활동 로드
+      loadGraphRecentActivity();
+    } catch (e) {
+      console.error('Graph 통계 로드 실패:', e);
+      document.getElementById('wrGraphTotalNodes').textContent = '오류';
+      document.getElementById('wrGraphNodeDistribution').innerHTML = '<div style="color:var(--muted);">API 연결 실패. Dataset Builder 7단계에서 Graph를 먼저 빌드하세요.</div>';
+    }
+  }
+
+  function renderNodeDistribution(nodeCounts) {
+    const container = document.getElementById('wrGraphNodeDistribution');
+    const types = ['organization', 'project', 'document', 'keyword', 'category', 'technology', 'person'];
+    const labels = { organization: '기관', project: '프로젝트', document: '문서', keyword: '키워드', category: '카테고리', technology: '기술', person: '담당자' };
+    const colors = { organization: '#3b82f6', project: '#22c55e', document: '#f59e0b', keyword: '#8b5cf6', category: '#ef4444', technology: '#06b6d4', person: '#ec4899' };
+
+    const total = Object.values(nodeCounts).reduce((a, b) => a + b, 0) || 1;
+    let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+
+    types.forEach(type => {
+      const count = nodeCounts[type] || 0;
+      const pct = ((count / total) * 100).toFixed(1);
+      html += `
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:70px;font-size:11px;color:var(--muted);">${labels[type] || type}</span>
+          <div style="flex:1;height:16px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:${colors[type] || '#6b7280'};"></div>
+          </div>
+          <span style="width:50px;font-size:11px;text-align:right;">${count.toLocaleString()}</span>
+        </div>`;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  async function loadGraphRecentActivity() {
+    const container = document.getElementById('wrGraphRecentActivity');
+    try {
+      const r = await fetch(`${API_BASE}/graph/agent/stats`, { headers: authHeaders() });
+      if (!r.ok) throw new Error('Agent stats API 실패');
+      const data = await r.json();
+
+      if (!data.recent_queries?.length) {
+        container.innerHTML = '<div style="color:var(--muted);font-size:12px;">최근 활동이 없습니다.</div>';
+        return;
+      }
+
+      let html = '<table style="width:100%;font-size:11px;"><thead><tr><th style="text-align:left;padding:4px;">시간</th><th style="text-align:left;padding:4px;">질문</th><th style="text-align:center;padding:4px;">상태</th></tr></thead><tbody>';
+      data.recent_queries.slice(0, 10).forEach(q => {
+        const statusBadge = q.status === 'success' ? '<span style="color:#22c55e;">✓</span>' : q.status === 'retry_success' ? '<span style="color:#f59e0b;">↻</span>' : '<span style="color:#ef4444;">✗</span>';
+        html += `<tr><td style="padding:4px;color:var(--muted);">${q.timestamp || '-'}</td><td style="padding:4px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escTxt(q.question || '-')}</td><td style="text-align:center;padding:4px;">${statusBadge}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } catch (e) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:12px;">활동 데이터 로드 실패.</div>';
+    }
+  }
+
+  // Schema Viewer 로드
+  async function loadGraphSchema() {
+    try {
+      const r = await fetch(`${API_BASE}/graph/agent/schema`, { headers: authHeaders() });
+      if (!r.ok) throw new Error('Schema API 실패');
+      const data = await r.json();
+
+      // 노드 유형 렌더링
+      const nodeTypesEl = document.getElementById('wrSchemaNodeTypes');
+      if (data.node_types?.length) {
+        nodeTypesEl.innerHTML = data.node_types.map(t => `<div style="padding:4px 8px;background:var(--surface);border-radius:4px;margin-bottom:4px;"><strong>${t.name}</strong>: ${t.properties?.join(', ') || '-'}</div>`).join('');
+      } else {
+        nodeTypesEl.innerHTML = '<div style="color:var(--muted);">노드 유형 정보 없음</div>';
+      }
+
+      // 관계 유형 렌더링
+      const relTypesEl = document.getElementById('wrSchemaRelTypes');
+      if (data.relationship_types?.length) {
+        relTypesEl.innerHTML = data.relationship_types.map(r => `<div style="padding:4px 8px;background:var(--surface);border-radius:4px;margin-bottom:4px;"><strong>${r}</strong></div>`).join('');
+      } else {
+        relTypesEl.innerHTML = '<div style="color:var(--muted);">관계 유형 정보 없음</div>';
+      }
+
+      // Schema Text 렌더링
+      document.getElementById('wrSchemaText').textContent = data.schema_text || 'Schema 텍스트가 없습니다.';
+    } catch (e) {
+      console.error('Schema 로드 실패:', e);
+      document.getElementById('wrSchemaNodeTypes').innerHTML = '<div style="color:var(--muted);">Schema API 연결 실패</div>';
+      document.getElementById('wrSchemaRelTypes').innerHTML = '<div style="color:var(--muted);">Schema API 연결 실패</div>';
+      document.getElementById('wrSchemaText').textContent = 'Schema API 연결 실패. Graph Build를 먼저 실행하세요.';
+    }
+  }
+
+  function copySchemaText() {
+    const text = document.getElementById('wrSchemaText').textContent;
+    navigator.clipboard.writeText(text).then(() => showToast('Schema 복사됨', 'success'));
+  }
+
+  // Text2Cypher Test 함수
+  let _lastGeneratedCypher = '';
+
+  async function runText2CypherTest() {
+    const question = document.getElementById('wrText2CypherInput').value.trim();
+    if (!question) { showToast('질문을 입력하세요.', 'warn'); return; }
+
+    document.getElementById('wrCypherStatus').textContent = '실행 중...';
+    document.getElementById('wrGeneratedCypher').textContent = '생성 중...';
+    document.getElementById('wrCypherResult').innerHTML = '<div class="wr-nav-loading">처리 중...</div>';
+
+    try {
+      const r = await fetch(`${API_BASE}/graph/agent/query`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+      if (!r.ok) throw new Error('Agent query API 실패');
+      const data = await r.json();
+
+      _lastGeneratedCypher = data.cypher_query || '';
+      document.getElementById('wrGeneratedCypher').textContent = _lastGeneratedCypher || '생성된 쿼리 없음';
+      document.getElementById('wrCypherStatus').textContent = data.status || 'completed';
+      document.getElementById('wrCypherRetryCount').textContent = data.retry_count || '0';
+      document.getElementById('wrCypherQuestionType').textContent = data.question_type || '-';
+      document.getElementById('wrCypherExecTime').textContent = data.execution_time_ms ? `${data.execution_time_ms}ms` : '-';
+      document.getElementById('wrCypherResultCount').textContent = data.results?.length || '0';
+
+      renderCypherResult(data.results || [], data.fallback_used);
+    } catch (e) {
+      console.error('Text2Cypher 실행 실패:', e);
+      document.getElementById('wrCypherStatus').textContent = '오류';
+      document.getElementById('wrCypherResult').innerHTML = `<div style="color:#ef4444;">${escTxt(e.message)}</div>`;
+    }
+  }
+
+  async function generateCypherOnly() {
+    const question = document.getElementById('wrText2CypherInput').value.trim();
+    if (!question) { showToast('질문을 입력하세요.', 'warn'); return; }
+
+    document.getElementById('wrGeneratedCypher').textContent = '생성 중...';
+
+    try {
+      const r = await fetch(`${API_BASE}/graph/text2cypher/generate`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+      if (!r.ok) throw new Error('Cypher 생성 API 실패');
+      const data = await r.json();
+
+      _lastGeneratedCypher = data.cypher_query || '';
+      document.getElementById('wrGeneratedCypher').textContent = _lastGeneratedCypher || '생성 실패';
+      document.getElementById('wrCypherQuestionType').textContent = data.question_type || '-';
+      showToast('Cypher 쿼리 생성 완료', 'success');
+    } catch (e) {
+      document.getElementById('wrGeneratedCypher').textContent = `오류: ${e.message}`;
+    }
+  }
+
+  async function executeCypherOnly() {
+    if (!_lastGeneratedCypher) { showToast('실행할 쿼리가 없습니다.', 'warn'); return; }
+
+    document.getElementById('wrCypherResult').innerHTML = '<div class="wr-nav-loading">실행 중...</div>';
+
+    try {
+      const r = await fetch(`${API_BASE}/graph/text2cypher/execute`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cypher_query: _lastGeneratedCypher })
+      });
+      if (!r.ok) throw new Error('Cypher 실행 API 실패');
+      const data = await r.json();
+
+      document.getElementById('wrCypherResultCount').textContent = data.results?.length || '0';
+      document.getElementById('wrCypherExecTime').textContent = data.execution_time_ms ? `${data.execution_time_ms}ms` : '-';
+      renderCypherResult(data.results || [], false);
+    } catch (e) {
+      document.getElementById('wrCypherResult').innerHTML = `<div style="color:#ef4444;">${escTxt(e.message)}</div>`;
+    }
+  }
+
+  function renderCypherResult(results, fallbackUsed) {
+    const container = document.getElementById('wrCypherResult');
+    if (!results.length) {
+      container.innerHTML = fallbackUsed
+        ? '<div style="color:#f59e0b;">Graph 결과 없음. FAISS Fallback이 사용되었습니다.</div>'
+        : '<div style="color:var(--muted);">결과가 없습니다.</div>';
+      return;
+    }
+
+    let html = '<table style="width:100%;font-size:11px;border-collapse:collapse;"><thead><tr style="background:var(--surface);">';
+    const keys = Object.keys(results[0]);
+    keys.forEach(k => { html += `<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">${escTxt(k)}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    results.slice(0, 50).forEach(row => {
+      html += '<tr>';
+      keys.forEach(k => {
+        const val = typeof row[k] === 'object' ? JSON.stringify(row[k]) : String(row[k] ?? '');
+        html += `<td style="padding:6px;border-bottom:1px solid var(--border);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escTxt(val)}">${escTxt(val.slice(0, 50))}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    if (results.length > 50) html += `<div style="color:var(--muted);font-size:11px;margin-top:8px;">... 외 ${results.length - 50}건 더 있음</div>`;
+
+    container.innerHTML = html;
+  }
+
+  function copyCypherQuery() {
+    if (!_lastGeneratedCypher) { showToast('복사할 쿼리가 없습니다.', 'warn'); return; }
+    navigator.clipboard.writeText(_lastGeneratedCypher).then(() => showToast('쿼리 복사됨', 'success'));
+  }
+
+  function clearText2CypherResult() {
+    _lastGeneratedCypher = '';
+    document.getElementById('wrText2CypherInput').value = '';
+    document.getElementById('wrGeneratedCypher').textContent = '질문을 입력하고 실행하세요.';
+    document.getElementById('wrCypherStatus').textContent = '대기';
+    document.getElementById('wrCypherRetryCount').textContent = '0';
+    document.getElementById('wrCypherQuestionType').textContent = '-';
+    document.getElementById('wrCypherExecTime').textContent = '-';
+    document.getElementById('wrCypherResultCount').textContent = '-';
+    document.getElementById('wrCypherResult').innerHTML = '<div style="color:var(--muted);font-size:12px;">질문을 입력하고 실행하면 결과가 표시됩니다.</div>';
+  }
+
+  // Agent Logs 함수
+  let _agentLogs = [];
+
+  async function loadAgentLogs() {
+    const container = document.getElementById('wrAgentLogList');
+    container.innerHTML = '<div class="wr-nav-loading">로딩 중...</div>';
+
+    try {
+      const r = await fetch(`${API_BASE}/graph/agent/stats`, { headers: authHeaders() });
+      if (!r.ok) throw new Error('Agent logs API 실패');
+      const data = await r.json();
+
+      // 통계 업데이트
+      document.getElementById('wrAgentTotalQueries').textContent = data.total_queries?.toLocaleString() || '0';
+      document.getElementById('wrAgentSuccessCount').textContent = data.success_count?.toLocaleString() || '0';
+      document.getElementById('wrAgentRetrySuccessCount').textContent = data.retry_success_count?.toLocaleString() || '0';
+      document.getElementById('wrAgentFailedCount').textContent = data.failed_count?.toLocaleString() || '0';
+
+      _agentLogs = data.recent_queries || [];
+      renderAgentLogs(_agentLogs);
+    } catch (e) {
+      console.error('Agent logs 로드 실패:', e);
+      container.innerHTML = '<div style="color:var(--muted);">Agent 로그 API 연결 실패</div>';
+    }
+  }
+
+  function filterAgentLogs() {
+    const filter = document.getElementById('wrAgentLogFilter').value;
+    if (filter === 'all') {
+      renderAgentLogs(_agentLogs);
+    } else {
+      renderAgentLogs(_agentLogs.filter(l => l.status === filter || (filter === 'retry' && l.retry_count > 0)));
+    }
+  }
+
+  function renderAgentLogs(logs) {
+    const container = document.getElementById('wrAgentLogList');
+    if (!logs.length) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:12px;">로그가 없습니다.</div>';
+      return;
+    }
+
+    let html = '';
+    logs.forEach((log, idx) => {
+      const statusColor = log.status === 'success' ? '#22c55e' : log.status === 'retry_success' ? '#f59e0b' : '#ef4444';
+      const statusIcon = log.status === 'success' ? '✓' : log.status === 'retry_success' ? '↻' : '✗';
+
+      html += `
+        <div style="padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;background:var(--surface);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--muted);">${log.timestamp || '-'}</span>
+            <span style="color:${statusColor};font-weight:500;">${statusIcon} ${log.status || '-'}</span>
+          </div>
+          <div style="font-size:12px;margin-bottom:8px;"><strong>질문:</strong> ${escTxt(log.question || '-')}</div>
+          ${log.cypher_query ? `<div style="font-size:10px;color:var(--muted);background:var(--background);padding:6px;border-radius:4px;font-family:monospace;max-height:60px;overflow:auto;">${escTxt(log.cypher_query)}</div>` : ''}
+          <div style="font-size:11px;margin-top:8px;">
+            <span>재시도: ${log.retry_count || 0}</span>
+            <span style="margin-left:12px;">결과: ${log.result_count || 0}건</span>
+            ${log.fallback_used ? '<span style="margin-left:12px;color:#f59e0b;">FAISS Fallback</span>' : ''}
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function exportAgentLogs() {
+    if (!_agentLogs.length) { showToast('내보낼 로그가 없습니다.', 'warn'); return; }
+
+    const csv = ['timestamp,question,status,retry_count,result_count,cypher_query'];
+    _agentLogs.forEach(l => {
+      csv.push(`"${l.timestamp || ''}","${(l.question || '').replace(/"/g, '""')}","${l.status || ''}",${l.retry_count || 0},${l.result_count || 0},"${(l.cypher_query || '').replace(/"/g, '""')}"`);
+    });
+
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `agent_logs_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('로그 내보내기 완료', 'success');
+  }
+
+  // 페이지 전환 시 데이터 로드
+  const _originalOpenWrDocsPage = window.openWrDocsPage;
+  window.openWrDocsPage = function(pageName) {
+    const result = _originalOpenWrDocsPage ? _originalOpenWrDocsPage(pageName) : false;
+
+    // Graph/Ontology 페이지 데이터 로드
+    if (pageName === 'graph-overview') loadGraphOverviewStats();
+    if (pageName === 'schema-viewer') loadGraphSchema();
+    if (pageName === 'agent-logs') loadAgentLogs();
+
+    return result;
+  };
 
   function openSearchQuality() {
     if (window.openWrDocsPage?.('search-quality')) return;
