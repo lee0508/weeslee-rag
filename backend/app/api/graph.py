@@ -20,6 +20,13 @@ POST /api/graph/query/technologies   — 기술 키워드로 프로젝트 검색
 GET  /api/graph/query/similar        — 유사 프로젝트 검색
 GET  /api/graph/query/document-chain — 문서 체인 조회
 GET  /api/graph/statistics           — 노드/엣지 타입별 통계
+
+GraphRAG Schema API (Phase 2):
+GET  /api/graph/schema               — Graph Schema 조회 (Text2Cypher용)
+GET  /api/graph/schema/json          — Graph Schema JSON 형식 조회
+GET  /api/graph/schema/cypher        — Neo4j 제약조건 Cypher 조회
+GET  /api/graph/schema/node-types    — 노드 유형 목록
+GET  /api/graph/schema/relation-types — 관계 유형 목록
 """
 from __future__ import annotations
 
@@ -919,3 +926,117 @@ async def cytoscape_full_graph(limit: int = 200, source_id: Optional[str] = None
     result = _to_cytoscape_elements(limited_nodes, limited_edges)
     result["source_id"] = source_id or "all"
     return result
+
+
+# ── GraphRAG Schema API (Phase 2) ─────────────────────────────────────────────
+
+
+@router.get("/schema")
+async def get_schema_text():
+    """
+    Text2Cypher가 참조할 Graph Schema를 텍스트로 반환.
+
+    이 스키마는 LLM이 Cypher 쿼리를 생성할 때 참조하는 노드/관계 정의이다.
+    """
+    from app.models.graph_schema import generate_schema_text
+
+    return {
+        "schema": generate_schema_text(),
+        "format": "text",
+        "purpose": "text2cypher",
+    }
+
+
+@router.get("/schema/json")
+async def get_schema_json():
+    """
+    Graph Schema를 JSON 형식으로 반환.
+
+    노드 속성, 관계 source/target 규칙 등을 포함한다.
+    """
+    from app.models.graph_schema import generate_schema_json, NodeType, RelationType
+
+    return {
+        "schema": generate_schema_json(),
+        "node_types": [nt.value for nt in NodeType],
+        "relation_types": [rt.value for rt in RelationType],
+        "format": "json",
+    }
+
+
+@router.get("/schema/cypher")
+async def get_schema_cypher():
+    """
+    Neo4j 제약조건 및 인덱스 생성 Cypher 쿼리 반환.
+
+    새 Graph DB 초기화 시 이 쿼리들을 실행하여 스키마를 설정한다.
+    """
+    from app.models.graph_schema import generate_cypher_constraints
+
+    return {
+        "cypher": generate_cypher_constraints(),
+        "purpose": "neo4j_initialization",
+    }
+
+
+@router.get("/schema/node-types")
+async def list_node_types():
+    """
+    Graph 노드 유형 목록 반환.
+
+    각 노드 유형의 이름, 설명, 속성 목록을 포함한다.
+    """
+    from app.models.graph_schema import NodeType, generate_schema_json
+
+    schema = generate_schema_json()
+    node_types = []
+
+    for nt in NodeType:
+        node_info = schema["nodes"].get(nt.value, {})
+        node_types.append({
+            "type": nt.value,
+            "description": node_info.get("description", ""),
+            "properties": node_info.get("properties", []),
+        })
+
+    return {"node_types": node_types, "count": len(node_types)}
+
+
+@router.get("/schema/relation-types")
+async def list_relation_types():
+    """
+    Graph 관계 유형 목록 반환.
+
+    각 관계 유형의 이름, source/target 노드 유형을 포함한다.
+    """
+    from app.models.graph_schema import RelationType, RELATION_RULES, NodeType
+
+    relation_types = []
+
+    for rt in RelationType:
+        rule = RELATION_RULES.get(rt, {})
+        source = rule.get("source")
+        target = rule.get("target")
+
+        # source/target이 리스트인 경우 처리
+        if isinstance(source, list):
+            source_types = [s.value for s in source]
+        elif isinstance(source, NodeType):
+            source_types = [source.value]
+        else:
+            source_types = []
+
+        if isinstance(target, list):
+            target_types = [t.value for t in target]
+        elif isinstance(target, NodeType):
+            target_types = [target.value]
+        else:
+            target_types = []
+
+        relation_types.append({
+            "type": rt.value,
+            "source_types": source_types,
+            "target_types": target_types,
+        })
+
+    return {"relation_types": relation_types, "count": len(relation_types)}
