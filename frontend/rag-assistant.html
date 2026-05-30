@@ -1663,6 +1663,7 @@
       font-weight: 500;
     }
     .agent-mode-badge.graph_rag { background: #dbeafe; color: #1d4ed8; }
+    .agent-mode-badge.hybrid_rag { background: #f3e8ff; color: #7c3aed; }
     .agent-mode-badge.rfp_analysis { background: #fef3c7; color: #b45309; }
     .agent-mode-badge.bid_project { background: #dcfce7; color: #15803d; }
     .agent-mode-badge.general { background: var(--gray-100); color: var(--gray-600); }
@@ -2008,6 +2009,7 @@
               <option value="bid_project" data-i18n="mode_bid">유사 사업</option>
               <option value="rfp_analysis" data-i18n="mode_rfp">RFP 분석</option>
               <option value="graph_rag" data-i18n="mode_graph">관계 기반</option>
+              <option value="hybrid_rag" data-i18n="mode_hybrid">Hybrid RAG</option>
             </select>
           <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
           <!-- 기본 설정: 항상 표시 -->
@@ -2564,6 +2566,9 @@
       collection_filter:'Collection', col_all:'\uC804\uCCB4 Collection',
       doc_group_filter:'\uBB38\uC11C \uADF8\uB8F9',
       search_weights:'\uAC80\uC0C9 \uBE44\uC911', temperature:'Temperature',
+      mode_hybrid:'Hybrid RAG',
+      hint_hybrid:'FAISS 벡터 검색 + GraphRAG 관계 검색을 통합합니다.<br>두 검색 결과를 병합하고 재순위화하여 정확도를 높입니다.',
+      query_example_hybrid:'행정안전부 차세대 업무시스템 관련 모든 문서와 프로젝트 연관 관계를 찾아줘',
     };
 
     const I18N = {
@@ -2753,6 +2758,9 @@
         collection_filter:'Collection', col_all:'All Collections',
         doc_group_filter:'Document Group',
         search_weights:'Search Weights', temperature:'Temperature',
+        mode_hybrid:'Hybrid RAG',
+        hint_hybrid:'Combines FAISS vector search + GraphRAG relationship search.<br>Merges and re-ranks results for higher accuracy.',
+        query_example_hybrid:'Find all documents and project relationships for MOIS next-gen business system',
       },
     };
 
@@ -3449,7 +3457,7 @@
     function onSearchModeChange() {
       const mode = document.getElementById('searchMode').value;
       const hint = document.getElementById('bidHint');
-      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph') };
+      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph'), hybrid_rag: t('hint_hybrid') };
       hint.innerHTML = hints[mode] || '';
       hint.style.display = hints[mode] ? '' : 'none';
 
@@ -3458,6 +3466,7 @@
         bid_project:  t('query_example_bid'),
         rfp_analysis: t('query_example_rfp'),
         graph_rag:    t('query_example_graph'),
+        hybrid_rag:   t('query_example_hybrid'),
       };
       const example = examples[mode] || '';
       // 사용자가 직접 입력한 내용이 아닌 경우(비어 있거나 이전 예시 텍스트)에만 교체
@@ -3572,6 +3581,28 @@
           });
           if (!response.ok) throw new Error(await readApiError(response));
           data = await response.json();
+        } else if (effectiveMode === 'hybrid_rag') {
+          // Hybrid RAG 모드: FAISS + GraphRAG 통합 검색
+          const hybridPayload = {
+            question: effectiveQuery,
+            top_k: topK,
+            max_results: topDocs,
+            merge_strategy: 'score_based',
+            generate_answer: answerProvider !== 'none',
+            ...(collection ? { collection } : {}),
+            ...(category ? { category } : {}),
+            ...(filterOrg ? { organization: filterOrg } : {}),
+            ...(filterYear ? { year: filterYear } : {})
+          };
+          const response = await fetch(`${API_BASE}/rag/hybrid-query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(hybridPayload)
+          });
+          if (!response.ok) throw new Error(await readApiError(response));
+          const hybridData = await response.json();
+          // Hybrid API 응답을 기존 형식으로 변환
+          data = transformHybridResponse(hybridData);
         } else {
           const response = await fetch(`${API_BASE}/rag/query`, {
             method: 'POST',
@@ -3602,11 +3633,12 @@
         renderResultPanel(data);
         renderResults(data.documents || []);
 
-        // Graph RAG 모드 또는 전체 모드일 때 그래프 로드
+        // Graph RAG, Hybrid RAG 모드 또는 전체 모드일 때 그래프 로드
         const isGraphMode = effectiveMode === 'graph_rag';
+        const isHybridMode = effectiveMode === 'hybrid_rag';
         const isAllMode = effectiveMode === '' || effectiveMode === 'all';
 
-        if (isGraphMode || isAllMode) {
+        if (isGraphMode || isHybridMode || isAllMode) {
           loadGraphFromQuery(query, data.documents || []);
           if (isGraphMode) {
             switchAnswerTab('graph');
@@ -3917,6 +3949,7 @@
       const modeLabels = {
         'general': 'General',
         'graph_rag': 'Graph RAG',
+        'hybrid_rag': 'Hybrid RAG',
         'rfp_analysis': 'RFP 분석',
         'bid_project': '입찰 프로젝트'
       };
@@ -4276,6 +4309,63 @@
       if (_renderedDocuments && _renderedDocuments[idx]) {
         openDocDetail(_renderedDocuments[idx], viewMode);
       }
+    }
+
+    // Hybrid RAG API 응답을 기존 RAG API 응답 형식으로 변환
+    function transformHybridResponse(hybridData) {
+      if (!hybridData) return { success: false, error: 'No hybrid data' };
+
+      // merged_documents 또는 results에서 문서 추출
+      const rawDocs = hybridData.merged_documents || hybridData.results || [];
+
+      // documents 변환: HybridResult -> 기존 document 형식
+      const documents = rawDocs.map((r, idx) => ({
+        document_id: r.document_id || `hybrid_${idx}`,
+        file_name: r.file_name || r.title || r.document_id || '-',
+        file_path: r.file_path || r.source_path || '',
+        project_name: r.metadata?.project_name || r.project_name || '',
+        category: r.metadata?.category || r.category || '',
+        score: r.score || r.final_score || r.faiss_score || 0,
+        faiss_score: r.faiss_score || 0,
+        graph_score: r.graph_score || 0,
+        source: r.source || 'hybrid',
+        snippet: r.text_preview || r.evidence || r.snippet || '',
+        chunks: r.chunks || [],
+        metadata: r.metadata || {},
+        graph_relations: r.graph_relations || []
+      }));
+
+      // graph_context 변환: GraphRAG 관련 정보 추출
+      const cypherQueries = hybridData.graph_cypher || [];
+      const graphContext = cypherQueries.length > 0 ? [{
+        project_name: '',
+        cypher_query: cypherQueries.join('\n'),
+        retry_count: hybridData.graph_retry_count || 0,
+        question_type: hybridData.graph_question_type || '',
+        related_docs: documents.filter(d => d.source === 'graph' || d.graph_score > 0)
+      }] : [];
+
+      // 통계 정보
+      const stats = hybridData.statistics || {};
+      const timing = hybridData.timing || {};
+
+      return {
+        success: hybridData.success !== false,
+        documents,
+        total_chunks: stats.merged_count || documents.length,
+        expanded_query: hybridData.question || '',
+        graph_context: graphContext,
+        hybrid_metadata: {
+          faiss_count: stats.faiss_count || 0,
+          graph_count: stats.graph_count || 0,
+          wiki_count: stats.wiki_count || 0,
+          merge_strategy: hybridData.merge_strategy || 'score_based',
+          search_time_ms: timing.total_time_ms || 0,
+          timing: timing
+        },
+        evidence: hybridData.evidence || [],
+        draft_answer: hybridData.answer || ''
+      };
     }
 
     function escapeHtml(text) {
