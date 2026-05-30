@@ -1,0 +1,52 @@
+# weeslee-rag 줄바꿈 정책 설정
+# Phase 0 코드 안정화 - 2026-05-30
+
+# 기본 설정: 자동 줄바꿈 처리
+* text=auto
+
+# 프론트엔드 파일: LF 고정
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+
+# 백엔드 파일: LF 고정
+*.py text eol=lf
+*.sh text eol=lf
+
+# 문서 파일: LF 고정
+*.md text eol=lf
+*.txt text eol=lf
+
+# 설정 파일: LF 고정
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.env text eol=lf
+
+# 바이너리 파일: 변환 없음
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# HWP/HWPX (한글 문서): 바이너리
+*.hwp binary
+*.hwpx binary
+
+# 데이터베이스 파일: 바이너리
+*.db binary
+*.sqlite binary
+*.faiss binary
+*.pkl binary
