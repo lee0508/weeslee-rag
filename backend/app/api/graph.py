@@ -27,6 +27,11 @@ GET  /api/graph/schema/json          — Graph Schema JSON 형식 조회
 GET  /api/graph/schema/cypher        — Neo4j 제약조건 Cypher 조회
 GET  /api/graph/schema/node-types    — 노드 유형 목록
 GET  /api/graph/schema/relation-types — 관계 유형 목록
+
+Graph Build API (Phase 3):
+POST /api/graph/schema/build         — 스키마 기반 그래프 재빌드
+GET  /api/graph/status               — 그래프 빌드 상태
+GET  /api/graph/documents/{doc_id}/relations — 문서의 관계 목록
 """
 from __future__ import annotations
 
@@ -1040,3 +1045,200 @@ async def list_relation_types():
         })
 
     return {"relation_types": relation_types, "count": len(relation_types)}
+
+
+# ── Graph Build API (Phase 3) ─────────────────────────────────────────────────
+
+
+class GraphBuildRequest(BaseModel):
+    source_id: Optional[str] = Field(None, description="Document Source ID (없으면 전체)")
+    rebuild: bool = Field(False, description="기존 그래프 삭제 후 재빌드")
+
+
+@router.post("/schema/build", dependencies=[Depends(require_admin_token)])
+async def build_graph_with_schema(request: GraphBuildRequest):
+    """
+    Phase 2 스키마 기반으로 그래프를 빌드한다.
+
+    기존 build_graph_jsonl.py를 실행하되, 새 스키마 노드/관계 유형을 적용한다.
+    """
+    if not _BUILD_SCRIPT.exists():
+        raise HTTPException(status_code=500, detail="build_graph_jsonl.py not found")
+
+    cmd = [sys.executable, str(_BUILD_SCRIPT)]
+    if request.source_id:
+        cmd += ["--source-id", request.source_id]
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True, text=True, encoding="utf-8", timeout=300,
+            cwd=str(PROJECT_ROOT),
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Build timed out (300s)")
+
+    if proc.returncode != 0:
+        raise HTTPException(status_code=500, detail=proc.stderr.strip() or "Build failed")
+
+    # 캐시 무효화
+    cache_key = _get_cache_key(request.source_id)
+    if cache_key in _caches:
+        _caches[cache_key]["mtime"] = 0.0
+    _load_graph(request.source_id)
+
+    # 결과 파싱
+    for line in reversed(proc.stdout.strip().splitlines()):
+        try:
+            data = json.loads(line)
+            if data.get("graph_complete"):
+                data["source_id"] = request.source_id or "all"
+                data["schema_version"] = "phase2"
+                return data
+        except Exception:
+            pass
+
+    return {
+        "graph_complete": True,
+        "source_id": request.source_id or "all",
+        "schema_version": "phase2",
+        "output": proc.stdout.strip()[-500:],
+    }
+
+
+@router.get("/status")
+async def get_graph_status(source_id: Optional[str] = None):
+    """
+    그래프 빌드 상태를 반환한다.
+
+    - 마지막 빌드 시간
+    - 노드/엣지 수
+    - 스키마 버전
+    - 각 노드 타입별 수
+    """
+    cache = _load_graph(source_id)
+    m = _manifest(source_id)
+
+    # 노드 타입별 카운트
+    node_type_counts = {}
+    for node in cache["nodes"]:
+        node_type = node.get("type", "unknown")
+        node_type_counts[node_type] = node_type_counts.get(node_type, 0) + 1
+
+    # 관계 타입별 카운트
+    relation_type_counts = {}
+    for edge in cache["edges"]:
+        relation = edge.get("relation", "unknown")
+        relation_type_counts[relation] = relation_type_counts.get(relation, 0) + 1
+
+    return {
+        "source_id": source_id or "all",
+        "status": "ready" if cache["nodes"] else "empty",
+        "built_at": m.get("built_at"),
+        "schema_version": "phase2" if m.get("built_at") else None,
+        "node_count": len(cache["nodes"]),
+        "edge_count": len(cache["edges"]),
+        "node_type_counts": node_type_counts,
+        "relation_type_counts": relation_type_counts,
+        "has_data": bool(cache["nodes"]),
+    }
+
+
+@router.get("/documents/{document_id}/relations")
+async def get_document_relations(document_id: str, source_id: Optional[str] = None):
+    """
+    특정 문서의 모든 관계를 반환한다.
+
+    - 문서가 속한 프로젝트
+    - 문서의 카테고리
+    - 관련 문서 (동일 프로젝트, 유사 문서 등)
+    - 연결된 키워드, 기술, 기관 등
+    """
+    cache = _load_graph(source_id)
+
+    # document_id 형식 정규화
+    doc_id = document_id if document_id.startswith("doc:") else f"doc:{document_id}"
+
+    # 문서 노드 찾기
+    doc_node = next((n for n in cache["nodes"] if n["id"] == doc_id), None)
+    if not doc_node:
+        # document_id 필드로 검색
+        doc_node = next(
+            (n for n in cache["nodes"]
+             if n.get("type") == "document" and n.get("document_id") == document_id),
+            None
+        )
+        if doc_node:
+            doc_id = doc_node["id"]
+
+    if not doc_node:
+        raise HTTPException(status_code=404, detail=f"Document not found: {document_id}")
+
+    # 관련 엣지 수집
+    outgoing_relations = []
+    incoming_relations = []
+
+    for edge in cache["edges"]:
+        if edge["source"] == doc_id:
+            target_node = next((n for n in cache["nodes"] if n["id"] == edge["target"]), None)
+            outgoing_relations.append({
+                "relation_type": edge.get("relation", ""),
+                "target_id": edge["target"],
+                "target_type": target_node.get("type") if target_node else "unknown",
+                "target_label": target_node.get("label") if target_node else "",
+                "weight": edge.get("weight", 1.0),
+                "properties": {k: v for k, v in edge.items()
+                              if k not in ("id", "source", "target", "relation", "weight")},
+            })
+        elif edge["target"] == doc_id:
+            source_node = next((n for n in cache["nodes"] if n["id"] == edge["source"]), None)
+            incoming_relations.append({
+                "relation_type": edge.get("relation", ""),
+                "source_id": edge["source"],
+                "source_type": source_node.get("type") if source_node else "unknown",
+                "source_label": source_node.get("label") if source_node else "",
+                "weight": edge.get("weight", 1.0),
+                "properties": {k: v for k, v in edge.items()
+                              if k not in ("id", "source", "target", "relation", "weight")},
+            })
+
+    # 프로젝트 정보
+    project_info = None
+    project_id = doc_node.get("project_id")
+    if project_id:
+        project_node = next((n for n in cache["nodes"] if n["id"] == project_id), None)
+        if project_node:
+            project_info = {
+                "id": project_node["id"],
+                "name": project_node.get("label", ""),
+                "year": project_node.get("year", ""),
+                "organization": project_node.get("organization", ""),
+            }
+
+    # 동일 프로젝트 문서
+    same_project_docs = []
+    if project_id:
+        for node in cache["nodes"]:
+            if (node.get("type") == "document"
+                and node.get("project_id") == project_id
+                and node["id"] != doc_id):
+                same_project_docs.append({
+                    "id": node["id"],
+                    "label": node.get("label", ""),
+                    "category": node.get("category", ""),
+                })
+
+    return {
+        "source_id": source_id or "all",
+        "document": {
+            "id": doc_id,
+            "label": doc_node.get("label", ""),
+            "category": doc_node.get("category", ""),
+            "source_path": doc_node.get("source_path", ""),
+        },
+        "project": project_info,
+        "outgoing_relations": outgoing_relations,
+        "incoming_relations": incoming_relations,
+        "same_project_documents": same_project_docs,
+        "relation_count": len(outgoing_relations) + len(incoming_relations),
+    }
