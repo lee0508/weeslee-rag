@@ -65,6 +65,41 @@ def _default_chunks_path() -> Path:
     return _rag_runtime().default_chunks_path(_active_snapshot())
 
 
+def _normalize_selected_document_ids(selected_document_ids: Optional[list[str]]) -> list[str]:
+    normalized = []
+    for item in selected_document_ids or []:
+        value = str(item).strip()
+        if value:
+            normalized.append(value)
+    return normalized
+
+
+def _filter_documents_by_selected_ids(
+    documents: list[dict], selected_document_ids: list[str]
+) -> list[dict]:
+    if not documents or not selected_document_ids:
+        return documents
+
+    selected_set = set(_normalize_selected_document_ids(selected_document_ids))
+    if not selected_set:
+        return documents
+
+    filtered = []
+    for doc in documents:
+        candidates = {
+            str(doc.get("document_id", "")).strip(),
+            str(doc.get("file_name", "")).strip(),
+            str(doc.get("source_path", "")).strip(),
+            str(doc.get("original_source_path", "")).strip(),
+            str(doc.get("relative_path", "")).strip(),
+        }
+        candidates.discard("")
+        if candidates & selected_set:
+            filtered.append(doc)
+
+    return filtered
+
+
 def _search_wiki_projects(query: str, top_k: int) -> list[dict]:
     if not WIKI_PROJECT_DIR.exists():
         return []
@@ -193,6 +228,7 @@ class RagQueryRequest(BaseModel):
     vector_weight: float = Field(1.0, ge=0.0, le=1.0)
     graph_weight: float = Field(0.0, ge=0.0, le=1.0)
     wiki_weight: float = Field(0.0, ge=0.0, le=1.0)
+    selected_document_ids: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _normalize_weights(self) -> "RagQueryRequest":
@@ -331,6 +367,10 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
         index_path=request.index_path or str(default_index),
         metadata_path=request.metadata_path or str(default_meta),
         chunks_jsonl=request.chunks_jsonl or str(_default_chunks_path()),
+    )
+    payload["documents"] = _filter_documents_by_selected_ids(
+        payload.get("documents", []) or [],
+        request.selected_document_ids,
     )
     payload["success"] = True
     if mode_detection:
@@ -1014,3 +1054,151 @@ async def analyze_prompt_endpoint(request: PromptAnalysisRequest):
             extracted_keywords=[],
             expanded_query=request.query,
         )
+
+
+# ============================================================
+# Hybrid RAG API (Phase 7)
+# ============================================================
+
+
+class HybridQueryRequest(BaseModel):
+    """Hybrid RAG 쿼리 요청."""
+    question: str = Field(..., description="사용자 질문")
+    source_id: Optional[str] = Field(None, description="Document Source ID")
+    top_k: int = Field(10, ge=1, le=50, description="각 소스별 최대 결과 수")
+    max_results: int = Field(20, ge=1, le=100, description="병합 후 최대 결과 수")
+    enable_graph: bool = Field(True, description="GraphRAG 활성화")
+    enable_wiki: bool = Field(False, description="Wiki 검색 활성화")
+    merge_strategy: str = Field("score_based", description="결과 병합 전략: score_based, faiss_first, graph_first, interleave")
+    generate_answer: bool = Field(False, description="LLM 답변 생성 여부")
+
+
+@router.post("/hybrid-query")
+async def hybrid_query(request: HybridQueryRequest):
+    """
+    Hybrid RAG 쿼리 - FAISS + GraphRAG + Wiki 통합 검색.
+
+    여러 검색 소스의 결과를 병합하여 반환한다.
+
+    처리 단계:
+    1. FAISS 벡터 검색 (병렬)
+    2. GraphRAG Agent 실행 (병렬)
+    3. LLM-Wiki 검색 (병렬, 옵션)
+    4. 결과 병합 및 중복 제거
+    5. Re-ranking
+    6. 근거 정보 생성
+    7. LLM 답변 생성 (옵션)
+
+    응답 필드:
+    - success: 성공 여부
+    - question: 원본 질문
+    - answer: LLM 생성 답변 (옵션)
+    - faiss_results: FAISS 검색 결과
+    - graph_results: GraphRAG 검색 결과
+    - wiki_results: Wiki 검색 결과 (향후)
+    - merged_documents: 병합된 문서 목록
+    - graph_cypher: 생성된 Cypher 쿼리
+    - graph_retry_count: Graph 쿼리 재시도 횟수
+    - evidence: 근거 정보
+    """
+    from app.services.hybrid_rag_service import get_hybrid_rag_service, MergeStrategy
+
+    # 병합 전략 파싱
+    try:
+        merge_strategy = MergeStrategy(request.merge_strategy)
+    except ValueError:
+        merge_strategy = MergeStrategy.SCORE_BASED
+
+    service = get_hybrid_rag_service(
+        source_id=request.source_id,
+        enable_graph=request.enable_graph,
+        enable_wiki=request.enable_wiki,
+    )
+    service.merge_strategy = merge_strategy
+
+    response = await service.query(
+        question=request.question,
+        top_k=request.top_k,
+        max_results=request.max_results,
+        generate_answer=request.generate_answer,
+    )
+
+    return {
+        "success": response.success,
+        "question": response.question,
+        "answer": response.answer,
+
+        # 개별 검색 결과
+        "faiss_results": response.faiss_results,
+        "graph_results": response.graph_results,
+        "wiki_results": response.wiki_results,
+
+        # 병합된 결과
+        "merged_documents": response.merged_documents,
+
+        # Graph 메타데이터
+        "graph_cypher": response.graph_cypher,
+        "graph_retry_count": response.graph_retry_count,
+        "graph_question_type": response.graph_question_type,
+
+        # 근거
+        "evidence": response.evidence,
+
+        # 통계
+        "statistics": {
+            "faiss_count": response.faiss_count,
+            "graph_count": response.graph_count,
+            "wiki_count": response.wiki_count,
+            "merged_count": response.merged_count,
+        },
+
+        # 타이밍
+        "timing": {
+            "faiss_time_ms": response.faiss_time_ms,
+            "graph_time_ms": response.graph_time_ms,
+            "wiki_time_ms": response.wiki_time_ms,
+            "merge_time_ms": response.merge_time_ms,
+            "total_time_ms": response.total_time_ms,
+        },
+
+        "error": response.error,
+        "source_id": request.source_id or "all",
+        "merge_strategy": request.merge_strategy,
+        "timestamp": response.timestamp,
+    }
+
+
+@router.get("/hybrid-query/stats")
+async def hybrid_query_stats(source_id: Optional[str] = None):
+    """
+    Hybrid RAG 통계 조회.
+
+    FAISS 인덱스, Graph 데이터 상태를 반환한다.
+    """
+    from app.services.faiss_search_service import get_faiss_search_service
+    from app.services.graph_query_service import get_graph_query_service
+
+    faiss_service = get_faiss_search_service(source_id)
+    graph_service = get_graph_query_service(source_id)
+
+    faiss_stats = faiss_service.get_index_stats()
+
+    # Graph 노드/엣지 로드
+    graph_service._load_graph()
+    graph_stats = {
+        "node_count": len(graph_service._nodes),
+        "edge_count": len(graph_service._edges),
+        "loaded": graph_service._loaded,
+    }
+
+    return {
+        "source_id": source_id or "all",
+        "faiss": faiss_stats,
+        "graph": graph_stats,
+        "hybrid_ready": faiss_stats["loaded"] or graph_stats["loaded"],
+        "search_modes": {
+            "faiss_available": faiss_stats["loaded"],
+            "graph_available": graph_stats["loaded"],
+            "wiki_available": False,  # 향후 구현
+        },
+    }
