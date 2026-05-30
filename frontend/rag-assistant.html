@@ -3148,6 +3148,9 @@
               'font-size': '8px',
               'color': '#4A6A9A',
               'text-rotation': 'autorotate',
+              'text-background-color': '#FFFFFF',
+              'text-background-opacity': 0.92,
+              'text-background-padding': '4px',
             }
           },
           {
@@ -5423,9 +5426,9 @@
     function formatGraphArrowLabel(rawType, fallbackLabel) {
       const text = resolveGraphRelationLabel(rawType, fallbackLabel);
       if (!String(text).trim()) {
-        return '────────>';
+        return '---->';
       }
-      return `──────── ${text} ───────>`;
+      return `----  ${text}  ---->`;
     }
 
     function normalizeGraphEdgeElement(edge) {
