@@ -698,6 +698,14 @@
       display: flex;
       gap: 8px;
     }
+
+    .query-timing {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-s);
+      min-height: 16px;
+      line-height: 1.4;
+    }
     .panel-tab {
       padding: 6px 10px;
       border-radius: 8px;
@@ -2190,6 +2198,7 @@
             <button class="panel-tab" type="button" data-tab="graph" onclick="switchAnswerTab('graph')" data-i18n="tab_graph">Graph</button>
             <button class="panel-tab" type="button" data-tab="wiki" onclick="switchAnswerTab('wiki')" data-i18n="tab_wiki_result">Wiki</button>
           </div>
+          <div id="queryTiming" class="query-timing" aria-live="polite"></div>
         </div>
         <!-- RAG 탭 (FAISS 검색 결과 + LLM 답변) -->
         <div class="card-body panel-view active" id="ragPanel">
@@ -2436,6 +2445,11 @@
       query_failed:'쿼리 실패', ks_searching:'검색 중..',
       ks_found:'{n}개 문서 검색됨', ks_none:'검색 결과 없음',
       ks_no_docs:'관련 문서를 찾지 못했습니다.', ks_enter:'검색어를 입력하세요.', ks_error:'오류',
+      query_latency_wait:'응답 시간 측정 중..',
+      query_latency_search_only:'응답: 검색 {search} · 전체 {total}',
+      query_latency_with_answer:'응답: 검색 {search} · 답변 {answer} · 전체 {total}',
+      query_latency_rfp:'응답: RFP 처리 {total}',
+      query_latency_fail:'응답: 실패 ({error}) · 전체 {total}',
       hint_bid:'사업명과 키워드를 자동 확장합니다.<br>proposal, final_report, presentation 우선순위를 적용합니다.',
       hint_rfp:'RFP와 과업지시서 내용을 분석합니다.<br>rfp, kickoff, proposal 우선순위를 적용합니다.',
       hint_graph:'FAISS 검색 뒤 동일 프로젝트의 RFP, 제안, 착수, 보고서 체인을 추가로 표시합니다.',
@@ -2615,6 +2629,11 @@
         query_failed:'쿼리 실패', ks_searching:'검색 중...',
         ks_found:'{n}개 문서 검색됨', ks_none:'검색 결과 없음',
         ks_no_docs:'관련 문서를 찾지 못했습니다.', ks_enter:'검색어를 입력하세요.', ks_error:'오류',
+        query_latency_wait:'응답 시간 측정 중...',
+        query_latency_search_only:'응답: 검색 {search} · 전체 {total}',
+        query_latency_with_answer:'응답: 검색 {search} · 답변 {answer} · 전체 {total}',
+        query_latency_rfp:'응답: RFP 처리 {total}',
+        query_latency_fail:'응답: 실패 ({error}) · 전체 {total}',
         hint_bid:'나라장터 사업명 → 키워드 자동 확장.<br>proposal → final_report → presentation 우선순위 적용.',
         hint_rfp:'RFP / 과업지시서 내용 분석.<br>rfp → kickoff → proposal 우선순위 적용.',
         hint_graph:'FAISS 검색 후 동일 프로젝트의 RFP·제안·착수·보고서 체인을 함께 표시합니다.',
@@ -2700,6 +2719,11 @@
         query_failed:'Query failed', ks_searching:'Searching...',
         ks_found:'{n} documents found', ks_none:'No results found',
         ks_no_docs:'No relevant documents found.', ks_enter:'Please enter a search term.', ks_error:'Error',
+        query_latency_wait:'Measuring response time...',
+        query_latency_search_only:'Response: search {search} · total {total}',
+        query_latency_with_answer:'Response: search {search} · answer {answer} · total {total}',
+        query_latency_rfp:'Response: RFP process {total}',
+        query_latency_fail:'Response failed ({error}) · total {total}',
         hint_bid:'Nara Marketplace project → keyword expansion.<br>Priority: proposal → final_report → presentation.',
         hint_rfp:'RFP / scope-of-work analysis.<br>Priority: rfp → kickoff → proposal.',
         hint_graph:'Runs FAISS search then displays the full project chain (RFP → Proposal → Kickoff → Report).',
@@ -2735,6 +2759,7 @@
     let _lang = localStorage.getItem('rag_lang') || 'ko';
     let _hasAnswer = false;
     let _queryRan = false;
+    let _queryTimingState = null;
 
     function t(key, vars = {}) {
       let str = (I18N[_lang] || I18N.ko)[key] || key;
@@ -2772,6 +2797,7 @@
         renderReviewList();
         if (_selectedReviewIdx >= 0) selectReviewItem(_selectedReviewIdx);
       }
+      renderQueryTiming();
     }
 
     // ── Toast notifications ───────────────────────────────────────────────
@@ -2786,6 +2812,49 @@
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
       }, duration);
+    }
+
+    function formatLatency(ms) {
+      return `${(ms / 1000).toFixed(2)}s`;
+    }
+
+    function renderQueryTiming() {
+      const el = document.getElementById('queryTiming');
+      if (!el) return;
+      if (!_queryTimingState) {
+        el.textContent = '';
+        return;
+      }
+      const state = _queryTimingState;
+      if (state.kind === 'running') {
+        el.textContent = t('query_latency_wait');
+        return;
+      }
+      if (state.kind === 'rfp') {
+        el.textContent = t('query_latency_rfp', { total: formatLatency(state.totalMs || 0) });
+        return;
+      }
+      if (state.kind === 'fail') {
+        el.textContent = t('query_latency_fail', { error: state.error || 'error', total: formatLatency(state.totalMs || 0) });
+        return;
+      }
+      if (state.kind === 'with_answer') {
+        el.textContent = t('query_latency_with_answer', {
+          search: formatLatency(state.searchMs || 0),
+          answer: formatLatency(state.answerMs || 0),
+          total: formatLatency(state.totalMs || 0),
+        });
+        return;
+      }
+      el.textContent = t('query_latency_search_only', {
+        search: formatLatency(state.searchMs || 0),
+        total: formatLatency(state.totalMs || 0),
+      });
+    }
+
+    function setQueryTiming(kind, data) {
+      _queryTimingState = { kind, ...data };
+      renderQueryTiming();
     }
 
     async function readApiError(response) {
@@ -3457,10 +3526,14 @@
       const runBtn = document.querySelector('button[onclick="runQuery()"]');
       runBtn.disabled = true;
       runBtn.textContent = t('running_btn');
+      setQueryTiming('running');
 
       const effectiveQuery = query;
       const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
       if (_rfpSelectedFile && status) status.textContent = t('rfp_active_notice');
+      const queryStart = performance.now();
+      let searchMs = 0;
+      let answerMs = 0;
       const searchPayload = {
         query: effectiveQuery, top_k: topK, top_docs: topDocs, max_chunks_per_doc: maxChunks,
         answer_provider: 'none',
@@ -3479,6 +3552,8 @@
 
       try {
         let data;
+        const searchStart = performance.now();
+
         if (_rfpSelectedFile) {
           status.textContent = t('rfp_uploading');
           const formData = new FormData();
@@ -3506,11 +3581,16 @@
           if (!response.ok) throw new Error(await readApiError(response));
           data = await response.json();
         }
+        searchMs = performance.now() - searchStart;
 
         if (!data.success) {
           if (status) status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
           renderResultPanel(data);
           switchAnswerTab('rag');
+          setQueryTiming(_rfpSelectedFile ? 'rfp' : 'search_only', {
+            searchMs,
+            totalMs: performance.now() - queryStart,
+          });
           return;
         }
 
@@ -3541,10 +3621,19 @@
           _hasAnswer = answerProvider !== 'none' && Boolean(data.draft_answer);
           renderAnswerPanel(data, answerProvider === 'none' ? '' : (data.draft_answer || ''), answerProvider === 'none');
           pushHistory(query || _rfpSelectedFile.name, data);
+          setQueryTiming('rfp', {
+            searchMs,
+            totalMs: performance.now() - queryStart,
+          });
           if (!isGraphMode && answerProvider !== 'none') switchAnswerTab('rag');
         } else if (answerProvider === 'none') {
           pushHistory(query, data);
+          setQueryTiming('search_only', {
+            searchMs,
+            totalMs: performance.now() - queryStart,
+          });
         } else {
+          const answerStart = performance.now();
           const answerResponse = await fetch(`${API_BASE}/rag/answer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3556,6 +3645,7 @@
           });
           if (!answerResponse.ok) throw new Error(await readApiError(answerResponse));
           const answerData = await answerResponse.json();
+          answerMs = performance.now() - answerStart;
           if (!answerData.success) throw new Error(answerData.error || 'answer generation failed');
           _hasAnswer = true;
           renderAnswerPanel(
@@ -3565,10 +3655,19 @@
           );
           pushHistory(query, { ...data, draft_answer: answerData.draft_answer || '', evidence_documents: answerData.evidence_documents || [] });
           if (!isGraphMode) switchAnswerTab('rag');
+          setQueryTiming('with_answer', {
+            searchMs,
+            answerMs,
+            totalMs: performance.now() - queryStart,
+          });
         }
       } catch (error) {
         if (status) status.textContent = `${t('query_failed')}: ${error.message}`;
         const ragAnswerEl2 = document.getElementById('ragAnswerSection'); if (ragAnswerEl2) ragAnswerEl2.innerHTML = '';
+        setQueryTiming('fail', {
+          totalMs: performance.now() - queryStart,
+          error: error.message,
+        });
         showToast(`${t('query_failed')}: ${error.message}`, 'error');
       } finally {
         runBtn.disabled = false;
