@@ -32,6 +32,12 @@ Graph Build API (Phase 3):
 POST /api/graph/schema/build         — 스키마 기반 그래프 재빌드
 GET  /api/graph/status               — 그래프 빌드 상태
 GET  /api/graph/documents/{doc_id}/relations — 문서의 관계 목록
+
+Text2Cypher API (Phase 4):
+POST /api/graph/text2cypher/generate — 자연어 → Cypher 변환
+POST /api/graph/text2cypher/execute  — Cypher 쿼리 실행
+POST /api/graph/text2cypher/test     — 변환 + 실행 통합 테스트
+GET  /api/graph/text2cypher/logs     — 쿼리 로그 조회
 """
 from __future__ import annotations
 
@@ -1241,4 +1247,213 @@ async def get_document_relations(document_id: str, source_id: Optional[str] = No
         "incoming_relations": incoming_relations,
         "same_project_documents": same_project_docs,
         "relation_count": len(outgoing_relations) + len(incoming_relations),
+    }
+
+
+# ── Text2Cypher API (Phase 4) ─────────────────────────────────────────────────
+
+
+class Text2CypherGenerateRequest(BaseModel):
+    question: str = Field(..., description="자연어 질문")
+    model: Optional[str] = Field(None, description="LLM 모델 (기본값 사용 시 None)")
+    temperature: float = Field(0.1, ge=0.0, le=1.0, description="생성 온도")
+
+
+class Text2CypherExecuteRequest(BaseModel):
+    cypher: str = Field(..., description="실행할 Cypher 쿼리")
+    source_id: Optional[str] = Field(None, description="Document Source ID")
+
+
+class Text2CypherTestRequest(BaseModel):
+    question: str = Field(..., description="자연어 질문")
+    model: Optional[str] = Field(None, description="LLM 모델")
+    source_id: Optional[str] = Field(None, description="Document Source ID")
+    save_log: bool = Field(True, description="로그 저장 여부")
+
+
+@router.post("/text2cypher/generate", dependencies=[Depends(require_admin_token)])
+async def text2cypher_generate(request: Text2CypherGenerateRequest):
+    """
+    자연어 질문을 Cypher 쿼리로 변환한다.
+
+    LLM이 Graph Schema를 참조하여 Cypher 쿼리를 생성하고,
+    Cypher Guard로 읽기 전용 여부를 검증한다.
+    """
+    from app.services.text2cypher_service import get_text2cypher_service
+
+    service = get_text2cypher_service()
+    result = await service.generate_cypher(
+        question=request.question,
+        model=request.model,
+        temperature=request.temperature,
+    )
+
+    return {
+        "success": result.success,
+        "question": result.question,
+        "cypher": result.cypher,
+        "validation": {
+            "is_valid": result.validation.is_valid if result.validation else None,
+            "message": result.validation.message if result.validation else None,
+            "blocked_keyword": result.validation.blocked_keyword if result.validation else None,
+        } if result.validation else None,
+        "error": result.error,
+        "model": result.model,
+        "generation_time_ms": result.generation_time_ms,
+        "timestamp": result.timestamp,
+    }
+
+
+@router.post("/text2cypher/execute", dependencies=[Depends(require_admin_token)])
+async def text2cypher_execute(request: Text2CypherExecuteRequest):
+    """
+    Cypher 쿼리를 실행한다.
+
+    현재는 JSONL 기반 그래프 데이터에서 시뮬레이션 실행한다.
+    향후 Neo4j 연동 시 실제 쿼리 실행으로 전환 가능하다.
+    """
+    from app.services.text2cypher_service import get_text2cypher_service
+    from app.services.cypher_guard import validate_cypher
+
+    # 먼저 Cypher Guard로 검증
+    validation = validate_cypher(request.cypher)
+    if not validation.is_valid:
+        return {
+            "success": False,
+            "cypher": request.cypher,
+            "error": validation.message,
+            "blocked_keyword": validation.blocked_keyword,
+        }
+
+    # 그래프 데이터 로드
+    cache = _load_graph(request.source_id)
+
+    # 쿼리 실행
+    service = get_text2cypher_service()
+    result = service.execute_cypher_on_jsonl(
+        cypher=validation.sanitized_query or request.cypher,
+        nodes=cache["nodes"],
+        edges=cache["edges"],
+    )
+
+    return {
+        "success": result.success,
+        "cypher": result.cypher,
+        "results": result.results,
+        "row_count": result.row_count,
+        "execution_time_ms": result.execution_time_ms,
+        "error": result.error,
+        "source_id": request.source_id or "all",
+    }
+
+
+@router.post("/text2cypher/test", dependencies=[Depends(require_admin_token)])
+async def text2cypher_test(request: Text2CypherTestRequest):
+    """
+    Text2Cypher 통합 테스트: 질문 → Cypher 생성 → 실행 → 결과 반환.
+
+    전체 파이프라인을 한 번에 테스트하고 로그를 저장한다.
+    """
+    from app.services.text2cypher_service import get_text2cypher_service
+    import time
+
+    service = get_text2cypher_service()
+    start_time = time.time()
+
+    # 1. Cypher 생성
+    gen_result = await service.generate_cypher(
+        question=request.question,
+        model=request.model,
+    )
+
+    if not gen_result.success:
+        # 로그 저장
+        if request.save_log:
+            service.save_log(
+                question=request.question,
+                cypher=gen_result.cypher,
+                success=False,
+                error=gen_result.error,
+            )
+
+        return {
+            "success": False,
+            "stage": "generation",
+            "question": request.question,
+            "cypher": gen_result.cypher,
+            "error": gen_result.error,
+            "model": gen_result.model,
+            "generation_time_ms": gen_result.generation_time_ms,
+        }
+
+    # 2. Cypher 실행
+    cache = _load_graph(request.source_id)
+    exec_result = service.execute_cypher_on_jsonl(
+        cypher=gen_result.cypher,
+        nodes=cache["nodes"],
+        edges=cache["edges"],
+    )
+
+    total_time_ms = int((time.time() - start_time) * 1000)
+
+    # 로그 저장
+    if request.save_log:
+        service.save_log(
+            question=request.question,
+            cypher=gen_result.cypher,
+            success=exec_result.success,
+            error=exec_result.error,
+            results_count=exec_result.row_count,
+            execution_time_ms=total_time_ms,
+        )
+
+    return {
+        "success": exec_result.success,
+        "stage": "complete",
+        "question": request.question,
+        "cypher": gen_result.cypher,
+        "results": exec_result.results,
+        "row_count": exec_result.row_count,
+        "model": gen_result.model,
+        "generation_time_ms": gen_result.generation_time_ms,
+        "execution_time_ms": exec_result.execution_time_ms,
+        "total_time_ms": total_time_ms,
+        "source_id": request.source_id or "all",
+        "error": exec_result.error,
+    }
+
+
+@router.get("/text2cypher/logs", dependencies=[Depends(require_admin_token)])
+async def text2cypher_logs(
+    date: Optional[str] = None,
+    limit: int = 100,
+    success_only: bool = False,
+    error_only: bool = False,
+):
+    """
+    Text2Cypher 쿼리 로그 조회.
+
+    - date: YYYYMMDD 형식 (없으면 최근 로그)
+    - limit: 최대 로그 수
+    - success_only: 성공 로그만
+    - error_only: 실패 로그만
+    """
+    from app.services.text2cypher_service import get_text2cypher_service
+
+    service = get_text2cypher_service()
+    logs = service.get_logs(
+        date=date,
+        limit=limit,
+        success_only=success_only,
+        error_only=error_only,
+    )
+
+    return {
+        "logs": logs,
+        "count": len(logs),
+        "filters": {
+            "date": date,
+            "success_only": success_only,
+            "error_only": error_only,
+        },
     }
