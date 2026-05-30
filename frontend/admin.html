@@ -677,6 +677,118 @@
       box-shadow: 0 0 0 3px rgba(59,130,246,.1);
     }
 
+    /* ── Phase 1: Dataset Builder Step Detail Styles ────────────── */
+    .wr-step-detail {
+      margin-top: 20px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      animation: fadeIn .2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .wr-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .wr-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .wr-field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .wr-field input,
+    .wr-field select,
+    .wr-field textarea {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wr-field input:focus,
+    .wr-field select:focus,
+    .wr-field textarea:focus {
+      outline: none;
+      border-color: var(--amber);
+      box-shadow: 0 0 0 2px rgba(232,151,31,.15);
+    }
+    .wr-field-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .wr-required {
+      color: var(--red);
+      font-weight: 700;
+    }
+    .wr-checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+    }
+    .wr-checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .wr-checkbox-group input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--amber);
+    }
+
+    /* Request Body Preview */
+    .wr-request-preview {
+      margin: 16px 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .wr-request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: rgba(0,0,0,.2);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .wr-request-header:hover {
+      background: rgba(0,0,0,.3);
+    }
+    .wr-toggle-icon {
+      transition: transform .2s;
+    }
+    .wr-request-preview.open .wr-toggle-icon {
+      transform: rotate(180deg);
+    }
+    .wr-request-body {
+      padding: 12px 14px;
+      margin: 0;
+      font-size: 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      background: var(--bg);
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-all;
+      border-top: 1px solid var(--border);
+    }
+
     /* ── Dashboard Alert Banner (Figma) ──────────────────────────── */
     .alert-banner {
       background: var(--wr-surface, #1a2332);
@@ -1291,16 +1403,520 @@
         </div>
         <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>파이프라인 단계</h2>
         <div class="wr-stepper" id="wrWizardStepper">
-          <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">OCR/파싱</div><div class="wr-step-meta">문서에서 텍스트를 추출하고 OCR fallback을 적용합니다. 현재 실행은 Legacy Step 5와 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="1">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(1)">이동</button></div>
-          <div class="wr-step" data-wr-step="2"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">청킹/임베딩</div><div class="wr-step-meta">추출 텍스트를 검색 chunk로 나누고 벡터 인덱스를 생성합니다. 현재 실행은 Legacy Step 6과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="2">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(2)">이동</button></div>
-          <div class="wr-step" data-wr-step="3"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">메타데이터</div><div class="wr-step-meta">파일명과 경로에서 프로젝트명, 기관명, 문서 유형, 연도 등을 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="3">대기</span><button class="wr-btn wr-btn-sm" onclick="wrWizardRunStep(3)">실행</button></div>
-          <div class="wr-step" data-wr-step="4"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">온톨로지</div><div class="wr-step-meta">문서 분류와 관계 기준을 온톨로지 스키마에 맞춥니다. 현재 실행은 Graph RAG 생성 단계와 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="4">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(4)">이동</button></div>
-          <div class="wr-step" data-wr-step="5"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">엔티티/관계</div><div class="wr-step-meta">프로젝트, 기관, 문서, 기술 엔티티와 관계를 추출합니다. 현재 실행은 Graph RAG 생성 단계와 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="5">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(5)">이동</button></div>
-          <div class="wr-step" data-wr-step="6"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">Graph 저장</div><div class="wr-step-meta">추출된 노드와 엣지를 JSON Graph 산출물로 저장합니다. 현재 실행은 Legacy Step 7과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="6">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(6)">이동</button></div>
-          <div class="wr-step" data-wr-step="7"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">하이브리드 검색</div><div class="wr-step-meta">FAISS 검색 결과와 Graph 관계 근거를 함께 확인합니다. 검색 품질 화면과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="7">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(7)">이동</button></div>
-          <div class="wr-step" data-wr-step="8"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM 답변</div><div class="wr-step-meta">검색 근거를 기반으로 LLM 답변 품질을 확인합니다. 검색 품질 화면과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="8">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(8)">이동</button></div>
-          <div class="wr-step" data-wr-step="9"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">Wiki 생성</div><div class="wr-step-meta">프로젝트별 자동 지식 문서를 생성합니다. 현재 실행은 Legacy Step 8과 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="9">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(9)">이동</button></div>
-          <div class="wr-step" data-wr-step="10"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">관리자 검수</div><div class="wr-step-meta">검색 결과와 산출물을 검수하고 다음 보정 작업을 결정합니다. 현재는 검색 품질 화면으로 연결됩니다.</div></div><span class="wr-step-status" data-wr-step-status="10">대기</span><button class="wr-btn wr-btn-sm" onclick="openDatasetBuilderStep(10)">이동</button></div>
+          <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">OCR/파싱</div><div class="wr-step-meta">문서에서 텍스트를 추출하고 OCR fallback을 적용합니다.</div></div><span class="wr-step-status" data-wr-step-status="1">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(1)">설정</button></div>
+          <div class="wr-step" data-wr-step="2"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">청킹/임베딩</div><div class="wr-step-meta">추출 텍스트를 검색 chunk로 나누고 벡터 인덱스를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="2">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(2)">설정</button></div>
+          <div class="wr-step" data-wr-step="3"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">메타데이터</div><div class="wr-step-meta">파일명과 경로에서 프로젝트명, 기관명, 문서 유형, 연도 등을 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="3">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(3)">설정</button></div>
+          <div class="wr-step" data-wr-step="4"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">키워드 추출</div><div class="wr-step-meta">문서에서 핵심 키워드와 기술 용어를 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="4">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(4)">설정</button></div>
+          <div class="wr-step" data-wr-step="5"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">FAISS 인덱스</div><div class="wr-step-meta">벡터 인덱스를 생성하고 활성화합니다.</div></div><span class="wr-step-status" data-wr-step-status="5">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(5)">설정</button></div>
+          <div class="wr-step" data-wr-step="6"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">Graph Schema</div><div class="wr-step-meta">Graph DB 노드/관계 스키마를 정의하고 Text2Cypher용 schema text를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="6">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(6)">설정</button></div>
+          <div class="wr-step" data-wr-step="7"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">Graph Build</div><div class="wr-step-meta">문서 메타데이터에서 노드와 관계를 추출하여 Graph를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="7">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(7)">설정</button></div>
+          <div class="wr-step" data-wr-step="8"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM-Wiki</div><div class="wr-step-meta">프로젝트별 자동 지식 문서(Wiki)를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="8">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(8)">설정</button></div>
+          <div class="wr-step" data-wr-step="9"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">Text2Cypher Test</div><div class="wr-step-meta">자연어 질문을 Cypher 쿼리로 변환하고 실행 테스트합니다.</div></div><span class="wr-step-status" data-wr-step-status="9">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(9)">설정</button></div>
+          <div class="wr-step" data-wr-step="10"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">Hybrid RAG</div><div class="wr-step-meta">FAISS + Graph + Wiki 결과를 병합하여 최종 답변을 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="10">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(10)">설정</button></div>
+        </div>
+
+        <!-- Step 2: 청킹/임베딩 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail2" style="display:none">
+          <h3 class="wr-section-title">Step 2 청킹/임베딩 설정</h3>
+          <div class="wr-card">
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>Chunk 크기 <span class="wr-required">*</span></label>
+                <input id="wrStep2ChunkSize" type="number" value="1000" min="200" max="4000">
+                <small class="wr-field-hint">권장: 500~2000 토큰</small>
+              </div>
+              <div class="wr-field">
+                <label>Chunk 오버랩 <span class="wr-required">*</span></label>
+                <input id="wrStep2ChunkOverlap" type="number" value="200" min="0" max="500">
+                <small class="wr-field-hint">권장: chunk 크기의 10~20%</small>
+              </div>
+              <div class="wr-field">
+                <label>임베딩 모델 <span class="wr-required">*</span></label>
+                <select id="wrStep2EmbedModel">
+                  <option value="nomic-embed-text">nomic-embed-text (Ollama)</option>
+                  <option value="bge-m3">bge-m3 (Ollama)</option>
+                  <option value="text-embedding-3-small">text-embedding-3-small (OpenAI)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>임베딩 차원</label>
+                <input id="wrStep2EmbedDim" type="number" value="768" readonly>
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(2)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview2" style="display:none">{
+  "chunk_size": 1000,
+  "chunk_overlap": 200,
+  "embedding_model": "nomic-embed-text",
+  "embedding_provider": "ollama"
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(2)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(2)">Step 2 실행</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: 메타데이터 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail3" style="display:none">
+          <h3 class="wr-section-title">Step 3 메타데이터 추출 설정</h3>
+          <div class="wr-card">
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>프로젝트명 추출 패턴</label>
+                <input id="wrStep3ProjectPattern" value="[사업명 패턴]">
+              </div>
+              <div class="wr-field">
+                <label>기관명 추출 패턴</label>
+                <input id="wrStep3OrgPattern" value="[기관명 패턴]">
+              </div>
+              <div class="wr-field">
+                <label>연도 추출 <span class="wr-required">*</span></label>
+                <select id="wrStep3YearExtract">
+                  <option value="auto">자동 추출</option>
+                  <option value="path">경로에서 추출</option>
+                  <option value="filename">파일명에서 추출</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>문서 카테고리 매핑 <span class="wr-required">*</span></label>
+                <select id="wrStep3CategoryMap">
+                  <option value="auto">자동 분류</option>
+                  <option value="path">경로 기반</option>
+                  <option value="content">내용 기반</option>
+                </select>
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(3)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview3" style="display:none">{
+  "source_id": "current_source",
+  "extract_project_name": true,
+  "extract_organization": true,
+  "extract_year": "auto",
+  "category_mapping": "auto"
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(3)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(3)">Step 3 실행</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: 키워드 추출 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail4" style="display:none">
+          <h3 class="wr-section-title">Step 4 키워드 추출 설정</h3>
+          <div class="wr-card">
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>최대 키워드 수 <span class="wr-required">*</span></label>
+                <input id="wrStep4MaxKeywords" type="number" value="20" min="5" max="50">
+              </div>
+              <div class="wr-field">
+                <label>기술 용어 사전</label>
+                <select id="wrStep4TechDict">
+                  <option value="default">기본 사전</option>
+                  <option value="it">IT/SW 사전</option>
+                  <option value="custom">사용자 정의</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>추출 방식 <span class="wr-required">*</span></label>
+                <select id="wrStep4ExtractMethod">
+                  <option value="tfidf">TF-IDF</option>
+                  <option value="llm">LLM 기반</option>
+                  <option value="hybrid">하이브리드</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>최소 빈도</label>
+                <input id="wrStep4MinFreq" type="number" value="2" min="1" max="10">
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(4)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview4" style="display:none">{
+  "source_id": "current_source",
+  "max_keywords": 20,
+  "tech_dictionary": "default",
+  "extract_method": "tfidf",
+  "min_frequency": 2
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(4)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(4)">Step 4 실행</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5: FAISS 인덱스 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail5" style="display:none">
+          <h3 class="wr-section-title">Step 5 FAISS 인덱스 설정</h3>
+          <div class="wr-card">
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>인덱스 유형 <span class="wr-required">*</span></label>
+                <select id="wrStep5IndexType">
+                  <option value="flat">Flat (정확, 느림)</option>
+                  <option value="ivf" selected>IVF (균형)</option>
+                  <option value="hnsw">HNSW (빠름)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>스냅샷 이름 <span class="wr-required">*</span></label>
+                <input id="wrStep5SnapshotName" value="snapshot_auto" placeholder="자동 생성">
+              </div>
+              <div class="wr-field">
+                <label>자동 활성화</label>
+                <select id="wrStep5AutoActivate">
+                  <option value="yes">예</option>
+                  <option value="no">아니오</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>nlist (IVF 클러스터)</label>
+                <input id="wrStep5Nlist" type="number" value="100" min="10" max="1000">
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(5)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview5" style="display:none">{
+  "source_id": "current_source",
+  "index_type": "ivf",
+  "snapshot_name": "snapshot_auto",
+  "auto_activate": true,
+  "nlist": 100
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(5)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(5)">Step 5 실행</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6: Graph Schema Build 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail6" style="display:none">
+          <h3 class="wr-section-title">Step 6 Graph Schema Build 설정</h3>
+          <div class="wr-card">
+            <div class="wr-callout wr-callout-info">Graph Schema는 Text2Cypher가 쿼리를 생성할 때 참조하는 노드/관계 정의입니다.</div>
+            <div class="wr-form-grid">
+              <div class="wr-field" style="grid-column:1/-1">
+                <label>노드 유형 <span class="wr-required">*</span></label>
+                <div class="wr-checkbox-group">
+                  <label><input type="checkbox" id="wrStep6NodeOrg" checked> Organization (발주기관)</label>
+                  <label><input type="checkbox" id="wrStep6NodeProject" checked> Project (프로젝트)</label>
+                  <label><input type="checkbox" id="wrStep6NodeDoc" checked> Document (문서)</label>
+                  <label><input type="checkbox" id="wrStep6NodeKeyword" checked> Keyword (키워드)</label>
+                  <label><input type="checkbox" id="wrStep6NodeCategory"> Category (카테고리)</label>
+                  <label><input type="checkbox" id="wrStep6NodeTech"> Technology (기술)</label>
+                  <label><input type="checkbox" id="wrStep6NodePerson"> Person (담당자)</label>
+                </div>
+              </div>
+              <div class="wr-field" style="grid-column:1/-1">
+                <label>관계 유형 <span class="wr-required">*</span></label>
+                <div class="wr-checkbox-group">
+                  <label><input type="checkbox" id="wrStep6RelOrdered" checked> ORDERED (발주)</label>
+                  <label><input type="checkbox" id="wrStep6RelHasDoc" checked> HAS_DOCUMENT (소유)</label>
+                  <label><input type="checkbox" id="wrStep6RelHasKw" checked> HAS_KEYWORD (키워드)</label>
+                  <label><input type="checkbox" id="wrStep6RelUsesTech"> USES_TECH (기술 사용)</label>
+                  <label><input type="checkbox" id="wrStep6RelSimilar" checked> SIMILAR_TO (유사)</label>
+                  <label><input type="checkbox" id="wrStep6RelSameProj" checked> SAME_PROJECT (동일 사업)</label>
+                  <label><input type="checkbox" id="wrStep6RelSameOrg"> SAME_ORGANIZATION (동일 기관)</label>
+                </div>
+              </div>
+              <div class="wr-field">
+                <label>Schema 출력 형식</label>
+                <select id="wrStep6SchemaFormat">
+                  <option value="text">Plain Text (Text2Cypher용)</option>
+                  <option value="json">JSON</option>
+                  <option value="cypher">Cypher CREATE</option>
+                </select>
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(6)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview6" style="display:none">{
+  "node_types": ["Organization", "Project", "Document", "Keyword"],
+  "relation_types": ["ORDERED", "HAS_DOCUMENT", "HAS_KEYWORD", "SIMILAR_TO", "SAME_PROJECT"],
+  "output_format": "text"
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(6)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(6)">Step 6 실행</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 7: Graph Data Build 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail7" style="display:none">
+          <h3 class="wr-section-title">Step 7 Graph Data Build 설정</h3>
+          <div class="wr-card">
+            <div class="wr-callout wr-callout-info">문서 메타데이터에서 기관, 프로젝트, 문서, 키워드 노드와 관계를 추출합니다.</div>
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>대상 소스 <span class="wr-required">*</span></label>
+                <select id="wrStep7SourceId">
+                  <option value="current">현재 선택 소스</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>유사도 임계값 <span class="wr-required">*</span></label>
+                <input id="wrStep7SimilarityThreshold" type="number" value="0.7" min="0.5" max="0.95" step="0.05">
+                <small class="wr-field-hint">SIMILAR_TO 관계 생성 기준</small>
+              </div>
+              <div class="wr-field">
+                <label>Graph DB 유형</label>
+                <select id="wrStep7GraphDbType">
+                  <option value="json">JSON (파일 기반)</option>
+                  <option value="networkx">NetworkX (인메모리)</option>
+                  <option value="neo4j">Neo4j (외부 DB)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>증분 빌드</label>
+                <select id="wrStep7Incremental">
+                  <option value="no">전체 재빌드</option>
+                  <option value="yes">증분 빌드</option>
+                </select>
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(7)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview7" style="display:none">{
+  "source_id": "current_source",
+  "similarity_threshold": 0.7,
+  "graph_db_type": "json",
+  "incremental": false
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(7)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(7)">Step 7 실행</button>
+            </div>
+          </div>
+          <div class="wr-card" style="margin-top:16px">
+            <h4 class="wr-card-title">Step 7 실행 결과</h4>
+            <div class="wr-summary-grid">
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">Organization 노드</div>
+                <div class="wr-summary-value" id="wrStep7OrgNodes">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">Project 노드</div>
+                <div class="wr-summary-value" id="wrStep7ProjNodes">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">Document 노드</div>
+                <div class="wr-summary-value" id="wrStep7DocNodes">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">관계 엣지</div>
+                <div class="wr-summary-value" id="wrStep7Edges">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 8: LLM-Wiki Build 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail8" style="display:none">
+          <h3 class="wr-section-title">Step 8 LLM-Wiki Build 설정</h3>
+          <div class="wr-card">
+            <div class="wr-callout wr-callout-info">프로젝트별 자동 지식 문서를 생성합니다. LLM이 문서 내용을 요약하여 Wiki 페이지를 만듭니다.</div>
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>Wiki 유형 <span class="wr-required">*</span></label>
+                <select id="wrStep8WikiType">
+                  <option value="project">프로젝트별</option>
+                  <option value="organization">기관별</option>
+                  <option value="technology">기술별</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>LLM 모델 <span class="wr-required">*</span></label>
+                <select id="wrStep8LlmModel">
+                  <option value="gemma4:latest">gemma4:latest (Ollama)</option>
+                  <option value="llama3.3:latest">llama3.3:latest (Ollama)</option>
+                  <option value="claude-3-haiku">claude-3-haiku (API)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>최대 토큰</label>
+                <input id="wrStep8MaxTokens" type="number" value="2000" min="500" max="8000">
+              </div>
+              <div class="wr-field">
+                <label>Temperature</label>
+                <input id="wrStep8Temperature" type="number" value="0.3" min="0" max="1" step="0.1">
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(8)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview8" style="display:none">{
+  "source_id": "current_source",
+  "wiki_type": "project",
+  "llm_model": "gemma4:latest",
+  "max_tokens": 2000,
+  "temperature": 0.3
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(8)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(8)">Step 8 실행</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 9: Text2Cypher Test 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail9" style="display:none">
+          <h3 class="wr-section-title">Step 9 Text2Cypher Test 설정</h3>
+          <div class="wr-card">
+            <div class="wr-callout wr-callout-info">자연어 질문을 Cypher 쿼리로 변환하고 Graph DB에서 실행합니다. 읽기 전용 쿼리만 허용됩니다.</div>
+            <div class="wr-form-grid">
+              <div class="wr-field" style="grid-column:1/-1">
+                <label>테스트 질문 <span class="wr-required">*</span></label>
+                <textarea id="wrStep9TestQuery" rows="3" placeholder="예: 한국정보화진흥원이 발주한 프로젝트 목록을 보여줘"></textarea>
+              </div>
+              <div class="wr-field">
+                <label>LLM 모델 <span class="wr-required">*</span></label>
+                <select id="wrStep9LlmModel">
+                  <option value="gemma4:latest">gemma4:latest (Ollama)</option>
+                  <option value="llama3.3:latest">llama3.3:latest (Ollama)</option>
+                  <option value="claude-3-sonnet">claude-3-sonnet (API)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>최대 재시도 <span class="wr-required">*</span></label>
+                <input id="wrStep9MaxRetry" type="number" value="2" min="0" max="5">
+                <small class="wr-field-hint">실패 시 쿼리 자동 수정 횟수</small>
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(9)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview9" style="display:none">{
+  "question": "한국정보화진흥원이 발주한 프로젝트 목록을 보여줘",
+  "llm_model": "gemma4:latest",
+  "max_retry": 2,
+  "execute": true
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="runText2CypherGenerate()">Cypher 생성만</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(9)">생성 + 실행</button>
+            </div>
+          </div>
+          <div class="wr-card" style="margin-top:16px">
+            <h4 class="wr-card-title">생성된 Cypher 쿼리</h4>
+            <pre class="wr-code-block" id="wrStep9GeneratedCypher" style="min-height:60px">아직 생성된 쿼리가 없습니다.</pre>
+            <h4 class="wr-card-title" style="margin-top:12px">실행 결과</h4>
+            <div id="wrStep9Results" class="wr-status-list">
+              <div class="wr-status-row"><span>실행 결과가 없습니다.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 10: Hybrid RAG Publish 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail10" style="display:none">
+          <h3 class="wr-section-title">Step 10 Hybrid RAG Publish 설정</h3>
+          <div class="wr-card">
+            <div class="wr-callout wr-callout-info">FAISS 벡터 검색 + GraphRAG + LLM-Wiki 결과를 병합하여 최종 답변을 생성합니다.</div>
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>Vector 가중치 <span class="wr-required">*</span></label>
+                <input id="wrStep10VectorWeight" type="number" value="0.5" min="0" max="1" step="0.1">
+              </div>
+              <div class="wr-field">
+                <label>Graph 가중치 <span class="wr-required">*</span></label>
+                <input id="wrStep10GraphWeight" type="number" value="0.3" min="0" max="1" step="0.1">
+              </div>
+              <div class="wr-field">
+                <label>Wiki 가중치 <span class="wr-required">*</span></label>
+                <input id="wrStep10WikiWeight" type="number" value="0.2" min="0" max="1" step="0.1">
+              </div>
+              <div class="wr-field">
+                <label>중복 제거 임계값</label>
+                <input id="wrStep10DedupeThreshold" type="number" value="0.85" min="0.7" max="0.99" step="0.05">
+              </div>
+              <div class="wr-field">
+                <label>LLM 모델 <span class="wr-required">*</span></label>
+                <select id="wrStep10LlmModel">
+                  <option value="gemma4:latest">gemma4:latest (Ollama)</option>
+                  <option value="llama3.3:latest">llama3.3:latest (Ollama)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>최대 문서 수</label>
+                <input id="wrStep10MaxDocs" type="number" value="10" min="3" max="30">
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(10)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview10" style="display:none">{
+  "vector_weight": 0.5,
+  "graph_weight": 0.3,
+  "wiki_weight": 0.2,
+  "dedupe_threshold": 0.85,
+  "llm_model": "gemma4:latest",
+  "max_docs": 10
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(10)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(10)">설정 저장 및 활성화</button>
+            </div>
+          </div>
+          <div class="wr-card" style="margin-top:16px">
+            <h4 class="wr-card-title">Hybrid RAG 상태</h4>
+            <div class="wr-summary-grid">
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">FAISS Index</div>
+                <div class="wr-summary-value" id="wrStep10FaissStatus">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">Graph Data</div>
+                <div class="wr-summary-value" id="wrStep10GraphStatus">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">Wiki Pages</div>
+                <div class="wr-summary-value" id="wrStep10WikiStatus">-</div>
+              </div>
+              <div class="wr-summary-card">
+                <div class="wr-summary-label">Hybrid RAG</div>
+                <div class="wr-summary-value" id="wrStep10HybridStatus">대기</div>
+              </div>
+            </div>
+          </div>
         </div>
         <h2 class="wr-section-title" id="wr-wizard-api-title" data-wr-anchor>Execution APIs</h2>
         <code class="wr-code-block">POST /api/admin/rag-source/scan
@@ -6702,6 +7318,271 @@ POST /api/admin/faiss/activate</code>
     const failed = /실패|오류|failed/i.test(logText) && !ok ? 1 : 0;
     updateStep1ParsingResult({ processed: ok ? 1 : 0, failed, ocrUsed: 0 });
     return ok;
+  }
+
+  // ── Phase 1: Dataset Builder Step Detail Functions ──────────────────────
+  // Step 상세 설정 패널 토글
+  function toggleStepDetail(stepNum) {
+    // 모든 상세 패널 닫기
+    document.querySelectorAll('.wr-step-detail').forEach(el => {
+      if (el.id !== `stepDetail${stepNum}`) {
+        el.style.display = 'none';
+      }
+    });
+    // 해당 패널 토글
+    const detail = document.getElementById(`stepDetail${stepNum}`);
+    if (detail) {
+      const isOpen = detail.style.display !== 'none';
+      detail.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) {
+        detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        updateRequestPreview(stepNum);
+      }
+    }
+  }
+
+  // Request Body 미리보기 토글
+  function toggleRequestPreview(stepNum) {
+    const preview = document.getElementById(`reqPreview${stepNum}`);
+    const container = preview?.closest('.wr-request-preview');
+    if (preview && container) {
+      const isOpen = preview.style.display !== 'none';
+      preview.style.display = isOpen ? 'none' : 'block';
+      container.classList.toggle('open', !isOpen);
+    }
+  }
+
+  // Request Body 미리보기 갱신
+  function updateRequestPreview(stepNum) {
+    const preview = document.getElementById(`reqPreview${stepNum}`);
+    if (!preview) return;
+
+    let body = {};
+    const currentSource = window._selectedSourceId || 'current_source';
+
+    switch(stepNum) {
+      case 2:
+        body = {
+          chunk_size: parseInt(document.getElementById('wrStep2ChunkSize')?.value) || 1000,
+          chunk_overlap: parseInt(document.getElementById('wrStep2ChunkOverlap')?.value) || 200,
+          embedding_model: document.getElementById('wrStep2EmbedModel')?.value || 'nomic-embed-text',
+          embedding_provider: 'ollama'
+        };
+        break;
+      case 3:
+        body = {
+          source_id: currentSource,
+          extract_project_name: true,
+          extract_organization: true,
+          extract_year: document.getElementById('wrStep3YearExtract')?.value || 'auto',
+          category_mapping: document.getElementById('wrStep3CategoryMap')?.value || 'auto'
+        };
+        break;
+      case 4:
+        body = {
+          source_id: currentSource,
+          max_keywords: parseInt(document.getElementById('wrStep4MaxKeywords')?.value) || 20,
+          tech_dictionary: document.getElementById('wrStep4TechDict')?.value || 'default',
+          extract_method: document.getElementById('wrStep4ExtractMethod')?.value || 'tfidf',
+          min_frequency: parseInt(document.getElementById('wrStep4MinFreq')?.value) || 2
+        };
+        break;
+      case 5:
+        body = {
+          source_id: currentSource,
+          index_type: document.getElementById('wrStep5IndexType')?.value || 'ivf',
+          snapshot_name: document.getElementById('wrStep5SnapshotName')?.value || 'snapshot_auto',
+          auto_activate: document.getElementById('wrStep5AutoActivate')?.value === 'yes',
+          nlist: parseInt(document.getElementById('wrStep5Nlist')?.value) || 100
+        };
+        break;
+      case 6:
+        const nodeTypes = [];
+        if (document.getElementById('wrStep6NodeOrg')?.checked) nodeTypes.push('Organization');
+        if (document.getElementById('wrStep6NodeProject')?.checked) nodeTypes.push('Project');
+        if (document.getElementById('wrStep6NodeDoc')?.checked) nodeTypes.push('Document');
+        if (document.getElementById('wrStep6NodeKeyword')?.checked) nodeTypes.push('Keyword');
+        if (document.getElementById('wrStep6NodeCategory')?.checked) nodeTypes.push('Category');
+        if (document.getElementById('wrStep6NodeTech')?.checked) nodeTypes.push('Technology');
+        if (document.getElementById('wrStep6NodePerson')?.checked) nodeTypes.push('Person');
+        const relTypes = [];
+        if (document.getElementById('wrStep6RelOrdered')?.checked) relTypes.push('ORDERED');
+        if (document.getElementById('wrStep6RelHasDoc')?.checked) relTypes.push('HAS_DOCUMENT');
+        if (document.getElementById('wrStep6RelHasKw')?.checked) relTypes.push('HAS_KEYWORD');
+        if (document.getElementById('wrStep6RelUsesTech')?.checked) relTypes.push('USES_TECH');
+        if (document.getElementById('wrStep6RelSimilar')?.checked) relTypes.push('SIMILAR_TO');
+        if (document.getElementById('wrStep6RelSameProj')?.checked) relTypes.push('SAME_PROJECT');
+        if (document.getElementById('wrStep6RelSameOrg')?.checked) relTypes.push('SAME_ORGANIZATION');
+        body = {
+          node_types: nodeTypes,
+          relation_types: relTypes,
+          output_format: document.getElementById('wrStep6SchemaFormat')?.value || 'text'
+        };
+        break;
+      case 7:
+        body = {
+          source_id: currentSource,
+          similarity_threshold: parseFloat(document.getElementById('wrStep7SimilarityThreshold')?.value) || 0.7,
+          graph_db_type: document.getElementById('wrStep7GraphDbType')?.value || 'json',
+          incremental: document.getElementById('wrStep7Incremental')?.value === 'yes'
+        };
+        break;
+      case 8:
+        body = {
+          source_id: currentSource,
+          wiki_type: document.getElementById('wrStep8WikiType')?.value || 'project',
+          llm_model: document.getElementById('wrStep8LlmModel')?.value || 'gemma4:latest',
+          max_tokens: parseInt(document.getElementById('wrStep8MaxTokens')?.value) || 2000,
+          temperature: parseFloat(document.getElementById('wrStep8Temperature')?.value) || 0.3
+        };
+        break;
+      case 9:
+        body = {
+          question: document.getElementById('wrStep9TestQuery')?.value || '',
+          llm_model: document.getElementById('wrStep9LlmModel')?.value || 'gemma4:latest',
+          max_retry: parseInt(document.getElementById('wrStep9MaxRetry')?.value) || 2,
+          execute: true
+        };
+        break;
+      case 10:
+        body = {
+          vector_weight: parseFloat(document.getElementById('wrStep10VectorWeight')?.value) || 0.5,
+          graph_weight: parseFloat(document.getElementById('wrStep10GraphWeight')?.value) || 0.3,
+          wiki_weight: parseFloat(document.getElementById('wrStep10WikiWeight')?.value) || 0.2,
+          dedupe_threshold: parseFloat(document.getElementById('wrStep10DedupeThreshold')?.value) || 0.85,
+          llm_model: document.getElementById('wrStep10LlmModel')?.value || 'gemma4:latest',
+          max_docs: parseInt(document.getElementById('wrStep10MaxDocs')?.value) || 10
+        };
+        break;
+    }
+    preview.textContent = JSON.stringify(body, null, 2);
+  }
+
+  // Step 실행 함수 (공통)
+  async function runStep(stepNum) {
+    const stepNames = {
+      2: '청킹/임베딩',
+      3: '메타데이터 추출',
+      4: '키워드 추출',
+      5: 'FAISS 인덱스',
+      6: 'Graph Schema Build',
+      7: 'Graph Data Build',
+      8: 'LLM-Wiki Build',
+      9: 'Text2Cypher Test',
+      10: 'Hybrid RAG Publish'
+    };
+
+    // 입력값 검증
+    if (!validateStepInputs(stepNum)) {
+      return false;
+    }
+
+    showToast(`Step ${stepNum} ${stepNames[stepNum]} 실행 중...`, 'info', 2000);
+    updateStepStatus(stepNum, 'running');
+
+    try {
+      // API 엔드포인트 매핑 (향후 구현)
+      const endpoints = {
+        2: '/api/admin/rag-source/chunk',
+        3: '/api/admin/rag-source/metadata/build',
+        4: '/api/admin/rag-source/keywords/extract',
+        5: '/api/admin/faiss/jobs',
+        6: '/api/admin/graph/schema/build',
+        7: '/api/graph/build',
+        8: '/api/wiki/build',
+        9: '/api/admin/graph/text2cypher/test',
+        10: '/api/admin/hybrid-rag/activate'
+      };
+
+      // 현재는 Mock 응답 (실제 API 연동 전)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      updateStepStatus(stepNum, 'ok');
+      showToast(`Step ${stepNum} ${stepNames[stepNum]} 완료`, 'success', 2000);
+
+      // Step 7 결과 업데이트 예시
+      if (stepNum === 7) {
+        document.getElementById('wrStep7OrgNodes').textContent = '12개';
+        document.getElementById('wrStep7ProjNodes').textContent = '48개';
+        document.getElementById('wrStep7DocNodes').textContent = '156개';
+        document.getElementById('wrStep7Edges').textContent = '324개';
+      }
+
+      return true;
+    } catch (error) {
+      updateStepStatus(stepNum, 'err');
+      showToast(`Step ${stepNum} 실패: ${error.message}`, 'error', 3000);
+      return false;
+    }
+  }
+
+  // Step 상태 업데이트
+  function updateStepStatus(stepNum, status) {
+    const statusEl = document.querySelector(`[data-wr-step-status="${stepNum}"]`);
+    if (statusEl) {
+      statusEl.className = 'wr-step-status ' + status;
+      const labels = { ok: '완료', running: '실행 중', err: '실패', '': '대기' };
+      statusEl.textContent = labels[status] || '대기';
+    }
+  }
+
+  // 입력값 검증
+  function validateStepInputs(stepNum) {
+    let valid = true;
+    let errorMsg = '';
+
+    switch(stepNum) {
+      case 2:
+        const chunkSize = parseInt(document.getElementById('wrStep2ChunkSize')?.value);
+        if (!chunkSize || chunkSize < 200 || chunkSize > 4000) {
+          errorMsg = 'Chunk 크기는 200~4000 사이여야 합니다.';
+          valid = false;
+        }
+        break;
+      case 9:
+        const query = document.getElementById('wrStep9TestQuery')?.value?.trim();
+        if (!query) {
+          errorMsg = '테스트 질문을 입력해주세요.';
+          valid = false;
+        }
+        break;
+      case 10:
+        const vw = parseFloat(document.getElementById('wrStep10VectorWeight')?.value) || 0;
+        const gw = parseFloat(document.getElementById('wrStep10GraphWeight')?.value) || 0;
+        const ww = parseFloat(document.getElementById('wrStep10WikiWeight')?.value) || 0;
+        if (Math.abs(vw + gw + ww - 1.0) > 0.01) {
+          errorMsg = '가중치 합계가 1.0이 되어야 합니다.';
+          valid = false;
+        }
+        break;
+    }
+
+    if (!valid) {
+      showToast(errorMsg, 'error', 3000);
+    }
+    return valid;
+  }
+
+  // Text2Cypher 생성만 실행
+  async function runText2CypherGenerate() {
+    const query = document.getElementById('wrStep9TestQuery')?.value?.trim();
+    if (!query) {
+      showToast('테스트 질문을 입력해주세요.', 'error', 2000);
+      return;
+    }
+
+    showToast('Cypher 쿼리 생성 중...', 'info', 2000);
+
+    // Mock 응답 (실제 API 연동 전)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const mockCypher = `MATCH (o:Organization {name: '한국정보화진흥원'})-[:ORDERED]->(p:Project)
+RETURN p.name AS project_name, p.year AS year
+ORDER BY p.year DESC
+LIMIT 10`;
+
+    document.getElementById('wrStep9GeneratedCypher').textContent = mockCypher;
+    showToast('Cypher 쿼리 생성 완료', 'success', 2000);
   }
 
   // ── 빠른 이동 버튼 함수 ──────────────────────────────────────────────────
