@@ -180,6 +180,47 @@
       display: flex;
       flex-direction: column;
       border-right: 2px solid var(--navy-m);
+      transition: width .25s ease, margin-left .25s ease;
+      position: relative;
+    }
+    /* 사이드바 접기/펼치기 */
+    .sidebar.collapsed {
+      width: 0;
+      margin-left: calc(var(--sidebar) * -1);
+      overflow: hidden;
+    }
+    .sidebar-toggle {
+      position: absolute;
+      top: 50%;
+      right: -14px;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 48px;
+      background: var(--navy);
+      border: 2px solid var(--navy-m);
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--gray-400);
+      font-size: 12px;
+      z-index: 10;
+      transition: all .2s;
+    }
+    .sidebar-toggle:hover {
+      background: var(--navy-m);
+      color: var(--white);
+    }
+    .sidebar.collapsed .sidebar-toggle {
+      right: calc(var(--sidebar) * -1 - 14px);
+    }
+    .sidebar-toggle .toggle-arrow {
+      transition: transform .25s;
+    }
+    .sidebar.collapsed .sidebar-toggle .toggle-arrow {
+      transform: rotate(180deg);
     }
     .sidebar::-webkit-scrollbar,
     .main::-webkit-scrollbar,
@@ -206,16 +247,70 @@
       line-height: 1.6;
       margin-bottom: 12px;
     }
-    .sidebar-status {
-      display: grid;
-      gap: 10px;
+    /* 서버 상태 - 축소형 인라인 표시 */
+    .sidebar-status-compact {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,.05);
+      border-radius: 8px;
       margin-bottom: 12px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .sidebar-status-compact:hover {
+      background: rgba(255,255,255,.08);
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--gray-400);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gray-400);
+      flex-shrink: 0;
+    }
+    .status-dot.ok { background: var(--good); }
+    .status-dot.warn { background: var(--warn); }
+    .status-dot.error { background: #ef4444; }
+    .status-item .status-label {
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-expand-icon {
+      margin-left: auto;
+      color: var(--gray-400);
+      font-size: 10px;
+      transition: transform .2s;
+    }
+    .sidebar-status-compact.expanded .status-expand-icon {
+      transform: rotate(180deg);
+    }
+    /* 서버 상태 상세 (펼침 시) */
+    .sidebar-status-detail {
+      display: none;
+      gap: 8px;
+      margin-bottom: 12px;
+      animation: slideDown .2s ease-out;
+    }
+    .sidebar-status-detail.open {
+      display: grid;
     }
     .sidebar-card {
       background: rgba(255,255,255,.08);
       border: 1px solid rgba(255,255,255,.08);
-      border-radius: 10px;
-      padding: 10px 12px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
     .sidebar-card .label {
       color: var(--gray-400);
@@ -224,10 +319,32 @@
       letter-spacing: .8px;
     }
     .sidebar-card .value {
-      margin-top: 4px;
       color: var(--white);
-      font-size: 18px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .sidebar-card .value.ok { color: var(--good); }
+    .sidebar-card .value.warn { color: var(--warn); }
+
+    /* 설정 그룹 섹션 */
+    .settings-group {
+      margin-bottom: 12px;
+    }
+    .settings-group-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
       font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .settings-group-header .group-icon {
+      font-size: 12px;
     }
     .sidebar-controls {
       display: grid;
@@ -542,8 +659,57 @@
     }
     .form-textarea {
       resize: vertical;
-      min-height: 80px;
+      min-height: 120px;
       line-height: 1.6;
+      font-size: 15px;
+    }
+    /* 검색 실행 피드백 배너 */
+    .search-feedback {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      animation: fadeIn .2s ease-out;
+    }
+    .search-feedback.show { display: flex; }
+    .search-feedback.loading {
+      background: linear-gradient(90deg, var(--navy-l) 0%, rgba(235,240,250,.5) 50%, var(--navy-l) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      color: var(--navy);
+      border: 1px solid var(--gray-200);
+    }
+    .search-feedback.success {
+      background: rgba(31,157,104,.08);
+      color: var(--good);
+      border: 1px solid rgba(31,157,104,.2);
+    }
+    .search-feedback.error {
+      background: rgba(239,68,68,.08);
+      color: #dc2626;
+      border: 1px solid rgba(239,68,68,.2);
+    }
+    .search-feedback .feedback-icon {
+      font-size: 16px;
+    }
+    .search-feedback .feedback-text {
+      flex: 1;
+    }
+    .search-feedback .feedback-time {
+      font-size: 11px;
+      color: var(--text-s);
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .form-hint {
       font-size: 12px;
@@ -1549,6 +1715,117 @@
       border-radius: var(--radius);
       margin-bottom: 12px;
     }
+    /* 마크다운 렌더링 스타일 */
+    .md-content {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text);
+    }
+    .md-content .md-paragraph {
+      margin: 0 0 12px;
+    }
+    .md-content .md-h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--navy);
+      margin: 16px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .md-content .md-h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--navy);
+      margin: 14px 0 6px;
+    }
+    .md-content .md-h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-800);
+      margin: 12px 0 4px;
+    }
+    .md-content .md-ul-item,
+    .md-content .md-ol-item {
+      margin-left: 20px;
+      margin-bottom: 4px;
+      list-style-position: outside;
+    }
+    .md-content .md-ul-item { list-style-type: disc; }
+    .md-content .md-ol-item { list-style-type: decimal; }
+    .md-content .md-blockquote {
+      margin: 8px 0;
+      padding: 8px 12px;
+      border-left: 3px solid var(--amber);
+      background: var(--amber-l);
+      color: var(--gray-800);
+      font-style: italic;
+    }
+    .md-content .md-code-block {
+      background: var(--gray-800);
+      color: #e2e8f0;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .md-content .md-inline-code {
+      background: rgba(27,58,107,.08);
+      color: var(--navy);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+    }
+    .md-content .md-hr {
+      border: none;
+      border-top: 1px solid var(--gray-200);
+      margin: 16px 0;
+    }
+    .md-content .md-citation {
+      color: var(--navy);
+      background: var(--navy-l);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .md-content .md-citation:hover {
+      background: var(--amber-l);
+      color: var(--amber-d);
+    }
+    /* Citation 배지 및 하이라이트 */
+    .citation-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 20px;
+      padding: 0 6px;
+      background: var(--navy);
+      color: var(--white);
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 4px;
+      margin-right: 8px;
+    }
+    .answer-evidence-item {
+      transition: all .2s;
+      border: 2px solid transparent;
+    }
+    .answer-evidence-item.highlight {
+      border-color: var(--amber);
+      background: var(--amber-l);
+      animation: citationPulse .5s ease;
+    }
+    @keyframes citationPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.01); }
+    }
     .rag-docs-section {
       flex: 1;
     }
@@ -1962,15 +2239,32 @@
   </nav>
 
   <div id="mainTab-rag" class="main-tab-panel active app-body">
-    <aside class="sidebar">
+    <aside class="sidebar" id="leftSidebar">
+      <!-- 사이드바 접기/펼치기 토글 버튼 -->
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="사이드바 접기/펼치기">
+        <span class="toggle-arrow">◀</span>
+      </button>
       <div class="sidebar-section">
-        <div class="sidebar-label" data-i18n="runtime_target">Runtime Target</div>
-        <div class="sidebar-note">
-          Backend API: <strong id="sidebarApiBase"></strong>
+        <!-- 서버 상태: 축소형 인라인 표시 -->
+        <div class="sidebar-status-compact" id="statusCompact" onclick="toggleStatusDetail()">
+          <div class="status-item">
+            <span class="status-dot" id="apiDot"></span>
+            <span class="status-label">API</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot" id="vectorDot"></span>
+            <span class="status-label">Vector</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot" id="ollamaDot"></span>
+            <span class="status-label">LLM</span>
+          </div>
+          <span class="status-expand-icon">▼</span>
         </div>
-        <div class="sidebar-status">
+        <!-- 서버 상태: 상세 (접힘) -->
+        <div class="sidebar-status-detail" id="statusDetail">
           <div class="sidebar-card">
-            <div class="label">API</div>
+            <div class="label">API Server</div>
             <div class="value" id="apiStatus">Checking</div>
           </div>
           <div class="sidebar-card">
@@ -1978,40 +2272,52 @@
             <div class="value" id="vectorStatus">-</div>
           </div>
           <div class="sidebar-card">
-            <div class="label">Ollama</div>
+            <div class="label">Ollama LLM</div>
             <div class="value" id="ollamaStatus">-</div>
           </div>
+          <div class="sidebar-note" style="margin:4px 0 0;font-size:11px;">
+            Backend: <strong id="sidebarApiBase"></strong>
+          </div>
         </div>
-        <div class="sidebar-controls">
-          <div>
-            <label for="searchMode" data-i18n="search_mode">검색 모드</label>
-            <select id="searchMode" onchange="selectSearchMode(this.value)">
-              <option value="" selected data-i18n="cat_all">전체</option>
-              <option value="general" data-i18n="mode_general">일반 문서</option>
-              <option value="bid_project" data-i18n="mode_bid">유사 사업</option>
-              <option value="rfp_analysis" data-i18n="mode_rfp">RFP 분석</option>
-              <option value="graph_rag" data-i18n="mode_graph">관계 기반</option>
-            </select>
-          <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
-          <!-- 기본 설정: 항상 표시 -->
-          <div>
-            <label for="category" data-i18n="category">Category</label>
-            <select id="category">
-              <option value="" data-i18n="cat_all">All</option>
-              <option value="rfp" data-i18n="cat_rfp">RFP</option>
-              <option value="proposal" data-i18n="cat_proposal">Proposal</option>
-              <option value="kickoff" data-i18n="cat_kickoff">Kickoff</option>
-              <option value="final_report" data-i18n="cat_final">Final Report</option>
-              <option value="presentation" data-i18n="cat_presentation">Presentation</option>
-            </select>
+
+        <!-- 기본 검색 설정 그룹 -->
+        <div class="settings-group">
+          <div class="settings-group-header">
+            <span class="group-icon">🔍</span>
+            <span>기본 검색 설정</span>
           </div>
-          <div>
-            <label for="answerProvider" data-i18n="answer_mode">Answer Mode</label>
-            <select id="answerProvider">
-              <option value="ollama" data-i18n="ans_ollama">Ollama (Generate)</option>
-              <option value="none" data-i18n="ans_none">Search Only</option>
-            </select>
+          <div class="sidebar-controls" style="margin-top:0;">
+            <div>
+              <label for="searchMode" data-i18n="search_mode">검색 모드</label>
+              <select id="searchMode" onchange="selectSearchMode(this.value)">
+                <option value="" selected data-i18n="cat_all">전체</option>
+                <option value="general" data-i18n="mode_general">일반 문서</option>
+                <option value="bid_project" data-i18n="mode_bid">유사 사업</option>
+                <option value="rfp_analysis" data-i18n="mode_rfp">RFP 분석</option>
+                <option value="graph_rag" data-i18n="mode_graph">관계 기반</option>
+              </select>
+            </div>
+            <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
+            <div>
+              <label for="category" data-i18n="category">Category</label>
+              <select id="category">
+                <option value="" data-i18n="cat_all">All</option>
+                <option value="rfp" data-i18n="cat_rfp">RFP</option>
+                <option value="proposal" data-i18n="cat_proposal">Proposal</option>
+                <option value="kickoff" data-i18n="cat_kickoff">Kickoff</option>
+                <option value="final_report" data-i18n="cat_final">Final Report</option>
+                <option value="presentation" data-i18n="cat_presentation">Presentation</option>
+              </select>
+            </div>
+            <div>
+              <label for="answerProvider" data-i18n="answer_mode">Answer Mode</label>
+              <select id="answerProvider">
+                <option value="ollama" data-i18n="ans_ollama">Ollama (Generate)</option>
+                <option value="none" data-i18n="ans_none">Search Only</option>
+              </select>
+            </div>
           </div>
+        </div>
           <!-- 고급 설정 토글 -->
           <div class="advanced-settings-toggle" onclick="toggleAdvancedSettings(this)">
             <span>⚙️ 고급 설정</span>
@@ -2151,6 +2457,12 @@
                 <button class="rfp-clear" type="button" onclick="clearRfp()" data-i18n="rfp_remove">✕ 제거</button>
               </div>
               <span style="font-size:12px;color:var(--text-s);" id="rfpHint" data-i18n="rfp_hint">PDF · DOCX · TXT를 업로드해 RFP 분석 검색을 실행합니다. HWP · HWPX는 후속 지원 예정입니다.</span>
+            </div>
+            <!-- 검색 실행 피드백 배너 -->
+            <div class="search-feedback" id="searchFeedback">
+              <span class="feedback-icon" id="feedbackIcon">🔍</span>
+              <span class="feedback-text" id="feedbackText">검색 중...</span>
+              <span class="feedback-time" id="feedbackTime"></span>
             </div>
             <div class="form-grid">
               <div class="form-group full">
@@ -2893,6 +3205,8 @@
     document.addEventListener('DOMContentLoaded', () => {
       const el = document.getElementById('sidebarApiBase');
       if (el) el.textContent = API_BASE;
+      // 사이드바 상태 복원
+      restoreSidebarState();
     });
 
     let _activeSnapshot = '';
@@ -3313,6 +3627,41 @@
       resultDocs.innerHTML = graphSection + renderDocumentCards(data.documents, false);
     }
 
+    // 사이드바 접기/펼치기 토글 함수
+    function toggleSidebar() {
+      const sidebar = document.getElementById('leftSidebar');
+      sidebar.classList.toggle('collapsed');
+      // 상태 저장 (선택적)
+      localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+    }
+
+    // 페이지 로드 시 사이드바 상태 복원
+    function restoreSidebarState() {
+      const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+      if (collapsed) {
+        document.getElementById('leftSidebar')?.classList.add('collapsed');
+      }
+    }
+
+    // 서버 상태 상세 토글 함수
+    function toggleStatusDetail() {
+      const compact = document.getElementById('statusCompact');
+      const detail = document.getElementById('statusDetail');
+      const isOpen = detail.classList.toggle('open');
+      compact.classList.toggle('expanded', isOpen);
+    }
+
+    // 상태 dot 업데이트 함수
+    function updateStatusDots(apiOk, vectorOk, ollamaOk) {
+      const apiDot = document.getElementById('apiDot');
+      const vectorDot = document.getElementById('vectorDot');
+      const ollamaDot = document.getElementById('ollamaDot');
+
+      apiDot.className = 'status-dot ' + (apiOk === true ? 'ok' : apiOk === false ? 'error' : '');
+      vectorDot.className = 'status-dot ' + (vectorOk === true ? 'ok' : vectorOk === false ? 'warn' : '');
+      ollamaDot.className = 'status-dot ' + (ollamaOk === true ? 'ok' : ollamaOk === false ? 'warn' : '');
+    }
+
     async function loadHealth(showFeedback = false) {
       try {
         const response = await fetch(`${API_BASE}/health/all`);
@@ -3338,6 +3687,13 @@
         ollamaEl.textContent = ollama.status || '-';
         ollamaEl.className = `value ${ollama.status === 'healthy' ? 'ok' : 'warn'}`;
 
+        // 상태 dot 업데이트
+        updateStatusDots(
+          overall === 'healthy',
+          faiss.index_exists,
+          ollama.status === 'healthy'
+        );
+
         if (showFeedback) {
           loadOllamaModels();
           loadCategories();
@@ -3349,6 +3705,8 @@
         document.getElementById('vectorStatus').textContent = '-';
         document.getElementById('ollamaStatus').textContent = '-';
         document.getElementById('queryStatus').textContent = `${t('conn_fail')}: ${error.message}`;
+        // 상태 dot 오류 표시
+        updateStatusDots(false, false, false);
         if (showFeedback) showToast(`${t('conn_fail')}: ${error.message}`, 'error');
       }
     }
@@ -3413,6 +3771,38 @@
       }
     }
 
+    // 검색 피드백 표시 함수
+    let _searchStartTime = null;
+    function showSearchFeedback(type, message) {
+      const feedback = document.getElementById('searchFeedback');
+      const icon = document.getElementById('feedbackIcon');
+      const text = document.getElementById('feedbackText');
+      const time = document.getElementById('feedbackTime');
+
+      feedback.className = 'search-feedback show ' + type;
+
+      if (type === 'loading') {
+        icon.textContent = '🔍';
+        _searchStartTime = Date.now();
+        time.textContent = '';
+      } else if (type === 'success') {
+        icon.textContent = '✅';
+        if (_searchStartTime) {
+          const elapsed = ((Date.now() - _searchStartTime) / 1000).toFixed(1);
+          time.textContent = `${elapsed}초`;
+        }
+      } else if (type === 'error') {
+        icon.textContent = '❌';
+        time.textContent = '';
+      }
+      text.textContent = message;
+    }
+
+    function hideSearchFeedback() {
+      const feedback = document.getElementById('searchFeedback');
+      feedback.className = 'search-feedback';
+    }
+
     async function runQuery() {
       const query = document.getElementById('query').value.trim();
       const topK = parseInt(document.getElementById('topK').value || '20', 10);
@@ -3435,7 +3825,10 @@
 
       syncAnswerModeLabel();
 
-      if (!query && !_rfpSelectedFile) { if (status) status.textContent = t('enter_query'); return; }
+      if (!query && !_rfpSelectedFile) { if (status) status.textContent = t('enter_query'); hideSearchFeedback(); return; }
+
+      // 검색 시작 피드백
+      showSearchFeedback('loading', _lang === 'ko' ? '문서 검색 중...' : 'Searching documents...');
 
       _queryRan = true;
       if (status) status.textContent = t('running');
@@ -3508,6 +3901,10 @@
         const expandedNote = data.expanded_query
           ? ` (${_lang === 'ko' ? '확장' : 'expanded'}: ${data.expanded_query.slice(0, 60)}...)` : '';
         if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote;
+
+        // 검색 성공 피드백
+        const docCount = data.documents?.length || 0;
+        showSearchFeedback('success', _lang === 'ko' ? `${docCount}개 문서를 찾았습니다.` : `Found ${docCount} documents.`);
         _hasAnswer = answerProvider === 'none';
         renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
         renderResultPanel(data);
@@ -3561,6 +3958,8 @@
         if (status) status.textContent = `${t('query_failed')}: ${error.message}`;
         const ragAnswerEl2 = document.getElementById('ragAnswerSection'); if (ragAnswerEl2) ragAnswerEl2.innerHTML = '';
         showToast(`${t('query_failed')}: ${error.message}`, 'error');
+        // 검색 실패 피드백
+        showSearchFeedback('error', _lang === 'ko' ? `검색 실패: ${error.message}` : `Search failed: ${error.message}`);
       } finally {
         runBtn.disabled = false;
         runBtn.textContent = t('run_rag');
@@ -3608,11 +4007,12 @@
       if (!answerPanel) return;
       const evidenceDocs = payload?.evidence_documents || payload?.documents || [];
       const answerBody = answerText
-        ? `<div class="answer-body">${escapeHtml(answerText)}</div>`
+        ? `<div class="answer-body">${renderMarkdown(answerText)}</div>`
         : `<div class="answer-note">${t(searchOnly ? 'answer_search_only' : 'no_answer')}</div>`;
 
       const evidenceHtml = evidenceDocs.length
-        ? evidenceDocs.slice(0, 5).map(doc => {
+        ? evidenceDocs.slice(0, 5).map((doc, idx) => {
+            const citationNum = idx + 1;
             const title = doc.project_name || doc.file_name || doc.document_id || '-';
             const pathText = doc.original_source_path || doc.source_path || doc.relative_path || '-';
             const meta = [
@@ -3622,8 +4022,9 @@
               doc.relative_path || '',
             ].filter(Boolean).map(v => `<span class="chip">${escapeHtml(v)}</span>`).join('');
             return `
-              <div class="answer-evidence-item">
+              <div class="answer-evidence-item" id="citation-${citationNum}" data-citation="${citationNum}">
                 <div class="answer-evidence-head">
+                  <span class="citation-badge">[${citationNum}]</span>
                   <div class="answer-evidence-name">${escapeHtml(title)}</div>
                   <div class="badge">${escapeHtml(doc.category || '')}</div>
                 </div>
@@ -4173,6 +4574,62 @@
       return String(text)
         .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    }
+
+    // 간단한 마크다운 렌더러 (LLM 답변용)
+    function renderMarkdown(text) {
+      if (!text) return '';
+      let html = escapeHtml(text);
+
+      // 코드 블록 (```)
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="md-code-block"><code>$2</code></pre>');
+      // 인라인 코드 (`)
+      html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
+      // 굵은 글씨 (**)
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      // 기울임 (*)
+      html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      // 헤더 (###, ##, #)
+      html = html.replace(/^### (.+)$/gm, '<h4 class="md-h4">$1</h4>');
+      html = html.replace(/^## (.+)$/gm, '<h3 class="md-h3">$1</h3>');
+      html = html.replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>');
+      // 순서 있는 목록 (1. 2. 3.)
+      html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="md-ol-item" value="$1">$2</li>');
+      // 순서 없는 목록 (- 또는 *)
+      html = html.replace(/^[-*] (.+)$/gm, '<li class="md-ul-item">$1</li>');
+      // 인용 (>)
+      html = html.replace(/^&gt; (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>');
+      // 수평선 (---)
+      html = html.replace(/^---$/gm, '<hr class="md-hr">');
+      // Citation 링크 ([1], [2] 등) - 클릭 이벤트 포함
+      html = html.replace(/\[(\d+)\]/g, '<a href="#citation-$1" class="md-citation" data-citation="$1" onclick="scrollToCitation($1); return false;">[$1]</a>');
+      // 줄바꿈 -> <br> (빈 줄은 단락 구분)
+      html = html.replace(/\n\n/g, '</p><p class="md-paragraph">');
+      html = html.replace(/\n/g, '<br>');
+
+      return `<div class="md-content"><p class="md-paragraph">${html}</p></div>`;
+    }
+
+    // Citation 클릭 시 해당 근거 문서로 스크롤 및 하이라이트
+    function scrollToCitation(citationNum) {
+      const target = document.getElementById(`citation-${citationNum}`);
+      if (!target) return;
+
+      // 모든 하이라이트 제거
+      document.querySelectorAll('.answer-evidence-item.highlight').forEach(el => {
+        el.classList.remove('highlight');
+      });
+
+      // 해당 항목 하이라이트
+      target.classList.add('highlight');
+
+      // 스크롤
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // 3초 후 하이라이트 제거
+      setTimeout(() => {
+        target.classList.remove('highlight');
+      }, 3000);
     }
 
     function snippetText(snippet) {
