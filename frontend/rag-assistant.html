@@ -2017,8 +2017,37 @@
               <option value="rfp_analysis" data-i18n="mode_rfp">RFP 분석</option>
               <option value="graph_rag" data-i18n="mode_graph">관계 기반</option>
               <option value="hybrid_rag" data-i18n="mode_hybrid">Hybrid RAG</option>
+              <option value="proposal_draft" data-i18n="mode_proposal">제안서 초안</option>
             </select>
           <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
+          <!-- 제안서 초안 입력 패널 -->
+          <div id="proposalInputPanel" style="display:none;background:linear-gradient(135deg,rgba(27,58,107,.1) 0%,rgba(232,151,31,.05) 100%);border:1px solid var(--navy);border-radius:8px;padding:12px;margin:8px 0;">
+            <div style="margin-bottom:8px;">
+              <label for="proposalProjectName" data-i18n="proposal_project_name" style="font-size:11px;color:var(--navy);">사업명</label>
+              <input type="text" id="proposalProjectName" placeholder="예: 차세대 행정업무시스템 ISMP" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--bg-light);">
+            </div>
+            <div style="margin-bottom:8px;">
+              <label for="proposalOrganization" data-i18n="proposal_organization" style="font-size:11px;color:var(--navy);">발주기관</label>
+              <input type="text" id="proposalOrganization" placeholder="예: 행정안전부" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--bg-light);">
+            </div>
+            <div style="margin-bottom:8px;">
+              <label data-i18n="proposal_sections" style="font-size:11px;color:var(--navy);display:block;margin-bottom:4px;">생성할 섹션</label>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;font-size:10px;">
+                <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="secOverview" checked> 사업 개요</label>
+                <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="secCurrent" checked> 현황/문제점</label>
+                <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="secStrategy" checked> 추진 전략</label>
+                <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="secSchedule" checked> 추진 일정</label>
+                <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="secTrack" checked> 수행 실적</label>
+                <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="secEffect" checked> 기대 효과</label>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;font-size:10px;margin-bottom:8px;">
+              <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="proposalUseGraph" checked> Graph</label>
+              <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="proposalUseWiki" checked> Wiki</label>
+              <label style="display:flex;align-items:center;gap:2px;"><input type="checkbox" id="proposalUseFaiss" checked> FAISS</label>
+            </div>
+            <button onclick="generateProposalDraft()" style="width:100%;padding:8px;background:linear-gradient(135deg,var(--navy) 0%,#2a4a7a 100%);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;" data-i18n="proposal_generate">제안서 초안 생성</button>
+          </div>
           <!-- 기본 설정: 항상 표시 -->
           <div>
             <label for="category" data-i18n="category">Category</label>
@@ -2576,6 +2605,20 @@
       mode_hybrid:'Hybrid RAG',
       hint_hybrid:'FAISS 벡터 검색 + GraphRAG 관계 검색을 통합합니다.<br>두 검색 결과를 병합하고 재순위화하여 정확도를 높입니다.',
       query_example_hybrid:'행정안전부 차세대 업무시스템 관련 모든 문서와 프로젝트 연관 관계를 찾아줘',
+      mode_proposal:'제안서 초안',
+      hint_proposal:'GraphRAG + FAISS + Wiki를 통합하여 제안서 섹션별 초안을 생성합니다.<br>사업명과 발주기관을 입력하면 관련 실적과 문서를 기반으로 초안을 작성합니다.',
+      query_example_proposal:'차세대 행정업무시스템 ISMP 제안서 초안을 작성해줘 (발주기관: 행정안전부)',
+      proposal_project_name:'사업명',
+      proposal_organization:'발주기관',
+      proposal_sections:'생성할 섹션',
+      proposal_use_graph:'Graph 검색 사용',
+      proposal_use_wiki:'Wiki 참조 사용',
+      proposal_use_faiss:'FAISS 검색 사용',
+      proposal_generate:'제안서 초안 생성',
+      proposal_result_title:'제안서 초안 결과',
+      proposal_graph_evidence:'Graph 근거',
+      proposal_wiki_evidence:'Wiki 근거',
+      proposal_related_projects:'관련 프로젝트',
     };
 
     const I18N = {
@@ -2768,6 +2811,20 @@
         mode_hybrid:'Hybrid RAG',
         hint_hybrid:'Combines FAISS vector search + GraphRAG relationship search.<br>Merges and re-ranks results for higher accuracy.',
         query_example_hybrid:'Find all documents and project relationships for MOIS next-gen business system',
+        mode_proposal:'Proposal Draft',
+        hint_proposal:'Integrates GraphRAG + FAISS + Wiki to generate proposal section drafts.<br>Enter project name and organization to create drafts based on related records.',
+        query_example_proposal:'Create a proposal draft for Next-gen Admin System ISMP (Organization: MOIS)',
+        proposal_project_name:'Project Name',
+        proposal_organization:'Organization',
+        proposal_sections:'Sections to Generate',
+        proposal_use_graph:'Use Graph Search',
+        proposal_use_wiki:'Use Wiki Reference',
+        proposal_use_faiss:'Use FAISS Search',
+        proposal_generate:'Generate Proposal Draft',
+        proposal_result_title:'Proposal Draft Result',
+        proposal_graph_evidence:'Graph Evidence',
+        proposal_wiki_evidence:'Wiki Evidence',
+        proposal_related_projects:'Related Projects',
       },
     };
 
@@ -3464,9 +3521,15 @@
     function onSearchModeChange() {
       const mode = document.getElementById('searchMode').value;
       const hint = document.getElementById('bidHint');
-      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph'), hybrid_rag: t('hint_hybrid') };
+      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph'), hybrid_rag: t('hint_hybrid'), proposal_draft: t('hint_proposal') };
       hint.innerHTML = hints[mode] || '';
       hint.style.display = hints[mode] ? '' : 'none';
+
+      // 제안서 초안 모드 UI 표시/숨김
+      const proposalPanel = document.getElementById('proposalInputPanel');
+      if (proposalPanel) {
+        proposalPanel.style.display = mode === 'proposal_draft' ? 'block' : 'none';
+      }
 
       const queryEl = document.getElementById('query');
       const examples = {
@@ -3474,6 +3537,7 @@
         rfp_analysis: t('query_example_rfp'),
         graph_rag:    t('query_example_graph'),
         hybrid_rag:   t('query_example_hybrid'),
+        proposal_draft: t('query_example_proposal'),
       };
       const example = examples[mode] || '';
       // 사용자가 직접 입력한 내용이 아닌 경우(비어 있거나 이전 예시 텍스트)에만 교체
@@ -3505,6 +3569,136 @@
           rfpSection.style.marginBottom = '';
         }
       }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Phase 10: 제안서 초안 생성 함수
+    // ─────────────────────────────────────────────────────────────────────────
+    async function generateProposalDraft() {
+      const projectName = document.getElementById('proposalProjectName').value.trim();
+      const organization = document.getElementById('proposalOrganization').value.trim();
+
+      if (!projectName) {
+        alert(t('proposal_project_name') + '을(를) 입력해주세요.');
+        return;
+      }
+
+      // 섹션 선택 수집
+      const sections = [];
+      if (document.getElementById('secOverview').checked) sections.push('overview');
+      if (document.getElementById('secCurrent').checked) sections.push('current');
+      if (document.getElementById('secStrategy').checked) sections.push('strategy');
+      if (document.getElementById('secSchedule').checked) sections.push('schedule');
+      if (document.getElementById('secTrack').checked) sections.push('track');
+      if (document.getElementById('secEffect').checked) sections.push('effect');
+
+      const useGraph = document.getElementById('proposalUseGraph').checked;
+      const useWiki = document.getElementById('proposalUseWiki').checked;
+      const useFaiss = document.getElementById('proposalUseFaiss').checked;
+
+      // 로딩 표시
+      const resultPanel = document.querySelector('.result-column');
+      resultPanel.innerHTML = `<div style="padding:20px;text-align:center;"><div class="spinner"></div><p style="margin-top:12px;">${t('proposal_generate')}...</p></div>`;
+
+      try {
+        const response = await fetch(`${API_BASE}/rag/proposal-with-graph`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_name: projectName,
+            organization: organization,
+            sections: sections,
+            use_graph: useGraph,
+            use_wiki: useWiki,
+            use_faiss: useFaiss,
+            top_k: parseInt(document.getElementById('topK').value || '15', 10),
+            top_docs: parseInt(document.getElementById('topDocs').value || '4', 10),
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          renderProposalResult(data);
+        } else {
+          resultPanel.innerHTML = `<div style="padding:20px;color:red;">오류: ${data.error || '제안서 생성 실패'}</div>`;
+        }
+      } catch (err) {
+        resultPanel.innerHTML = `<div style="padding:20px;color:red;">API 오류: ${err.message}</div>`;
+      }
+    }
+
+    function renderProposalResult(data) {
+      const resultPanel = document.querySelector('.result-column');
+      let html = `
+        <div style="padding:16px;">
+          <h2 style="color:var(--navy);margin-bottom:8px;font-size:16px;">${t('proposal_result_title')}</h2>
+          <div style="background:var(--bg-light);padding:10px;border-radius:6px;margin-bottom:12px;font-size:12px;">
+            <strong>사업명:</strong> ${data.project_name}<br>
+            <strong>발주기관:</strong> ${data.organization || '-'}<br>
+            <strong>소요시간:</strong> ${data.stats?.elapsed_seconds || '-'}초
+          </div>
+      `;
+
+      // 섹션별 초안
+      if (data.sections && data.sections.length > 0) {
+        html += `<h3 style="color:var(--navy);margin:12px 0 8px;font-size:14px;">섹션별 초안</h3>`;
+        data.sections.forEach((sec, idx) => {
+          if (sec.error) {
+            html += `<div style="background:#fff3f3;border:1px solid #ffcccc;border-radius:6px;padding:10px;margin-bottom:8px;font-size:11px;">오류: ${sec.error}</div>`;
+          } else {
+            html += `
+              <div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px;">
+                <div style="font-weight:600;color:var(--navy);margin-bottom:6px;font-size:13px;">${sec.section || '섹션 ' + (idx+1)}</div>
+                <div style="font-size:12px;line-height:1.6;white-space:pre-wrap;">${sec.draft || '-'}</div>
+                <div style="font-size:10px;color:#888;margin-top:6px;">근거 문서 ${sec.evidence_count || 0}건</div>
+              </div>
+            `;
+          }
+        });
+      }
+
+      // Graph 근거
+      if (data.graph_evidence && data.graph_evidence.length > 0) {
+        html += `<h3 style="color:var(--navy);margin:12px 0 8px;font-size:14px;">${t('proposal_graph_evidence')} (${data.graph_evidence.length}건)</h3>`;
+        html += `<div style="background:rgba(27,58,107,.05);border-radius:6px;padding:10px;font-size:11px;max-height:150px;overflow-y:auto;">`;
+        data.graph_evidence.forEach(ev => {
+          html += `<div style="margin-bottom:4px;padding:4px;background:#fff;border-radius:4px;">${ev}</div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Wiki 근거
+      if (data.wiki_evidence && data.wiki_evidence.length > 0) {
+        html += `<h3 style="color:var(--navy);margin:12px 0 8px;font-size:14px;">${t('proposal_wiki_evidence')} (${data.wiki_evidence.length}건)</h3>`;
+        html += `<div style="background:rgba(232,151,31,.05);border-radius:6px;padding:10px;font-size:11px;max-height:150px;overflow-y:auto;">`;
+        data.wiki_evidence.forEach(ev => {
+          html += `<div style="margin-bottom:4px;padding:4px;background:#fff;border-radius:4px;">${ev}</div>`;
+        });
+        html += `</div>`;
+      }
+
+      // 관련 프로젝트
+      if (data.related_projects && data.related_projects.length > 0) {
+        html += `<h3 style="color:var(--navy);margin:12px 0 8px;font-size:14px;">${t('proposal_related_projects')} (${data.related_projects.length}건)</h3>`;
+        html += `<div style="font-size:11px;">`;
+        data.related_projects.forEach(proj => {
+          html += `<div style="background:#f8f9fa;padding:6px 8px;border-radius:4px;margin-bottom:4px;">
+            <strong>${proj.project || '-'}</strong> - ${proj.document || '-'} <span style="color:#888;">[${proj.category || '-'}]</span>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // 통계
+      html += `
+        <div style="margin-top:16px;padding:10px;background:var(--bg-light);border-radius:6px;font-size:10px;color:#666;">
+          Graph: ${data.stats?.graph_count || 0}건 | Wiki: ${data.stats?.wiki_count || 0}건 | FAISS 섹션: ${data.stats?.faiss_sections || 0}개 | 관련 프로젝트: ${data.stats?.related_projects || 0}건
+        </div>
+      `;
+
+      html += `</div>`;
+      resultPanel.innerHTML = html;
     }
 
     async function runQuery() {

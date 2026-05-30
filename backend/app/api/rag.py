@@ -1202,3 +1202,190 @@ async def hybrid_query_stats(source_id: Optional[str] = None):
             "wiki_available": False,  # 향후 구현
         },
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 10: GraphRAG 통합 제안서 초안 생성 API
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ProposalWithGraphRequest(BaseModel):
+    """GraphRAG + FAISS + Wiki 통합 제안서 초안 요청."""
+    project_name: str = Field(..., min_length=2, description="사업명")
+    organization: str = Field("", description="발주기관")
+    sections: List[str] = Field(
+        default=["overview", "current", "strategy", "schedule", "track", "effect"],
+        description="생성할 섹션 목록"
+    )
+    use_graph: bool = Field(True, description="GraphRAG 검색 사용")
+    use_wiki: bool = Field(True, description="Wiki 참조 사용")
+    use_faiss: bool = Field(True, description="FAISS 벡터 검색 사용")
+    top_k: int = Field(15, ge=1, le=50)
+    top_docs: int = Field(4, ge=1, le=10)
+    source_id: Optional[str] = None
+
+
+@router.post("/proposal-with-graph")
+async def generate_proposal_with_graph(request: ProposalWithGraphRequest):
+    """
+    GraphRAG, FAISS, Wiki를 통합하여 제안서 초안을 생성합니다.
+
+    Phase 10 기능:
+    1. GraphRAG로 관련 프로젝트/기관 관계 검색
+    2. FAISS로 유사 문서 검색
+    3. Wiki에서 기관/프로젝트 정보 조회
+    4. 통합 근거로 섹션별 초안 생성
+    """
+    start_time = time.time()
+
+    # 결과 컨테이너
+    graph_evidence = []
+    faiss_evidence = []
+    wiki_evidence = []
+    related_projects = []
+
+    # 1. GraphRAG 검색 (기관-프로젝트-문서 관계)
+    if request.use_graph:
+        try:
+            from app.services.graph_query_service import get_graph_query_service
+            graph_service = get_graph_query_service(request.source_id)
+
+            # 기관으로 관련 프로젝트 검색
+            if request.organization:
+                org_query = f"MATCH (o:Organization {{name: '{request.organization}'}})-[:HAS_PROJECT]->(p:Project)-[:HAS_DOCUMENT]->(d:Document) RETURN p.name as project, d.title as document, d.category as category LIMIT 10"
+                graph_result = graph_service.execute_cypher(org_query)
+                if graph_result.get("results"):
+                    for row in graph_result["results"]:
+                        related_projects.append({
+                            "project": row.get("project", ""),
+                            "document": row.get("document", ""),
+                            "category": row.get("category", ""),
+                        })
+                        graph_evidence.append(f"[Graph] 프로젝트: {row.get('project', '')} - 문서: {row.get('document', '')}")
+
+            # 유사 프로젝트 검색
+            similar_query = f"MATCH (p:Project)-[:SIMILAR_TO]->(p2:Project) WHERE p.name CONTAINS '{request.project_name[:10]}' RETURN p2.name as similar_project, p2.organization as org LIMIT 5"
+            similar_result = graph_service.execute_cypher(similar_query)
+            if similar_result.get("results"):
+                for row in similar_result["results"]:
+                    graph_evidence.append(f"[Graph] 유사사업: {row.get('similar_project', '')} ({row.get('org', '')})")
+        except Exception as e:
+            graph_evidence.append(f"[Graph 검색 오류: {str(e)[:50]}]")
+
+    # 2. Wiki 검색 (기관별/프로젝트별 위키)
+    if request.use_wiki:
+        try:
+            WIKI_PROJECT_DIR.mkdir(parents=True, exist_ok=True)
+            WIKI_ORG_DIR = PROJECT_ROOT / "data" / "wiki" / "organizations"
+            WIKI_ORG_DIR.mkdir(parents=True, exist_ok=True)
+
+            # 기관 Wiki 검색
+            if request.organization:
+                org_slug = re.sub(r"[^\w가-힣]+", "-", request.organization.lower()).strip("-")
+                org_wiki_path = WIKI_ORG_DIR / f"{org_slug}.md"
+                if org_wiki_path.exists():
+                    wiki_content = org_wiki_path.read_text(encoding="utf-8")[:1000]
+                    wiki_evidence.append(f"[Wiki-기관] {request.organization}: {wiki_content[:300]}...")
+
+            # 프로젝트 Wiki 검색
+            project_slug = re.sub(r"[^\w가-힣]+", "-", request.project_name.lower()).strip("-")
+            for wiki_file in WIKI_PROJECT_DIR.glob("*.md"):
+                if project_slug[:5] in wiki_file.stem or request.project_name[:5] in wiki_file.read_text(encoding="utf-8")[:200]:
+                    wiki_content = wiki_file.read_text(encoding="utf-8")[:500]
+                    wiki_evidence.append(f"[Wiki-프로젝트] {wiki_file.stem}: {wiki_content[:200]}...")
+                    break
+        except Exception as e:
+            wiki_evidence.append(f"[Wiki 검색 오류: {str(e)[:50]}]")
+
+    # 3. FAISS 검색 (기존 proposal API 활용)
+    if request.use_faiss:
+        try:
+            # 기본 제안서 API 호출
+            base_request = ProposalRequest(
+                project_name=request.project_name,
+                organization=request.organization,
+                sections=request.sections,
+                top_k=request.top_k,
+                top_docs=request.top_docs,
+            )
+            faiss_result = await generate_proposal(base_request)
+            if faiss_result.get("success") and faiss_result.get("sections"):
+                for sec in faiss_result["sections"]:
+                    faiss_evidence.append({
+                        "section": sec["title"],
+                        "draft": sec["draft"],
+                        "evidence_count": sec.get("evidence_count", 0),
+                    })
+        except Exception as e:
+            faiss_evidence.append({"error": str(e)[:100]})
+
+    # 4. 통합 응답 구성
+    elapsed = round(time.time() - start_time, 2)
+
+    return {
+        "success": True,
+        "project_name": request.project_name,
+        "organization": request.organization,
+        "sections": faiss_evidence if faiss_evidence else [],
+        "graph_evidence": graph_evidence,
+        "wiki_evidence": wiki_evidence,
+        "related_projects": related_projects,
+        "stats": {
+            "graph_count": len(graph_evidence),
+            "wiki_count": len(wiki_evidence),
+            "faiss_sections": len(faiss_evidence),
+            "related_projects": len(related_projects),
+            "elapsed_seconds": elapsed,
+        },
+        "sources_used": {
+            "graph": request.use_graph,
+            "wiki": request.use_wiki,
+            "faiss": request.use_faiss,
+        },
+    }
+
+
+@router.get("/related-projects/{organization}")
+async def get_related_projects(organization: str, limit: int = 10):
+    """특정 기관의 관련 프로젝트와 문서를 GraphRAG로 검색합니다."""
+    try:
+        from app.services.graph_query_service import get_graph_query_service
+        graph_service = get_graph_query_service(None)
+
+        # 기관-프로젝트-문서 관계 검색
+        cypher = f"""
+        MATCH (o:Organization)-[:HAS_PROJECT]->(p:Project)-[:HAS_DOCUMENT]->(d:Document)
+        WHERE o.name CONTAINS '{organization}' OR o.name_ko CONTAINS '{organization}'
+        RETURN o.name as organization, p.name as project, p.year as year,
+               collect({{title: d.title, category: d.category}})[0..3] as documents
+        LIMIT {limit}
+        """
+        result = graph_service.execute_cypher(cypher)
+
+        return {
+            "success": True,
+            "organization": organization,
+            "projects": result.get("results", []),
+            "count": len(result.get("results", [])),
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "organization": organization,
+            "projects": [],
+        }
+
+
+@router.get("/proposal-sections")
+async def get_proposal_sections():
+    """사용 가능한 제안서 섹션 목록을 반환합니다."""
+    return {
+        "sections": [
+            {"key": "overview", "title": "사업 개요", "description": "사업 개요, 목적, 배경"},
+            {"key": "current", "title": "현황 및 문제점", "description": "현황 분석, 문제점, 개선사항"},
+            {"key": "strategy", "title": "추진 전략 및 방법론", "description": "추진 전략, 방법론, 접근방법"},
+            {"key": "schedule", "title": "추진 일정", "description": "단계별 일정, 마일스톤"},
+            {"key": "track", "title": "유사 수행 실적", "description": "유사 사업 수행실적"},
+            {"key": "effect", "title": "기대 효과", "description": "기대 효과, 성과지표"},
+        ],
+    }
