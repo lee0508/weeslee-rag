@@ -38,6 +38,11 @@ POST /api/graph/text2cypher/generate — 자연어 → Cypher 변환
 POST /api/graph/text2cypher/execute  — Cypher 쿼리 실행
 POST /api/graph/text2cypher/test     — 변환 + 실행 통합 테스트
 GET  /api/graph/text2cypher/logs     — 쿼리 로그 조회
+
+GraphRAG Agent API (Phase 6):
+POST /api/graph/agent/query          — Agent 질문 처리 (자동 수정 루프 + FAISS fallback)
+GET  /api/graph/agent/schema         — Agent가 사용하는 스키마 요약
+POST /api/graph/agent/search         — FAISS 직접 검색 (fallback 테스트용)
 """
 from __future__ import annotations
 
@@ -1456,4 +1461,167 @@ async def text2cypher_logs(
             "success_only": success_only,
             "error_only": error_only,
         },
+    }
+
+
+# ── GraphRAG Agent API (Phase 6) ───────────────────────────────────────────────
+
+
+class AgentQueryRequest(BaseModel):
+    question: str = Field(..., description="자연어 질문")
+    source_id: Optional[str] = Field(None, description="Document Source ID")
+    enable_fallback: bool = Field(True, description="FAISS fallback 활성화")
+    top_k: int = Field(10, ge=1, le=50, description="최대 결과 수")
+
+
+class AgentSearchRequest(BaseModel):
+    query: str = Field(..., description="검색 쿼리")
+    source_id: Optional[str] = Field(None, description="Document Source ID")
+    top_k: int = Field(10, ge=1, le=50, description="최대 결과 수")
+    category_filter: Optional[str] = Field(None, description="카테고리 필터")
+    organization_filter: Optional[str] = Field(None, description="기관 필터")
+
+
+@router.post("/agent/query")
+async def agent_query(request: AgentQueryRequest):
+    """
+    GraphRAG Agent 질문 처리.
+
+    자연어 질문을 받아서:
+    1. 질문 유형 분석
+    2. Cypher 쿼리 생성 및 실행
+    3. 결과가 없거나 오류 시 자동 수정 (최대 2회)
+    4. 실패 시 FAISS 검색 fallback
+
+    반환값에는 실행 단계별 상세 정보가 포함된다.
+    """
+    from app.agents.graphrag_agent import get_graphrag_agent
+
+    agent = get_graphrag_agent(
+        source_id=request.source_id,
+        enable_fallback=request.enable_fallback,
+    )
+
+    response = await agent.process(request.question)
+
+    return {
+        "success": response.status.value in ("success", "fallback"),
+        "status": response.status.value,
+        "question": response.question,
+        "question_type": response.question_type.value,
+        "results": response.results,
+        "result_count": response.result_count,
+        "cypher_queries": response.cypher_queries,
+        "steps": [
+            {
+                "step_name": step.step_name,
+                "status": step.status,
+                "details": step.details,
+                "timestamp": step.timestamp,
+            }
+            for step in response.steps
+        ],
+        "fallback_used": response.fallback_used,
+        "fallback_results": response.fallback_results,
+        "fallback_result_count": len(response.fallback_results),
+        "error": response.error,
+        "total_time_ms": response.total_time_ms,
+        "source_id": request.source_id or "all",
+    }
+
+
+@router.get("/agent/schema")
+async def agent_schema():
+    """
+    GraphRAG Agent가 사용하는 스키마 요약.
+
+    노드 유형, 관계 유형, 스키마 텍스트를 반환한다.
+    """
+    from app.agents.graphrag_agent import get_graphrag_agent
+
+    agent = get_graphrag_agent()
+    summary = agent.get_schema_summary()
+
+    return {
+        "node_types": summary["node_types"],
+        "relation_types": summary["relation_types"],
+        "schema_text": summary["schema_text"],
+        "agent_config": {
+            "max_retries": agent.MAX_RETRIES,
+            "enable_fallback": agent.enable_fallback,
+        },
+    }
+
+
+@router.post("/agent/search")
+async def agent_search(request: AgentSearchRequest):
+    """
+    FAISS 직접 검색 (Agent fallback 테스트용).
+
+    GraphRAG Agent의 FAISS fallback 기능을 직접 테스트할 수 있다.
+    벡터 기반 유사도 검색을 수행한다.
+    """
+    from app.services.faiss_search_service import get_faiss_search_service
+
+    service = get_faiss_search_service(source_id=request.source_id)
+    response = service.search(
+        query=request.query,
+        top_k=request.top_k,
+        category_filter=request.category_filter,
+        organization_filter=request.organization_filter,
+    )
+
+    return {
+        "success": response.success,
+        "query": response.query,
+        "results": [
+            {
+                "rank": r.rank,
+                "score": r.score,
+                "chunk_id": r.chunk_id,
+                "document_id": r.document_id,
+                "category": r.category,
+                "organization": r.organization,
+                "file_name": r.file_name,
+                "text_preview": r.text_preview,
+            }
+            for r in response.results
+        ],
+        "result_count": response.result_count,
+        "search_time_ms": response.search_time_ms,
+        "embedding_provider": response.embedding_provider,
+        "error": response.error,
+        "source_id": request.source_id or "all",
+    }
+
+
+@router.get("/agent/stats")
+async def agent_stats(source_id: Optional[str] = None):
+    """
+    GraphRAG Agent 통계.
+
+    Graph 및 FAISS 인덱스 상태를 반환한다.
+    """
+    from app.services.faiss_search_service import get_faiss_search_service
+    from app.services.graph_query_service import get_graph_query_service
+
+    faiss_service = get_faiss_search_service(source_id)
+    graph_service = get_graph_query_service(source_id)
+
+    # Graph 통계
+    cache = _load_graph(source_id)
+    graph_stats = {
+        "node_count": len(cache["nodes"]),
+        "edge_count": len(cache["edges"]),
+        "has_data": bool(cache["nodes"]),
+    }
+
+    # FAISS 통계
+    faiss_stats = faiss_service.get_index_stats()
+
+    return {
+        "source_id": source_id or "all",
+        "graph": graph_stats,
+        "faiss": faiss_stats,
+        "agent_ready": graph_stats["has_data"] or faiss_stats["loaded"],
     }
