@@ -162,6 +162,7 @@ data/wiki/generated/
 .claude/settings.local.json
 .claude/settings.json.bak
 .claude/scheduled_tasks.lock
+.claude/skills/ssh-connector/
 
 # Local tooling / screenshots / work files
 .playwright-mcp/
