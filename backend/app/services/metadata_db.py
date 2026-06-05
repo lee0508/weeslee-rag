@@ -403,6 +403,222 @@ class MetadataDBService:
             cursor = conn.execute("SELECT * FROM processing_jobs WHERE id = ?", (job_id,))
             return dict_from_row(cursor.fetchone())
 
+    # ────────────────────────────────────────────────────────────────────────
+    # Step 3: Metadata Review Methods
+    # ────────────────────────────────────────────────────────────────────────
+
+    def get_documents_for_review(
+        self,
+        status: Optional[str] = None,
+        source_id: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[Dict]:
+        """검수 대기 문서 목록을 조회한다."""
+        query = "SELECT * FROM documents WHERE 1=1"
+        params = []
+
+        if status:
+            query += " AND meta_status = ?"
+            params.append(status)
+
+        if source_id:
+            query += " AND source_id = ?"
+            params.append(source_id)
+
+        query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        with get_db_connection() as conn:
+            cursor = conn.execute(query, params)
+            rows = cursor.fetchall()
+
+            documents = []
+            for row in rows:
+                doc = dict_from_row(row)
+                # JSON 필드 파싱
+                if doc.get("collection_candidates"):
+                    try:
+                        doc["collection_candidates"] = json.loads(doc["collection_candidates"])
+                    except (json.JSONDecodeError, TypeError):
+                        doc["collection_candidates"] = []
+                if doc.get("final_collections"):
+                    try:
+                        doc["final_collections"] = json.loads(doc["final_collections"])
+                    except (json.JSONDecodeError, TypeError):
+                        doc["final_collections"] = []
+                if doc.get("tags"):
+                    try:
+                        doc["tags"] = json.loads(doc["tags"])
+                    except (json.JSONDecodeError, TypeError):
+                        doc["tags"] = []
+                if doc.get("keywords"):
+                    try:
+                        doc["keywords"] = json.loads(doc["keywords"])
+                    except (json.JSONDecodeError, TypeError):
+                        doc["keywords"] = []
+                documents.append(doc)
+
+            return documents
+
+    def get_document_by_id(self, document_id: str) -> Optional[Dict]:
+        """문서 ID로 상세 조회한다 (Step 3)."""
+        with get_db_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM documents WHERE document_id = ?", (document_id,)
+            )
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            doc = dict_from_row(row)
+
+            # JSON 필드 파싱
+            if doc.get("collection_candidates"):
+                try:
+                    doc["collection_candidates"] = json.loads(doc["collection_candidates"])
+                except (json.JSONDecodeError, TypeError):
+                    doc["collection_candidates"] = []
+            if doc.get("final_collections"):
+                try:
+                    doc["final_collections"] = json.loads(doc["final_collections"])
+                except (json.JSONDecodeError, TypeError):
+                    doc["final_collections"] = []
+            if doc.get("tags"):
+                try:
+                    doc["tags"] = json.loads(doc["tags"])
+                except (json.JSONDecodeError, TypeError):
+                    doc["tags"] = []
+            if doc.get("keywords"):
+                try:
+                    doc["keywords"] = json.loads(doc["keywords"])
+                except (json.JSONDecodeError, TypeError):
+                    doc["keywords"] = []
+
+            return doc
+
+    def update_document_metadata(
+        self, document_id: str, updates: Dict[str, Any]
+    ) -> bool:
+        """문서 메타데이터를 업데이트한다 (Step 3)."""
+        allowed_fields = [
+            "project_name",
+            "organization",
+            "document_type",
+            "year",
+            "final_collections",
+            "tags",
+            "keywords",
+            "include_in_rag",
+            "include_in_graph",
+            "include_in_wiki",
+        ]
+
+        update_fields = []
+        params = []
+
+        for field in allowed_fields:
+            if field in updates:
+                value = updates[field]
+                # JSON 필드 직렬화
+                if field in ["final_collections", "tags", "keywords"] and isinstance(value, list):
+                    value = json.dumps(value, ensure_ascii=False)
+                update_fields.append(f"{field} = ?")
+                params.append(value)
+
+        if not update_fields:
+            return False
+
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(document_id)
+
+        query = f"UPDATE documents SET {', '.join(update_fields)} WHERE document_id = ?"
+
+        with get_db_connection() as conn:
+            cursor = conn.execute(query, params)
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def approve_document_metadata(self, document_id: str, reviewer: str) -> bool:
+        """메타데이터를 승인한다 (Step 3)."""
+        with get_db_connection() as conn:
+            cursor = conn.execute("""
+                UPDATE documents
+                SET meta_status = 'metadata_reviewed',
+                    reviewed_by = ?,
+                    reviewed_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE document_id = ?
+            """, (reviewer, document_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def reject_document_metadata(
+        self, document_id: str, reviewer: str, reason: Optional[str] = None
+    ) -> bool:
+        """메타데이터를 반려한다 (Step 3)."""
+        with get_db_connection() as conn:
+            cursor = conn.execute("""
+                UPDATE documents
+                SET meta_status = 'rejected',
+                    reviewed_by = ?,
+                    reviewed_at = CURRENT_TIMESTAMP,
+                    rejection_reason = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE document_id = ?
+            """, (reviewer, reason, document_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_status_counts(self) -> Dict[str, int]:
+        """메타 상태별 문서 수를 집계한다 (Step 3)."""
+        with get_db_connection() as conn:
+            cursor = conn.execute("""
+                SELECT meta_status, COUNT(*) as count
+                FROM documents
+                GROUP BY meta_status
+            """)
+            return {row["meta_status"] or "registered": row["count"] for row in cursor.fetchall()}
+
+    def get_review_stats(self) -> Dict[str, Any]:
+        """검수 현황 통계를 반환한다 (Step 3)."""
+        with get_db_connection() as conn:
+            stats = {}
+
+            # 전체 문서 수
+            cursor = conn.execute("SELECT COUNT(*) FROM documents")
+            stats["total"] = cursor.fetchone()[0]
+
+            # 상태별 카운트
+            stats["status_counts"] = self.get_status_counts()
+
+            # source_id별 통계
+            cursor = conn.execute("""
+                SELECT
+                    source_id,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN meta_status = 'review_required' THEN 1 ELSE 0 END) as review_required,
+                    SUM(CASE WHEN meta_status = 'metadata_reviewed' THEN 1 ELSE 0 END) as reviewed
+                FROM documents
+                WHERE source_id IS NOT NULL
+                GROUP BY source_id
+            """)
+
+            source_stats = []
+            for row in cursor.fetchall():
+                source_stats.append({
+                    "source_id": row["source_id"],
+                    "total": row["total"],
+                    "review_required": row["review_required"],
+                    "reviewed": row["reviewed"],
+                    "progress": round(row["reviewed"] / row["total"] * 100, 1) if row["total"] > 0 else 0,
+                })
+
+            stats["source_stats"] = source_stats
+
+            return stats
+
 
 # 싱글톤 인스턴스
 metadata_db_service = MetadataDBService()

@@ -30,6 +30,7 @@ from app.api.rag_source_admin import router as rag_source_admin_router
 from app.api.tags import router as tags_router
 from app.api.keywords import router as keywords_router
 from app.api.query_logs import router as query_logs_router
+from app.api.admin_metadata_review import router as admin_metadata_review_router
 try:
     from app.api.ocr_results import router as ocr_results_router
     _ocr_results_available = True
@@ -112,6 +113,7 @@ app.include_router(rag_source_admin_router, prefix="/api", tags=["RAG Source Adm
 app.include_router(tags_router, prefix="/api", tags=["Platform - Tags"])
 app.include_router(keywords_router, prefix="/api", tags=["Platform - Keywords"])
 app.include_router(query_logs_router, prefix="/api", tags=["Admin Query Logs"])
+app.include_router(admin_metadata_review_router, prefix="/api", tags=["Admin - Metadata Review"])
 if _ocr_results_available and ocr_results_router is not None:
     app.include_router(ocr_results_router, prefix="/api", tags=["OCR Results"])
 if _collections_available and collections_router is not None:

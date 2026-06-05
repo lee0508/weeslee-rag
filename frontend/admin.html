@@ -1569,6 +1569,98 @@ POST /api/admin/faiss/activate</code>
             </div>
           </div>
         </div>
+
+        <!-- 문서 검수 목록 -->
+        <div class="wr-card" style="margin-top:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h3 class="wr-card-title" style="margin:0">검수 대기 문서 목록</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="metaReviewStatusFilter" onchange="loadMetadataReviewDocuments()" style="padding:6px 12px;border-radius:4px;border:1px solid var(--wr-border)">
+                <option value="">전체 상태</option>
+                <option value="registered">registered</option>
+                <option value="metadata_suggested">metadata_suggested</option>
+                <option value="review_required">review_required</option>
+                <option value="metadata_reviewed">metadata_reviewed</option>
+              </select>
+              <button class="wr-btn wr-btn-sm" onclick="loadMetadataReviewDocuments()">새로고침</button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table class="wr-table">
+              <thead>
+                <tr>
+                  <th style="width:40px"><input type="checkbox" id="metaReviewSelectAll" onchange="toggleMetaReviewSelectAll()"></th>
+                  <th style="width:80px">상태</th>
+                  <th>파일명</th>
+                  <th style="width:200px">프로젝트명</th>
+                  <th style="width:150px">기관명</th>
+                  <th style="width:100px">문서유형</th>
+                  <th style="width:80px">연도</th>
+                  <th style="width:100px">동작</th>
+                </tr>
+              </thead>
+              <tbody id="metaReviewDocumentsTableBody">
+                <tr>
+                  <td colspan="8" style="text-align:center;color:var(--wr-muted)">문서를 불러오는 중...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="wr-inline-actions" style="margin-top:16px;justify-content:space-between">
+            <div>
+              <span id="metaReviewSelectedCount" style="color:var(--wr-muted);margin-right:12px">선택: 0개</span>
+              <button class="wr-btn wr-btn-primary" onclick="approveSelectedMetadata()">선택 문서 승인</button>
+              <button class="wr-btn" onclick="rejectSelectedMetadata()">선택 문서 반려</button>
+            </div>
+            <div>
+              <button class="wr-btn wr-btn-sm" onclick="loadPrevMetadataPage()" id="metaReviewPrevBtn">이전</button>
+              <span id="metaReviewPageInfo" style="margin:0 8px;color:var(--wr-muted)">1 / 1</span>
+              <button class="wr-btn wr-btn-sm" onclick="loadNextMetadataPage()" id="metaReviewNextBtn">다음</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 메타데이터 수정 모달 (placeholder) -->
+        <div id="metaEditModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow:auto">
+          <div style="background:white;max-width:600px;margin:50px auto;border-radius:8px;padding:24px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+              <h3 style="margin:0">메타데이터 수정</h3>
+              <button onclick="closeMetaEditModal()" style="border:none;background:none;font-size:24px;cursor:pointer">&times;</button>
+            </div>
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>프로젝트명</label>
+                <input id="metaEditProjectName" type="text">
+              </div>
+              <div class="wr-field">
+                <label>기관명</label>
+                <input id="metaEditOrganization" type="text">
+              </div>
+              <div class="wr-field">
+                <label>문서유형</label>
+                <input id="metaEditDocumentType" type="text">
+              </div>
+              <div class="wr-field">
+                <label>연도</label>
+                <input id="metaEditYear" type="number">
+              </div>
+              <div class="wr-field">
+                <label>Tags (쉼표 구분)</label>
+                <input id="metaEditTags" type="text" placeholder="tag1, tag2, tag3">
+              </div>
+              <div class="wr-field">
+                <label>Keywords (쉼표 구분)</label>
+                <input id="metaEditKeywords" type="text" placeholder="keyword1, keyword2">
+              </div>
+            </div>
+            <div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end">
+              <button class="wr-btn" onclick="closeMetaEditModal()">취소</button>
+              <button class="wr-btn wr-btn-primary" onclick="saveMetadataChanges()">저장</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Step 4: OCR/Parser -->
@@ -12364,8 +12456,292 @@ LIMIT 10`;
         loadLpgStatus();
         loadLpgOntologyTerms();
       }
+      if (pageName === 'db-step-3') {
+        loadMetadataReviewStats();
+        loadMetadataReviewDocuments();
+      }
     };
   }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Step 3: Metadata Review Functions
+  // ────────────────────────────────────────────────────────────────────────
+
+  let metaReviewCurrentPage = 0;
+  let metaReviewPageSize = 50;
+  let metaReviewCurrentDocumentId = null;
+  let metaReviewSelectedDocuments = new Set();
+
+  async function loadMetadataReviewStats() {
+    try {
+      const r = await fetch(apiUrl('/api/admin/metadata-review/stats'), {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const data = await r.json();
+
+      if (data.status_counts) {
+        document.getElementById('metaReviewRegistered').textContent = data.status_counts['registered'] || 0;
+        document.getElementById('metaReviewSuggested').textContent = data.status_counts['metadata_suggested'] || 0;
+        document.getElementById('metaReviewRequired').textContent = data.status_counts['review_required'] || 0;
+        document.getElementById('metaReviewReviewed').textContent = data.status_counts['metadata_reviewed'] || 0;
+      }
+    } catch (e) {
+      console.error('Failed to load metadata review stats:', e);
+    }
+  }
+
+  async function loadMetadataReviewDocuments() {
+    const statusFilter = document.getElementById('metaReviewStatusFilter')?.value || '';
+    const tbody = document.getElementById('metaReviewDocumentsTableBody');
+
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--wr-muted)">문서를 불러오는 중...</td></tr>';
+
+    try {
+      const params = new URLSearchParams({
+        limit: metaReviewPageSize,
+        offset: metaReviewCurrentPage * metaReviewPageSize
+      });
+      if (statusFilter) params.append('status', statusFilter);
+
+      const r = await fetch(apiUrl('/api/admin/metadata-review/documents?' + params.toString()), {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const data = await r.json();
+
+      if (tbody) {
+        if (!data.documents || data.documents.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--wr-muted)">검수 대기 문서가 없습니다.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.documents.map(doc => {
+          const checked = metaReviewSelectedDocuments.has(doc.document_id) ? 'checked' : '';
+          return `
+            <tr>
+              <td><input type="checkbox" class="metaReviewDocCheckbox" data-doc-id="${doc.document_id}" ${checked} onchange="updateMetaReviewSelection()"></td>
+              <td><span class="wr-badge ${getStatusBadgeClass(doc.meta_status)}">${doc.meta_status || 'registered'}</span></td>
+              <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${doc.file_name}">${doc.file_name}</td>
+              <td>${doc.project_name || '-'}</td>
+              <td>${doc.organization || '-'}</td>
+              <td>${doc.document_type || '-'}</td>
+              <td>${doc.year || '-'}</td>
+              <td>
+                <button class="wr-btn wr-btn-sm" onclick="openMetaEditModal('${doc.document_id}')">수정</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      updateMetaReviewPageInfo(data.total);
+    } catch (e) {
+      console.error('Failed to load metadata review documents:', e);
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:red">문서 로드 실패: ' + e.message + '</td></tr>';
+    }
+  }
+
+  function getStatusBadgeClass(status) {
+    switch(status) {
+      case 'metadata_reviewed': return 'wr-badge-success';
+      case 'review_required': return 'wr-badge-warning';
+      case 'rejected': return 'wr-badge-error';
+      case 'metadata_suggested': return 'wr-badge-info';
+      default: return 'wr-badge-default';
+    }
+  }
+
+  function updateMetaReviewSelection() {
+    metaReviewSelectedDocuments.clear();
+    document.querySelectorAll('.metaReviewDocCheckbox:checked').forEach(cb => {
+      metaReviewSelectedDocuments.add(cb.dataset.docId);
+    });
+
+    const count = metaReviewSelectedDocuments.size;
+    const countEl = document.getElementById('metaReviewSelectedCount');
+    if (countEl) countEl.textContent = `선택: ${count}개`;
+
+    const selectAllCb = document.getElementById('metaReviewSelectAll');
+    if (selectAllCb) {
+      const allCheckboxes = document.querySelectorAll('.metaReviewDocCheckbox');
+      selectAllCb.checked = allCheckboxes.length > 0 && allCheckboxes.length === count;
+    }
+  }
+
+  function toggleMetaReviewSelectAll() {
+    const selectAllCb = document.getElementById('metaReviewSelectAll');
+    const checked = selectAllCb?.checked || false;
+
+    document.querySelectorAll('.metaReviewDocCheckbox').forEach(cb => {
+      cb.checked = checked;
+    });
+
+    updateMetaReviewSelection();
+  }
+
+  function updateMetaReviewPageInfo(total) {
+    const totalPages = Math.ceil(total / metaReviewPageSize) || 1;
+    const currentPage = metaReviewCurrentPage + 1;
+
+    const pageInfo = document.getElementById('metaReviewPageInfo');
+    if (pageInfo) pageInfo.textContent = `${currentPage} / ${totalPages}`;
+
+    const prevBtn = document.getElementById('metaReviewPrevBtn');
+    const nextBtn = document.getElementById('metaReviewNextBtn');
+    if (prevBtn) prevBtn.disabled = metaReviewCurrentPage === 0;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+  }
+
+  function loadPrevMetadataPage() {
+    if (metaReviewCurrentPage > 0) {
+      metaReviewCurrentPage--;
+      loadMetadataReviewDocuments();
+    }
+  }
+
+  function loadNextMetadataPage() {
+    metaReviewCurrentPage++;
+    loadMetadataReviewDocuments();
+  }
+
+  async function openMetaEditModal(documentId) {
+    metaReviewCurrentDocumentId = documentId;
+
+    try {
+      const r = await fetch(apiUrl('/api/admin/metadata-review/documents/' + documentId), {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const doc = await r.json();
+
+      document.getElementById('metaEditProjectName').value = doc.project_name || '';
+      document.getElementById('metaEditOrganization').value = doc.organization || '';
+      document.getElementById('metaEditDocumentType').value = doc.document_type || '';
+      document.getElementById('metaEditYear').value = doc.year || '';
+      document.getElementById('metaEditTags').value = (doc.tags || []).join(', ');
+      document.getElementById('metaEditKeywords').value = (doc.keywords || []).join(', ');
+
+      document.getElementById('metaEditModal').style.display = 'block';
+    } catch (e) {
+      showToast('문서 조회 실패: ' + e.message, 'error');
+    }
+  }
+
+  function closeMetaEditModal() {
+    document.getElementById('metaEditModal').style.display = 'none';
+    metaReviewCurrentDocumentId = null;
+  }
+
+  async function saveMetadataChanges() {
+    if (!metaReviewCurrentDocumentId) return;
+
+    const updates = {
+      project_name: document.getElementById('metaEditProjectName').value.trim() || null,
+      organization: document.getElementById('metaEditOrganization').value.trim() || null,
+      document_type: document.getElementById('metaEditDocumentType').value.trim() || null,
+      year: parseInt(document.getElementById('metaEditYear').value) || null,
+      tags: document.getElementById('metaEditTags').value.split(',').map(t => t.trim()).filter(Boolean),
+      keywords: document.getElementById('metaEditKeywords').value.split(',').map(k => k.trim()).filter(Boolean)
+    };
+
+    try {
+      const r = await fetch(apiUrl('/api/admin/metadata-review/documents/' + metaReviewCurrentDocumentId), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + getToken()
+        },
+        body: JSON.stringify(updates)
+      });
+      const result = await r.json();
+
+      if (result.success) {
+        showToast('메타데이터가 수정되었습니다.', 'success');
+        closeMetaEditModal();
+        loadMetadataReviewDocuments();
+      } else {
+        showToast('수정 실패: ' + (result.detail || result.message), 'error');
+      }
+    } catch (e) {
+      showToast('수정 오류: ' + e.message, 'error');
+    }
+  }
+
+  async function approveSelectedMetadata() {
+    if (metaReviewSelectedDocuments.size === 0) {
+      showToast('승인할 문서를 선택하세요.', 'warning');
+      return;
+    }
+
+    if (!confirm(`선택한 ${metaReviewSelectedDocuments.size}개 문서를 승인하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const r = await fetch(apiUrl('/api/admin/metadata-review/approve'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + getToken()
+        },
+        body: JSON.stringify({
+          document_ids: Array.from(metaReviewSelectedDocuments),
+          reviewer: 'admin'
+        })
+      });
+      const result = await r.json();
+
+      if (result.success) {
+        showToast(`${result.approved_count}개 문서가 승인되었습니다.`, 'success');
+        metaReviewSelectedDocuments.clear();
+        loadMetadataReviewStats();
+        loadMetadataReviewDocuments();
+      } else {
+        showToast('승인 실패: ' + (result.detail || result.message), 'error');
+      }
+    } catch (e) {
+      showToast('승인 오류: ' + e.message, 'error');
+    }
+  }
+
+  async function rejectSelectedMetadata() {
+    if (metaReviewSelectedDocuments.size === 0) {
+      showToast('반려할 문서를 선택하세요.', 'warning');
+      return;
+    }
+
+    const reason = prompt(`선택한 ${metaReviewSelectedDocuments.size}개 문서를 반려하시겠습니까?\n반려 사유를 입력하세요 (선택):`, '');
+    if (reason === null) return;
+
+    try {
+      const r = await fetch(apiUrl('/api/admin/metadata-review/reject'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + getToken()
+        },
+        body: JSON.stringify({
+          document_ids: Array.from(metaReviewSelectedDocuments),
+          reviewer: 'admin',
+          reason: reason || null
+        })
+      });
+      const result = await r.json();
+
+      if (result.success) {
+        showToast(`${result.rejected_count}개 문서가 반려되었습니다.`, 'success');
+        metaReviewSelectedDocuments.clear();
+        loadMetadataReviewStats();
+        loadMetadataReviewDocuments();
+      } else {
+        showToast('반려 실패: ' + (result.detail || result.message), 'error');
+      }
+    } catch (e) {
+      showToast('반려 오류: ' + e.message, 'error');
+    }
+  }
+
 </script>
 <script src="assets/js/admin/admin-docs-layout.js?v=20260523"></script>
 
