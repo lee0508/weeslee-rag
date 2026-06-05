@@ -1,0 +1,384 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "weeslee-rag LPG Schema",
+  "description": "Labeled Property Graph 스키마 정의 - 컨설팅 문서 RAG 시스템용",
+  "version": "1.0.0",
+  "created_at": "2026-06-04",
+  "updated_at": "2026-06-04",
+
+  "node_types": {
+    "Snapshot": {
+      "description": "데이터셋 수집 시점",
+      "id_prefix": "snap",
+      "color": "#6b7280",
+      "properties": {
+        "snapshot_id": {"type": "string", "required": true, "description": "스냅샷 고유 ID"},
+        "name": {"type": "string", "required": true, "description": "스냅샷명"},
+        "source_root": {"type": "string", "required": false, "description": "원본 폴더 경로"},
+        "document_count": {"type": "integer", "required": false, "description": "문서 수"},
+        "created_at": {"type": "datetime", "required": true, "description": "생성일시"}
+      }
+    },
+
+    "Source": {
+      "description": "문서 출처 분류 (RFP/제안서/산출물)",
+      "id_prefix": "src",
+      "color": "#3b82f6",
+      "properties": {
+        "source_id": {"type": "string", "required": true, "description": "출처 ID"},
+        "label": {"type": "string", "required": true, "description": "출처명 (한글)"},
+        "code": {"type": "string", "required": false, "description": "출처 코드 (rfp/proposal/output)"}
+      }
+    },
+
+    "Category": {
+      "description": "문서 카테고리 (RFP, 제안서, 착수보고, 발표자료, 최종보고 등)",
+      "id_prefix": "cat",
+      "color": "#8b5cf6",
+      "properties": {
+        "category_id": {"type": "string", "required": true, "description": "카테고리 ID"},
+        "label": {"type": "string", "required": true, "description": "카테고리명 (한글)"},
+        "code": {"type": "string", "required": true, "description": "카테고리 코드"},
+        "color": {"type": "string", "required": false, "description": "UI 표시 색상"}
+      },
+      "allowed_values": {
+        "code": ["rfp", "proposal", "kickoff", "presentation", "final_report", "output"]
+      }
+    },
+
+    "Project": {
+      "description": "프로젝트 (사업 단위)",
+      "id_prefix": "prj",
+      "color": "#22c55e",
+      "properties": {
+        "project_id": {"type": "string", "required": true, "description": "프로젝트 ID"},
+        "name": {"type": "string", "required": true, "description": "프로젝트명"},
+        "year": {"type": "string", "required": false, "description": "수행연도"},
+        "organization": {"type": "string", "required": false, "description": "발주기관명"},
+        "organization_id": {"type": "string", "required": false, "description": "발주기관 ID"},
+        "doc_count": {"type": "integer", "required": false, "description": "문서 수"},
+        "status": {"type": "string", "required": false, "description": "프로젝트 상태"}
+      }
+    },
+
+    "Document": {
+      "description": "개별 문서 파일 (B안: Chunk 메타데이터를 속성으로 포함)",
+      "id_prefix": "doc",
+      "color": "#f59e0b",
+      "properties": {
+        "document_id": {"type": "string", "required": true, "description": "문서 ID"},
+        "label": {"type": "string", "required": true, "description": "문서명 (파일명)"},
+        "category": {"type": "string", "required": true, "description": "카테고리 코드"},
+        "project_id": {"type": "string", "required": false, "description": "소속 프로젝트 ID"},
+        "project_name": {"type": "string", "required": false, "description": "소속 프로젝트명"},
+        "source_path": {"type": "string", "required": false, "description": "원본 파일 경로"},
+        "extension": {"type": "string", "required": false, "description": "파일 확장자"},
+        "page_count": {"type": "integer", "required": false, "description": "페이지 수"},
+        "color": {"type": "string", "required": false, "description": "UI 표시 색상"},
+        "indexed_at": {"type": "datetime", "required": false, "description": "인덱싱 일시"},
+        "status": {"type": "string", "required": false, "description": "문서 상태"},
+
+        "_comment_chunk_properties": "B안: Chunk 메타데이터를 Document 속성으로 포함",
+        "chunk_count": {"type": "integer", "required": false, "description": "문서에 포함된 청크 수"},
+        "chunk_ids": {"type": "array", "items": "string", "required": false, "description": "청크 ID 목록 (최대 20개, 초과시 요약)"},
+        "total_chars": {"type": "integer", "required": false, "description": "전체 문자 수 (모든 청크 합계)"},
+        "section_headings": {"type": "array", "items": "string", "required": false, "description": "섹션 제목 목록"},
+        "content_length": {"type": "integer", "required": false, "description": "원본 콘텐츠 길이"},
+        "extraction_method": {"type": "string", "required": false, "description": "텍스트 추출 방법 (pdfplumber/ocr/docx 등)"},
+        "is_scanned": {"type": "boolean", "required": false, "description": "스캔 문서 여부"},
+        "embedding_status": {"type": "string", "required": false, "description": "임베딩 상태 (pending/indexed/failed)"},
+        "ocr_completed_at": {"type": "datetime", "required": false, "description": "OCR 완료 일시"}
+      },
+      "allowed_values": {
+        "embedding_status": ["pending", "indexed", "failed"]
+      }
+    },
+
+    "Organization": {
+      "description": "기관 (발주기관)",
+      "id_prefix": "org",
+      "color": "#0ea5e9",
+      "properties": {
+        "organization_id": {"type": "string", "required": true, "description": "기관 ID"},
+        "label": {"type": "string", "required": true, "description": "기관명 (정식명칭)"},
+        "synonyms": {"type": "array", "items": "string", "required": false, "description": "동의어/약어 목록"},
+        "type": {"type": "string", "required": false, "description": "기관 유형 (공공/민간)"}
+      }
+    },
+
+    "Technology": {
+      "description": "기술 (적용 기술)",
+      "id_prefix": "tech",
+      "color": "#a855f7",
+      "properties": {
+        "technology_id": {"type": "string", "required": true, "description": "기술 ID"},
+        "label": {"type": "string", "required": true, "description": "기술명"},
+        "synonyms": {"type": "array", "items": "string", "required": false, "description": "동의어/영문명"},
+        "parent_id": {"type": "string", "required": false, "description": "상위 기술 ID"}
+      }
+    },
+
+    "Methodology": {
+      "description": "방법론 (ISP, ISMP, BPR 등)",
+      "id_prefix": "method",
+      "color": "#f97316",
+      "properties": {
+        "methodology_id": {"type": "string", "required": true, "description": "방법론 ID"},
+        "label": {"type": "string", "required": true, "description": "방법론명"},
+        "synonyms": {"type": "array", "items": "string", "required": false, "description": "동의어/영문명"}
+      }
+    },
+
+    "Domain": {
+      "description": "사업분야/도메인",
+      "id_prefix": "domain",
+      "color": "#10b981",
+      "properties": {
+        "domain_id": {"type": "string", "required": true, "description": "도메인 ID"},
+        "label": {"type": "string", "required": true, "description": "도메인명"},
+        "synonyms": {"type": "array", "items": "string", "required": false, "description": "동의어"}
+      }
+    },
+
+    "Chunk": {
+      "description": "문서 청크 (검색 단위) - B안 적용으로 deprecated, Document.chunk_* 속성 사용 권장",
+      "deprecated": true,
+      "deprecated_reason": "B안 적용: Chunk 메타데이터를 Document 노드 속성으로 통합. 별도 Chunk 노드 생성 불필요.",
+      "id_prefix": "chk",
+      "color": "#64748b",
+      "properties": {
+        "chunk_id": {"type": "string", "required": true, "description": "청크 ID"},
+        "document_id": {"type": "string", "required": true, "description": "소속 문서 ID"},
+        "chunk_index": {"type": "integer", "required": true, "description": "청크 순서"},
+        "chunk_type": {"type": "string", "required": false, "description": "청크 유형 (section/page/table)"},
+        "title": {"type": "string", "required": false, "description": "청크 제목"},
+        "text": {"type": "string", "required": false, "description": "청크 텍스트 (미리보기)"},
+        "page_start": {"type": "integer", "required": false, "description": "시작 페이지"},
+        "page_end": {"type": "integer", "required": false, "description": "종료 페이지"},
+        "token_count": {"type": "integer", "required": false, "description": "토큰 수"}
+      }
+    },
+
+    "Wiki": {
+      "description": "LLM 생성 Wiki 문서",
+      "id_prefix": "wiki",
+      "color": "#ec4899",
+      "properties": {
+        "wiki_id": {"type": "string", "required": true, "description": "Wiki ID"},
+        "wiki_type": {"type": "string", "required": true, "description": "Wiki 유형 (project/organization/domain/technology)"},
+        "title": {"type": "string", "required": true, "description": "Wiki 제목"},
+        "content": {"type": "string", "required": false, "description": "Wiki 내용 (마크다운)"},
+        "entity_id": {"type": "string", "required": false, "description": "연결된 엔티티 ID"},
+        "generated_at": {"type": "datetime", "required": false, "description": "생성일시"},
+        "model": {"type": "string", "required": false, "description": "생성 모델명"}
+      }
+    },
+
+    "Collection": {
+      "description": "FAISS 검색 컬렉션",
+      "id_prefix": "col",
+      "color": "#06b6d4",
+      "properties": {
+        "collection_id": {"type": "string", "required": true, "description": "컬렉션 ID"},
+        "label": {"type": "string", "required": true, "description": "컬렉션명"},
+        "description": {"type": "string", "required": false, "description": "컬렉션 설명"},
+        "document_count": {"type": "integer", "required": false, "description": "문서 수"},
+        "chunk_count": {"type": "integer", "required": false, "description": "청크 수"},
+        "index_path": {"type": "string", "required": false, "description": "인덱스 파일 경로"}
+      }
+    }
+  },
+
+  "edge_types": {
+    "HAS_SOURCE": {
+      "description": "스냅샷이 출처를 포함",
+      "source_type": "Snapshot",
+      "target_type": "Source",
+      "properties": {}
+    },
+
+    "HAS_CATEGORY": {
+      "description": "문서가 카테고리에 속함",
+      "source_type": "Document",
+      "target_type": "Category",
+      "properties": {}
+    },
+
+    "HAS_DOCUMENT": {
+      "description": "프로젝트가 문서를 포함",
+      "source_type": "Project",
+      "target_type": "Document",
+      "properties": {
+        "role": {"type": "string", "required": false, "description": "문서 역할"}
+      }
+    },
+
+    "BELONGS_TO": {
+      "description": "문서가 프로젝트에 속함",
+      "source_type": "Document",
+      "target_type": "Project",
+      "properties": {
+        "role": {"type": "string", "required": false, "description": "문서 역할"},
+        "confidence": {"type": "number", "required": false, "description": "연결 신뢰도"}
+      }
+    },
+
+    "ISSUED_BY": {
+      "description": "프로젝트가 기관에 의해 발주됨",
+      "source_type": "Project",
+      "target_type": "Organization",
+      "properties": {
+        "year": {"type": "string", "required": false, "description": "발주연도"}
+      }
+    },
+
+    "IN_DOMAIN": {
+      "description": "프로젝트가 도메인에 속함",
+      "source_type": "Project",
+      "target_type": "Domain",
+      "properties": {
+        "relevance": {"type": "number", "required": false, "description": "관련도 (0-1)"}
+      }
+    },
+
+    "USES_TECH": {
+      "description": "프로젝트가 기술을 사용",
+      "source_type": "Project",
+      "target_type": "Technology",
+      "properties": {
+        "usage_type": {"type": "string", "required": false, "description": "사용 유형 (core/support)"}
+      }
+    },
+
+    "USES_METHOD": {
+      "description": "프로젝트가 방법론을 사용",
+      "source_type": "Project",
+      "target_type": "Methodology",
+      "properties": {}
+    },
+
+    "HAS_CHUNK": {
+      "description": "문서가 청크를 포함 - B안 적용으로 deprecated, Document.chunk_* 속성 사용 권장",
+      "deprecated": true,
+      "deprecated_reason": "B안 적용: Chunk 정보를 Document 노드 속성으로 통합.",
+      "source_type": "Document",
+      "target_type": "Chunk",
+      "properties": {}
+    },
+
+    "SIMILAR_TO": {
+      "description": "두 엔티티가 유사함 (문서/프로젝트)",
+      "source_type": ["Document", "Project"],
+      "target_type": ["Document", "Project"],
+      "bidirectional": true,
+      "properties": {
+        "similarity_score": {"type": "number", "required": false, "description": "유사도 점수 (0-1)"},
+        "method": {"type": "string", "required": false, "description": "유사도 계산 방법"},
+        "label": {"type": "string", "required": false, "description": "유사도 설명"}
+      }
+    },
+
+    "RELATED_SEQUENCE": {
+      "description": "문서 간 순서 관계 (RFP→제안서→산출물)",
+      "source_type": "Document",
+      "target_type": "Document",
+      "properties": {
+        "label": {"type": "string", "required": false, "description": "관계 설명 (예: rfp → proposal)"},
+        "sequence_order": {"type": "integer", "required": false, "description": "순서"}
+      }
+    },
+
+    "PARENT_TECH": {
+      "description": "기술 간 상위/하위 관계",
+      "source_type": "Technology",
+      "target_type": "Technology",
+      "properties": {
+        "relation_type": {"type": "string", "required": false, "description": "관계 유형 (하위기술/상위기술)"}
+      }
+    },
+
+    "SYNONYM_OF": {
+      "description": "동의어 관계",
+      "source_type": ["Organization", "Technology", "Methodology", "Domain"],
+      "target_type": ["Organization", "Technology", "Methodology", "Domain"],
+      "bidirectional": true,
+      "properties": {}
+    },
+
+    "DESCRIBED_IN": {
+      "description": "엔티티가 Wiki에서 설명됨",
+      "source_type": ["Project", "Organization", "Domain", "Technology"],
+      "target_type": "Wiki",
+      "properties": {}
+    },
+
+    "IN_COLLECTION": {
+      "description": "청크가 컬렉션에 포함됨",
+      "source_type": "Chunk",
+      "target_type": "Collection",
+      "properties": {
+        "vector_index": {"type": "integer", "required": false, "description": "벡터 인덱스 위치"}
+      }
+    }
+  },
+
+  "id_conventions": {
+    "description": "ID 생성 규칙",
+    "format": "{prefix}:{identifier}",
+    "examples": {
+      "Snapshot": "snap:20260604_rag_source_v1",
+      "Source": "src:proposal",
+      "Category": "cat:rfp",
+      "Project": "project:k-water 데이터허브플랫폼_ISP",
+      "Document": "doc:DOC-20260603-000001",
+      "Organization": "org:한국수자원공사",
+      "Technology": "tech:AI",
+      "Methodology": "method:ISP",
+      "Domain": "domain:보건의료",
+      "Chunk": "chk:DOC-20260603-000001_0001",
+      "Wiki": "wiki:prj_k-water",
+      "Collection": "col:proposal_all"
+    }
+  },
+
+  "category_codes": {
+    "rfp": {"label": "RFP (제안요청서)", "color": "#ef4444", "order": 1},
+    "proposal": {"label": "제안서", "color": "#3b82f6", "order": 2},
+    "kickoff": {"label": "착수보고", "color": "#f59e0b", "order": 3},
+    "presentation": {"label": "발표자료", "color": "#8b5cf6", "order": 4},
+    "final_report": {"label": "최종보고", "color": "#22c55e", "order": 5},
+    "output": {"label": "산출물", "color": "#06b6d4", "order": 6}
+  },
+
+  "relation_labels": {
+    "description": "관계 라벨 한국어 매핑 (GraphRAG UI용)",
+    "HAS_SOURCE": "출처 포함",
+    "HAS_CATEGORY": "카테고리 분류",
+    "HAS_DOCUMENT": "문서 포함",
+    "BELONGS_TO": "소속",
+    "ISSUED_BY": "발주",
+    "IN_DOMAIN": "관련 도메인",
+    "USES_TECH": "적용 기술",
+    "USES_METHOD": "사용 방법론",
+    "HAS_CHUNK": "청크 포함",
+    "SIMILAR_TO": "유사",
+    "RELATED_SEQUENCE": "문서 순서",
+    "PARENT_TECH": "상위 기술",
+    "SYNONYM_OF": "동의어",
+    "DESCRIBED_IN": "Wiki 설명",
+    "IN_COLLECTION": "컬렉션 포함"
+  },
+
+  "legacy_mapping": {
+    "description": "기존 데이터 relation 매핑 (하위 호환)",
+    "has_document": "HAS_DOCUMENT",
+    "has_category": "HAS_CATEGORY",
+    "related_sequence": "RELATED_SEQUENCE",
+    "similar_project": "SIMILAR_TO",
+    "유사기술": "PARENT_TECH",
+    "발주": "ISSUED_BY",
+    "적용기술": "USES_TECH",
+    "사용방법론": "USES_METHOD",
+    "관련도메인": "IN_DOMAIN"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "built_at": "2026-06-04T12:56:00",
+  "source": "faiss_meta (data\\indexes\\faiss\\test_sample_metadata.jsonl)",
+  "total_nodes": 94,
+  "statistics": {
+    "Category": 6,
+    "Source": 3,
+    "Organization": 25,
+    "Technology": 25,
+    "Methodology": 11,
+    "Domain": 13,
+    "Project": 5,
+    "Document": 5,
+    "Snapshot": 1
+  },
+  "output_path": "data\\ontology\\test_graph_nodes.jsonl"
+}

@@ -1,0 +1,18 @@
+{
+  "built_at": "2026-06-04T12:56:22",
+  "nodes_path": "data\\ontology\\test_graph_nodes.jsonl",
+  "total_edges": 43,
+  "statistics": {
+    "HAS_CATEGORY": 5,
+    "HAS_DOCUMENT": 5,
+    "BELONGS_TO": 5,
+    "ISSUED_BY": 3,
+    "PARENT_TECH": 13,
+    "IN_DOMAIN": 4,
+    "USES_METHOD": 2,
+    "USES_TECH": 2,
+    "SIMILAR_TO": 1,
+    "HAS_SOURCE": 3
+  },
+  "output_path": "data\\ontology\\test_graph_edges.jsonl"
+}

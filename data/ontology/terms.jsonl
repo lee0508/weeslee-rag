@@ -1,0 +1,80 @@
+{"term_id": "org:한국수자원공사", "term_type": "organization", "label": "한국수자원공사", "synonyms": ["K-water", "수자원공사", "수공", "K-Water", "k-water"], "description": "물 관련 공공기관", "parent_id": null}
+{"term_id": "org:한국토지주택공사", "term_type": "organization", "label": "한국토지주택공사", "synonyms": ["LH", "LH공사", "토지주택공사", "엘에이치"], "description": "토지/주택 관련 공공기관", "parent_id": null}
+{"term_id": "org:농림수산식품교육문화정보원", "term_type": "organization", "label": "농림수산식품교육문화정보원", "synonyms": ["농정원", "EPIS"], "description": "농림수산 정보화 공공기관", "parent_id": null}
+{"term_id": "org:건강보험심사평가원", "term_type": "organization", "label": "건강보험심사평가원", "synonyms": ["심평원", "HIRA", "심사평가원"], "description": "건강보험 심사/평가 기관", "parent_id": null}
+{"term_id": "org:국민건강보험공단", "term_type": "organization", "label": "국민건강보험공단", "synonyms": ["건보공단", "NHIS", "건강보험공단"], "description": "건강보험 운영 기관", "parent_id": null}
+{"term_id": "org:행정안전부", "term_type": "organization", "label": "행정안전부", "synonyms": ["행안부", "MOIS"], "description": "행정/안전 정부부처", "parent_id": null}
+{"term_id": "org:과학기술정보통신부", "term_type": "organization", "label": "과학기술정보통신부", "synonyms": ["과기정통부", "과기부", "MSIT"], "description": "과학기술/정보통신 정부부처", "parent_id": null}
+{"term_id": "org:국토교통부", "term_type": "organization", "label": "국토교통부", "synonyms": ["국토부", "MOLIT"], "description": "국토/교통 정부부처", "parent_id": null}
+{"term_id": "org:환경부", "term_type": "organization", "label": "환경부", "synonyms": ["MOE"], "description": "환경 정부부처", "parent_id": null}
+{"term_id": "org:보건복지부", "term_type": "organization", "label": "보건복지부", "synonyms": ["복지부", "MOHW"], "description": "보건/복지 정부부처", "parent_id": null}
+{"term_id": "org:기상청", "term_type": "organization", "label": "기상청", "synonyms": ["KMA"], "description": "기상 관련 정부기관", "parent_id": null}
+{"term_id": "org:기상산업진흥원", "term_type": "organization", "label": "기상산업진흥원", "synonyms": ["KMI"], "description": "기상산업 진흥 기관", "parent_id": null}
+{"term_id": "org:한국정보화진흥원", "term_type": "organization", "label": "한국정보화진흥원", "synonyms": ["NIA", "정보화진흥원"], "description": "정보화 진흥 기관 (구)", "parent_id": null}
+{"term_id": "org:한국지능정보사회진흥원", "term_type": "organization", "label": "한국지능정보사회진흥원", "synonyms": ["NIA", "지능정보사회진흥원"], "description": "지능정보사회 진흥 기관", "parent_id": null}
+{"term_id": "org:경기주택도시공사", "term_type": "organization", "label": "경기주택도시공사", "synonyms": ["GH", "경기도시공사"], "description": "경기도 주택/도시 공사", "parent_id": null}
+{"term_id": "org:인천국제공항공사", "term_type": "organization", "label": "인천국제공항공사", "synonyms": ["인천공항", "IIAC"], "description": "인천공항 운영 공사", "parent_id": null}
+{"term_id": "org:한국전력공사", "term_type": "organization", "label": "한국전력공사", "synonyms": ["한전", "KEPCO"], "description": "전력 공급 공기업", "parent_id": null}
+{"term_id": "org:한국도로공사", "term_type": "organization", "label": "한국도로공사", "synonyms": ["도로공사", "고속도로공사", "EX"], "description": "고속도로 운영 공사", "parent_id": null}
+{"term_id": "org:한국철도공사", "term_type": "organization", "label": "한국철도공사", "synonyms": ["코레일", "KORAIL", "철도공사"], "description": "철도 운영 공사", "parent_id": null}
+{"term_id": "org:서울교통공사", "term_type": "organization", "label": "서울교통공사", "synonyms": ["서울메트로", "지하철공사"], "description": "서울 지하철 운영 공사", "parent_id": null}
+{"term_id": "org:한국가스공사", "term_type": "organization", "label": "한국가스공사", "synonyms": ["가스공사", "KOGAS"], "description": "가스 공급 공기업", "parent_id": null}
+{"term_id": "org:한국석유공사", "term_type": "organization", "label": "한국석유공사", "synonyms": ["석유공사", "KNOC"], "description": "석유 관련 공기업", "parent_id": null}
+{"term_id": "org:서울주택도시공사", "term_type": "organization", "label": "서울주택도시공사", "synonyms": ["SH", "SH공사", "서울도시공사"], "description": "서울시 주택/도시 공사", "parent_id": null}
+{"term_id": "org:국립병원", "term_type": "organization", "label": "국립병원", "synonyms": ["국립의료원", "국립중앙의료원"], "description": "국립 의료기관", "parent_id": null}
+{"term_id": "org:기획재정부", "term_type": "organization", "label": "기획재정부", "synonyms": ["기재부", "MOEF"], "description": "재정/예산 정부부처", "parent_id": null}
+{"term_id": "tech:AI", "term_type": "technology", "label": "AI", "synonyms": ["인공지능", "Artificial Intelligence", "AI/ML"], "description": "인공지능 기술", "parent_id": null}
+{"term_id": "tech:머신러닝", "term_type": "technology", "label": "머신러닝", "synonyms": ["ML", "Machine Learning", "기계학습"], "description": "기계학습 기술", "parent_id": "tech:AI"}
+{"term_id": "tech:딥러닝", "term_type": "technology", "label": "딥러닝", "synonyms": ["DL", "Deep Learning"], "description": "심층학습 기술", "parent_id": "tech:AI"}
+{"term_id": "tech:자연어처리", "term_type": "technology", "label": "자연어처리", "synonyms": ["NLP", "Natural Language Processing"], "description": "자연어 처리 기술", "parent_id": "tech:AI"}
+{"term_id": "tech:컴퓨터비전", "term_type": "technology", "label": "컴퓨터비전", "synonyms": ["CV", "Computer Vision", "영상인식"], "description": "컴퓨터 비전 기술", "parent_id": "tech:AI"}
+{"term_id": "tech:생성AI", "term_type": "technology", "label": "생성AI", "synonyms": ["GenAI", "Generative AI", "생성형AI", "LLM"], "description": "생성형 인공지능", "parent_id": "tech:AI"}
+{"term_id": "tech:RAG", "term_type": "technology", "label": "RAG", "synonyms": ["Retrieval Augmented Generation", "검색증강생성"], "description": "검색 증강 생성 기술", "parent_id": "tech:생성AI"}
+{"term_id": "tech:OCR", "term_type": "technology", "label": "OCR", "synonyms": ["광학문자인식", "Optical Character Recognition", "문자인식"], "description": "광학 문자 인식 기술", "parent_id": null}
+{"term_id": "tech:빅데이터", "term_type": "technology", "label": "빅데이터", "synonyms": ["Big Data", "대용량데이터"], "description": "빅데이터 기술", "parent_id": null}
+{"term_id": "tech:데이터레이크", "term_type": "technology", "label": "데이터레이크", "synonyms": ["Data Lake"], "description": "데이터레이크 아키텍처", "parent_id": "tech:빅데이터"}
+{"term_id": "tech:데이터웨어하우스", "term_type": "technology", "label": "데이터웨어하우스", "synonyms": ["DW", "Data Warehouse", "DWH"], "description": "데이터웨어하우스", "parent_id": "tech:빅데이터"}
+{"term_id": "tech:ETL", "term_type": "technology", "label": "ETL", "synonyms": ["Extract Transform Load", "데이터파이프라인"], "description": "ETL 파이프라인", "parent_id": "tech:빅데이터"}
+{"term_id": "tech:클라우드", "term_type": "technology", "label": "클라우드", "synonyms": ["Cloud", "클라우드컴퓨팅"], "description": "클라우드 컴퓨팅", "parent_id": null}
+{"term_id": "tech:AWS", "term_type": "technology", "label": "AWS", "synonyms": ["Amazon Web Services", "아마존웹서비스"], "description": "아마존 클라우드", "parent_id": "tech:클라우드"}
+{"term_id": "tech:Azure", "term_type": "technology", "label": "Azure", "synonyms": ["Microsoft Azure", "애저"], "description": "마이크로소프트 클라우드", "parent_id": "tech:클라우드"}
+{"term_id": "tech:GCP", "term_type": "technology", "label": "GCP", "synonyms": ["Google Cloud Platform", "구글클라우드"], "description": "구글 클라우드", "parent_id": "tech:클라우드"}
+{"term_id": "tech:NCP", "term_type": "technology", "label": "NCP", "synonyms": ["Naver Cloud Platform", "네이버클라우드"], "description": "네이버 클라우드", "parent_id": "tech:클라우드"}
+{"term_id": "tech:IoT", "term_type": "technology", "label": "IoT", "synonyms": ["사물인터넷", "Internet of Things"], "description": "사물인터넷 기술", "parent_id": null}
+{"term_id": "tech:디지털트윈", "term_type": "technology", "label": "디지털트윈", "synonyms": ["Digital Twin", "DT"], "description": "디지털 트윈 기술", "parent_id": null}
+{"term_id": "tech:블록체인", "term_type": "technology", "label": "블록체인", "synonyms": ["Blockchain", "분산원장"], "description": "블록체인 기술", "parent_id": null}
+{"term_id": "tech:RPA", "term_type": "technology", "label": "RPA", "synonyms": ["로봇프로세스자동화", "Robotic Process Automation"], "description": "로봇 프로세스 자동화", "parent_id": null}
+{"term_id": "tech:스마트시티", "term_type": "technology", "label": "스마트시티", "synonyms": ["Smart City", "지능형도시"], "description": "스마트시티 기술", "parent_id": null}
+{"term_id": "tech:API", "term_type": "technology", "label": "API", "synonyms": ["Application Programming Interface", "REST API", "GraphQL"], "description": "API 기술", "parent_id": null}
+{"term_id": "tech:마이크로서비스", "term_type": "technology", "label": "마이크로서비스", "synonyms": ["MSA", "Microservices", "마이크로서비스아키텍처"], "description": "마이크로서비스 아키텍처", "parent_id": null}
+{"term_id": "tech:컨테이너", "term_type": "technology", "label": "컨테이너", "synonyms": ["Docker", "Kubernetes", "K8s", "도커", "쿠버네티스"], "description": "컨테이너 기술", "parent_id": null}
+{"term_id": "method:ISP", "term_type": "methodology", "label": "ISP", "synonyms": ["정보화전략계획", "정보전략계획", "Information Strategy Planning"], "description": "정보화 전략 계획 수립 방법론", "parent_id": null}
+{"term_id": "method:ISMP", "term_type": "methodology", "label": "ISMP", "synonyms": ["정보시스템마스터플랜", "IS마스터플랜", "Information System Master Plan"], "description": "정보시스템 마스터플랜 방법론", "parent_id": null}
+{"term_id": "method:EA", "term_type": "methodology", "label": "EA", "synonyms": ["전사아키텍처", "Enterprise Architecture"], "description": "전사 아키텍처 방법론", "parent_id": null}
+{"term_id": "method:BPR", "term_type": "methodology", "label": "BPR", "synonyms": ["업무재설계", "Business Process Reengineering"], "description": "업무 프로세스 재설계", "parent_id": null}
+{"term_id": "method:PI", "term_type": "methodology", "label": "PI", "synonyms": ["프로세스혁신", "Process Innovation"], "description": "프로세스 혁신", "parent_id": null}
+{"term_id": "method:DX", "term_type": "methodology", "label": "DX", "synonyms": ["디지털전환", "Digital Transformation", "디지털트랜스포메이션"], "description": "디지털 전환", "parent_id": null}
+{"term_id": "method:AX", "term_type": "methodology", "label": "AX", "synonyms": ["AI전환", "AI Transformation", "AI트랜스포메이션"], "description": "AI 전환", "parent_id": null}
+{"term_id": "method:애자일", "term_type": "methodology", "label": "애자일", "synonyms": ["Agile", "스크럼", "Scrum", "칸반", "Kanban"], "description": "애자일 방법론", "parent_id": null}
+{"term_id": "method:워터폴", "term_type": "methodology", "label": "워터폴", "synonyms": ["Waterfall", "폭포수", "폭포수모델"], "description": "워터폴 방법론", "parent_id": null}
+{"term_id": "method:PMO", "term_type": "methodology", "label": "PMO", "synonyms": ["Project Management Office", "프로젝트관리오피스"], "description": "프로젝트 관리 오피스", "parent_id": null}
+{"term_id": "method:감리", "term_type": "methodology", "label": "감리", "synonyms": ["정보시스템감리", "IT감리"], "description": "정보시스템 감리", "parent_id": null}
+{"term_id": "domain:수자원", "term_type": "domain", "label": "수자원", "synonyms": ["물관리", "수자원관리", "하천", "댐"], "description": "수자원 관리 분야", "parent_id": null}
+{"term_id": "domain:스마트시티", "term_type": "domain", "label": "스마트시티", "synonyms": ["도시", "스마트도시", "지능형도시"], "description": "스마트시티 분야", "parent_id": null}
+{"term_id": "domain:교통", "term_type": "domain", "label": "교통", "synonyms": ["도로", "철도", "항공", "물류", "ITS"], "description": "교통 분야", "parent_id": null}
+{"term_id": "domain:보건의료", "term_type": "domain", "label": "보건의료", "synonyms": ["헬스케어", "의료", "건강", "병원", "의료정보"], "description": "보건의료 분야", "parent_id": null}
+{"term_id": "domain:농업", "term_type": "domain", "label": "농업", "synonyms": ["농촌", "농산물", "스마트팜", "농식품"], "description": "농업 분야", "parent_id": null}
+{"term_id": "domain:환경", "term_type": "domain", "label": "환경", "synonyms": ["기후", "기상", "탄소", "환경관리"], "description": "환경 분야", "parent_id": null}
+{"term_id": "domain:에너지", "term_type": "domain", "label": "에너지", "synonyms": ["전력", "가스", "신재생", "에너지관리"], "description": "에너지 분야", "parent_id": null}
+{"term_id": "domain:행정", "term_type": "domain", "label": "행정", "synonyms": ["공공행정", "전자정부", "민원", "정부행정"], "description": "행정 분야", "parent_id": null}
+{"term_id": "domain:금융", "term_type": "domain", "label": "금융", "synonyms": ["은행", "보험", "핀테크", "금융IT"], "description": "금융 분야", "parent_id": null}
+{"term_id": "domain:제조", "term_type": "domain", "label": "제조", "synonyms": ["스마트팩토리", "공장", "생산", "제조업"], "description": "제조 분야", "parent_id": null}
+{"term_id": "domain:국방", "term_type": "domain", "label": "국방", "synonyms": ["군사", "방위", "안보"], "description": "국방 분야", "parent_id": null}
+{"term_id": "domain:교육", "term_type": "domain", "label": "교육", "synonyms": ["학교", "대학", "에듀테크", "이러닝"], "description": "교육 분야", "parent_id": null}
+{"term_id": "domain:문화", "term_type": "domain", "label": "문화", "synonyms": ["관광", "예술", "문화재", "콘텐츠"], "description": "문화 분야", "parent_id": null}
+{"term_id": "cat:rfp", "term_type": "category", "label": "RFP (제안요청서)", "synonyms": ["제안요청서", "RFP", "입찰공고"], "description": "제안요청서 문서 유형", "parent_id": null}
+{"term_id": "cat:proposal", "term_type": "category", "label": "제안서", "synonyms": ["기술제안서", "정성제안서", "제안서"], "description": "제안서 문서 유형", "parent_id": null}
+{"term_id": "cat:kickoff", "term_type": "category", "label": "착수보고", "synonyms": ["착수보고서", "착수계", "킥오프"], "description": "착수보고 문서 유형", "parent_id": null}
+{"term_id": "cat:presentation", "term_type": "category", "label": "발표자료", "synonyms": ["PT자료", "프레젠테이션", "발표"], "description": "발표자료 문서 유형", "parent_id": null}
+{"term_id": "cat:final_report", "term_type": "category", "label": "최종보고", "synonyms": ["최종보고서", "완료보고서", "종료보고"], "description": "최종보고 문서 유형", "parent_id": null}
+{"term_id": "cat:output", "term_type": "category", "label": "산출물", "synonyms": ["결과물", "산출물", "성과물"], "description": "산출물 문서 유형", "parent_id": null}

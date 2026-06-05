@@ -1,0 +1,100 @@
+{
+  "report_title": "B안 LPG Graph Build Test Report",
+  "test_date": "2026-06-04T12:56:00",
+  "test_type": "샘플 데이터 테스트 (서버 연결 불가로 로컬 테스트 데이터 사용)",
+
+  "input_summary": {
+    "faiss_metadata_file": "data/indexes/faiss/test_sample_metadata.jsonl",
+    "total_chunks_in_metadata": 12,
+    "unique_document_ids": 5,
+    "unique_categories": ["proposal", "rfp", "final_report", "kickoff"],
+    "unique_projects": 5
+  },
+
+  "node_statistics": {
+    "total_nodes": 94,
+    "by_type": {
+      "Category": 6,
+      "Source": 3,
+      "Snapshot": 1,
+      "Organization": 25,
+      "Technology": 25,
+      "Methodology": 11,
+      "Domain": 13,
+      "Project": 5,
+      "Document": 5
+    }
+  },
+
+  "edge_statistics": {
+    "total_edges": 43,
+    "by_type": {
+      "HAS_CATEGORY": 5,
+      "HAS_DOCUMENT": 5,
+      "BELONGS_TO": 5,
+      "HAS_SOURCE": 3,
+      "ISSUED_BY": 3,
+      "IN_DOMAIN": 4,
+      "USES_TECH": 2,
+      "USES_METHOD": 2,
+      "PARENT_TECH": 13,
+      "SIMILAR_TO": 1
+    }
+  },
+
+  "b_plan_validation": {
+    "chunk_node_created": false,
+    "has_chunk_edge_created": false,
+    "document_chunk_properties": {
+      "chunk_count": "포함됨",
+      "chunk_ids": "포함됨 (최대 20개, 초과시 요약)",
+      "total_chars": "포함됨",
+      "section_headings": "포함됨",
+      "content_length": "포함됨",
+      "page_count": "포함됨",
+      "extraction_method": "포함됨",
+      "is_scanned": "포함됨",
+      "embedding_status": "포함됨",
+      "ocr_completed_at": "포함됨"
+    },
+    "validation_result": "PASS - B안 정상 적용됨"
+  },
+
+  "quality_checks": {
+    "document_id_missing": 0,
+    "source_id_missing": 0,
+    "category_id_missing": 0,
+    "project_id_missing": 0,
+    "duplicate_document_id": 0,
+    "failed_files": []
+  },
+
+  "output_files": {
+    "nodes": "data/ontology/test_graph_nodes.jsonl",
+    "edges": "data/ontology/test_graph_edges.jsonl",
+    "nodes_manifest": "data/ontology/graph_nodes_manifest.json",
+    "edges_manifest": "data/ontology/graph_edges_manifest.json"
+  },
+
+  "sample_document_node": {
+    "node_id": "doc:doc_20260603_000001",
+    "label": "전략및방법론_휴폐업 의료기관 진료기록보관시스템 구축.pptx",
+    "category": "proposal",
+    "project_name": "휴폐업 의료기관 진료기록보관시스템 구축",
+    "chunk_count": 3,
+    "chunk_ids": ["chk_doc001_0001", "chk_doc001_0002", "chk_doc001_0003"],
+    "total_chars": 5500,
+    "section_headings": ["기대효과", "사업개요", "추진전략"],
+    "embedding_status": "indexed"
+  },
+
+  "conclusion": {
+    "status": "SUCCESS",
+    "summary": "B안 적용 완료. Chunk 노드를 생성하지 않고 Document 노드에 chunk 메타데이터를 속성으로 포함함.",
+    "next_steps": [
+      "1. 서버 연결 복구 후 실제 FAISS 메타데이터로 테스트",
+      "2. 테스트 결과 정상 확인 시 운영 파일로 반영",
+      "3. rag-assistant.html 그래프 표시 확인"
+    ]
+  }
+}
