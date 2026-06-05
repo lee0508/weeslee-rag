@@ -67,7 +67,7 @@ class DocumentMetadata(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
-    document = relationship("Document", backref="metadata")
+    # document = relationship("Document", backref="metadata")  # Commented for Dataset Builder workflow
 
     def __repr__(self):
         return f"<DocumentMetadata(id={self.id}, document_id={self.document_id}, status={self.meta_status})>"
