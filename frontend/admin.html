@@ -11229,7 +11229,7 @@ LIMIT 10`;
   async function runSourceScan() {
     showToast('Source Scan 실행 중...', 'info');
     try {
-      const r = await fetch(apiUrl('/api/admin/rag-source/scan'), {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step1/scan'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ overwrite: false }),
@@ -11259,7 +11259,7 @@ LIMIT 10`;
   async function runMetadataAuto() {
     showToast('Metadata Auto 실행 중...', 'info');
     try {
-      const r = await fetch(apiUrl('/api/admin/rag-source/metadata/build'), {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step2/metadata-auto'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({

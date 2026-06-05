@@ -186,3 +186,32 @@
 - [x] `192.168.0.207` SSH 접속과 `/data/weeslee/weeslee-rag` 상태 확인.
 - [x] `218.148.21.12` SSH 접속과 `/data/weeslee/weeslee-rag` 상태 확인.
 - [x] 점검 결과를 `context-notes.md`와 최종 응답에 기록.
+
+## 2026-06-05 admin.html 코드 및 UI 상태 점검
+
+- [x] `frontend/admin.html` Dataset Builder 10단계 메뉴 구조 확인.
+- [x] 로그인 오버레이와 `admin_token` 인증 흐름 확인.
+- [x] Dataset Builder 상태 요약 카드와 `/api/admin/dataset/status-summary` 연결 코드 확인.
+- [x] Step 3 Metadata Review 화면 전환 상태 확인.
+- [x] Step 10 Search Quality 화면 전환 상태 확인.
+- [x] `data-wr-page-panel="db-step-3"` 중복 리스크 확인.
+- [x] `wr-page-active`와 `wr-is-active` 클래스 불일치 리스크 확인.
+- [x] 점검 결과를 `docs/2026-06-05_Codex_admin_html_코드_UI상태점검.md`에 작성.
+- [x] 관련 정적 검증 실행.
+
+## 2026-06-05 admin.html 수정 필요 사항 정리
+
+- [x] 운영 URL HTTP 200과 오늘 배포본 반영 상태 확인.
+- [x] 운영 브라우저 로그인 성공 여부 확인.
+- [x] Dataset Builder 상태 요약 운영 표시값 정리.
+- [x] Step 3 Metadata Review 미구현 항목 정리.
+- [x] 운영 콘솔 401, 404 오류를 후속 수정 항목으로 정리.
+- [x] 자동 로그인 구현 시 보안 기준 정리.
+- [x] 수정 필요 사항을 `docs/2026-06-05_Codex_admin_html_수정필요사항.md`에 작성.
+
+## 2026-06-05 Design_Admin 기반 admin.html 수정 제안
+
+- [x] `docs/Design_Admin.md` 내용 확인.
+- [x] 운영 점검 결과와 Design_Admin 기준의 차이 정리.
+- [x] Dashboard Overview, 미분류 경고, Source Documents, Dataset Builder 관점으로 수정 우선순위 재정렬.
+- [x] 제안 문서를 `docs/2026-06-05_Codex_Design_Admin기반_admin_html_수정제안.md`에 작성.

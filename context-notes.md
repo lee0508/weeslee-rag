@@ -664,3 +664,35 @@
 - `ssh weeslee@192.168.0.207` 접속은 성공했고, 원격 사용자는 `weeslee`, 호스트명은 `weeslee`, 프로젝트 경로는 `/data/weeslee/weeslee-rag`로 확인했다.
 - `ssh -p 2222 weeslee@218.148.21.12` 접속은 권한 상승 실행에서 성공했고, 원격 사용자는 `weeslee`, 호스트명은 `weeslee`, 프로젝트 경로는 `/data/weeslee/weeslee-rag`로 확인했다.
 - 두 원격 접속 모두 최근 커밋은 `8a4b3e7 fix: mask graph edge lines behind labels`이며, 동일한 수정 및 미추적 파일 목록을 보여 같은 서버 또는 같은 체크아웃 상태로 판단된다.
+
+## 2026-06-05 admin.html 코드 및 UI 상태 점검
+
+- 사용자는 현재 작업 우선순위를 `admin.html` 코드와 UI 상태 점검으로 재지정했다.
+- 이번 작업은 기능 구현이 아니라 현재 상태 확인과 오늘 날짜 Codex 문서 작성으로 한정했다.
+- 작성 문서는 `docs/2026-06-05_Codex_admin_html_코드_UI상태점검.md`이다.
+- `admin.html`은 `localStorage.admin_token`이 없으면 `loginOverlay`를 표시하고, 로그인 성공 시 `/auth/login` 응답의 `access_token`을 저장한다.
+- 사용자가 로그인 계정 `admin / weeslee12#$`를 제공했지만, 운영 `admin.html`에 계정을 하드코딩하는 자동 로그인은 보안상 피하는 방향으로 정리했다.
+- Dataset Builder 좌측 메뉴는 Step 1부터 Step 10까지 10개 버튼이 존재한다.
+- Playwright DOM 점검에서 전체 좌측 네비게이션 버튼은 22개, Dataset Builder Step 버튼은 10개로 확인했다.
+- `data-wr-page-panel="db-step-3"` 섹션은 2개 존재한다. 현재 클릭은 첫 번째 신규 `Step 3: Metadata Review` 화면을 열지만, 중복 panel id는 후속 정리 대상이다.
+- 신규 Step 3 화면에는 설명과 상태 카드만 있고, 검수 대기 목록, 승인 버튼, 반려 버튼은 아직 없다.
+- Dataset Builder 자동 상태 로드 MutationObserver는 `wr-page-active` 클래스를 확인하지만 실제 활성 클래스는 `wr-is-active`라서 자동 로드가 동작하지 않을 가능성이 높다.
+- `loadDatasetStatusSummary()` 수동 호출 경로와 `GET /api/admin/dataset/status-summary` 백엔드 엔드포인트는 코드상 존재한다.
+- 정적 검증은 `node` inline script 파싱, `python -m py_compile backend\app\models\document_pipeline_status.py`, `python -m py_compile backend\app\api\admin.py`, `git diff --check -- frontend\admin.html backend\app\api\admin.py backend\app\models\document_pipeline_status.py`로 수행했고 모두 통과했다.
+
+## 2026-06-05 운영 admin.html 수정 필요 사항 정리
+
+- 사용자는 원격 서버 배포 완료 후 웹브라우저 접근 점검을 요청했다.
+- 공개 URL `https://server.weeslee.co.kr/weeslee-rag/frontend/admin.html`은 HTTP 200으로 응답했고 `last-modified`는 `Fri, 05 Jun 2026 11:36:39 GMT`였다.
+- Playwright로 운영 화면에 접속해 `admin / weeslee12#$` 로그인을 수행했고 로그인 성공과 `admin_token` 저장을 확인했다.
+- Dataset Builder 상태 요약은 운영 화면에서 표시됐고 주요 값은 전체 문서 `203260`, Step 3 검수 완료 `96`, chunk `7066`, FAISS vector `7066`, Graph node `145`, Graph edge `221`이었다.
+- 운영 화면에서도 `data-wr-page-panel="db-step-3"`는 2개였고, Step 3 신규 화면에는 검수 대기 목록, 승인 버튼, 반려 버튼이 없었다.
+- 운영 콘솔에는 401 Unauthorized 여러 건과 404 Not Found 2건이 표시됐고, `loadSnapshotList`에서 인증 만료 경고가 확인됐다.
+- 수정 필요 사항 문서는 `docs/2026-06-05_Codex_admin_html_수정필요사항.md`로 작성했다.
+
+## 2026-06-05 Design_Admin 기반 admin.html 수정 제안
+
+- 사용자는 `docs/Design_Admin.md`를 참조해 admin.html 수정 방향을 제안해 달라고 요청했다.
+- `Design_Admin.md`의 핵심은 Material Admin 스타일 자체가 아니라 문서 원본 확인부터 사용자 검색 반영까지 추적하는 운영형 AI Knowledge Console이다.
+- 기존 수정 필요 사항 문서가 기능 결함 중심이었다면, 이번 제안은 Dashboard KPI, 미분류 경고, Source Documents 상태 테이블, Step 3 Metadata Review, Dataset Builder API Details 순서로 재정렬했다.
+- 제안 문서는 `docs/2026-06-05_Codex_Design_Admin기반_admin_html_수정제안.md`로 작성했다.
