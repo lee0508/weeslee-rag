@@ -31,7 +31,7 @@ from app.api.tags import router as tags_router
 from app.api.keywords import router as keywords_router
 from app.api.query_logs import router as query_logs_router
 from app.api.admin_metadata_review import router as admin_metadata_review_router
-from app.api.admin_dataset_builder import router as admin_dataset_builder_router
+from app.api.admin_dataset_builder_simple import router as admin_dataset_builder_router
 try:
     from app.api.ocr_results import router as ocr_results_router
     _ocr_results_available = True
