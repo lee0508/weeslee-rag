@@ -171,6 +171,25 @@ nul
 *.pptx
 *.png
 
+# Work documents and planning files (temporary)
+2026-*_*.md
+2026-*_*.txt
+26-*_*.md
+*_작업문서.txt
+작업문서*.txt
+Plan.md
+WindowsPowerShell/
+tmp/
+.agents/
+.codex/
+harness/
+logs/
+*.broken.md
+*_filelist.txt
+domestic_all_files.txt
+frontend/*.backup
+frontend/__*.txt
+
 # Playwright
 /test-results/
 /playwright-report/

@@ -77,41 +77,56 @@
 
 ## 오늘 P0. RAG Source와 Collection Template 정합성
 
-- [ ] `admin.html` RAG Source 트리를 실제 `00. RAG 소스` 폴더 구조와 일치시킨다.
-- [ ] 제안서 하위 `감리`, `PMO`, `PoC` 항목을 추가한다.
-- [ ] 산출물 하위 `감리`, `PMO`, `PoC` 항목을 추가한다.
-- [ ] 파일 수가 0인 폴더도 `0` 배지로 표시한다.
-- [ ] UI 필터 키와 백엔드 메타데이터 키 차이를 정리한다.
-- [ ] Collection Template에 누락된 논리 컬렉션을 추가한다.
-  - [ ] `rag_source_proposal_research`
-  - [ ] `rag_source_proposal_audit`
-  - [ ] `rag_source_proposal_pmo`
-  - [ ] `rag_source_proposal_poc`
-  - [ ] `rag_source_deliverable_research`
-  - [ ] `rag_source_deliverable_audit`
-  - [ ] `rag_source_deliverable_pmo`
-  - [ ] `rag_source_deliverable_poc`
+- [x] `admin.html` RAG Source 트리를 실제 `00. RAG 소스` 폴더 구조와 일치시킨다.
+  - (완료 2026-06-04) `platform_config/document_sources.json` 14개 소스로 정합성 완료.
+  - 실제 존재 폴더: RFP, 제안서(5), 산출물(5) = 총 250개 파일.
+- [x] 제안서 하위 `감리`, `PMO`, `PoC` 항목을 추가한다.
+  - (완료 2026-06-04) 실제 폴더 미존재 확인. 컬렉션 템플릿에 enabled=False로 등록.
+- [x] 산출물 하위 `감리`, `PMO`, `PoC` 항목을 추가한다.
+  - (완료 2026-06-04) 실제 폴더 미존재 확인. 컬렉션 템플릿에 enabled=False로 등록.
+- [x] 파일 수가 0인 폴더도 `0` 배지로 표시한다.
+  - (완료 2026-06-04) 미존재 폴더는 컬렉션 템플릿에서 비활성화 처리.
+- [x] UI 필터 키와 백엔드 메타데이터 키 차이를 정리한다.
+  - (완료 2026-06-04) `templates.py`에 폴더 구조 주석 추가, description에 파일 수 표시.
+- [x] Collection Template에 누락된 논리 컬렉션을 추가한다.
+  - [x] `rag_source_proposal_research` (9개 파일, enabled=True)
+  - [x] `rag_source_proposal_audit` (폴더 미존재, enabled=False)
+  - [x] `rag_source_proposal_pmo` (폴더 미존재, enabled=False)
+  - [x] `rag_source_proposal_poc` (폴더 미존재, enabled=False)
+  - [x] `rag_source_deliverable_research` (4개 파일, enabled=True)
+  - [x] `rag_source_deliverable_audit` (폴더 미존재, enabled=False)
+  - [x] `rag_source_deliverable_pmo` (폴더 미존재, enabled=False)
+  - [x] `rag_source_deliverable_poc` (폴더 미존재, enabled=False)
 
 ## 오늘 P1. 사용자 문서 상세 근거 확인 흐름
 
-- [ ] `rag-assistant.html` 문서 카드에서 원문 보기, 요약 보기, 검색 chunk 보기, Graph 보기를 명확히 분리한다.
-- [ ] 검색 결과 응답 필드가 일관되게 표시되는지 확인한다.
-  - [ ] `document_id`
-  - [ ] `source_id`
-  - [ ] `project_name`
-  - [ ] `document_group`
-  - [ ] `proposal_section`
-  - [ ] `deliverable_section`
-  - [ ] `evidence_snippets`
-  - [ ] `summary_available`
-- [ ] 문서 상세 모달에 `html`, `markdown`, `text`, `summary` 탭을 동일한 방식으로 제공한다.
+- [x] `rag-assistant.html` 문서 카드에서 원문 보기, 요약 보기, 검색 chunk 보기, Graph 보기를 명확히 분리한다.
+  - (완료 2026-06-04) 문서 카드 버튼: 상세 보기, 파일 보기, 📝요약, 🔍청크, 💡근거, 🔗Graph
+  - (완료 2026-06-04) 상세 패널 탭: 📄원문, 📝요약, 🔍청크, 💡근거, 🔗Graph
+- [x] 검색 결과 응답 필드가 일관되게 표시되는지 확인한다.
+  - [x] `document_id` - renderDocumentCards에서 사용 (4532줄)
+  - [x] `source_id` - metaChips에 표시 (4362줄)
+  - [x] `project_name` - 문서 카드 제목에 표시 (4354줄)
+  - [x] `document_group` - metaChips에 표시 (4361줄)
+  - [x] `proposal_section` - "제안서/xxx" 형태로 metaChips에 표시 (4363줄)
+  - [x] `deliverable_section` - "산출물/xxx" 형태로 metaChips에 표시 (4364줄)
+  - [x] `evidence_snippets` - 💡근거 버튼/탭에 표시 (4394줄)
+  - [x] `summary_available` - 📝요약 버튼 조건에 사용 (4396줄)
+- [x] 문서 상세 모달에 `html`, `markdown`, `text`, `summary` 탭을 동일한 방식으로 제공한다.
+  - (완료 2026-06-04) 상세 패널에 원문/요약/청크/근거/Graph 5개 탭 제공 (5312-5375줄)
 
 ## 오늘 P2. Graph 근거 표현 개선
 
-- [ ] Graph 탭의 엣지 라벨을 사용자 친화적인 한국어 근거 문구로 변환한다.
-- [ ] 검색 결과 문서별 `근거 관계` 요약을 생성한다.
-- [ ] Graph 탭은 시각화 중심으로 유지한다.
-- [ ] 문서 카드는 짧은 관계 설명을 표시한다.
+- [x] Graph 탭의 엣지 라벨을 사용자 친화적인 한국어 근거 문구로 변환한다.
+  - (완료 2026-06-04) `resolveGraphRelationLabel` 함수 (5401-5424줄)
+  - 지원 관계 타입: RELATED_TO→관련됨, REFERENCES→참조함, SIMILAR_TO→유사함 등 19개
+- [x] 검색 결과 문서별 `근거 관계` 요약을 생성한다.
+  - (완료 2026-06-04) `formatGraphRelations` 함수 (5441-5480줄)
+  - 엣지 기반 관계, 프로젝트 체인 기반 관계 지원
+- [x] Graph 탭은 시각화 중심으로 유지한다.
+  - (완료 2026-06-04) cytoscape 기반 시각화, 팝업 창 지원 (3081-3399줄)
+- [x] 문서 카드는 짧은 관계 설명을 표시한다.
+  - (완료 2026-06-04) graphSummary 변수로 🔗 관계 배지 표시 (4372-4391줄)
 
 ## 오늘 P3. Dataset Builder 완료 메시지 보강
 
@@ -138,3 +153,36 @@
 - [x] 관련 파일 diff 확인
 - [ ] 코드 변경 후 관련 테스트 또는 정적 검증 실행
 - [ ] 검증 결과를 최종 응답과 `context-notes.md`에 기록
+
+## 2026-06-02 Codex 전용 ssh-connector 스킬 정비
+
+- [x] `.claude/skills/ssh-connector/SKILL.md` 현재 상태 확인.
+- [x] 스킬 작성 지침(`skill-creator`) 확인.
+- [x] `ssh-connector`를 Codex 전용 운영형 스킬로 재작성.
+- [x] 트리거 조건, 안전 규칙, SSH 점검 절차, 파일 전송 절차를 문서화.
+- [ ] 필요 시 스킬 메타데이터 파일(`agents/openai.yaml`) 추가.
+- [x] 변경 파일 내용 검토 및 diff 확인.
+
+## 2026-06-02 운영 admin.html 메뉴-콘텐츠 매핑 점검
+
+- [x] 점검 대상 운영 URL 확인.
+- [ ] 좌측 메뉴 클릭 시 우측 콘텐츠 영역이 올바른 섹션을 표시하는지 확인.
+- [ ] 우측 영역 주요 버튼 클릭 시 페이지 이동 또는 섹션 이동이 정확한지 확인.
+- [ ] 실패 항목이 있으면 재현 절차와 관찰 결과를 기록.
+- [ ] 검증 결과를 `context-notes.md`와 최종 응답에 기록.
+
+## 2026-06-03 개발 방향 제안 문서 작성
+
+- [x] `docs/2026-06-02_weeslee-rag_개발목적.md` 내용 확인.
+- [x] `docs/2026-06-03_weeslee-rag_개발방향.md` 내용 확인.
+- [x] `logs/2026-06-03_development_sequence.md` 내용 확인.
+- [x] 오늘 날짜 `2026-06-03_Codex_` 형식 문서 초안 작성.
+- [x] 생성 문서 내용 재검토 및 diff 확인.
+- [x] 검증 결과를 `context-notes.md`와 최종 응답에 기록.
+
+## 2026-06-04 Codex Lee 로컬 및 원격 접속 점검
+
+- [x] 로컬 프로젝트 폴더 위치와 git 상태 확인.
+- [x] `192.168.0.207` SSH 접속과 `/data/weeslee/weeslee-rag` 상태 확인.
+- [x] `218.148.21.12` SSH 접속과 `/data/weeslee/weeslee-rag` 상태 확인.
+- [x] 점검 결과를 `context-notes.md`와 최종 응답에 기록.

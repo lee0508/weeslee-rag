@@ -19,6 +19,10 @@
     "github": {
       "command": "cmd",
       "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"]
+    },
+    "figma": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "figma-developer-mcp"]
     }
   }
 }

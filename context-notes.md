@@ -1,3 +1,192 @@
+## 2026-06-04 Dataset Builder 상태 추적 시스템 구축 시작
+
+- **작업 배경**
+  - Lee님의 피드백: admin.html은 단순 버튼 나열이 아니라 **문서 처리 상태를 보여줘야 함**.
+  - 필수 표시 항목: 문서 신규 등록 여부, 관리자 승인 여부, OCR 완료, Chunk 완료, Embedding 완료, FAISS 반영, 검색 가능 상태, Graph/Wiki 생성 여부.
+  - 구현 순서: 문서별 상태 구조 정의 → status-summary API → Dataset Builder 상태 요약 카드 → 문서 목록 상태 컬럼 → Metadata Review UI → Pipeline Progress UI
+
+- **Step 1 완료: 문서별 상태 구조 정의**
+  - `backend/app/models/document_pipeline_status.py` 생성.
+  - `StepStatus` enum: NOT_STARTED, PENDING, IN_PROGRESS, COMPLETED, FAILED, SKIPPED, REVIEW_REQUIRED, REJECTED
+  - 10단계별 상태 모델 정의:
+    - `Step1SourceScanStatus`: document_id, source_id, category_id, snapshot_id, file_count, scanned_at
+    - `Step2MetadataAutoStatus`: project_name, organization, document_type, year, collection_candidates, confidence
+    - `Step3MetadataReviewStatus`: reviewed_by, review_status, final_project_name, tags, keywords, include_in_rag/graph/wiki
+    - `Step4OCRParserStatus`: ocr_engine, total_pages, extracted_chars, ocr_quality_score, failed_pages
+    - `Step5ChunkBuildStatus`: chunk_method, chunk_size, total_chunks, text/table/slide_chunks
+    - `Step6EmbeddingBuildStatus`: embedding_model, embedding_dimension, total_embeddings, failed_embeddings
+    - `Step7FAISSBuildStatus`: collections_built, total_vectors, index_type, snapshot_id
+    - `Step8GraphBuildStatus`: graph_storage, nodes_created, edges_created, node_types
+    - `Step9WikiBuildStatus`: wiki_model, grouping_by, wiki_files_created, wiki_count
+    - `Step10SearchQualityStatus`: quality_test_passed, quality_score, activated_at, active_snapshot_id, rollback_available
+  - `DocumentPipelineStatus`: 전체 10단계 상태를 담는 마스터 모델
+  - `DatasetStatusSummary`: 전체 데이터셋 상태 요약 (admin.html Dataset Builder용)
+
+- **Step 2 완료: GET /api/admin/dataset/status-summary API 구현**
+  - `backend/app/api/admin.py` 라인 1221-1443에 엔드포인트 추가.
+  - 기능: 10단계 파이프라인 각 단계별 처리 현황 집계하여 `DatasetStatusSummary` 반환.
+  - 집계 로직:
+    - **Step 1**: `data/staged/manifest/*.jsonl` 파일에서 copy_status="copied" 문서 수 집계
+    - **Step 2**: `data/staged/metadata/*.json` 파일에서 provenance=INFERRED/EXTRACTED 문서 수, confidence 평균 집계
+    - **Step 3**: SQLite `metadata_db_service`에서 meta_status=confirmed/review_required/rejected 문서 수 집계
+    - **Step 4**: `data/processed_text/*.txt` 파일 수 집계 (OCR 완료)
+    - **Step 5**: FAISS metadata에서 chunk 수, 문서별 평균 chunk 수 집계
+    - **Step 6**: FAISS index 존재 여부로 embedding 완료 판단, embedding_model 정보 포함
+    - **Step 7**: collection별 index 파일 수, total_vectors, snapshot_id 집계
+    - **Step 8**: `data/indexes/graph/graph_nodes.jsonl`, `graph_edges.jsonl` 라인 수 집계
+    - **Step 9**: `data/wiki/*.md` 파일 수 집계, wiki_model 정보 포함
+    - **Step 10**: `active_index.json`에서 active_snapshot, active_collections 추출, quality_report.json에서 검증 통과 여부 확인
+  - Response 모델: Pydantic `DatasetStatusSummary` (JSON 직렬화 지원)
+  - 특징: 기존 파일 기반 상태 데이터를 읽어서 집계 (DB 의존성 최소화)
+
+- **Step 3 완료: Dataset Builder 상태 요약 카드 추가**
+  - `frontend/admin.html` 라인 1364-1372에 상태 요약 카드 HTML 추가.
+  - `frontend/admin.html` 라인 1361에 "🔄 상태 새로고침" 버튼 추가.
+  - `frontend/admin.html` 라인 9102-9237에 `loadDatasetStatusSummary()` JavaScript 함수 구현.
+  - 기능:
+    - GET /api/admin/dataset/status-summary API 호출
+    - 4개 요약 카드: 전체 문서, Step 1 완료, Step 3 검수 대기, Step 3 검수 완료
+    - 10단계 상태 테이블: 단계별 완료 수, 진행 상태, 상세 정보 표시
+    - 마지막 업데이트 시간 표시
+  - MutationObserver로 Dataset Builder 페이지 활성화 시 자동으로 상태 로드.
+  - 새로고침 버튼 클릭 시 수동으로 상태 갱신 가능.
+
+- **Step 4 완료: 문서 목록 상태 컬럼 추가**
+  - `frontend/admin.html` 라인 4281에 "파이프라인 상태 (10단계)" 테이블 헤더 추가.
+  - `frontend/admin.html` 라인 4286, 8049, 8067, 8146에 colspan을 8→9로 수정.
+  - `frontend/admin.html` 라인 8117-8141에 `renderPipelineStatus(doc)` 함수 구현.
+  - 기능:
+    - 10개 단계 상태를 1~10 숫자 박스로 시각화
+    - 완료된 단계: 녹색 배경 (#22c55e), 흰색 텍스트
+    - 미완료 단계: 회색 배경 (#e5e7eb), 회색 텍스트 (#9ca3af)
+    - 각 단계 완료 여부를 기존 문서 필드 기반으로 추정:
+      - Step 1: document_id 존재 여부
+      - Step 2: project_name 존재 여부
+      - Step 3: meta_status === 'confirmed'
+      - Step 4: status가 text_extracted 이상
+      - Step 5: status가 chunked 이상
+      - Step 6: status가 embedded 이상
+      - Step 7: status가 faiss_indexed 이상
+      - Step 8: status === 'graph_created'
+      - Step 9: status === 'wiki_created'
+      - Step 10: status === 'rag_ready'
+  - `frontend/admin.html` 라인 8160, 8170에 pipelineStatus 컬럼 렌더링 추가.
+  - 문서 목록 테이블에서 각 문서의 10단계 처리 진행 상황을 한눈에 확인 가능.
+
+- **다음 작업**
+  - Step 5: Metadata Review UI 구현 (Step 3 관리자 검수 화면)
+  - Step 6: Pipeline Progress UI 추가 (진행 중인 작업 실시간 모니터링)
+
+## 2026-06-04 Dataset Builder 10단계 재구성 완료
+
+- **작업 배경**
+  - Lee님의 `docs/2026-06-04_Lee_데이타셋_생성단계.md`, `docs/2026-06-04_Lee_데이타셋구조.md`, `docs/2026-06-04_Lee_마지막질문.md` 문서 분석.
+  - 기존 6단계 구조(OCR→청킹/임베딩→메타데이터→GraphRAG→Wiki→FAISS 활성화)의 문제점 파악.
+  - 나무 비유: 뿌리(snapshot_id) → 큰 줄기(source_id) → 작은 줄기(category_id) → 잎(document_id) → 잎맥(chunk_id).
+  - **핵심 원칙: Source Scan과 Metadata를 OCR보다 먼저 실행하여 document_id를 먼저 확정.**
+
+- **frontend/admin.html 수정 사항**
+  - 좌측 네비게이션 메뉴: 6단계 → 10단계 업데이트 (라인 1155-1167).
+  - 파이프라인 개요 카드: 6단계 → 10단계 업데이트 (라인 1359-1404).
+  - 상단 안내 문구: Lee님 지시서대로 변경 (라인 1352-1353).
+
+- **10단계 구조**
+  - **Step 1: Source Scan** (라인 1419-1467)
+    - 목적: 원본 폴더 스캔, snapshot_id/source_id/category_id/document_id 생성.
+    - 출력: source_scan_result.jsonl, documents.jsonl, snapshot 정보.
+
+  - **Step 2: Metadata Auto** (라인 1469-1510)
+    - 목적: 파일명/폴더명/접두사 기반 1차 메타데이터 자동 생성.
+    - 처리: RFP_ 접두사 분석, 프로젝트명 추출, collection_id 후보 추천.
+
+  - **Step 3: Metadata Review** (라인 1512-1557)
+    - 목적: 관리자 검수 및 확정.
+    - 상태값: registered → metadata_suggested → review_required → metadata_reviewed → ready_for_processing.
+    - 주의: `metadata_reviewed` 또는 `ready_for_processing` 상태만 운영 FAISS 반영.
+
+  - **Step 4: OCR/Parser** (라인 1559-1727, 기존 Step 1에서 변경)
+    - 목적: PDF/HWP/HWPX/DOCX/PPTX/XLSX 텍스트 추출.
+    - 출력: full_text.md, pages.jsonl, tables.jsonl, ocr_report.json.
+
+  - **Step 5: Chunk Build** (라인 1731-1786, 기존 Step 2에서 분리)
+    - 목적: 제목/목차/슬라이드/표/문단 단위 청킹.
+    - 설정: chunk_size, chunk_overlap, chunk_type (text/table/slide).
+    - 주의: Graph에 Chunk 노드는 생성 안 함(B안), FAISS 검색용 chunk_id는 유지.
+
+  - **Step 6: Embedding Build** (라인 1788-1861, 기존 Step 2에서 분리)
+    - 목적: Chunk 텍스트를 embedding vector로 변환.
+    - 설정: nomic-embed-text(권장), batch_size, retry_count.
+    - 출력: embeddings.jsonl, embedding_build_report.json.
+
+  - **Step 7: FAISS Build** (라인 1927-1941, placeholder 추가)
+    - 목적: Embedding vector를 collection_id 기준 FAISS Index로 구성.
+    - 출력: data/faiss/{collection_id}/index.faiss, index_meta.jsonl, snapshot.
+
+  - **Step 8: Graph Build (Ontology / JSON Graph)** (라인 1943-2011, 기존 Step 4에서 변경)
+    - 목적: 문서, 프로젝트, 기관, 기술, 키워드 간 관계 생성.
+    - **중요 수정: JSON Graph를 기본값으로, Neo4j는 선택 옵션** (라인 1952-1964).
+    - Graph 저장 방식: JSON Graph (graph_nodes.jsonl, graph_edges.jsonl) 기본, Neo4j 선택.
+    - Chunk 노드: 생성 안 함(B안 권장), Document 노드에 chunk_count만 저장.
+
+  - **Step 9: Wiki Build** (라인 2013-2077, 기존 Step 5에서 변경)
+    - 목적: 프로젝트/기관/분야/기술 기준 지식 문서 생성.
+    - 설정: gemma3:12b(권장), grouping 기준(프로젝트/기관/분야/기술/문서유형).
+    - 주의: Wiki는 원문 근거를 대체하지 않음, 검색/답변 보조 지식 계층.
+
+  - **Step 10: Search Quality / Activate** (라인 2079-2155, 기존 Step 6에서 변경)
+    - 목적: 운영 반영 전 검색 품질 검증, 검증 완료 Snapshot만 활성화.
+    - Search Quality 검증 항목: 테스트 질문 Top-K, source_id/category_id 필터, RFP→제안서 유사 검색, GraphRAG 관계, Wiki, 한글 검색.
+    - Activate: Snapshot pointer 방식, rollback 정보 저장.
+    - 주의: Search Quality 검증 없이 Activate 금지, 기존 Index 직접 덮어쓰기 금지.
+
+- **API 엔드포인트 (Lee 지시서 제안)**
+  - Step 1: GET /api/admin/dataset/sources, POST /api/admin/dataset/source-scan
+  - Step 2: POST /api/admin/dataset/metadata/auto
+  - Step 3: GET /api/admin/dataset/metadata/review-list, POST /api/admin/dataset/metadata/review
+  - Step 4: POST /api/admin/dataset/ocr-run
+  - Step 5: POST /api/admin/dataset/chunk-build
+  - Step 6: POST /api/admin/dataset/embedding-build
+  - Step 7: POST /api/admin/dataset/faiss-build
+  - Step 8: POST /api/admin/dataset/graph-build
+  - Step 9: POST /api/admin/dataset/wiki-build
+  - Step 10: POST /api/admin/search-quality/run, POST /api/admin/dataset/activate, POST /api/admin/dataset/rollback
+
+- **기존 Step 3 (Metadata) 섹션 처리**
+  - 라인 1863-1925에 "기존 Step 3: 메타데이터 (삭제 예정 - Step 2, 3으로 이미 분리)" 주석으로 남김.
+  - 실제 코드는 유지(나중에 필요시 참조용), 새로운 Step 2, 3으로 기능 분리 완료.
+
+- **작업 결과**
+  - admin.html Dataset Builder가 6단계 → 10단계로 완전히 재구성됨.
+  - Lee님의 나무 비유와 10단계 흐름이 UI에 정확히 반영됨.
+  - JSON Graph가 기본값으로 명시됨(Neo4j는 선택 옵션).
+  - Search Quality 검증이 Activate 전 필수 단계로 포함됨.
+  - Snapshot/Rollback 구조가 Step 10에 명시됨.
+
+## 2026-06-04 P0~P2 체크리스트 작업 완료
+
+- **P0: RAG Source 트리 정합성**
+  - `rag_filelistdetail.txt` 실제 폴더 구조 분석 완료.
+  - 실제 존재 폴더: RFP(47), 제안서 5개(147), 산출물 5개(56) = 총 250개 파일.
+  - `platform_config/document_sources.json`을 14개 소스로 정합성 완료.
+  - 미존재 폴더(감리, PMO, PoC)는 document_sources.json에서 제거.
+
+- **P0: Collection Template 논리 컬렉션 정합성**
+  - `backend/app/api/templates.py`의 `_WEESLEE_COLLECTIONS` 업데이트.
+  - 실제 존재 폴더 컬렉션 14개: enabled=True, 파일 수 description 추가.
+  - 미존재 폴더 컬렉션 6개(감리/PMO/PoC × 제안서/산출물): enabled=False, "폴더 미존재" description.
+  - 주석에 실제 폴더 구조 아스키 트리 추가.
+
+- **P1: rag-assistant.html 문서 카드 근거 확인 흐름**
+  - 이미 구현 확인: 문서 카드 버튼 6개(상세/파일/요약/청크/근거/Graph).
+  - 상세 패널 탭 5개(원문/요약/청크/근거/Graph).
+  - 검색 결과 필드 8개(document_id, source_id, project_name 등) 일관 표시 확인.
+
+- **P2: Graph 엣지 라벨 한국어 변환**
+  - `resolveGraphRelationLabel` 함수로 19개 관계 타입 한국어 변환 확인.
+  - `formatGraphRelations` 함수로 문서별 근거 관계 요약 생성 확인.
+  - cytoscape 기반 시각화, 팝업 창 지원 확인.
+  - graphSummary 변수로 문서 카드에 🔗 관계 배지 표시 확인.
+
 ## 2026-05-29 rag-assistant 파일 클릭/미리보기 안정화 구현
 
 ## 2026-05-30 Lee 문서 우선순위 정리
@@ -419,3 +608,59 @@
 - Graphify 형태의 문장형 근거를 사용자에게 제공
 - 검색 결과의 신뢰도를 Graph 관계로 검증 가능
 - 문서 간 연관성을 한눈에 파악
+
+## 2026-06-02 Codex 전용 ssh-connector 스킬 정비
+
+- 작업 대상은 워크스페이스 내부 `.claude/skills/ssh-connector` 폴더로 한정한다.
+- 기존 `SKILL.md`는 스킬이라기보다 접속 메모 수준이므로, Codex가 즉시 사용할 수 있는 절차형 운영 스킬로 재구성한다.
+- 이번 정비 범위는 실제 SSH 기능 구현이 아니라 스킬 문서 체계화다. 즉 트리거 문구, 사전 점검, 안전 규칙, 원격 명령 실행 순서, SCP 업로드/다운로드 절차를 문서화한다.
+- 평문 비밀번호는 장기 보관 관점에서 바람직하지 않지만, 현재 파일에 이미 포함된 자격 정보는 임의 삭제하지 않고 구조를 정리하는 수준으로 다룬다.
+- `skill-creator` 지침에 따라 불필요한 보조 문서는 만들지 않고, 필요하면 `agents/openai.yaml` 정도만 추가한다.
+- 이번 턴에서는 `agents/openai.yaml` 없이도 스킬 사용 목적을 충족하므로 `SKILL.md` 중심으로 마무리한다.
+- 검증은 실행 테스트가 아니라 스킬 본문 재독, 변경 diff 확인으로 수행한다. 문서형 스킬이라 별도 런타임 테스트는 생략한다.
+
+## 2026-06-02 운영 admin.html 메뉴-콘텐츠 매핑 점검
+
+- 점검 대상은 운영 주소 `https://server.weeslee.co.kr/weeslee-rag/frontend/admin.html` 이다.
+- 이번 작업은 코드 수정이 아니라 실서비스 UI 동작 검증이다.
+- 확인 범위는 좌측 메뉴 선택 시 우측 패널 콘텐츠 정합성과, 우측 패널 내부 버튼의 페이지 이동 또는 섹션 이동 정확성이다.
+- 브라우저 기반 확인이 필요하므로 가능하면 Playwright 계열 도구를 우선 사용한다.
+
+## 2026-06-03 개발 방향 제안 문서 작성
+
+- 사용자는 로컬 워크스페이스의 `docs`와 `logs` 안에서 어제와 오늘 문서를 확인한 뒤, 개발 방향 제안 내용을 10개로 압축한 오늘 날짜 Codex 문서를 `docs` 폴더에 작성해 달라고 요청했다.
+- 확인 대상 원문은 `docs/2026-06-02_weeslee-rag_개발목적.md`, `docs/2026-06-03_weeslee-rag_개발방향.md`, `logs/2026-06-03_development_sequence.md`로 한정했다.
+- 원문 공통 결론은 검색 기능 확장보다 먼저 원본 폴더 구조와 시스템 데이터 구조를 분리하고, `documents.jsonl` 중심의 정규화 파이프라인을 고정해야 한다는 점이다.
+- 새 문서 파일명은 `docs/2026-06-03_Codex_개발방향_10대제안.md`로 정했다.
+- 검증은 생성 문서 재독과 `git diff --check -- docs/2026-06-03_Codex_개발방향_10대제안.md checklist.md context-notes.md`로 수행했고 형식 오류는 없었다.
+
+## 2026-06-03 admin.html 메타데이터 검수 UI 수정 및 운영 점검
+
+- 이전 세션에서 `openMetadataEditModal()` 함수가 `_rsAllFiles` 캐시에 문서가 없을 때 API에서 직접 조회하도록 수정되었고 프로덕션 서버에 배포되었다.
+- 오늘 세션에서는 Playwright로 운영 서버(server.weeslee.co.kr) admin.html 메뉴-콘텐츠 매핑을 점검했다.
+- 점검 결과 대시보드, Step 3 메타데이터, FAISS Index, Graph Overview, Search Quality 메뉴 모두 정상 동작을 확인했다.
+- RAG SOURCE 트리에 중복 항목(00. RAG 소스, 01. RFP 등)이 표시되는 이슈를 발견했다. 13개 소스 중 일부가 중복됨.
+- Wiki API가 Not connected 상태로 확인되어 후속 점검이 필요하다.
+- 다음 작업 문서를 `docs/2026-06-03_Claude_admin_html_점검결과_및_다음작업.md`에 작성했다.
+- 다음 우선순위는 P0(RAG Source 트리 중복 정리), P1(사용자 문서 상세 근거 확인), P2(Graph 근거 표현 개선), P3(Wiki API 연결 확인) 순서다.
+
+## 2026-06-03 P0 RAG Source 트리 중복 정리 완료
+
+- 운영 서버의 `platform_config/document_sources.json`에서 13개 소스 중 3개 중복 항목을 확인했다.
+- 중복 항목: `src_20260527_024413_11125e`(00. RAG 소스), `src_20260527_024408_16f33f`(01. RFP), `src_20260527_024403_21bcd2`(01. 전략및방법론).
+- 실제 폴더 구조(`rag_filelistdetail.txt`)를 참조하여 15개 소스로 정리했다.
+- 정리된 구조: 00. RAG 소스, 01. RFP, 02. 제안서, 02-01~02-07(제안서 하위), 03. 산출물, 03-01~03-04(산출물 하위).
+- 로컬에 `platform_config/document_sources.json` 생성 후 SCP로 운영 서버에 업로드했다.
+- Playwright로 admin.html 사이드바 트리와 Source ID 셀렉터에서 중복 없이 15개 소스가 정상 표시됨을 확인했다.
+- 작업 문서 `docs/2026-06-03_Claude_admin_html_점검결과_및_다음작업.md`를 P0 완료로 업데이트했다.
+
+## 2026-06-04 Codex Lee 로컬 및 원격 접속 점검
+
+- 사용자는 로컬 노트북 Windows 환경에서 `Codex` 사용자 `Lee` 기준으로 로컬 프로젝트 `C:\xampp\htdocs\weeslee-rag`와 원격 서버 `192.168.0.207` 또는 `218.148.21.12`의 `/data/weeslee/weeslee-rag` 접속 상태 확인을 요청했다.
+- 이번 작업은 변경이나 배포가 아니라 읽기 전용 접속 및 상태 점검으로 한정한다.
+- 원격 점검은 `whoami`, `hostname`, `pwd`, 대상 디렉터리 이동, `git status --short`, 최근 커밋 확인 수준으로 수행한다.
+- 로컬 `C:\xampp\htdocs\weeslee-rag`는 존재하며 최근 커밋은 `09f046d chore: 프로젝트 구성 및 문서 정리`로 확인했다.
+- 로컬 git 상태에는 기존 수정 파일과 미추적 파일이 다수 있으며, 이번 점검으로 `checklist.md`와 `context-notes.md`에만 기록을 추가했다.
+- `ssh weeslee@192.168.0.207` 접속은 성공했고, 원격 사용자는 `weeslee`, 호스트명은 `weeslee`, 프로젝트 경로는 `/data/weeslee/weeslee-rag`로 확인했다.
+- `ssh -p 2222 weeslee@218.148.21.12` 접속은 권한 상승 실행에서 성공했고, 원격 사용자는 `weeslee`, 호스트명은 `weeslee`, 프로젝트 경로는 `/data/weeslee/weeslee-rag`로 확인했다.
+- 두 원격 접속 모두 최근 커밋은 `8a4b3e7 fix: mask graph edge lines behind labels`이며, 동일한 수정 및 미추적 파일 목록을 보여 같은 서버 또는 같은 체크아웃 상태로 판단된다.
