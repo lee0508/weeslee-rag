@@ -152,8 +152,10 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     if request.overwrite:
                         existing_meta.updated_at = datetime.utcnow()
                 else:
+                    # Get next available document_id
+                    max_doc_id = db.query(func.max(DocumentMetadata.document_id)).scalar() or 0
                     new_meta = DocumentMetadata(
-                        document_id=0,  # Placeholder
+                        document_id=max_doc_id + 1,
                         source_id="src_rfp",
                         file_path=file_info["filepath"],
                         category_id="cat_rfp",
@@ -187,8 +189,9 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         if request.overwrite:
                             existing_meta.updated_at = datetime.utcnow()
                     else:
+                        max_doc_id = db.query(func.max(DocumentMetadata.document_id)).scalar() or 0
                         new_meta = DocumentMetadata(
-                            document_id=0,
+                            document_id=max_doc_id + 1,
                             source_id="src_proposal",
                             file_path=file_info["filepath"],
                             category_id=category_id,
@@ -222,8 +225,9 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         if request.overwrite:
                             existing_meta.updated_at = datetime.utcnow()
                     else:
+                        max_doc_id = db.query(func.max(DocumentMetadata.document_id)).scalar() or 0
                         new_meta = DocumentMetadata(
-                            document_id=0,
+                            document_id=max_doc_id + 1,
                             source_id="src_output",
                             file_path=file_info["filepath"],
                             category_id=category_id,
