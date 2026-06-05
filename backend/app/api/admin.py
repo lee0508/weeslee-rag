@@ -20,12 +20,19 @@ from app.services.metadata_db import metadata_db_service
 from app.services.metadata_auto_generator import metadata_auto_generator
 from app.services.admin_stats_service import get_snapshot_stats
 from app.core.config import settings
+from app.models.document_pipeline_status import DatasetStatusSummary
 
 
 router = APIRouter(
     prefix="/admin",
     tags=["Admin"],
     dependencies=[Depends(require_admin_token)],
+)
+
+# 읽기 전용 공개 엔드포인트용 라우터 (인증 불필요)
+public_router = APIRouter(
+    prefix="/admin",
+    tags=["Admin Public"],
 )
 
 
@@ -1086,3 +1093,358 @@ async def upload_multiple_documents(
         "errors": errors,
         "message": f"{len(uploaded)}개 업로드 완료, {len(errors)}개 실패"
     }
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# LLM 설정 관리 API
+# ────────────────────────────────────────────────────────────────────────────
+
+class LlmSettingsRequest(BaseModel):
+    """LLM 설정 요청 모델"""
+    system_prompt: str = ""
+    temperature: float = 0.3
+    top_p: float = 0.9
+    max_tokens: int = 2000
+    require_evidence: bool = True
+    strict_mode: bool = True
+    show_confidence: bool = False
+    cite_source: bool = True
+    typo_dict: str = ""
+
+
+def _get_llm_settings_path():
+    """LLM 설정 파일 경로 반환."""
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parents[3]
+    return project_root / "data" / "config" / "llm_settings.json"
+
+
+@router.get("/llm-settings")
+async def get_llm_settings():
+    """LLM 설정 조회."""
+    settings_path = _get_llm_settings_path()
+    if not settings_path.exists():
+        # 기본값 반환
+        return {
+            "system_prompt": """당신은 RAG 기반 문서 검색 및 답변 시스템입니다.
+
+규칙:
+1. 검색된 문서의 내용만을 기반으로 답변하세요.
+2. 검색 결과에 없는 정보는 "해당 정보를 찾을 수 없습니다"라고 답변하세요.
+3. 추측하거나 일반 지식으로 답변하지 마세요.
+4. 답변 시 근거 문서를 명시하세요.
+5. 불확실한 경우 "확인이 필요합니다"라고 표시하세요.""",
+            "temperature": 0.3,
+            "top_p": 0.9,
+            "max_tokens": 2000,
+            "require_evidence": True,
+            "strict_mode": True,
+            "show_confidence": False,
+            "cite_source": True,
+            "typo_dict": ""
+        }
+
+    try:
+        return json.loads(settings_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"설정 파일 읽기 실패: {str(e)}")
+
+
+@router.post("/llm-settings")
+async def save_llm_settings(request: LlmSettingsRequest):
+    """LLM 설정 저장."""
+    settings_path = _get_llm_settings_path()
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+    settings_data = {
+        "system_prompt": request.system_prompt,
+        "temperature": request.temperature,
+        "top_p": request.top_p,
+        "max_tokens": request.max_tokens,
+        "require_evidence": request.require_evidence,
+        "strict_mode": request.strict_mode,
+        "show_confidence": request.show_confidence,
+        "cite_source": request.cite_source,
+        "typo_dict": request.typo_dict,
+    }
+
+    try:
+        settings_path.write_text(
+            json.dumps(settings_data, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+        return {"success": True, "message": "LLM 설정 저장 완료"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"설정 저장 실패: {str(e)}")
+
+
+def get_active_llm_settings() -> dict:
+    """현재 활성 LLM 설정 반환 (다른 서비스에서 사용)."""
+    settings_path = _get_llm_settings_path()
+    defaults = {
+        "system_prompt": "",
+        "temperature": 0.3,
+        "top_p": 0.9,
+        "max_tokens": 2000,
+        "require_evidence": True,
+        "strict_mode": True,
+        "show_confidence": False,
+        "cite_source": True,
+        "typo_dict": ""
+    }
+
+    if not settings_path.exists():
+        return defaults
+
+    try:
+        saved = json.loads(settings_path.read_text(encoding="utf-8"))
+        return {**defaults, **saved}
+    except Exception:
+        return defaults
+
+
+def apply_typo_correction(query: str, typo_dict_str: str) -> str:
+    """오타 보정 사전 적용."""
+    if not typo_dict_str:
+        return query
+
+    corrected = query
+    for line in typo_dict_str.split('\n'):
+        if '→' in line:
+            parts = line.split('→')
+            if len(parts) == 2:
+                from_text = parts[0].strip()
+                to_text = parts[1].strip()
+                if from_text and to_text:
+                    corrected = corrected.replace(from_text, to_text)
+    return corrected
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Dataset Builder 10단계 상태 집계 API
+# ────────────────────────────────────────────────────────────────────────────
+
+@public_router.get("/dataset/status-summary", response_model=DatasetStatusSummary)
+async def get_dataset_status_summary():
+    """
+    Dataset Builder 전체 데이터셋 상태 요약 반환
+    (읽기 전용 공개 엔드포인트 - 인증 불필요)
+
+    10단계 파이프라인 각 단계별 처리 현황을 집계하여 반환:
+    - Step 1: Source Scan
+    - Step 2: Metadata Auto
+    - Step 3: Metadata Review
+    - Step 4: OCR/Parser
+    - Step 5: Chunk Build
+    - Step 6: Embedding Build
+    - Step 7: FAISS Build
+    - Step 8: Graph Build
+    - Step 9: Wiki Build
+    - Step 10: Search Quality/Activate
+    """
+    from pathlib import Path
+    from datetime import datetime
+
+    project_root = Path(__file__).resolve().parents[3]
+
+    # ── 초기화 ─────────────────────────────────────────────────────────────
+    summary = DatasetStatusSummary()
+
+    # ── Step 1: Source Scan ────────────────────────────────────────────────
+    # manifest 파일들을 읽어서 스캔된 문서 수 집계
+    manifest_dir = project_root / "data" / "staged" / "manifest"
+    if manifest_dir.exists():
+        manifest_files = list(manifest_dir.glob("*.jsonl"))
+        for manifest_file in manifest_files:
+            try:
+                for line in manifest_file.read_text(encoding="utf-8").splitlines():
+                    if line.strip():
+                        summary.total_documents += 1
+                        data = json.loads(line)
+                        if data.get("copy_status") == "copied":
+                            summary.step1_completed += 1
+                        elif data.get("copy_status") == "failed":
+                            summary.step1_failed += 1
+            except Exception:
+                pass
+
+    # ── Step 2: Metadata Auto ──────────────────────────────────────────────
+    # metadata 파일들을 읽어서 자동 생성된 메타데이터 집계
+    metadata_dir = project_root / "data" / "staged" / "metadata"
+    if metadata_dir.exists():
+        metadata_files = list(metadata_dir.glob("*.json"))
+        confidence_sum = 0.0
+        confidence_count = 0
+
+        for metadata_file in metadata_files:
+            try:
+                metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+
+                # Metadata Auto 완료 여부 확인
+                if metadata.get("project_name", {}).get("provenance") in ["INFERRED", "EXTRACTED"]:
+                    summary.step2_completed += 1
+
+                    # confidence 집계
+                    conf = metadata.get("project_name", {}).get("confidence", 0.0)
+                    if conf > 0:
+                        confidence_sum += conf
+                        confidence_count += 1
+                else:
+                    summary.step2_pending += 1
+            except Exception:
+                pass
+
+        if confidence_count > 0:
+            summary.step2_avg_confidence = round(confidence_sum / confidence_count, 3)
+
+    # ── Step 3: Metadata Review ────────────────────────────────────────────
+    # SQLite metadata_db에서 review 상태 조회
+    try:
+        review_docs = metadata_db_service.list_documents(meta_status="confirmed", limit=10000)
+        summary.step3_reviewed = len(review_docs)
+
+        review_required_docs = metadata_db_service.list_documents(meta_status="review_required", limit=10000)
+        summary.step3_review_required = len(review_required_docs)
+
+        rejected_docs = metadata_db_service.list_documents(meta_status="rejected", limit=10000)
+        summary.step3_rejected = len(rejected_docs)
+    except Exception:
+        pass
+
+    # ── Step 4: OCR/Parser ─────────────────────────────────────────────────
+    # processed_text 디렉토리에서 OCR 완료 문서 집계
+    text_dir = project_root / "data" / "processed_text"
+    quality_sum = 0.0
+    quality_count = 0
+
+    if text_dir.exists():
+        text_files = list(text_dir.glob("*.txt"))
+        summary.step4_completed = len(text_files)
+
+        # OCR 품질 정보가 있는 경우 집계 (향후 구현)
+        # ocr_report.json 파일에서 품질 점수 읽기
+
+    if quality_count > 0:
+        summary.step4_avg_quality = round(quality_sum / quality_count, 3)
+
+    # ── Step 5: Chunk Build ────────────────────────────────────────────────
+    # FAISS metadata에서 chunk 수 집계
+    faiss_dir = project_root / "data" / "indexes" / "faiss"
+    active_index_path = project_root / "data" / "active_index.json"
+
+    snapshot = ""
+    if active_index_path.exists():
+        try:
+            snapshot = json.loads(active_index_path.read_text(encoding="utf-8")).get("snapshot", "")
+        except Exception:
+            pass
+
+    if snapshot and faiss_dir.exists():
+        meta_path = faiss_dir / f"{snapshot}_ollama_metadata.jsonl"
+        if meta_path.exists():
+            try:
+                chunk_lines = [line for line in meta_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                summary.step5_total_chunks = len(chunk_lines)
+
+                # 문서별 chunk 수 집계
+                doc_chunks = {}
+                for line in chunk_lines:
+                    try:
+                        chunk = json.loads(line)
+                        doc_id = chunk.get("document_id", "")
+                        if doc_id:
+                            doc_chunks[doc_id] = doc_chunks.get(doc_id, 0) + 1
+                    except Exception:
+                        pass
+
+                summary.step5_completed = len(doc_chunks)
+                if summary.step5_completed > 0:
+                    summary.step5_avg_chunks_per_doc = round(summary.step5_total_chunks / summary.step5_completed, 1)
+            except Exception:
+                pass
+
+    # ── Step 6: Embedding Build ────────────────────────────────────────────
+    # FAISS index가 있으면 embedding이 완료된 것으로 간주
+    if snapshot and faiss_dir.exists():
+        index_path = faiss_dir / f"{snapshot}_ollama.index"
+        if index_path.exists():
+            summary.step6_total_embeddings = summary.step5_total_chunks
+            summary.step6_completed = summary.step5_completed
+            summary.step6_embedding_model = "nomic-embed-text"  # 기본 모델
+
+    # ── Step 7: FAISS Build ────────────────────────────────────────────────
+    if snapshot:
+        summary.step7_snapshot_id = snapshot
+
+    if faiss_dir.exists():
+        # collection별 index 파일 개수 집계
+        collection_indexes = list(faiss_dir.glob("*_ollama.index"))
+        summary.step7_collections_built = len(collection_indexes)
+        summary.step7_total_vectors = summary.step6_total_embeddings
+
+    # ── Step 8: Graph Build ────────────────────────────────────────────────
+    graph_dir = project_root / "data" / "indexes" / "graph"
+
+    if graph_dir.exists():
+        graph_nodes_path = graph_dir / "graph_nodes.jsonl"
+        graph_edges_path = graph_dir / "graph_edges.jsonl"
+
+        if graph_nodes_path.exists():
+            try:
+                node_lines = [line for line in graph_nodes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                summary.step8_nodes_created = len(node_lines)
+            except Exception:
+                pass
+
+        if graph_edges_path.exists():
+            try:
+                edge_lines = [line for line in graph_edges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                summary.step8_edges_created = len(edge_lines)
+            except Exception:
+                pass
+
+        if summary.step8_nodes_created > 0 or summary.step8_edges_created > 0:
+            summary.step8_graph_storage = "json"
+
+    # ── Step 9: Wiki Build ─────────────────────────────────────────────────
+    wiki_dir = project_root / "data" / "wiki"
+
+    if wiki_dir.exists():
+        wiki_files = list(wiki_dir.glob("*.md"))
+        summary.step9_wiki_count = len(wiki_files)
+
+        # Wiki 생성 모델 정보는 wiki 파일 내부에서 추출 가능
+        # 현재는 기본값 사용
+        if summary.step9_wiki_count > 0:
+            summary.step9_wiki_model = "gemma3:12b"
+
+    # ── Step 10: Search Quality / Activate ─────────────────────────────────
+    if active_index_path.exists():
+        try:
+            active_info = json.loads(active_index_path.read_text(encoding="utf-8"))
+            summary.step10_active_snapshot = active_info.get("snapshot", "")
+
+            # collection 목록 추출
+            if faiss_dir.exists():
+                collection_indexes = list(faiss_dir.glob(f"{summary.step10_active_snapshot}_*_ollama.index"))
+                summary.step10_active_collections = [
+                    idx.stem.replace(f"{summary.step10_active_snapshot}_", "").replace("_ollama", "")
+                    for idx in collection_indexes
+                ]
+
+            # quality 검증 여부 확인 (quality_report.json 파일 존재 여부)
+            quality_report_path = project_root / "data" / "indexes" / "quality_report.json"
+            if quality_report_path.exists():
+                try:
+                    quality_info = json.loads(quality_report_path.read_text(encoding="utf-8"))
+                    summary.step10_quality_passed = quality_info.get("passed", False)
+                    summary.step10_quality_score = quality_info.get("score", 0.0)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # ── 마지막 업데이트 시간 설정 ───────────────────────────────────────────
+    summary.last_updated = datetime.utcnow()
+
+    return summary
