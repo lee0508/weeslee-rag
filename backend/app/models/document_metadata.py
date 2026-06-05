@@ -28,7 +28,7 @@ class DocumentMetadata(Base):
     __tablename__ = "document_metadata"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    document_id = Column(Integer, nullable=False, unique=True, index=True)  # FK removed for Dataset Builder
 
     # Step 1: Source Scan
     source_id = Column(String(100), nullable=True, index=True, comment="RAG Source ID")
