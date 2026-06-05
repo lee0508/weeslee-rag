@@ -1037,6 +1037,44 @@
       font-size: 13px;
       color: var(--wr-muted, #8b9ab0);
     }
+
+    /* Dataset Builder Tabs */
+    .wr-tabs-container {
+      margin-top: 16px;
+    }
+    .wr-tabs-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      border-bottom: 2px solid var(--surface2);
+      margin-bottom: 16px;
+    }
+    .wr-tab-btn {
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+    .wr-tab-btn:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+    .wr-tab-btn.active {
+      color: var(--amber);
+      border-bottom-color: var(--amber);
+    }
+    .wr-tab-content {
+      display: none;
+    }
+    .wr-tab-content.active {
+      display: block;
+    }
   </style>
   <link rel="stylesheet" href="assets/css/admin-docs-layout.css?v=20260529">
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
@@ -1079,10 +1117,11 @@
       <span class="wr-kbd">Ctrl K</span>
     </label>
     <div class="wr-header-actions">
-      <button class="wr-btn" id="wrRefreshStatus" type="button">Status</button>
-      <button class="wr-btn" id="wrThemeToggle" type="button">Theme</button>
-      <a class="wr-btn" href="/weeslee-rag/frontend/rag-assistant.html" target="_blank" rel="noopener">RAG Assistant</a>
-      <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="dashboard">Legacy Console</button>
+      <button class="wr-btn" id="wrRefreshStatus" type="button" style="display:none">Status</button>
+      <button class="wr-btn" id="wrThemeToggle" type="button" style="display:none">Theme</button>
+      <a class="wr-btn" href="/weeslee-rag/frontend/rag-assistant.html" target="_blank" rel="noopener" style="display:none">RAG Assistant</a>
+      <button class="wr-btn wr-btn-primary" type="button" onclick="navigateToDatasetBuilder()">Dataset Builder</button>
+      <button class="wr-btn" id="wrLogoutBtn" type="button" onclick="handleLogout()" style="color:#ef4444">Logout</button>
     </div>
   </header>
 
@@ -1116,16 +1155,16 @@
         </div>
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">DATASET BUILDER</h2>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(1)">Step 1: OCR/파싱 (근거 생성)</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(2)">Step 2: 청킹/임베딩</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(3)">Step 3: 메타데이터</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(4)">Step 4: 온톨로지</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(5)">Step 5: 엔티티/관계 (근거 산출)</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(6)">Step 6: Graph 저장 (색인 완료)</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(7)">Step 7: 하이브리드 검색 (Graph 근거)</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(8)">Step 8: LLM 답변</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(9)">Step 9: Wiki 생성 (지식 체계)</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(10)">Step 10: 관리자 검수</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(1)">Step 1: Source Scan</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(2)">Step 2: Metadata Auto</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(3)">Step 3: Metadata Review</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(4)">Step 4: OCR/Parser</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(5)">Step 5: Chunk Build</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(6)">Step 6: Embedding Build</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(7)">Step 7: FAISS Build</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(8)">Step 8: Graph Build</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(9)">Step 9: Wiki Build</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(10)">Step 10: Search Quality</button>
         </div>
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">FAISS INDEX</h2>
@@ -1134,6 +1173,7 @@
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">GRAPH / ONTOLOGY</h2>
           <button class="wr-nav-link" type="button" data-wr-page="graph-overview">Graph Overview</button>
+          <button class="wr-nav-link" type="button" data-wr-page="lpg-ontology">LPG Ontology</button>
           <button class="wr-nav-link" type="button" data-wr-page="schema-viewer">Schema Viewer</button>
           <button class="wr-nav-link" type="button" data-wr-page="text2cypher-test">Text2Cypher Test</button>
           <button class="wr-nav-link" type="button" data-wr-page="agent-logs">Agent Retry Logs</button>
@@ -1313,113 +1353,924 @@
       <section class="wr-page" data-wr-page-panel="rag-build-wizard">
         <div class="wr-eyebrow">Data Build</div>
         <h1 class="wr-page-title" id="wr-wizard-title" data-wr-anchor>Dataset Builder</h1>
-        <p class="wr-page-lead">Figma 와이어프레임 기준 10단계 흐름으로 RAG 데이터셋을 구축합니다. 각 단계는 현재 운영 중인 Legacy Wizard 실행 흐름에 연결됩니다.</p>
-        <div class="wr-callout wr-callout-info">표시 단계는 Figma 기준입니다. 실행 버튼은 기존 안정화된 API 단계로 연결되며, 상세 로그는 Legacy Wizard에서 계속 확인합니다.</div>
-        <div class="wr-inline-actions">
+        <p class="wr-page-lead">각 단계는 독립적으로 재실행할 수 있지만, 최초 데이터셋 구축은 반드시 Source Scan → Metadata → OCR/Parser → Chunk → Embedding/FAISS → Graph → Wiki → Search Quality → Activate 순서로 진행하는 것을 권장합니다.</p>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">운영 반영은 Search Quality 검증이 완료된 Snapshot만 Activate해야 하며, 문제 발생 시 이전 Snapshot으로 Rollback할 수 있어야 합니다.</div>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn wr-btn-primary" type="button" onclick="wrWizardRunAll()">▶ 전체 순차 실행</button>
-          <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">Legacy Wizard 열기</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">실행 로그</button>
           <button class="wr-btn" type="button" data-wr-legacy-tab="faiss">FAISS 관리</button>
-          <button class="wr-btn" type="button" data-wr-legacy-tab="benchmark">검색 품질 확인</button>
+          <button class="wr-btn" type="button" onclick="loadDatasetStatusSummary()">🔄 상태 새로고침</button>
         </div>
-        <h2 class="wr-section-title" id="wr-wizard-summary-title" data-wr-anchor>Latest Run Summary</h2>
-        <div class="wr-summary-grid">
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">Current Summary</div>
-            <div class="wr-summary-value" id="wrWizardSummary">아직 실행 요약을 읽지 못했습니다.</div>
-          </div>
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">Execution Model</div>
-            <div class="wr-summary-value">Legacy wizard driven</div>
+
+        <!-- 데이터셋 상태 요약 -->
+        <div class="wr-card" id="datasetStatusSummary" style="margin-bottom:20px">
+          <h3 class="wr-card-title">데이터셋 상태 요약</h3>
+          <div id="datasetStatusContent">
+            <div style="text-align:center;padding:20px;color:#718096">
+              상태를 불러오는 중...
+            </div>
           </div>
         </div>
-        <h2 class="wr-section-title" id="wr-wizard-step1-title" data-wr-anchor>Step 1 OCR/파싱</h2>
+
+        <!-- 파이프라인 개요 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">파이프라인 개요</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(1)">
+              <div class="wr-summary-label">Step 1</div>
+              <div class="wr-summary-value">Source Scan</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(2)">
+              <div class="wr-summary-label">Step 2</div>
+              <div class="wr-summary-value">Metadata Auto</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(3)">
+              <div class="wr-summary-label">Step 3</div>
+              <div class="wr-summary-value">Metadata Review</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(4)">
+              <div class="wr-summary-label">Step 4</div>
+              <div class="wr-summary-value">OCR/Parser</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(5)">
+              <div class="wr-summary-label">Step 5</div>
+              <div class="wr-summary-value">Chunk Build</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(6)">
+              <div class="wr-summary-label">Step 6</div>
+              <div class="wr-summary-value">Embedding Build</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(7)">
+              <div class="wr-summary-label">Step 7</div>
+              <div class="wr-summary-value">FAISS Build</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(8)">
+              <div class="wr-summary-label">Step 8</div>
+              <div class="wr-summary-value">Graph Build</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(9)">
+              <div class="wr-summary-label">Step 9</div>
+              <div class="wr-summary-value">Wiki Build</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(10)">
+              <div class="wr-summary-label">Step 10</div>
+              <div class="wr-summary-value">Search Quality</div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title">Execution APIs</h2>
+        <code class="wr-code-block">POST /api/admin/rag-source/scan
+POST /api/admin/rag-source/collections/bootstrap
+POST /api/admin/rag-source/metadata/build
+POST /api/admin/rag-source/tags/bootstrap
+POST /api/admin/rag-source/keywords/extract
+POST /api/admin/faiss/jobs
+POST /api/graph/build?source_id={source_id}
+POST /api/wiki/build
+POST /api/admin/faiss/activate</code>
+      </section>
+
+      <!-- Step 1: Source Scan -->
+      <section class="wr-page" data-wr-page-panel="db-step-1">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 1: Source Scan</h1>
+        <p class="wr-page-lead">원본 폴더를 스캔하여 전체 데이터셋의 기준 구조를 만듭니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(1)">Step 1 실행</button>
+        </div>
         <div class="wr-card">
-          <h2 class="wr-card-title">텍스트 추출 설정</h2>
-          <div class="wr-form-grid">
-            <div class="wr-field">
-              <label>OCR 활성화</label>
-              <select id="wrStep1OcrEnabled">
-                <option value="enabled">활성화</option>
-                <option value="disabled">비활성화</option>
-              </select>
-            </div>
-            <div class="wr-field">
-              <label>OCR 언어</label>
-              <select id="wrStep1OcrLanguage">
-                <option>한국어+영어</option>
-                <option>한국어</option>
-                <option>영어</option>
-              </select>
-            </div>
-            <div class="wr-field">
-              <label>OCR DPI</label>
-              <input id="wrStep1OcrDpi" value="300" inputmode="numeric">
-            </div>
-            <div class="wr-field">
-              <label>최소 텍스트 길이</label>
-              <input id="wrStep1MinTextLength" value="100" inputmode="numeric">
-            </div>
-            <div class="wr-field">
-              <label>최대 파일 크기</label>
-              <input id="wrStep1MaxFileSize" value="100 MB">
-            </div>
-            <div class="wr-field">
-              <label>지원 확장자</label>
-              <input id="wrStep1Extensions" value=".pdf, .docx, .hwp, .hwpx, .pptx, .xlsx">
-            </div>
+          <h3 class="wr-card-title">나무 구조 기준</h3>
+          <div class="wr-callout wr-callout-info">
+            <ul style="margin:0;padding-left:20px">
+              <li>뿌리: snapshot_id</li>
+              <li>큰 줄기: source_id (01. RFP, 02. 제안서, 03. 산출물)</li>
+              <li>작은 줄기: category_id (하위 폴더)</li>
+              <li>잎: document_id (파일별 고유 ID)</li>
+            </ul>
           </div>
-          <div class="wr-status-list" style="margin-top:12px">
-            <label class="wr-status-row"><span>처리 대상: 전체 문서</span><input type="radio" name="wrStep1Target" checked></label>
-            <label class="wr-status-row"><span>처리 대상: 미처리 문서</span><input type="radio" name="wrStep1Target"></label>
-            <label class="wr-status-row"><span>출력 형식: HTML</span><input type="checkbox" checked></label>
-            <label class="wr-status-row"><span>출력 형식: Markdown</span><input type="checkbox" checked></label>
-            <label class="wr-status-row"><span>출력 형식: Plain Text</span><input type="checkbox" checked></label>
-          </div>
-          <div class="wr-inline-actions">
-            <button class="wr-btn" type="button" onclick="saveStep1ParsingSettings()">설정 저장</button>
-            <button class="wr-btn wr-btn-primary" type="button" onclick="runStep1Parsing()">Step 1 실행</button>
-          </div>
+          <h3 class="wr-card-title" style="margin-top:20px">처리 내용</h3>
+          <ul style="margin:0;padding-left:20px;color:var(--wr-muted)">
+            <li>00. RAG 소스 폴더 스캔</li>
+            <li>source_id, category_id, document_id 생성</li>
+            <li>documents.jsonl 생성</li>
+            <li>snapshot 정보 기록</li>
+          </ul>
         </div>
-        <div class="wr-card" style="margin-top:16px">
-          <h2 class="wr-card-title">Step 1 실행 결과</h2>
+        <div class="wr-card" style="margin-top:20px">
+          <h3 class="wr-card-title">출력 결과</h3>
           <div class="wr-summary-grid">
             <div class="wr-summary-card">
-              <div class="wr-summary-label">처리 문서</div>
-              <div class="wr-summary-value" id="wrStep1ProcessedDocs">-</div>
+              <div class="wr-summary-label">전체 파일 수</div>
+              <div class="wr-summary-value" id="sourceScanTotalFiles">-</div>
             </div>
             <div class="wr-summary-card">
-              <div class="wr-summary-label">추출 성공</div>
-              <div class="wr-summary-value" id="wrStep1SuccessDocs">-</div>
+              <div class="wr-summary-label">source별 파일 수</div>
+              <div class="wr-summary-value" id="sourceScanBySource">-</div>
             </div>
             <div class="wr-summary-card">
-              <div class="wr-summary-label">OCR 사용</div>
-              <div class="wr-summary-value" id="wrStep1OcrDocs">-</div>
+              <div class="wr-summary-label">document_id 생성 수</div>
+              <div class="wr-summary-value" id="sourceScanDocIds">-</div>
             </div>
             <div class="wr-summary-card">
-              <div class="wr-summary-label">추출 실패</div>
-              <div class="wr-summary-value" id="wrStep1FailedDocs">-</div>
+              <div class="wr-summary-label">제외 파일 수</div>
+              <div class="wr-summary-value" id="sourceScanExcluded">-</div>
             </div>
-          </div>
-          <div class="wr-status-list" id="wrStep1FailedList" style="margin-top:12px">
-            <div class="wr-status-row"><span>실패 문서가 아직 없습니다.</span></div>
-          </div>
-          <div class="wr-inline-actions">
-            <button class="wr-btn" type="button" onclick="runStep1Parsing()">실패 문서 재처리</button>
-            <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">로그 보기</button>
           </div>
         </div>
-        <h2 class="wr-section-title" id="wr-wizard-steps-title" data-wr-anchor>파이프라인 단계</h2>
-        <div class="wr-stepper" id="wrWizardStepper">
-          <div class="wr-step" data-wr-step="1"><div class="wr-step-index">1</div><div class="wr-step-body"><div class="wr-step-title">OCR/파싱</div><div class="wr-step-meta">문서에서 텍스트를 추출하고 OCR fallback을 적용합니다.</div></div><span class="wr-step-status" data-wr-step-status="1">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(1)">설정</button></div>
-          <div class="wr-step" data-wr-step="2"><div class="wr-step-index">2</div><div class="wr-step-body"><div class="wr-step-title">청킹/임베딩</div><div class="wr-step-meta">추출 텍스트를 검색 chunk로 나누고 벡터 인덱스를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="2">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(2)">설정</button></div>
-          <div class="wr-step" data-wr-step="3"><div class="wr-step-index">3</div><div class="wr-step-body"><div class="wr-step-title">메타데이터</div><div class="wr-step-meta">파일명과 경로에서 프로젝트명, 기관명, 문서 유형, 연도 등을 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="3">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(3)">설정</button></div>
-          <div class="wr-step" data-wr-step="4"><div class="wr-step-index">4</div><div class="wr-step-body"><div class="wr-step-title">키워드 추출</div><div class="wr-step-meta">문서에서 핵심 키워드와 기술 용어를 추출합니다.</div></div><span class="wr-step-status" data-wr-step-status="4">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(4)">설정</button></div>
-          <div class="wr-step" data-wr-step="5"><div class="wr-step-index">5</div><div class="wr-step-body"><div class="wr-step-title">FAISS 인덱스</div><div class="wr-step-meta">벡터 인덱스를 생성하고 활성화합니다.</div></div><span class="wr-step-status" data-wr-step-status="5">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(5)">설정</button></div>
-          <div class="wr-step" data-wr-step="6"><div class="wr-step-index">6</div><div class="wr-step-body"><div class="wr-step-title">Graph Schema</div><div class="wr-step-meta">Graph DB 노드/관계 스키마를 정의하고 Text2Cypher용 schema text를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="6">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(6)">설정</button></div>
-          <div class="wr-step" data-wr-step="7"><div class="wr-step-index">7</div><div class="wr-step-body"><div class="wr-step-title">Graph Build</div><div class="wr-step-meta">문서 메타데이터에서 노드와 관계를 추출하여 Graph를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="7">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(7)">설정</button></div>
-          <div class="wr-step" data-wr-step="8"><div class="wr-step-index">8</div><div class="wr-step-body"><div class="wr-step-title">LLM-Wiki</div><div class="wr-step-meta">프로젝트별 자동 지식 문서(Wiki)를 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="8">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(8)">설정</button></div>
-          <div class="wr-step" data-wr-step="9"><div class="wr-step-index">9</div><div class="wr-step-body"><div class="wr-step-title">Text2Cypher Test</div><div class="wr-step-meta">자연어 질문을 Cypher 쿼리로 변환하고 실행 테스트합니다.</div></div><span class="wr-step-status" data-wr-step-status="9">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(9)">설정</button></div>
-          <div class="wr-step" data-wr-step="10"><div class="wr-step-index">10</div><div class="wr-step-body"><div class="wr-step-title">Hybrid RAG</div><div class="wr-step-meta">FAISS + Graph + Wiki 결과를 병합하여 최종 답변을 생성합니다.</div></div><span class="wr-step-status" data-wr-step-status="10">대기</span><button class="wr-btn wr-btn-sm" onclick="toggleStepDetail(10)">설정</button></div>
+      </section>
+
+      <!-- Step 2: Metadata Auto -->
+      <section class="wr-page" data-wr-page-panel="db-step-2">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 2: Metadata Auto</h1>
+        <p class="wr-page-lead">파일명, 폴더명, 접두사를 기준으로 1차 메타데이터를 자동 생성합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(2)">Step 2 실행</button>
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">처리 내용</h3>
+          <ul style="margin:0;padding-left:20px;color:var(--wr-muted)">
+            <li>RFP_ 접두사 분석</li>
+            <li>전략및방법론_, 기술및기능_ 접두사 분석</li>
+            <li>프로젝트명 후보 추출</li>
+            <li>document_type 자동 추정</li>
+            <li>source_id / category_id 자동 매핑</li>
+            <li>collection_id 후보 추천</li>
+          </ul>
+        </div>
+        <div class="wr-card" style="margin-top:20px">
+          <h3 class="wr-card-title">출력 결과</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">자동 추출 프로젝트명</div>
+              <div class="wr-summary-value" id="metaAutoProjects">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">문서유형 추정</div>
+              <div class="wr-summary-value" id="metaAutoDocTypes">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Collection 후보</div>
+              <div class="wr-summary-value" id="metaAutoCollections">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">평균 confidence</div>
+              <div class="wr-summary-value" id="metaAutoConfidence">-</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 3: Metadata Review -->
+      <section class="wr-page" data-wr-page-panel="db-step-3">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 3: Metadata Review</h1>
+        <p class="wr-page-lead">관리자가 자동 생성된 메타데이터를 검수하고 확정합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(3)">Step 3 실행</button>
+        </div>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          `metadata_reviewed` 또는 `ready_for_processing` 상태가 아닌 문서는 운영 FAISS에 바로 반영하지 않습니다.
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">처리 내용</h3>
+          <ul style="margin:0;padding-left:20px;color:var(--wr-muted)">
+            <li>프로젝트명 수정</li>
+            <li>기관명 입력/수정</li>
+            <li>문서유형 수정</li>
+            <li>Collection 확정</li>
+            <li>Tag 추가</li>
+            <li>Keyword 확인</li>
+            <li>RAG/Graph/Wiki 포함 여부 설정</li>
+          </ul>
+        </div>
+        <div class="wr-card" style="margin-top:20px">
+          <h3 class="wr-card-title">상태값</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">registered</div>
+              <div class="wr-summary-value" id="metaReviewRegistered">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">metadata_suggested</div>
+              <div class="wr-summary-value" id="metaReviewSuggested">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">review_required</div>
+              <div class="wr-summary-value" id="metaReviewRequired">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">metadata_reviewed</div>
+              <div class="wr-summary-value" id="metaReviewReviewed">-</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4: OCR/Parser -->
+      <section class="wr-page" data-wr-page-panel="db-step-4">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 4: OCR/Parser</h1>
+        <p class="wr-page-lead">PDF, HWP, HWPX, DOCX, PPTX, XLSX 파일에서 텍스트를 추출합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(4)">Step 4 실행</button>
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">OCR/파싱 설정</h3>
+              <div class="wr-callout wr-callout-info">PDF, HWP, HWPX, DOCX, PPTX, XLSX 파일에서 텍스트를 추출합니다. 이미지 기반 PDF는 OCR을 사용합니다.</div>
+              <div class="wr-form-grid">
+                <div class="wr-field">
+                  <label>OCR 활성화 <span class="wr-required">*</span></label>
+                  <select id="dbStep1OcrEnable">
+                    <option value="auto">자동 (텍스트 없을 때만)</option>
+                    <option value="always">항상 사용</option>
+                    <option value="never">사용 안함</option>
+                  </select>
+                  <small class="wr-field-hint">이미지 PDF 또는 스캔 문서에 OCR 적용</small>
+                </div>
+                <div class="wr-field">
+                  <label>OCR 언어</label>
+                  <select id="dbStep1OcrLang">
+                    <option value="kor+eng">한국어+영어</option>
+                    <option value="kor">한국어</option>
+                    <option value="eng">영어</option>
+                    <option value="jpn+eng">일본어+영어</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>OCR DPI</label>
+                  <input id="dbStep1OcrDpi" type="number" value="300" min="150" max="600">
+                  <small class="wr-field-hint">높을수록 정확하지만 처리 시간 증가</small>
+                </div>
+                <div class="wr-field">
+                  <label>OCR 엔진</label>
+                  <select id="dbStep1OcrEngine">
+                    <option value="tesseract">Tesseract (로컬)</option>
+                    <option value="easyocr">EasyOCR (로컬)</option>
+                    <option value="olmocr">olmOCR (CUDA/GPU)</option>
+                    <option value="naver_clova">Naver CLOVA OCR (API)</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>최소 텍스트 길이</label>
+                  <input id="dbStep1MinTextLen" type="number" value="50" min="0" max="500">
+                  <small class="wr-field-hint">추출 텍스트가 이보다 짧으면 OCR fallback</small>
+                </div>
+                <div class="wr-field">
+                  <label>이미지 전처리</label>
+                  <select id="dbStep1ImagePreprocess">
+                    <option value="none">없음</option>
+                    <option value="grayscale">그레이스케일</option>
+                    <option value="binarize">이진화</option>
+                    <option value="denoise">노이즈 제거</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>HWP 추출기</label>
+                  <select id="dbStep1HwpExtractor">
+                    <option value="pyhwp">pyhwp (기본)</option>
+                    <option value="hwp5">hwp5 (대체)</option>
+                    <option value="olefile">olefile (fallback)</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>테이블 추출</label>
+                  <select id="dbStep1TableExtract">
+                    <option value="enabled">활성화</option>
+                    <option value="disabled">비활성화</option>
+                  </select>
+                  <small class="wr-field-hint">표를 마크다운 형식으로 변환</small>
+                </div>
+                <div class="wr-field">
+                  <label>지원 확장자</label>
+                  <input id="dbStep1Extensions" value=".pdf, .docx, .hwp, .hwpx, .pptx, .xlsx" readonly>
+                </div>
+                <div class="wr-field">
+                  <label>최대 파일 크기</label>
+                  <input id="dbStep1MaxFileSize" value="100 MB">
+                </div>
+              </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(1)">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(1)">Step 1 실행</button>
+          </div>
+        </div>
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/faiss/jobs (stages 1-3)</code>
+
+        <!-- OCR 결과 조회 섹션 -->
+        <div class="wr-card" style="margin-top:24px">
+          <h3 class="wr-card-title">OCR/파싱 결과 조회</h3>
+          <div class="wr-inline-actions" style="margin-bottom:16px">
+            <button class="wr-btn" type="button" onclick="loadOcrResults()">결과 목록 조회</button>
+            <button class="wr-btn" type="button" onclick="loadOcrStatistics()">통계 조회</button>
+            <select id="ocrResultMethodFilter" style="margin-left:12px">
+              <option value="">모든 방법</option>
+              <option value="pdfplumber">PDF 직접 추출</option>
+              <option value="olmocr">olmOCR</option>
+              <option value="tesseract">Tesseract</option>
+              <option value="hwp5txt">HWP 직접</option>
+              <option value="hwp_pdf_conversion">HWP PDF 변환</option>
+              <option value="python-pptx">PPTX 직접</option>
+              <option value="pptx_merged">PPTX 병합</option>
+            </select>
+            <input type="number" id="ocrResultMinQuality" placeholder="최소 품질 (0~1)" min="0" max="1" step="0.1" style="width:120px;margin-left:8px">
+          </div>
+
+          <!-- 통계 표시 영역 -->
+          <div id="ocrStatsPanel" style="display:none;margin-bottom:16px">
+            <div class="ql-summary-grid" style="grid-template-columns:repeat(4,1fr)">
+              <div class="ql-stat">
+                <div class="ql-stat-val" id="ocrStatTotal">0</div>
+                <div class="ql-stat-lbl">총 문서 수</div>
+              </div>
+              <div class="ql-stat">
+                <div class="ql-stat-val" id="ocrStatSize">0 KB</div>
+                <div class="ql-stat-lbl">총 용량</div>
+              </div>
+              <div class="ql-stat">
+                <div class="ql-stat-val" id="ocrStatHighQuality">0</div>
+                <div class="ql-stat-lbl">품질 양호 (≥0.6)</div>
+              </div>
+              <div class="ql-stat">
+                <div class="ql-stat-val" id="ocrStatOcrRequired">0</div>
+                <div class="ql-stat-lbl">OCR 필요</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 결과 목록 테이블 -->
+          <div id="ocrResultsTable" style="display:none">
+            <table class="ql-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>문서 ID</th>
+                  <th>파일명</th>
+                  <th>추출 방법</th>
+                  <th>품질 점수</th>
+                  <th>텍스트 길이</th>
+                  <th>페이지 수</th>
+                  <th>OCR</th>
+                  <th>처리일시</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody id="ocrResultsBody">
+                <tr><td colspan="9" class="empty">결과 목록을 조회하세요.</td></tr>
+              </tbody>
+            </table>
+            <div id="ocrResultsPagination" style="margin-top:12px;text-align:center"></div>
+          </div>
+        </div>
+
+        <!-- OCR 결과 상세 모달 -->
+        <div id="ocrDetailModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;overflow:auto">
+          <div style="background:var(--surface);max-width:900px;margin:40px auto;border-radius:10px;padding:24px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <h3 id="ocrDetailTitle" style="font-size:16px;font-weight:700">문서 상세</h3>
+              <button class="wr-btn" onclick="closeOcrDetailModal()">닫기</button>
+            </div>
+            <div id="ocrDetailContent">로딩 중...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 5: Chunk Build -->
+      <section class="wr-page" data-wr-page-panel="db-step-5">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 5: Chunk Build</h1>
+        <p class="wr-page-lead">문서를 검색 가능한 의미 단위로 분할합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(5)">Step 5 실행</button>
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">Chunk Build 설정</h3>
+              <div class="wr-callout wr-callout-info">제목 단위, 목차 단위, 슬라이드 단위, 표 단위, 의미 문단 단위로 청킹합니다.</div>
+              <div class="wr-form-grid">
+                <div class="wr-field">
+                  <label>Chunk 크기 <span class="wr-required">*</span></label>
+                  <input id="dbStep5ChunkSize" type="number" value="1000" min="200" max="4000">
+                  <small class="wr-field-hint">권장: 500~2000 토큰</small>
+                </div>
+                <div class="wr-field">
+                  <label>Chunk 오버랩 <span class="wr-required">*</span></label>
+                  <input id="dbStep5ChunkOverlap" type="number" value="200" min="0" max="500">
+                  <small class="wr-field-hint">권장: chunk 크기의 10~20%</small>
+                </div>
+                <div class="wr-field">
+                  <label>청킹 방식</label>
+                  <select id="dbStep5ChunkMethod">
+                    <option value="recursive">Recursive (기본)</option>
+                    <option value="sentence">문장 단위</option>
+                    <option value="semantic">Semantic</option>
+                    <option value="heading">제목 단위</option>
+                    <option value="slide">슬라이드 단위</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>Chunk 타입</label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="chunkTypeText" checked> Text</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="chunkTypeTable" checked> Table</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="chunkTypeSlide" checked> Slide</label>
+                  </div>
+                </div>
+              </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(5)">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(5)">Step 5 실행</button>
+          </div>
+        </div>
+        <div class="wr-card" style="margin-top:20px">
+          <h3 class="wr-card-title">주의사항</h3>
+          <div class="wr-callout wr-callout-warning">
+            Graph에는 Chunk 노드를 만들지 않습니다. 하지만 FAISS 검색을 위해 chunk_id는 반드시 유지합니다.
+          </div>
+        </div>
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/dataset/chunk-build</code>
+      </section>
+
+      <!-- Step 6: Embedding Build -->
+      <section class="wr-page" data-wr-page-panel="db-step-6">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 6: Embedding Build</h1>
+        <p class="wr-page-lead">Chunk 텍스트를 embedding vector로 변환합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(6)">Step 6 실행</button>
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">Embedding Build 설정</h3>
+          <div class="wr-callout wr-callout-info">chunk별 embedding 생성, metadata 저장, 실패 chunk 기록</div>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>임베딩 모델 <span class="wr-required">*</span></label>
+              <select id="dbStep6EmbedModel">
+                <option value="nomic-embed-text">nomic-embed-text (Ollama)</option>
+                <option value="bge-m3">bge-m3 (Ollama)</option>
+                <option value="text-embedding-3-small">text-embedding-3-small (OpenAI)</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>임베딩 차원</label>
+              <input id="dbStep6EmbedDim" type="number" value="768" readonly>
+            </div>
+            <div class="wr-field">
+              <label>배치 크기</label>
+              <input id="dbStep6BatchSize" type="number" value="32" min="1" max="128">
+              <small class="wr-field-hint">한 번에 임베딩할 chunk 수</small>
+            </div>
+            <div class="wr-field">
+              <label>재시도 횟수</label>
+              <input id="dbStep6RetryCount" type="number" value="3" min="0" max="10">
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(6)">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(6)">Step 6 실행</button>
+          </div>
+        </div>
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/dataset/embedding-build</code>
+
+        <!-- 서버 실제 설정 표시 (읽기 전용) -->
+        <div class="wr-card" style="margin-top:24px">
+          <h3 class="wr-card-title">서버 운영 설정 (읽기 전용)</h3>
+          <div class="wr-callout wr-callout-warning">아래 값은 서버 .env 파일에서 로드된 실제 운영 설정입니다. 변경하려면 서버 설정 파일을 수정하세요.</div>
+          <div class="wr-inline-actions" style="margin-bottom:12px">
+            <button class="wr-btn" type="button" onclick="loadServerConfig()">서버 설정 새로고침</button>
+          </div>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>임베딩 Provider</label>
+              <input id="serverEmbedProvider" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+            </div>
+            <div class="wr-field">
+              <label>임베딩 모델</label>
+              <input id="serverEmbedModel" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+            </div>
+            <div class="wr-field">
+              <label>임베딩 차원</label>
+              <input id="serverEmbedDim" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+            </div>
+            <div class="wr-field">
+              <label>최대 임베딩 문자</label>
+              <input id="serverMaxEmbedChars" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+            </div>
+            <div class="wr-field">
+              <label>Ollama Host</label>
+              <input id="serverOllamaHost" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 기존 Step 3: 메타데이터 (삭제 예정 - Step 2, 3으로 이미 분리) -->
+      <section class="wr-page" data-wr-page-panel="db-step-3">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 3: 메타데이터</h1>
+        <p class="wr-page-lead">파일명과 경로에서 프로젝트명, 기관명, 문서 유형, 연도 등을 자동 추출합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(3)">Step 3 실행</button>
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">메타데이터 추출 설정</h3>
+              <div class="wr-callout wr-callout-info">파일명과 경로에서 프로젝트명, 기관명, 문서 유형, 연도 등을 자동 추출합니다.</div>
+              <div class="wr-form-grid">
+                <div class="wr-field">
+                  <label>프로젝트명 추출 패턴</label>
+                  <input id="dbStep3ProjectPattern" placeholder="예: [사업명 패턴]">
+                </div>
+                <div class="wr-field">
+                  <label>기관명 추출 패턴</label>
+                  <input id="dbStep3OrgPattern" placeholder="예: [기관명 패턴]">
+                </div>
+                <div class="wr-field">
+                  <label>연도 추출 <span class="wr-required">*</span></label>
+                  <select id="dbStep3YearExtract">
+                    <option value="auto">자동 추출</option>
+                    <option value="path">경로에서 추출</option>
+                    <option value="filename">파일명에서 추출</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>카테고리 매핑</label>
+                  <select id="dbStep3CategoryMap">
+                    <option value="auto">자동 분류</option>
+                    <option value="path">경로 기준</option>
+                    <option value="manual">수동 지정</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>문서 유형 추출</label>
+                  <select id="dbStep3DocTypeExtract">
+                    <option value="auto">자동</option>
+                    <option value="filename">파일명 기반</option>
+                    <option value="content">내용 분석</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>키워드 추출</label>
+                  <select id="dbStep3KeywordExtract">
+                    <option value="tfidf">TF-IDF</option>
+                    <option value="llm">LLM 분석</option>
+                    <option value="both">TF-IDF + LLM</option>
+                  </select>
+                </div>
+              </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(3)">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(3)">Step 3 실행</button>
+          </div>
+        </div>
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/rag-source/metadata/build
+POST /api/admin/rag-source/tags/bootstrap</code>
+      </section>
+
+      <!-- Step 7: FAISS Build (임시 placeholder) -->
+      <section class="wr-page" data-wr-page-panel="db-step-7">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 7: FAISS Build</h1>
+        <p class="wr-page-lead">Embedding vector를 FAISS Index로 구성합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(7)">Step 7 실행</button>
+        </div>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          collection_id 기준 FAISS Index 생성: index.faiss, index_meta.jsonl, snapshot 생성
+        </div>
+        <h2 class="wr-section-title">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/dataset/faiss-build</code>
+      </section>
+
+      <!-- Step 8: Graph Build (Ontology / JSON Graph) -->
+      <section class="wr-page" data-wr-page-panel="db-step-8">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 8: Graph Build (Ontology / JSON Graph)</h1>
+        <p class="wr-page-lead">문서, 프로젝트, 기관, 기술, 키워드 간 관계를 생성합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(8)">Step 8 실행</button>
+        </div>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          <strong>중요 수정 사항:</strong> Neo4j를 기본값으로 표시하지 않습니다. 1차 기본 방식은 <strong>JSON Graph</strong>이고, Neo4j는 선택 옵션 또는 향후 확장 기능입니다.
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">Graph Build 설정</h3>
+              <div class="wr-form-grid">
+                <div class="wr-field" style="grid-column: span 2">
+                  <label>Graph 저장 방식 <span class="wr-required">*</span></label>
+                  <div style="display:flex;gap:12px;margin-top:6px">
+                    <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="graphStorage" value="json" checked> JSON Graph (기본)</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="graphStorage" value="neo4j"> Neo4j (선택)</label>
+                  </div>
+                  <small class="wr-field-hint">JSON Graph: graph_nodes.jsonl, graph_edges.jsonl 파일로 저장</small>
+                </div>
+                <div class="wr-field" style="grid-column: span 2">
+                  <label>노드 유형 선택</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeProject" checked> Project</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeOrg" checked> Organization</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeDoc" checked> Document</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeSource" checked> Source</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeCategory" checked> Category</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeKeyword" checked> Keyword</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeTech"> Technology</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeDomain"> BusinessDomain</label>
+                  </div>
+                </div>
+                <div class="wr-field" style="grid-column: span 2">
+                  <label>관계 유형 선택</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelHasDoc" checked> HAS_DOCUMENT</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelBelongsTo" checked> BELONGS_TO</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelSimilar" checked> SIMILAR_TO</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelRelated" checked> RELATED_TO</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelHasKeyword" checked> HAS_KEYWORD</label>
+                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelUsesTech"> USES_TECH</label>
+                  </div>
+                </div>
+                <div class="wr-field">
+                  <label>유사도 임계값</label>
+                  <input id="dbStep8SimilarityThreshold" type="number" value="0.7" min="0" max="1" step="0.1">
+                  <small class="wr-field-hint">SIMILAR_TO 관계 생성 기준</small>
+                </div>
+                <div class="wr-field">
+                  <label>Chunk 노드 생성</label>
+                  <select id="dbStep8ChunkNode">
+                    <option value="false" selected>생성 안 함 (B안 권장)</option>
+                    <option value="true">생성 (deprecated)</option>
+                  </select>
+                  <small class="wr-field-hint">B안: Document 노드에 chunk_count만 저장</small>
+                </div>
+              </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(8)">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(8)">Step 8 실행</button>
+          </div>
+        </div>
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/dataset/graph-build</code>
+      </section>
+
+      <!-- Step 9: Wiki Build -->
+      <section class="wr-page" data-wr-page-panel="db-step-9">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 9: LLM Wiki Build</h1>
+        <p class="wr-page-lead">프로젝트, 기관, 분야, 기술 기준의 지식 문서를 생성합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(9)">Step 9 실행</button>
+        </div>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          Wiki는 원문 근거를 대체하지 않습니다. Wiki는 검색과 답변 생성을 보조하는 지식 계층입니다.
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">LLM Wiki Build 설정</h3>
+              <div class="wr-form-grid">
+                <div class="wr-field">
+                  <label>Wiki 생성 모델</label>
+                  <select id="dbStep9WikiModel">
+                    <option value="gemma3:12b">gemma3:12b (Ollama 권장)</option>
+                    <option value="qwen3:8b">qwen3:8b (Ollama)</option>
+                    <option value="llama3.1:8b">llama3.1:8b (Ollama)</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>Wiki 그룹핑 기준</label>
+                  <select id="dbStep9WikiGroupBy">
+                    <option value="project">프로젝트별</option>
+                    <option value="organization">기관별</option>
+                    <option value="domain">사업분야별</option>
+                    <option value="technology">기술별</option>
+                    <option value="doc_type">문서유형별</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>근거 문서 포함</label>
+                  <select id="dbStep9IncludeEvidence">
+                    <option value="true" selected>포함</option>
+                    <option value="false">제외</option>
+                  </select>
+                </div>
+                <div class="wr-field">
+                  <label>Wiki 템플릿</label>
+                  <select id="dbStep9Template">
+                    <option value="default">기본 템플릿</option>
+                    <option value="detailed">상세 템플릿</option>
+                    <option value="summary">요약 템플릿</option>
+                  </select>
+                </div>
+              </div>
+              <div class="wr-inline-actions" style="margin-top:16px">
+                <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(9)">설정 저장</button>
+                <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(9)">Step 9 실행</button>
+              </div>
+        </div>
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block" style="display:block;padding:12px;background:var(--surface1);border-radius:6px;font-size:13px;white-space:pre-wrap">POST /api/admin/wiki/build
+Content-Type: application/json
+
+{
+  "model": "qwen3:8b",
+  "unit": "project",
+  "summary_length": "medium"
+}</code>
+      </section>
+
+      <!-- Step 10: Search Quality / Activate -->
+      <section class="wr-page" data-wr-page-panel="db-step-10">
+        <div class="wr-eyebrow">Dataset Builder</div>
+        <h1 class="wr-page-title">Step 10: Search Quality / Activate</h1>
+        <p class="wr-page-lead">운영 반영 전에 검색 품질을 검증하고, 검증 완료된 Snapshot만 활성화합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn" type="button" onclick="runSearchQuality()">Search Quality 실행</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(10)">Activate</button>
+        </div>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          <strong>주의사항:</strong> Search Quality 검증 없이 Activate하지 않습니다. 기존 운영 Index를 직접 덮어쓰지 말고 Snapshot pointer 방식으로 활성화합니다.
+        </div>
+
+        <!-- Search Quality 검증 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Search Quality 검증</h3>
+          <div class="wr-callout wr-callout-info">테스트 질문별 Top-K 검색 결과, source_id/category_id 필터 동작, RFP→제안서 유사 검색, GraphRAG 관계 검색, Wiki 검색 품질 검사</div>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>테스트 질문 셋</label>
+              <select id="dbStep10TestQueries">
+                <option value="default">기본 테스트 질문 (10개)</option>
+                <option value="comprehensive">종합 테스트 질문 (30개)</option>
+                <option value="custom">사용자 정의</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>Top-K</label>
+              <input id="dbStep10TopK" type="number" value="5" min="1" max="20">
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runSearchQuality()">검증 실행</button>
+            <button class="wr-btn" type="button" onclick="viewSearchQualityReport()">이전 리포트 보기</button>
+          </div>
+        </div>
+
+        <!-- Activate 설정 -->
+        <div class="wr-card">
+          <h3 class="wr-card-title">Activate 설정</h3>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>활성 Snapshot</label>
+              <select id="dbStep10SnapshotSelect">
+                <option value="">선택하세요...</option>
+              </select>
+              <small class="wr-field-hint">Search Quality 검증 완료된 Snapshot만 선택 가능</small>
+            </div>
+            <div class="wr-field">
+              <label>활성 Collection</label>
+              <select id="dbStep10CollectionSelect" multiple size="5">
+                <option value="col_all">전체</option>
+                <option value="col_rfp">RFP</option>
+                <option value="col_proposal">제안서 전체</option>
+                <option value="col_deliverable">산출물 전체</option>
+              </select>
+            </div>
+            <div class="wr-field" style="grid-column: span 2">
+              <label>Rollback 대비</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="dbStep10SaveRollback" checked>
+                <span>이전 Snapshot 정보 저장 (rollback 가능)</span>
+              </div>
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(10)">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="activateSnapshot()">Snapshot 활성화</button>
+            <button class="wr-btn wr-btn-secondary" type="button" onclick="rollbackSnapshot()">Rollback</button>
+          </div>
+        </div>
+        <h2 class="wr-section-title" style="margin-top:24px">Execution APIs</h2>
+        <code class="wr-code-block">POST /api/admin/search-quality/run
+POST /api/admin/dataset/activate
+POST /api/admin/dataset/rollback</code>
+      </section>
+
+        <!-- Hidden: Legacy UI 호환용 (기존 상태 표시 요소) -->
+        <div style="display:none">
+          <div id="wrWizardSummary"></div>
+          <span data-wr-step-status="1"></span>
+          <span data-wr-step-status="2"></span>
+          <span data-wr-step-status="3"></span>
+          <span data-wr-step-status="4"></span>
+          <span data-wr-step-status="5"></span>
+          <span data-wr-step-status="6"></span>
+        </div>
+
+        <!-- Legacy Step Detail 섹션들 (새 탭 UI로 대체됨, hidden 유지) -->
+        <div style="display:none">
+        <!-- Step 1: OCR/파싱 상세 설정 -->
+        <div class="wr-step-detail" id="stepDetail1">
+          <h3 class="wr-section-title">Step 1 OCR/파싱 설정</h3>
+          <div class="wr-card">
+            <div class="wr-callout wr-callout-info">PDF, HWP, HWPX, DOCX, PPTX, XLSX 파일에서 텍스트를 추출합니다. 이미지 기반 PDF는 OCR을 사용합니다.</div>
+            <div class="wr-form-grid">
+              <div class="wr-field">
+                <label>OCR 활성화 <span class="wr-required">*</span></label>
+                <select id="wrStep1OcrEnable">
+                  <option value="auto">자동 (텍스트 없을 때만)</option>
+                  <option value="always">항상 사용</option>
+                  <option value="never">사용 안함</option>
+                </select>
+                <small class="wr-field-hint">이미지 PDF 또는 스캔 문서에 OCR 적용</small>
+              </div>
+              <div class="wr-field">
+                <label>OCR 언어</label>
+                <select id="wrStep1OcrLang">
+                  <option value="kor+eng">한국어+영어</option>
+                  <option value="kor">한국어</option>
+                  <option value="eng">영어</option>
+                  <option value="jpn+eng">일본어+영어</option>
+                  <option value="chi_sim+eng">중국어(간체)+영어</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>OCR DPI</label>
+                <input id="wrStep1OcrDpi" type="number" value="300" min="150" max="600">
+                <small class="wr-field-hint">높을수록 정확하지만 처리 시간 증가</small>
+              </div>
+              <div class="wr-field">
+                <label>OCR 엔진</label>
+                <select id="wrStep1OcrEngine">
+                  <option value="tesseract">Tesseract (로컬)</option>
+                  <option value="easyocr">EasyOCR (로컬)</option>
+                  <option value="olmocr">olmOCR (CUDA/GPU)</option>
+                  <option value="naver_clova">Naver CLOVA OCR (API)</option>
+                  <option value="google_vision">Google Vision (API)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>최소 텍스트 길이</label>
+                <input id="wrStep1MinTextLen" type="number" value="50" min="0" max="500">
+                <small class="wr-field-hint">추출 텍스트가 이보다 짧으면 OCR fallback</small>
+              </div>
+              <div class="wr-field">
+                <label>이미지 전처리</label>
+                <select id="wrStep1ImagePreprocess">
+                  <option value="none">없음</option>
+                  <option value="grayscale">그레이스케일</option>
+                  <option value="binarize">이진화</option>
+                  <option value="denoise">노이즈 제거</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>HWP 추출기</label>
+                <select id="wrStep1HwpExtractor">
+                  <option value="pyhwp">pyhwp (기본)</option>
+                  <option value="hwp5">hwp5 (대체)</option>
+                  <option value="olefile">olefile (fallback)</option>
+                </select>
+              </div>
+              <div class="wr-field">
+                <label>테이블 추출</label>
+                <select id="wrStep1TableExtract">
+                  <option value="enabled">활성화</option>
+                  <option value="disabled">비활성화</option>
+                </select>
+                <small class="wr-field-hint">표를 마크다운 형식으로 변환</small>
+              </div>
+            </div>
+            <div class="wr-request-preview">
+              <div class="wr-request-header" onclick="toggleRequestPreview(1)">
+                <span>📋 Request Body 미리보기</span>
+                <span class="wr-toggle-icon">▼</span>
+              </div>
+              <pre class="wr-request-body" id="reqPreview1" style="display:none">{
+  "ocr_mode": "auto",
+  "ocr_language": "kor+eng",
+  "ocr_dpi": 300,
+  "ocr_engine": "tesseract",
+  "min_text_length": 50,
+  "image_preprocess": "none",
+  "hwp_extractor": "pyhwp",
+  "table_extract": true
+}</pre>
+            </div>
+            <div class="wr-inline-actions">
+              <button class="wr-btn" type="button" onclick="updateRequestPreview(1)">미리보기 갱신</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="runStep(1)">Step 1 실행</button>
+            </div>
+          </div>
         </div>
 
         <!-- Step 2: 청킹/임베딩 상세 설정 -->
@@ -1925,6 +2776,8 @@
             </div>
           </div>
         </div>
+        </div><!-- End of Legacy Step Detail 섹션들 (hidden) -->
+
         <h2 class="wr-section-title" id="wr-wizard-api-title" data-wr-anchor>Execution APIs</h2>
         <code class="wr-code-block">POST /api/admin/rag-source/scan
 POST /api/admin/rag-source/collections/bootstrap
@@ -2076,6 +2929,117 @@ POST /api/admin/faiss/activate</code>
           <button class="wr-btn wr-btn-primary" type="button" onclick="loadGraphOverviewStats()">🔄 새로고침</button>
           <button class="wr-btn" type="button" onclick="openGraphRagBuildWizard()">Dataset Builder 7단계</button>
           <button class="wr-btn" type="button" data-wr-legacy-tab="graph">Legacy Graph View</button>
+        </div>
+      </section>
+
+      <!-- LPG Ontology 페이지 (Phase 8: 4-layer RAG) -->
+      <section class="wr-page" data-wr-page-panel="lpg-ontology">
+        <div class="wr-eyebrow">Graph / Ontology</div>
+        <h1 class="wr-page-title" data-wr-anchor>LPG Ontology</h1>
+        <p class="wr-page-lead">4-layer RAG 시스템을 위한 LPG(Labeled Property Graph) 온톨로지 관리.</p>
+
+        <!-- LPG 시스템 상태 요약 -->
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">LPG 상태</div>
+            <div class="wr-summary-value" id="wrLpgStatus">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 노드</div>
+            <div class="wr-summary-value" id="wrLpgTotalNodes">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 엣지</div>
+            <div class="wr-summary-value" id="wrLpgTotalEdges">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">온톨로지 용어</div>
+            <div class="wr-summary-value" id="wrLpgOntologyTerms">-</div>
+          </div>
+        </div>
+
+        <!-- 노드 타입별 통계 -->
+        <h2 class="wr-section-title" data-wr-anchor>노드 타입별 통계</h2>
+        <div class="wr-card">
+          <div id="wrLpgNodeStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <!-- 엣지 타입별 통계 -->
+        <h2 class="wr-section-title" data-wr-anchor>엣지 타입별 통계</h2>
+        <div class="wr-card">
+          <div id="wrLpgEdgeStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <!-- Query Router 테스트 -->
+        <h2 class="wr-section-title" data-wr-anchor>Query Router 테스트</h2>
+        <div class="wr-card">
+          <div class="wr-form-grid">
+            <div class="wr-field" style="grid-column:span 2">
+              <label>검색 쿼리</label>
+              <input type="text" id="wrLpgQueryInput" placeholder="예: 한국수자원공사 ISP와 유사한 프로젝트를 찾아주세요">
+            </div>
+            <div class="wr-field" style="grid-column:span 2">
+              <button class="wr-btn wr-btn-primary" type="button" onclick="testLpgQueryRouter()">쿼리 라우팅 테스트</button>
+            </div>
+          </div>
+          <div id="wrLpgQueryResult" style="margin-top:16px;display:none;">
+            <div class="wr-callout wr-callout-info">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div><strong>쿼리 유형:</strong> <span id="wrLpgQueryType">-</span></div>
+                <div><strong>신뢰도:</strong> <span id="wrLpgQueryConfidence">-</span></div>
+                <div><strong>검색 레이어 순서:</strong> <span id="wrLpgQueryLayers">-</span></div>
+                <div><strong>추출된 엔티티:</strong> <span id="wrLpgQueryEntities">-</span></div>
+              </div>
+              <div style="margin-top:8px;"><strong>확장된 검색어:</strong> <span id="wrLpgQueryExpanded">-</span></div>
+              <div style="margin-top:8px;"><strong>필터:</strong> <span id="wrLpgQueryFilters">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 온톨로지 용어 목록 -->
+        <h2 class="wr-section-title" data-wr-anchor>온톨로지 용어 목록</h2>
+        <div class="wr-card">
+          <div class="wr-form-grid" style="margin-bottom:12px;">
+            <div class="wr-field">
+              <label>용어 타입</label>
+              <select id="wrLpgTermTypeFilter" onchange="loadLpgOntologyTerms()">
+                <option value="">전체</option>
+                <option value="organization">기관 (Organization)</option>
+                <option value="technology">기술 (Technology)</option>
+                <option value="methodology">방법론 (Methodology)</option>
+                <option value="domain">도메인 (Domain)</option>
+                <option value="category">카테고리 (Category)</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>검색</label>
+              <input type="text" id="wrLpgTermSearch" placeholder="용어 검색..." onkeyup="loadLpgOntologyTerms()">
+            </div>
+          </div>
+          <div id="wrLpgTermsList" style="max-height:400px;overflow-y:auto;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <!-- 빌드 액션 -->
+        <h2 class="wr-section-title" data-wr-anchor>LPG 빌드 관리</h2>
+        <div class="wr-card">
+          <div class="wr-callout wr-callout-warning" style="margin-bottom:16px;">
+            <strong>주의:</strong> 빌드 실행 시 기존 LPG 그래프 데이터가 덮어씌워집니다.
+          </div>
+          <div class="wr-inline-actions">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="buildLpgNodes()">노드 빌드</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="buildLpgEdges()">엣지 빌드</button>
+            <button class="wr-btn" type="button" onclick="reloadLpgGraph()">캐시 리로드</button>
+            <button class="wr-btn" type="button" onclick="loadLpgStatus()">새로고침</button>
+          </div>
+          <div id="wrLpgBuildLog" style="margin-top:16px;display:none;">
+            <pre style="background:var(--background);padding:12px;border-radius:6px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap;"></pre>
+          </div>
         </div>
       </section>
 
@@ -2440,6 +3404,7 @@ POST /api/admin/faiss/activate</code>
       <span id="apiStatusText">연결 확인 중...</span>
     </span>
     <button class="btn btn-outline btn-sm" onclick="refreshAll()">↻ 새로고침</button>
+    <button class="btn btn-outline btn-sm" onclick="handleLogout()" style="color:#ef4444">Logout</button>
   </div>
 </header>
 
@@ -2834,10 +3799,19 @@ POST /api/admin/faiss/activate</code>
   <div style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap" id="wizardProgressBar"></div>
 
   <!-- 전체 순차 실행 -->
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
     <button class="btn btn-primary btn-sm" onclick="wizardRunAll()">▶ 전체 순차 실행</button>
     <button class="btn btn-outline btn-sm" id="wizardStopBtn" onclick="wizardStop()" style="display:none">■ 중단</button>
     <span id="wizardAutoStatus" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <!-- 현재 Snapshot ID 표시 -->
+  <div id="wizardSnapshotInfo" style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:10px 14px;background:var(--surface2);border-radius:6px;font-size:12px">
+    <span style="color:var(--muted)">현재 Snapshot:</span>
+    <span id="wizardCurrentSnapshot" style="font-weight:600;color:var(--amber)">-</span>
+    <span style="color:var(--muted)">|</span>
+    <span style="color:var(--muted)">Source:</span>
+    <span id="wizardCurrentSource" style="font-weight:600">-</span>
+    <button class="btn btn-outline btn-sm" style="margin-left:auto;font-size:11px" onclick="generateNewSnapshot()">새 스냅샷 생성</button>
   </div>
 
   <div class="card" style="margin-bottom:24px;padding:14px 16px">
@@ -2853,12 +3827,12 @@ POST /api/admin/faiss/activate</code>
   <!-- 단계 목록 -->
   <div style="display:flex;flex-direction:column;gap:12px" id="wizardStepList">
 
-    <!-- Step 1 -->
+    <!-- Step 1: 문서 소스 스캔 (사전 준비) -->
     <div class="wizard-step card" data-step="1">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">1</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 1: OCR/파싱 준비</div>
+          <div style="font-size:13px;font-weight:700">문서 소스 스캔 (사전 준비)</div>
           <div style="font-size:11px;color:var(--muted)">문서소스를 스캔하여 OCR/파싱 대상 파일 목록을 준비합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-1">-</span>
@@ -2874,13 +3848,13 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 2 -->
+    <!-- Step 2: Collection 동기화 (사전 준비) -->
     <div class="wizard-step card" data-step="2">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">2</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 2: 청킹/임베딩 준비</div>
-          <div style="font-size:11px;color:var(--muted)">단일 Collection `weeslee_rag_main` 정보를 동기화하고 청킹/임베딩 대상 기준을 준비합니다. 전체 순차 실행에서는 자동으로 건너뜁니다.</div>
+          <div style="font-size:13px;font-weight:700">Collection 동기화 (사전 준비)</div>
+          <div style="font-size:11px;color:var(--muted)">단일 Collection `weeslee_rag_main` 정보를 동기화합니다. 전체 순차 실행에서는 자동으로 건너뜁니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-2">-</span>
         <button class="btn btn-secondary btn-sm" onclick="wizardRun(2)">실행</button>
@@ -2895,12 +3869,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 3 -->
+    <!-- Step 3: 메타데이터 추출 (Dataset Builder Step 3) -->
     <div class="wizard-step card" data-step="3">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">3</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 3: 메타데이터</div>
+          <div style="font-size:13px;font-weight:700">메타데이터 추출 (Dataset Builder Step 3)</div>
           <div style="font-size:11px;color:var(--muted)">규칙 기반으로 파일명·경로에서 메타데이터를 추출합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-3">-</span>
@@ -2916,12 +3890,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 4 -->
+    <!-- Step 4: Tag/Keyword 생성 (사전 준비) -->
     <div class="wizard-step card" data-step="4">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">4</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 4: 온톨로지 보조 태그</div>
+          <div style="font-size:13px;font-weight:700">Tag/Keyword 생성 (사전 준비)</div>
           <div style="font-size:11px;color:var(--muted)">온톨로지 분류에 사용할 기본 Tag 및 Keyword를 자동 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-4">-</span>
@@ -2937,12 +3911,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 5 -->
+    <!-- Step 5: OCR/파싱 실행 (Dataset Builder Step 1) -->
     <div class="wizard-step card" data-step="5">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">5</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 1 실행: OCR/파싱 (사용자 검증용 근거 생성)</div>
+          <div style="font-size:13px;font-weight:700">OCR/파싱 실행 (Dataset Builder Step 1)</div>
           <div style="font-size:11px;color:var(--muted)">PDF/HWP/HWPX/DOCX/PPTX/XLSX에서 텍스트를 추출하고 검색 단위로 분할합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-5">-</span>
@@ -2958,12 +3932,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 6 -->
+    <!-- Step 6: 청킹/임베딩 실행 (Dataset Builder Step 2) -->
     <div class="wizard-step card" data-step="6">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">6</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 2 실행: 청킹/임베딩 (검색 검증용 색인 완료)</div>
+          <div style="font-size:13px;font-weight:700">청킹/임베딩 실행 (Dataset Builder Step 2)</div>
           <div style="font-size:11px;color:var(--muted)">청크를 벡터로 변환하고 FAISS 검색 인덱스를 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-6">-</span>
@@ -2979,12 +3953,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 7 -->
+    <!-- Step 7: GraphRAG 실행 (Dataset Builder Step 4) -->
     <div class="wizard-step card" data-step="7">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">7</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 4-6 실행: 온톨로지/엔티티/Graph 저장 (관계 근거 Graph 생성)</div>
+          <div style="font-size:13px;font-weight:700">GraphRAG 실행 (Dataset Builder Step 4)</div>
           <div style="font-size:11px;color:var(--muted)">프로젝트 간 관련 문서를 연결하는 관계 그래프를 생성하고 저장합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-7">-</span>
@@ -3000,12 +3974,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 8 -->
+    <!-- Step 8: LLM Wiki 생성 (Dataset Builder Step 5) -->
     <div class="wizard-step card" data-step="8">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">8</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 9 실행: Wiki 생성 (지식 체계 Wiki 구축)</div>
+          <div style="font-size:13px;font-weight:700">LLM Wiki 생성 (Dataset Builder Step 5)</div>
           <div style="font-size:11px;color:var(--muted)">프로젝트별 자동 지식 문서를 생성합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-8">-</span>
@@ -3021,12 +3995,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 9 -->
+    <!-- Step 9: 검색·답변·관리자 검수 -->
     <div class="wizard-step card" data-step="9">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">9</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">Step 7/8/10: 검색·답변·관리자 검수</div>
+          <div style="font-size:13px;font-weight:700">검색·답변·관리자 검수</div>
           <div style="font-size:11px;color:var(--muted)">생성된 데이터로 하이브리드 검색, LLM 답변, 관리자 검수를 확인합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-9">대기</span>
@@ -3038,12 +4012,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 10 -->
+    <!-- Step 10: FAISS 인덱스 활성화 (Dataset Builder Step 6) -->
     <div class="wizard-step card" data-step="10">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">10</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">운영 반영: FAISS 인덱스 활성화</div>
+          <div style="font-size:13px;font-weight:700">FAISS 인덱스 활성화 (Dataset Builder Step 6)</div>
           <div style="font-size:11px;color:var(--muted)">검수된 인덱스를 검색 서버에 적용합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-10">대기</span>
@@ -3138,16 +4112,6 @@ POST /api/admin/faiss/activate</code>
 
   <!-- Main -->
   <main class="main">
-
-    <!-- Staged Summary -->
-    <div class="card">
-      <div class="card-title">
-        staged 준비 현황
-        <button class="icon-btn" onclick="loadStagedSummary()" title="새로고침">↻</button>
-      </div>
-      <div id="stagedTotals" style="display:flex;gap:16px;margin-bottom:12px"></div>
-      <div id="stagedList"><div class="empty">로딩 중...</div></div>
-    </div>
 
     <!-- Index List -->
     <div class="card">
@@ -3316,11 +4280,12 @@ POST /api/admin/faiss/activate</code>
                 <th style="width:120px">발주기관</th>
                 <th style="width:90px">처리 상태</th>
                 <th style="width:80px">메타 상태</th>
+                <th style="width:200px">파이프라인 상태 (10단계)</th>
                 <th style="width:140px">작업</th>
               </tr>
             </thead>
             <tbody id="documentTableBody">
-              <tr><td colspan="8" class="empty">문서 관리 탭을 선택하면 목록이 로드됩니다.</td></tr>
+              <tr><td colspan="9" class="empty">문서 관리 탭을 선택하면 목록이 로드됩니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -3754,6 +4719,129 @@ POST /api/admin/faiss/activate</code>
   </div>
 </div><!-- /tab-ragsource -->
 
+<!-- 📝 메타데이터 편집 모달 -->
+<div id="metadataEditModal" class="modal" style="display:none">
+  <div class="modal-backdrop" onclick="closeMetadataEditModal()"></div>
+  <div class="modal-content" style="max-width:700px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <h3 style="margin:0;font-size:16px">📝 메타데이터 검수 및 편집</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeMetadataEditModal()" style="padding:4px 8px">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px">
+      <!-- 파일 정보 (읽기 전용) -->
+      <div style="background:var(--surface2);padding:12px;border-radius:8px;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">파일 정보</div>
+        <div style="font-size:13px;font-weight:600" id="meFileName">-</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px" id="meFilePath">-</div>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:11px">
+          <span>유형: <strong id="meFileType">-</strong></span>
+          <span>크기: <strong id="meFileSize">-</strong></span>
+          <span>문서그룹: <strong id="meDocGroup">-</strong></span>
+        </div>
+      </div>
+
+      <!-- 편집 가능한 필드들 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">프로젝트명</label>
+          <input type="text" id="meProjectName" class="form-input" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)">
+        </div>
+        <div class="form-group">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">발주기관</label>
+          <input type="text" id="meOrganization" class="form-input" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)" list="orgSuggestions">
+          <datalist id="orgSuggestions">
+            <option value="과학기술정보통신부">
+            <option value="행정안전부">
+            <option value="보건복지부">
+            <option value="교육부">
+            <option value="법무부">
+            <option value="국토교통부">
+            <option value="환경부">
+            <option value="농림축산식품부">
+            <option value="소방청">
+            <option value="경찰청">
+            <option value="통계청">
+            <option value="K-water">
+            <option value="건강보험심사평가원">
+            <option value="한국국제보건의료재단">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">프로젝트 유형</label>
+          <select id="meProjectType" class="form-input" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)">
+            <option value="unknown">미분류</option>
+            <option value="ISP">ISP</option>
+            <option value="ISMP">ISMP</option>
+            <option value="BPRISP">BPR/ISP</option>
+            <option value="research">연구과제</option>
+            <option value="consulting">컨설팅</option>
+            <option value="PMO">PMO</option>
+            <option value="audit">감리</option>
+            <option value="PoC">PoC</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">프로젝트 연도</label>
+          <input type="text" id="meProjectYear" class="form-input" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)" placeholder="예: 2024">
+        </div>
+        <div class="form-group">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">사업 분야</label>
+          <select id="meBusinessDomain" class="form-input" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)">
+            <option value="">미분류</option>
+            <option value="healthcare">보건의료</option>
+            <option value="education">교육</option>
+            <option value="justice">법무/치안</option>
+            <option value="emergency">소방/응급</option>
+            <option value="agriculture">농업/축산</option>
+            <option value="water">수자원/환경</option>
+            <option value="statistics">통계</option>
+            <option value="geospatial">공간정보</option>
+            <option value="finance">재정/금융</option>
+            <option value="transport">교통</option>
+            <option value="culture">문화/관광</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">문서 유형</label>
+          <select id="meDocumentType" class="form-input" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)">
+            <option value="unknown">미분류</option>
+            <option value="rfp">RFP</option>
+            <option value="proposal">제안서</option>
+            <option value="deliverable">산출물</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 태그 편집 -->
+      <div class="form-group" style="margin-top:12px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">기술 태그 (쉼표로 구분)</label>
+        <input type="text" id="meTags" class="form-input" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)" placeholder="AI, ISP, 빅데이터, 클라우드">
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">
+          추천 태그: AI, ISP, ISMP, 빅데이터, 클라우드, 디지털트윈, 보건의료, 교육, 법무, 소방, 농업, 공간정보, 통계
+        </div>
+      </div>
+
+      <!-- 메타 상태 -->
+      <div style="display:flex;gap:12px;margin-top:16px;align-items:center">
+        <label style="font-size:11px;color:var(--muted)">메타 상태:</label>
+        <select id="meMetaStatus" class="form-input" style="padding:6px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text)">
+          <option value="pending">pending (대기)</option>
+          <option value="auto_suggested">auto_suggested (자동추출)</option>
+          <option value="confirmed">confirmed (확정)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
+      <button class="btn btn-outline" onclick="closeMetadataEditModal()">취소</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="saveMetadataEdit(false)">저장</button>
+        <button class="btn btn-primary" onclick="saveMetadataEdit(true)">저장 및 확정</button>
+      </div>
+    </div>
+    <input type="hidden" id="meDocumentId">
+  </div>
+</div>
+
 <!-- ───────────────────────────────────────────────────────────── -->
 <!-- 🗂️ Collection Manager 탭 -->
 <!-- ───────────────────────────────────────────────────────────── -->
@@ -4061,6 +5149,94 @@ POST /api/admin/faiss/activate</code>
     <div id="metaTemplateList"><div class="empty">로딩 중...</div></div>
   </div>
 
+  <!-- LLM Settings -->
+  <div class="card" id="llmSettingsCard">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🤖 LLM 설정 (Ollama)</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveLlmSettings()">저장</button>
+        <button class="btn btn-outline btn-sm" onclick="loadLlmSettings()">↻</button>
+      </div>
+    </div>
+
+    <!-- System Prompt -->
+    <div class="form-group" style="margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px">
+        System Prompt (환각 방지 지침)
+        <span style="font-size:11px;color:var(--muted)">(LLM 응답 품질 제어용)</span>
+      </label>
+      <textarea id="llmSystemPrompt" rows="6" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;line-height:1.5;resize:vertical" placeholder="예: 당신은 RAG 기반 문서 검색 시스템입니다. 검색된 문서만을 기반으로 답변하세요. 추측하지 마세요."></textarea>
+    </div>
+
+    <!-- Temperature / Top-p / Max Tokens -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="form-group">
+        <label style="display:flex;justify-content:space-between">
+          Temperature <span id="llmTempValue" style="color:var(--amber)">0.3</span>
+        </label>
+        <input type="range" id="llmTemperature" min="0" max="1" step="0.1" value="0.3"
+               style="width:100%" oninput="document.getElementById('llmTempValue').textContent=this.value">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">
+          <span>정확 (0)</span><span>창의 (1)</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;justify-content:space-between">
+          Top-p <span id="llmTopPValue" style="color:var(--amber)">0.9</span>
+        </label>
+        <input type="range" id="llmTopP" min="0" max="1" step="0.05" value="0.9"
+               style="width:100%" oninput="document.getElementById('llmTopPValue').textContent=this.value">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">
+          <span>제한 (0)</span><span>다양 (1)</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Max Tokens</label>
+        <input type="number" id="llmMaxTokens" value="2000" min="100" max="8000" step="100"
+               style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+      </div>
+    </div>
+
+    <!-- 환각 방지 옵션 -->
+    <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:6px">
+      <div style="font-weight:600;margin-bottom:8px;font-size:13px">환각 방지 옵션</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+        <label style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="llmRequireEvidence" checked> 근거 문서 필수 인용
+        </label>
+        <label style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="llmStrictMode" checked> 검색 결과 외 정보 사용 금지
+        </label>
+        <label style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="llmShowConfidence"> 신뢰도 점수 표시
+        </label>
+        <label style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="llmCiteSource" checked> 출처 명시 강제
+        </label>
+      </div>
+    </div>
+
+    <!-- 오타 보정 사전 -->
+    <div class="form-group" style="margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px">
+        오타 보정 사전
+        <span style="font-size:11px;color:var(--muted)">(한 줄에 "오타 → 정확한표현" 형식)</span>
+      </label>
+      <textarea id="llmTypoDict" rows="4" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical" placeholder="축산유통데이타랩 → 축산유통데이터랩
+데이타베이스 → 데이터베이스
+클라우드컴퓨팅 → 클라우드 컴퓨팅"></textarea>
+    </div>
+
+    <!-- 저장/테스트 버튼 -->
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="testLlmSettings()">설정 테스트</button>
+      <button class="btn btn-primary" onclick="saveLlmSettings()">설정 저장</button>
+    </div>
+
+    <!-- 테스트 결과 -->
+    <div id="llmTestResult" style="display:none;margin-top:12px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
+  </div>
+
 </div><!-- /tab-platform -->
 
 </section><!-- /legacyAdminTabs -->
@@ -4228,7 +5404,7 @@ POST /api/admin/faiss/activate</code>
   </div>
 </div>
 
-<script src="config.js"></script>
+<script src="config.js?v=20260603"></script>
 <script>
   function detectApiBase() {
     if (window.__API_BASE__) return window.__API_BASE__;
@@ -4310,16 +5486,27 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function checkAuth() {
+    // [PRODUCTION] 로그인 체크 활성화
     const token = getToken();
     if (!token) { showLoginModal(); return; }
     try {
-      const r = await fetch(API_BASE + '/auth/verify', {
+      const r = await fetch(apiUrl('/auth/verify'), {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!r.ok) throw new Error('invalid');
     } catch {
       clearToken();
       showLoginModal();
+    }
+  }
+
+  function handleLogout() {
+    if (confirm('로그아웃 하시겠습니까?')) {
+      clearToken();
+      showToast('로그아웃되었습니다.', 'info');
+      setTimeout(() => {
+        showLoginModal();
+      }, 500);
     }
   }
 
@@ -4442,12 +5629,6 @@ POST /api/admin/faiss/activate</code>
             </div>
           </div>
         </div>` : ''}
-        <div class="index-toggle">
-          <button class="index-toggle-btn" onclick="toggleIndexDetail('${esc(idx.snapshot)}', this)">▶ 카테고리 상세</button>
-        </div>
-        <div class="index-detail" id="detail-${esc(idx.snapshot)}">
-          <div class="cat-stat" style="font-size:11px">로딩 중...</div>
-        </div>
       </div>
     `).join('');
   }
@@ -4749,8 +5930,8 @@ POST /api/admin/faiss/activate</code>
   function setDefaultSnapshot() {
     const el = document.getElementById('jobSnapshot');
     if (!el || el.value) return;
-    const today = new Date().toISOString().slice(0, 10);
-    el.value = `snapshot_${today}_batch-`;
+    // createNewSnapshotId()를 사용하여 snapshot_YYYYMMDD_Vn 형식으로 생성
+    el.value = createNewSnapshotId();
   }
 
   async function startJob() {
@@ -5130,7 +6311,6 @@ POST /api/admin/faiss/activate</code>
 
   function refreshAll() {
     loadStatus(); loadIndexes(); loadJobs(); loadOllama(); loadCategoryStatus();
-    loadStagedSummary();
     checkRunningJobs();
   }
 
@@ -5294,17 +6474,19 @@ POST /api/admin/faiss/activate</code>
   let _rsAllFiles = [];
   let _rsCurrentFilter = '';
 
-  async function scanRagSource() {
-    showToast('RAG Source 스캔 중...', 'info');
+  async function scanRagSource(overwrite = false) {
+    showToast('RAG Source 스캔 중... (JSONL + SQLite 동기화)', 'info');
     try {
       const r = await fetch(apiUrl('/api/admin/rag-source/scan'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_id: 'rag_source', overwrite: false }),
+        body: JSON.stringify({ overwrite }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      showToast(`스캔 완료: 생성 ${d.created}, 업데이트 ${d.updated}, 건너뜀 ${d.skipped}`, 'success');
+      if (!d.success) throw new Error(d.error || 'Unknown error');
+      const sync = d.sqlite_sync || {};
+      showToast(`스캔 완료 (${d.document_count}개): 생성 ${sync.created || 0}, 업데이트 ${sync.updated || 0}, 건너뜀 ${sync.skipped || 0}`, 'success');
       await loadRagSourceFiles();
     } catch (e) {
       showToast('스캔 실패: ' + e.message, 'error');
@@ -5424,24 +6606,119 @@ POST /api/admin/faiss/activate</code>
         <th style="text-align:left;padding:4px 6px">파일명</th>
         <th style="text-align:left;padding:4px 6px">유형</th>
         <th style="text-align:left;padding:4px 6px">프로젝트명</th>
-        <th style="text-align:left;padding:4px 6px">문서 유형</th>
+        <th style="text-align:left;padding:4px 6px">기관/태그</th>
         <th style="text-align:center;padding:4px 6px">메타 상태</th>
-        <th style="text-align:center;padding:4px 6px">색인 상태</th>
+        <th style="text-align:center;padding:4px 6px">편집</th>
       </tr></thead>
       <tbody>${files.slice(0, 300).map(f => {
         const metaColor = _META_STATUS_COLORS[f.meta_status] || 'var(--muted)';
-        const statusColor = f.status === 'indexed' ? 'var(--green)' : f.status === 'failed' ? 'var(--red)' : 'var(--muted)';
+        const tags = _parseTags(f.tags);
+        const tagPreview = tags.length > 0 ? tags.slice(0, 2).join(', ') + (tags.length > 2 ? '...' : '') : '';
         return `
-        <tr style="border-bottom:1px solid var(--border)" title="${esc(f.file_path || '')}">
+        <tr style="border-bottom:1px solid var(--border);cursor:pointer" title="${esc(f.file_path || '')}" onclick="openMetadataEditModal(${f.id})">
           <td style="padding:4px 6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.file_name || '')}</td>
           <td style="padding:4px 6px"><span style="background:var(--surface2);padding:1px 5px;border-radius:3px">.${esc(f.file_type || '')}</span></td>
           <td style="padding:4px 6px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.project_name || '-')}</td>
-          <td style="padding:4px 6px;font-size:10px;color:var(--muted)">${esc(f.document_type || '-')}</td>
+          <td style="padding:4px 6px;font-size:10px">
+            <span style="color:var(--text)">${esc(f.organization || '')}</span>
+            ${tagPreview ? `<span style="color:var(--amber);margin-left:4px">${esc(tagPreview)}</span>` : ''}
+          </td>
           <td style="padding:4px 6px;text-align:center;font-size:10px;color:${metaColor}">${esc(f.meta_status || '-')}</td>
-          <td style="padding:4px 6px;text-align:center;font-size:10px;color:${statusColor}">${esc(f.status || '-')}</td>
+          <td style="padding:4px 6px;text-align:center"><button class="btn btn-outline btn-sm" style="padding:2px 6px;font-size:10px" onclick="event.stopPropagation();openMetadataEditModal(${f.id})">✏️</button></td>
         </tr>`;
       }).join('')}
       </tbody></table>${files.length > 300 ? `<div style="text-align:center;padding:8px;font-size:11px;color:var(--muted)">... 외 ${files.length - 300}개</div>` : ''}`;
+  }
+
+  function _parseTags(tagsValue) {
+    if (!tagsValue) return [];
+    if (Array.isArray(tagsValue)) return tagsValue;
+    try {
+      return JSON.parse(tagsValue);
+    } catch { return []; }
+  }
+
+  // ── 메타데이터 편집 모달 ────────────────────────────────────────────────
+
+  async function openMetadataEditModal(documentId) {
+    let doc = _rsAllFiles.find(f => f.id === documentId);
+
+    // _rsAllFiles에서 찾지 못하면 API에서 직접 조회
+    if (!doc) {
+      try {
+        const r = await fetch(apiUrl(`/api/admin/rag-source/documents/${documentId}`), { headers: authHeaders() });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        doc = await r.json();
+      } catch (e) {
+        showToast('문서를 찾을 수 없습니다: ' + e.message, 'error');
+        return;
+      }
+    }
+
+    // 읽기 전용 필드
+    document.getElementById('meFileName').textContent = doc.file_name || '-';
+    document.getElementById('meFilePath').textContent = doc.file_path || '-';
+    document.getElementById('meFileType').textContent = doc.file_type || '-';
+    document.getElementById('meFileSize').textContent = doc.file_size ? (doc.file_size > 1048576 ? (doc.file_size/1048576).toFixed(1) + 'MB' : (doc.file_size/1024).toFixed(0) + 'KB') : '-';
+    document.getElementById('meDocGroup').textContent = doc.document_group || doc.document_type || '-';
+
+    // 편집 가능 필드
+    document.getElementById('meProjectName').value = doc.project_name || '';
+    document.getElementById('meOrganization').value = doc.organization || '';
+    document.getElementById('meProjectType').value = doc.project_type || 'unknown';
+    document.getElementById('meProjectYear').value = doc.project_year || '';
+    document.getElementById('meBusinessDomain').value = doc.business_domain || '';
+    document.getElementById('meDocumentType').value = doc.document_type || 'unknown';
+    document.getElementById('meTags').value = _parseTags(doc.tags).join(', ');
+    document.getElementById('meMetaStatus').value = doc.meta_status || 'pending';
+    document.getElementById('meDocumentId').value = documentId;
+
+    // 모달 표시
+    document.getElementById('metadataEditModal').style.display = 'flex';
+  }
+
+  function closeMetadataEditModal() {
+    document.getElementById('metadataEditModal').style.display = 'none';
+  }
+
+  async function saveMetadataEdit(confirm = false) {
+    const documentId = document.getElementById('meDocumentId').value;
+    if (!documentId) {
+      showToast('문서 ID가 없습니다.', 'error');
+      return;
+    }
+
+    const tagsInput = document.getElementById('meTags').value;
+    const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t);
+
+    const data = {
+      project_name: document.getElementById('meProjectName').value.trim(),
+      organization: document.getElementById('meOrganization').value.trim() || null,
+      project_type: document.getElementById('meProjectType').value,
+      project_year: document.getElementById('meProjectYear').value.trim() || null,
+      business_domain: document.getElementById('meBusinessDomain').value || null,
+      document_type: document.getElementById('meDocumentType').value,
+      tags: JSON.stringify(tags),
+      meta_status: confirm ? 'confirmed' : document.getElementById('meMetaStatus').value,
+    };
+
+    try {
+      showToast('저장 중...', 'info');
+      const r = await fetch(apiUrl(`/api/admin/rag-source/documents/${documentId}`), {
+        method: 'PATCH',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${r.status}`);
+      }
+      showToast(confirm ? '메타데이터 확정 완료' : '메타데이터 저장 완료', 'success');
+      closeMetadataEditModal();
+      await loadRagSourceFiles();
+    } catch (e) {
+      showToast('저장 실패: ' + e.message, 'error');
+    }
   }
 
   async function buildRagSourceMetadata() {
@@ -6234,6 +7511,163 @@ POST /api/admin/faiss/activate</code>
     } catch (e) { document.getElementById('metaTemplateList').innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`; }
   }
 
+  // ── LLM Settings ────────────────────────────────────────────────────────────
+
+  const LLM_SETTINGS_KEY = 'weeslee_rag_llm_settings';
+  const DEFAULT_SYSTEM_PROMPT = `당신은 RAG 기반 문서 검색 및 답변 시스템입니다.
+
+규칙:
+1. 검색된 문서의 내용만을 기반으로 답변하세요.
+2. 검색 결과에 없는 정보는 "해당 정보를 찾을 수 없습니다"라고 답변하세요.
+3. 추측하거나 일반 지식으로 답변하지 마세요.
+4. 답변 시 근거 문서를 명시하세요.
+5. 불확실한 경우 "확인이 필요합니다"라고 표시하세요.`;
+
+  async function loadLlmSettings() {
+    try {
+      // 서버에서 설정 로드 시도
+      const res = await fetch(`${API_BASE}/api/admin/llm-settings`);
+      if (res.ok) {
+        const data = await res.json();
+        applyLlmSettingsToUI(data);
+        return;
+      }
+    } catch (e) {
+      console.log('서버 LLM 설정 로드 실패, localStorage 사용:', e.message);
+    }
+    // localStorage fallback
+    const saved = localStorage.getItem(LLM_SETTINGS_KEY);
+    if (saved) {
+      try {
+        applyLlmSettingsToUI(JSON.parse(saved));
+      } catch (e) {
+        applyDefaultLlmSettings();
+      }
+    } else {
+      applyDefaultLlmSettings();
+    }
+  }
+
+  function applyDefaultLlmSettings() {
+    document.getElementById('llmSystemPrompt').value = DEFAULT_SYSTEM_PROMPT;
+    document.getElementById('llmTemperature').value = 0.3;
+    document.getElementById('llmTempValue').textContent = '0.3';
+    document.getElementById('llmTopP').value = 0.9;
+    document.getElementById('llmTopPValue').textContent = '0.9';
+    document.getElementById('llmMaxTokens').value = 2000;
+    document.getElementById('llmRequireEvidence').checked = true;
+    document.getElementById('llmStrictMode').checked = true;
+    document.getElementById('llmShowConfidence').checked = false;
+    document.getElementById('llmCiteSource').checked = true;
+    document.getElementById('llmTypoDict').value = '';
+  }
+
+  function applyLlmSettingsToUI(data) {
+    document.getElementById('llmSystemPrompt').value = data.system_prompt || DEFAULT_SYSTEM_PROMPT;
+    document.getElementById('llmTemperature').value = data.temperature ?? 0.3;
+    document.getElementById('llmTempValue').textContent = data.temperature ?? 0.3;
+    document.getElementById('llmTopP').value = data.top_p ?? 0.9;
+    document.getElementById('llmTopPValue').textContent = data.top_p ?? 0.9;
+    document.getElementById('llmMaxTokens').value = data.max_tokens ?? 2000;
+    document.getElementById('llmRequireEvidence').checked = data.require_evidence ?? true;
+    document.getElementById('llmStrictMode').checked = data.strict_mode ?? true;
+    document.getElementById('llmShowConfidence').checked = data.show_confidence ?? false;
+    document.getElementById('llmCiteSource').checked = data.cite_source ?? true;
+    document.getElementById('llmTypoDict').value = data.typo_dict || '';
+  }
+
+  function getLlmSettingsFromUI() {
+    return {
+      system_prompt: document.getElementById('llmSystemPrompt').value,
+      temperature: parseFloat(document.getElementById('llmTemperature').value),
+      top_p: parseFloat(document.getElementById('llmTopP').value),
+      max_tokens: parseInt(document.getElementById('llmMaxTokens').value, 10),
+      require_evidence: document.getElementById('llmRequireEvidence').checked,
+      strict_mode: document.getElementById('llmStrictMode').checked,
+      show_confidence: document.getElementById('llmShowConfidence').checked,
+      cite_source: document.getElementById('llmCiteSource').checked,
+      typo_dict: document.getElementById('llmTypoDict').value,
+    };
+  }
+
+  async function saveLlmSettings() {
+    const settings = getLlmSettingsFromUI();
+    // localStorage 저장
+    localStorage.setItem(LLM_SETTINGS_KEY, JSON.stringify(settings));
+
+    // 서버 저장 시도
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/llm-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        alert('LLM 설정이 저장되었습니다.');
+      } else {
+        alert('서버 저장 실패. localStorage에만 저장됨.');
+      }
+    } catch (e) {
+      alert('서버 연결 실패. localStorage에만 저장됨.');
+    }
+  }
+
+  async function testLlmSettings() {
+    const resultEl = document.getElementById('llmTestResult');
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '<span style="color:var(--amber)">테스트 중...</span>';
+
+    const settings = getLlmSettingsFromUI();
+    const testQuery = '테스트 쿼리입니다.';
+
+    // 오타 보정 테스트
+    let correctedQuery = testQuery;
+    if (settings.typo_dict) {
+      const lines = settings.typo_dict.split('\n').filter(l => l.includes('→'));
+      for (const line of lines) {
+        const [from, to] = line.split('→').map(s => s.trim());
+        if (from && to) {
+          correctedQuery = correctedQuery.replace(new RegExp(from, 'g'), to);
+        }
+      }
+    }
+
+    // Ollama 연결 테스트
+    try {
+      const ollamaRes = await fetch(`${API_BASE}/api/ollama/status`);
+      const ollamaData = await ollamaRes.json();
+
+      resultEl.innerHTML = `
+        <div style="margin-bottom:8px"><strong>✅ 설정 테스트 결과</strong></div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:11px">
+          <span style="color:var(--muted)">Ollama 상태:</span>
+          <span style="color:${ollamaData.ok ? 'var(--green)' : 'var(--red)'}">${ollamaData.ok ? '연결됨' : '연결 실패'}</span>
+          <span style="color:var(--muted)">Temperature:</span>
+          <span>${settings.temperature}</span>
+          <span style="color:var(--muted)">Top-p:</span>
+          <span>${settings.top_p}</span>
+          <span style="color:var(--muted)">Max Tokens:</span>
+          <span>${settings.max_tokens}</span>
+          <span style="color:var(--muted)">환각 방지:</span>
+          <span>${settings.strict_mode ? '✅ 활성' : '❌ 비활성'}</span>
+          <span style="color:var(--muted)">오타 사전:</span>
+          <span>${settings.typo_dict ? settings.typo_dict.split('\n').filter(l => l.includes('→')).length + '개 항목' : '없음'}</span>
+        </div>
+      `;
+    } catch (e) {
+      resultEl.innerHTML = `<span style="color:var(--red)">테스트 실패: ${e.message}</span>`;
+    }
+  }
+
+  // 플랫폼 설정 탭 로드 시 LLM 설정도 로드
+  const origSwitchTab = window.switchTab;
+  window.switchTab = function(name) {
+    origSwitchTab(name);
+    if (name === 'platform') {
+      loadLlmSettings();
+    }
+  };
+
   // ── Graph View ────────────────────────────────────────────────────────────
 
   let cy = null;
@@ -6618,7 +8052,7 @@ POST /api/admin/faiss/activate</code>
 
   async function loadDocuments() {
     const tbody = document.getElementById('documentTableBody');
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">로딩 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">로딩 중...</td></tr>';
 
     const params = new URLSearchParams();
     const docType = document.getElementById('filterDocType')?.value;
@@ -6636,7 +8070,7 @@ POST /api/admin/faiss/activate</code>
       renderDocuments(data.documents || []);
       loadDocumentStats();
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="8" class="empty" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="empty" style="color:var(--red)">${esc(e.message)}</td></tr>`;
     }
   }
 
@@ -6686,10 +8120,36 @@ POST /api/admin/faiss/activate</code>
   const META_STATUS_LABELS = { pending: '대기', auto_suggested: '자동생성', confirmed: '확정' };
   const META_STATUS_COLORS = { pending: '#71717a', auto_suggested: '#f59e0b', confirmed: '#22c55e' };
 
+  // 파이프라인 상태 렌더링 함수
+  function renderPipelineStatus(doc) {
+    // 간단한 상태 표시 (실제로는 document_pipeline_status에서 가져와야 함)
+    // 현재는 기존 필드 기반으로 추정
+    const steps = [
+      { label: '1', completed: !!doc.document_id }, // Source Scan
+      { label: '2', completed: !!doc.project_name }, // Metadata Auto
+      { label: '3', completed: doc.meta_status === 'confirmed' }, // Metadata Review
+      { label: '4', completed: doc.status === 'text_extracted' || doc.status === 'chunked' || doc.status === 'embedded' || doc.status === 'faiss_indexed' || doc.status === 'rag_ready' }, // OCR
+      { label: '5', completed: doc.status === 'chunked' || doc.status === 'embedded' || doc.status === 'faiss_indexed' || doc.status === 'rag_ready' }, // Chunk
+      { label: '6', completed: doc.status === 'embedded' || doc.status === 'faiss_indexed' || doc.status === 'rag_ready' }, // Embedding
+      { label: '7', completed: doc.status === 'faiss_indexed' || doc.status === 'rag_ready' }, // FAISS
+      { label: '8', completed: doc.status === 'graph_created' }, // Graph
+      { label: '9', completed: doc.status === 'wiki_created' }, // Wiki
+      { label: '10', completed: doc.status === 'rag_ready' }, // Activate
+    ];
+
+    const stepHtml = steps.map(step => {
+      const color = step.completed ? '#22c55e' : '#e5e7eb';
+      const textColor = step.completed ? '#fff' : '#9ca3af';
+      return `<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:${color};color:${textColor};border-radius:3px;font-size:10px;margin:1px">${step.label}</span>`;
+    }).join('');
+
+    return `<div style="display:flex;flex-wrap:wrap;gap:2px">${stepHtml}</div>`;
+  }
+
   function renderDocuments(documents) {
     const tbody = document.getElementById('documentTableBody');
     if (!documents.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty">문서가 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="empty">문서가 없습니다.</td></tr>';
       return;
     }
     _selectedDocIds.clear();
@@ -6703,6 +8163,7 @@ POST /api/admin/faiss/activate</code>
       const statusLabel = STATUS_LABELS[doc.status] || doc.status || '-';
       const metaColor = META_STATUS_COLORS[doc.meta_status] || '#6b7280';
       const metaLabel = META_STATUS_LABELS[doc.meta_status] || doc.meta_status || '-';
+      const pipelineStatus = renderPipelineStatus(doc);
       return `
         <tr>
           <td><input type="checkbox" class="doc-check" value="${doc.id}" onchange="toggleDocSelect(${doc.id})"></td>
@@ -6712,6 +8173,7 @@ POST /api/admin/faiss/activate</code>
           <td style="font-size:12px">${esc(doc.organization || '-')}</td>
           <td><span class="chip">${statusLabel}</span></td>
           <td><span style="background:${metaColor}20;color:${metaColor};padding:2px 6px;border-radius:4px;font-size:11px">${metaLabel}</span></td>
+          <td>${pipelineStatus}</td>
           <td>
             <button class="btn btn-outline btn-sm" onclick="openMetadataReviewModal(${doc.id})">검수</button>
             <button class="btn btn-outline btn-sm" onclick="autoGenerateSingleMetadata(${doc.id})">✨</button>
@@ -7438,7 +8900,15 @@ POST /api/admin/faiss/activate</code>
     const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
     try {
       const r = await fetch(apiUrl('/api/benchmark/history'), { headers: h });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) {
+        // Benchmark 엔드포인트가 없으면 기본값 표시
+        setText('wrSystemTotalQueries', '-');
+        setText('wrSystemSuccessRate', '-');
+        setText('wrSystemAvgResponse', '-');
+        setText('wrSystemReferencedDocs', '-');
+        setHtml('wrRecentQuestionList', '<div class="wr-status-row"><span style="color:var(--muted)">Benchmark 데이터가 없습니다.</span></div>');
+        return;
+      }
       const d = await r.json();
       const history = d.history || d.items || d || [];
       const rows = Array.isArray(history) ? history : [];
@@ -7455,7 +8925,12 @@ POST /api/admin/faiss/activate</code>
         ? questions.map((q, index) => `<div class="wr-status-row"><span>${index + 1}. ${esc(String(q))}</span></div>`).join('')
         : '<div class="wr-status-row"><span>최근 질문 데이터가 없습니다.</span></div>');
     } catch {
-      setHtml('wrRecentQuestionList', '<div class="wr-status-row"><span>검색 품질 데이터를 읽지 못했습니다.</span></div>');
+      // 기본값 표시
+      setText('wrSystemTotalQueries', '-');
+      setText('wrSystemSuccessRate', '-');
+      setText('wrSystemAvgResponse', '-');
+      setText('wrSystemReferencedDocs', '-');
+      setHtml('wrRecentQuestionList', '<div class="wr-status-row"><span style="color:var(--muted)">검색 품질 데이터를 읽지 못했습니다.</span></div>');
     }
   }
 
@@ -7466,6 +8941,348 @@ POST /api/admin/faiss/activate</code>
   function saveStep1ParsingSettings() {
     showToast('Step 1 OCR/파싱 설정을 저장했습니다.', 'success', 2400);
   }
+
+  // ── OCR 결과 조회 함수 ──────────────────────────────────────────────────────
+  let ocrResultsPage = 0;
+  const ocrResultsLimit = 20;
+
+  async function loadOcrResults(page = 0) {
+    ocrResultsPage = page;
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    const method = document.getElementById('ocrResultMethodFilter')?.value || '';
+    const minQuality = document.getElementById('ocrResultMinQuality')?.value || '';
+
+    let url = apiUrl(`/api/admin/ocr-results/list?limit=${ocrResultsLimit}&offset=${page * ocrResultsLimit}`);
+    if (method) url += `&method=${encodeURIComponent(method)}`;
+    if (minQuality) url += `&min_quality=${minQuality}`;
+
+    try {
+      const r = await fetch(url, { headers: h });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+
+      const tbody = document.getElementById('ocrResultsBody');
+      const table = document.getElementById('ocrResultsTable');
+      if (!tbody || !table) return;
+
+      table.style.display = 'block';
+
+      if (!data.items || data.items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">저장된 OCR 결과가 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.items.map(item => {
+        const qualityClass = item.quality_score >= 0.6 ? 'ql-good' : (item.quality_score >= 0.4 ? '' : 'ql-bad');
+        const ocrBadge = item.ocr_required ? '<span class="pill amber">OCR</span>' : '<span class="pill green">직접</span>';
+        const processedAt = item.processed_at ? new Date(item.processed_at).toLocaleString('ko-KR') : '-';
+        return `<tr>
+          <td><code style="font-size:10px">${escapeHtml(item.document_id?.substring(0, 12) || '-')}...</code></td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(item.file_name)}">${escapeHtml(item.file_name || '-')}</td>
+          <td>${escapeHtml(item.extraction_method || '-')}</td>
+          <td class="${qualityClass}">${typeof item.quality_score === 'number' ? item.quality_score.toFixed(2) : '-'}</td>
+          <td>${item.text_length ? item.text_length.toLocaleString() : '-'}</td>
+          <td>${item.page_count || '-'}</td>
+          <td>${ocrBadge}</td>
+          <td style="font-size:11px">${processedAt}</td>
+          <td><button class="btn btn-sm btn-outline" onclick="viewOcrDetail('${escapeHtml(item.document_id)}')">상세</button></td>
+        </tr>`;
+      }).join('');
+
+      // 페이지네이션
+      const pagination = document.getElementById('ocrResultsPagination');
+      if (pagination) {
+        const totalPages = Math.ceil(data.total / ocrResultsLimit);
+        let pagHtml = '';
+        if (page > 0) pagHtml += `<button class="btn btn-sm btn-outline" onclick="loadOcrResults(${page - 1})">이전</button> `;
+        pagHtml += `${page + 1} / ${totalPages || 1}`;
+        if (page < totalPages - 1) pagHtml += ` <button class="btn btn-sm btn-outline" onclick="loadOcrResults(${page + 1})">다음</button>`;
+        pagination.innerHTML = pagHtml;
+      }
+    } catch (e) {
+      console.error('OCR 결과 조회 실패:', e);
+      showToast('OCR 결과 조회 실패: ' + e.message, 'error', 3000);
+    }
+  }
+
+  async function loadOcrStatistics() {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    try {
+      const r = await fetch(apiUrl('/api/admin/ocr-results/statistics'), { headers: h });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+
+      const panel = document.getElementById('ocrStatsPanel');
+      if (panel) panel.style.display = 'block';
+
+      document.getElementById('ocrStatTotal').textContent = data.total_documents || 0;
+      const sizeKB = Math.round((data.total_size_bytes || 0) / 1024);
+      document.getElementById('ocrStatSize').textContent = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+
+      // 품질별 통계
+      const byQuality = data.by_quality || {};
+      const highQuality = (byQuality.high || 0) + (byQuality.good || 0);
+      document.getElementById('ocrStatHighQuality').textContent = highQuality;
+
+      // OCR 필요 통계
+      const byMethod = data.by_method || {};
+      let ocrRequired = 0;
+      Object.entries(byMethod).forEach(([method, count]) => {
+        if (method.toLowerCase().includes('ocr')) ocrRequired += count;
+      });
+      document.getElementById('ocrStatOcrRequired').textContent = ocrRequired;
+
+      showToast('OCR 통계를 조회했습니다.', 'success', 2000);
+    } catch (e) {
+      console.error('OCR 통계 조회 실패:', e);
+      showToast('OCR 통계 조회 실패: ' + e.message, 'error', 3000);
+    }
+  }
+
+  async function viewOcrDetail(documentId) {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    const modal = document.getElementById('ocrDetailModal');
+    const title = document.getElementById('ocrDetailTitle');
+    const content = document.getElementById('ocrDetailContent');
+
+    if (!modal || !content) return;
+    modal.style.display = 'block';
+    title.textContent = '문서 상세 로딩 중...';
+    content.innerHTML = '<div class="empty">로딩 중...</div>';
+
+    try {
+      const r = await fetch(apiUrl(`/api/admin/ocr-results/detail/${encodeURIComponent(documentId)}?include_text=true`), { headers: h });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+
+      title.textContent = data.file_name || documentId;
+
+      const quality = data.quality || {};
+      const qualityClass = (quality.quality_score || 0) >= 0.6 ? 'ql-good' : ((quality.quality_score || 0) >= 0.4 ? '' : 'ql-bad');
+
+      content.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div class="wr-card" style="padding:12px">
+            <h4 style="font-size:12px;color:var(--muted);margin-bottom:8px">기본 정보</h4>
+            <div class="stat-row"><span>문서 ID</span><span class="stat-val" style="font-size:10px">${escapeHtml(data.document_id)}</span></div>
+            <div class="stat-row"><span>추출 방법</span><span class="stat-val">${escapeHtml(data.extraction_method)}</span></div>
+            <div class="stat-row"><span>OCR 필요</span><span class="stat-val">${data.ocr_required ? '예' : '아니오'}</span></div>
+            <div class="stat-row"><span>처리일시</span><span class="stat-val">${data.processed_at ? new Date(data.processed_at).toLocaleString('ko-KR') : '-'}</span></div>
+            <div class="stat-row"><span>텍스트 길이</span><span class="stat-val">${(data.text_length || 0).toLocaleString()}자</span></div>
+          </div>
+          <div class="wr-card" style="padding:12px">
+            <h4 style="font-size:12px;color:var(--muted);margin-bottom:8px">품질 점검 결과</h4>
+            <div class="stat-row"><span>품질 점수</span><span class="stat-val ${qualityClass}">${typeof quality.quality_score === 'number' ? quality.quality_score.toFixed(3) : '-'}</span></div>
+            <div class="stat-row"><span>한글 비율</span><span class="stat-val">${typeof quality.korean_ratio === 'number' ? (quality.korean_ratio * 100).toFixed(1) + '%' : '-'}</span></div>
+            <div class="stat-row"><span>쓰레기 문자 비율</span><span class="stat-val">${typeof quality.garbage_char_ratio === 'number' ? (quality.garbage_char_ratio * 100).toFixed(1) + '%' : '-'}</span></div>
+            <div class="stat-row"><span>빈 페이지 비율</span><span class="stat-val">${typeof quality.empty_page_ratio === 'number' ? (quality.empty_page_ratio * 100).toFixed(1) + '%' : '-'}</span></div>
+            <div class="stat-row"><span>결정</span><span class="stat-val">${escapeHtml(quality.decision || '-')}</span></div>
+          </div>
+        </div>
+        <div class="wr-card" style="padding:12px">
+          <h4 style="font-size:12px;color:var(--muted);margin-bottom:8px">추출된 텍스트 (처음 2000자)</h4>
+          <pre style="background:var(--surface2);padding:12px;border-radius:6px;font-size:11px;max-height:300px;overflow:auto;white-space:pre-wrap;word-break:break-all">${escapeHtml((data.full_text || '').substring(0, 2000))}${(data.full_text || '').length > 2000 ? '\n\n... (더보기는 API 직접 호출)' : ''}</pre>
+        </div>
+      `;
+    } catch (e) {
+      console.error('OCR 상세 조회 실패:', e);
+      content.innerHTML = `<div class="empty" style="color:var(--red)">조회 실패: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  function closeOcrDetailModal() {
+    const modal = document.getElementById('ocrDetailModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+  // ── OCR 결과 조회 함수 끝 ────────────────────────────────────────────────────
+
+  // ── 서버 운영 설정 조회 함수 ────────────────────────────────────────────────────
+  async function loadServerConfig() {
+    const h = { 'Authorization': 'Bearer ' + getToken() };
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || '-'; };
+
+    try {
+      const r = await fetch(apiUrl('/api/admin/faiss/status'), { headers: h });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const cfg = data.server_config || {};
+
+      setVal('serverEmbedProvider', cfg.embedding_provider);
+      setVal('serverEmbedModel', cfg.embedding_model);
+      setVal('serverEmbedDim', cfg.embedding_dim);
+      setVal('serverMaxEmbedChars', cfg.max_embed_chars);
+      setVal('serverOllamaHost', cfg.ollama_host);
+      setVal('serverAnswerProvider', cfg.answer_provider);
+      setVal('serverAnswerModel', cfg.answer_model);
+      setVal('serverActiveSnapshot', cfg.active_snapshot);
+
+      showToast('서버 설정을 로드했습니다.', 'success', 2000);
+    } catch (e) {
+      console.error('서버 설정 조회 실패:', e);
+      showToast('서버 설정 조회 실패: ' + e.message, 'error', 3000);
+    }
+  }
+
+  // Step 2 페이지 열릴 때 자동으로 서버 설정 로드
+  const originalOpenDatasetBuilderStep = typeof openDatasetBuilderStep === 'function' ? openDatasetBuilderStep : null;
+  function openDatasetBuilderStepWithConfig(stepNum) {
+    if (originalOpenDatasetBuilderStep) originalOpenDatasetBuilderStep(stepNum);
+    if (stepNum === 2) {
+      setTimeout(() => loadServerConfig(), 300);
+    }
+  }
+  // ── 서버 운영 설정 조회 함수 끝 ──────────────────────────────────────────────────
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  // Dataset Status Summary (10단계 상태 요약)
+  // ──────────────────────────────────────────────────────────────────────────────
+
+  async function loadDatasetStatusSummary() {
+    const container = document.getElementById('datasetStatusContent');
+    if (!container) return;
+
+    try {
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:#718096">상태를 불러오는 중...</div>';
+
+      const response = await fetch(apiUrl('/admin/dataset/status-summary'), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`상태 조회 실패: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // 상태 요약 렌더링
+      const html = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">전체 문서</div>
+            <div class="wr-summary-value">${data.total_documents || 0}</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Step 1 완료</div>
+            <div class="wr-summary-value">${data.step1_completed || 0} / ${data.total_documents || 0}</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Step 3 검수 대기</div>
+            <div class="wr-summary-value">${data.step3_review_required || 0}</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Step 3 검수 완료</div>
+            <div class="wr-summary-value">${data.step3_reviewed || 0}</div>
+          </div>
+        </div>
+
+        <table class="wr-table">
+          <thead>
+            <tr>
+              <th>단계</th>
+              <th>상태</th>
+              <th>상세</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Step 1: Source Scan</strong></td>
+              <td>${data.step1_completed || 0} 완료 / ${data.step1_failed || 0} 실패</td>
+              <td>${data.total_documents || 0}개 문서 스캔됨</td>
+            </tr>
+            <tr>
+              <td><strong>Step 2: Metadata Auto</strong></td>
+              <td>${data.step2_completed || 0} 완료</td>
+              <td>평균 신뢰도: ${data.step2_avg_confidence ? (data.step2_avg_confidence * 100).toFixed(1) + '%' : '-'}</td>
+            </tr>
+            <tr>
+              <td><strong>Step 3: Metadata Review</strong></td>
+              <td>${data.step3_reviewed || 0} 검수완료 / ${data.step3_review_required || 0} 대기</td>
+              <td>${data.step3_rejected || 0}개 반려됨</td>
+            </tr>
+            <tr>
+              <td><strong>Step 4: OCR/Parser</strong></td>
+              <td>${data.step4_completed || 0} 완료</td>
+              <td>${data.step4_in_progress || 0}개 진행 중, ${data.step4_failed || 0}개 실패</td>
+            </tr>
+            <tr>
+              <td><strong>Step 5: Chunk Build</strong></td>
+              <td>${data.step5_completed || 0} 문서</td>
+              <td>${data.step5_total_chunks || 0}개 chunk (평균: ${data.step5_avg_chunks_per_doc || '-'})</td>
+            </tr>
+            <tr>
+              <td><strong>Step 6: Embedding Build</strong></td>
+              <td>${data.step6_completed || 0} 문서</td>
+              <td>${data.step6_total_embeddings || 0}개 embedding, 모델: ${data.step6_embedding_model || '-'}</td>
+            </tr>
+            <tr>
+              <td><strong>Step 7: FAISS Build</strong></td>
+              <td>${data.step7_collections_built || 0}개 collection</td>
+              <td>${data.step7_total_vectors || 0}개 vector, snapshot: ${data.step7_snapshot_id || '-'}</td>
+            </tr>
+            <tr>
+              <td><strong>Step 8: Graph Build</strong></td>
+              <td>${data.step8_nodes_created || 0}개 node / ${data.step8_edges_created || 0}개 edge</td>
+              <td>저장 방식: ${data.step8_graph_storage || '-'}</td>
+            </tr>
+            <tr>
+              <td><strong>Step 9: Wiki Build</strong></td>
+              <td>${data.step9_wiki_count || 0}개 wiki</td>
+              <td>모델: ${data.step9_wiki_model || '-'}</td>
+            </tr>
+            <tr>
+              <td><strong>Step 10: Search Quality</strong></td>
+              <td>${data.step10_quality_passed ? '✅ 검증 통과' : '⏳ 검증 대기'}</td>
+              <td>활성 snapshot: ${data.step10_active_snapshot || '-'}, 점수: ${data.step10_quality_score ? (data.step10_quality_score * 100).toFixed(1) + '%' : '-'}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:12px;font-size:12px;color:#718096">
+          마지막 업데이트: ${data.last_updated ? new Date(data.last_updated).toLocaleString('ko-KR') : '-'}
+        </div>
+      `;
+
+      container.innerHTML = html;
+
+    } catch (error) {
+      console.error('상태 요약 로드 실패:', error);
+      container.innerHTML = `
+        <div style="text-align:center;padding:20px;color:#e53e3e">
+          상태 조회 실패: ${error.message}
+        </div>
+      `;
+    }
+  }
+
+  // Dataset Builder 페이지가 열릴 때 자동으로 상태 로드
+  window.addEventListener('DOMContentLoaded', () => {
+    // rag-build-wizard 페이지가 활성화될 때 상태 로드
+    const observer = new MutationObserver(() => {
+      const wizardPage = document.querySelector('[data-wr-page-panel="rag-build-wizard"]');
+      if (wizardPage && wizardPage.classList.contains('wr-page-active')) {
+        loadDatasetStatusSummary();
+      }
+    });
+
+    // body의 class 변경 감지
+    observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+  });
+
+  // ── Dataset Status Summary 끝 ──────────────────────────────────────────────────
 
   function updateStep1ParsingResult(state = {}) {
     const setText = (id, value) => {
@@ -7540,6 +9357,19 @@ POST /api/admin/faiss/activate</code>
     const currentSource = window._selectedSourceId || 'current_source';
 
     switch(stepNum) {
+      case 1:
+        body = {
+          source_id: currentSource,
+          ocr_mode: document.getElementById('wrStep1OcrEnable')?.value || 'auto',
+          ocr_language: document.getElementById('wrStep1OcrLang')?.value || 'kor+eng',
+          ocr_dpi: parseInt(document.getElementById('wrStep1OcrDpi')?.value) || 300,
+          ocr_engine: document.getElementById('wrStep1OcrEngine')?.value || 'tesseract',
+          min_text_length: parseInt(document.getElementById('wrStep1MinTextLen')?.value) || 50,
+          image_preprocess: document.getElementById('wrStep1ImagePreprocess')?.value || 'none',
+          hwp_extractor: document.getElementById('wrStep1HwpExtractor')?.value || 'pyhwp',
+          table_extract: document.getElementById('wrStep1TableExtract')?.value === 'enabled'
+        };
+        break;
       case 2:
         body = {
           chunk_size: parseInt(document.getElementById('wrStep2ChunkSize')?.value) || 1000,
@@ -7772,10 +9602,12 @@ LIMIT 10`;
   }
 
   function openBuildWizard() {
+    navigateToDatasetBuilder();
+  }
+
+  function navigateToDatasetBuilder() {
     if (window.openWrDocsPage?.('rag-build-wizard')) return;
-    switchTab('wizard');
-    if (typeof renderWizardProgressBar === 'function') renderWizardProgressBar();
-    if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
+    showWrPage('rag-build-wizard');
   }
 
   function openDashboardAlerts() {
@@ -7789,17 +9621,20 @@ LIMIT 10`;
     switchTab('dashboard');
   }
 
+  // 새로운 6단계 UI → Legacy WIZARD_STEPS 매핑
+  // UI Step 1 (OCR/파싱) → Legacy 5 (OCR/청킹 시작)
+  // UI Step 2 (청킹/임베딩) → Legacy 6 (임베딩/FAISS 진행)
+  // UI Step 3 (메타데이터) → Legacy 3 (Metadata 생성) + Legacy 4 (Tag/Keyword)
+  // UI Step 4 (GraphRAG) → Legacy 7 (Graph RAG 생성)
+  // UI Step 5 (LLM Wiki) → Legacy 8 (LLM Wiki 생성)
+  // UI Step 6 (FAISS 활성화) → Legacy 10 (FAISS 인덱스 활성화)
   const DATASET_BUILDER_LEGACY_STEP_MAP = {
     1: 5,
     2: 6,
     3: 3,
     4: 7,
-    5: 7,
-    6: 7,
-    7: 9,
-    8: 9,
-    9: 8,
-    10: 9,
+    5: 8,
+    6: 10,
   };
 
   function getDatasetBuilderLegacyStep(figmaStep) {
@@ -7807,26 +9642,28 @@ LIMIT 10`;
   }
 
   function openDatasetBuilderStep(figmaStep) {
-    const legacyStep = getDatasetBuilderLegacyStep(figmaStep);
-    openBuildWizard();
-    setTimeout(() => {
-      const docsStep = document.querySelector(`[data-wr-step="${figmaStep}"]`);
-      const legacyStepEl = document.querySelector(`.wizard-step[data-step="${legacyStep}"]`);
-      const target = docsStep || legacyStepEl;
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        target.classList.add('active-step');
-        setTimeout(() => target.classList.remove('active-step'), 1800);
-      }
-      if (docsStep && legacyStepEl) {
-        legacyStepEl.classList.add('active-step');
-        setTimeout(() => legacyStepEl.classList.remove('active-step'), 1800);
-      }
-      const message = figmaStep === legacyStep
-        ? `Dataset Builder Step ${figmaStep}로 이동했습니다.`
-        : `Figma Step ${figmaStep}는 현재 구현의 Step ${legacyStep} 실행 흐름과 연결됩니다.`;
-      showToast(message, 'info', 4000);
-    }, 120);
+    // 새 페이지 패널로 이동
+    const pagePanelId = `db-step-${figmaStep}`;
+    const pagePanel = document.querySelector(`[data-wr-page-panel="${pagePanelId}"]`);
+    if (pagePanel) {
+      showWrPage(pagePanelId);
+      showToast(`Dataset Builder Step ${figmaStep}로 이동했습니다.`, 'info', 2000);
+    } else {
+      // 폴백: 기존 방식
+      const legacyStep = getDatasetBuilderLegacyStep(figmaStep);
+      openBuildWizard();
+      setTimeout(() => {
+        const docsStep = document.querySelector(`[data-wr-step="${figmaStep}"]`);
+        const legacyStepEl = document.querySelector(`.wizard-step[data-step="${legacyStep}"]`);
+        const target = docsStep || legacyStepEl;
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.classList.add('active-step');
+          setTimeout(() => target.classList.remove('active-step'), 1800);
+        }
+        showToast(`Dataset Builder Step ${figmaStep}로 이동했습니다.`, 'info', 4000);
+      }, 120);
+    }
   }
 
   function openGraphRagBuildWizard() {
@@ -8169,10 +10006,31 @@ LIMIT 10`;
     showToast('로그 내보내기 완료', 'success');
   }
 
-  // 페이지 전환 시 데이터 로드
-  const _originalOpenWrDocsPage = window.openWrDocsPage;
+  // 페이지 전환 함수 (wr-page 섹션 전환)
+  function showWrPage(pagePanelId) {
+    // 모든 페이지 패널 비활성화
+    document.querySelectorAll('[data-wr-page-panel]').forEach(el => {
+      el.classList.remove('wr-is-active');
+    });
+    // 모든 네비게이션 링크 비활성화
+    document.querySelectorAll('.wr-nav-link').forEach(el => {
+      el.classList.remove('wr-is-active');
+    });
+    // 대상 페이지 패널 활성화
+    const targetPanel = document.querySelector(`[data-wr-page-panel="${pagePanelId}"]`);
+    if (targetPanel) {
+      targetPanel.classList.add('wr-is-active');
+      // 해당 네비게이션 링크 활성화
+      const navLink = document.querySelector(`[data-wr-page="${pagePanelId}"]`);
+      if (navLink) navLink.classList.add('wr-is-active');
+      return true;
+    }
+    return false;
+  }
+
+  // openWrDocsPage 함수 정의 (showWrPage 래퍼)
   window.openWrDocsPage = function(pageName) {
-    const result = _originalOpenWrDocsPage ? _originalOpenWrDocsPage(pageName) : false;
+    const result = showWrPage(pageName);
 
     // Graph/Ontology 페이지 데이터 로드
     if (pageName === 'graph-overview') loadGraphOverviewStats();
@@ -9108,20 +10966,21 @@ LIMIT 10`;
 
     try {
       // Query 로그 통계
-      const r = await fetch(apiUrl('/api/admin/query-logs/stats'), { headers: h });
+      const r = await fetch(apiUrl('/api/admin/query-logs/summary'), { headers: h });
       if (r.ok) {
         const d = await r.json();
         setText('statTotalQueries', (d.total_queries || d.total || 0) + '건');
         setText('statSuccessRate', (d.success_rate || d.rate || 0).toFixed(1) + '%');
-        setText('statAvgResponse', (d.avg_response_time || d.avg_time || 0).toFixed(1) + '초');
-        setText('statAvgRefs', (d.avg_references || d.avg_refs || 0).toFixed(1) + '건');
+        const avgMs = d.avg_duration_ms || d.avg_response_time || d.avg_time || 0;
+        setText('statAvgResponse', (avgMs / 1000).toFixed(1) + '초');
+        setText('statAvgRefs', (d.avg_result_count || d.avg_references || d.avg_refs || 0).toFixed(1) + '건');
 
         // TOP 5 질문
         const topQueries = d.top_queries || d.recent_queries || [];
         const listEl = document.getElementById('topQueriesList');
         if (listEl && topQueries.length > 0) {
           listEl.innerHTML = topQueries.slice(0, 5).map((q, i) =>
-            `<li>"${q.query || q.text}" (${q.count || q.frequency || 0}회)</li>`
+            `<li>"${q.query_preview || q.query || q.text}" (${q.count || q.frequency || 0}회)</li>`
           ).join('');
         } else if (listEl) {
           listEl.innerHTML = '<li style="color:var(--muted);font-style:italic">질문 기록이 없습니다.</li>';
@@ -9149,7 +11008,7 @@ LIMIT 10`;
   // ────────────────────────────────────────────────────
   const WIZARD_STEPS = [
     null, // 인덱스 1부터
-    { name: '파일 스캔',           api: '/api/admin/rag-source/scan',                       method: 'POST', body: { source_id: 'rag_source', overwrite: false } },
+    { name: '파일 스캔',           api: '/api/admin/rag-source/scan',                    method: 'POST', body: { overwrite: false } },
     { name: 'Collection 메타 동기화', api: '/api/admin/rag-source/collections/bootstrap',       method: 'POST', body: { client_id: 'weeslee', overwrite: false } },
     { name: 'Metadata 생성',       api: '/api/admin/rag-source/metadata/build',              method: 'POST', body: { client_id: 'weeslee', source_id: 'rag_source', inventory_ids: [], overwrite: false, only_missing: true, dry_run: false } },
     { name: 'Tag/Keyword 생성',    api: '/api/admin/rag-source/tags/bootstrap',              method: 'POST', special: 'tag_keyword_bootstrap' },
@@ -9197,17 +11056,141 @@ LIMIT 10`;
   }
 
   function wrWizardRunAll() {
-    // Legacy Wizard의 wizardRunAll 함수 호출
-    if (typeof wizardRunAll === 'function') {
-      wizardRunAll();
-    } else {
-      alert('Legacy Wizard 함수를 찾을 수 없습니다.');
+    // Dataset Builder 메인 페이지로 이동
+    showWrPage('rag-build-wizard');
+    showToast('스냅샷을 선택하거나 새로 생성한 후, 각 단계별 실행 또는 전체 순차 실행을 진행하세요.', 'info', 5000);
+  }
+
+  // Dataset Builder 탭 전환
+  function switchDatasetBuilderTab(tabId) {
+    // 모든 탭 버튼에서 active 제거
+    document.querySelectorAll('#datasetBuilderTabs .wr-tab-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    // 모든 탭 콘텐츠 숨김
+    document.querySelectorAll('#datasetBuilderTabs .wr-tab-content').forEach(content => {
+      content.classList.remove('active');
+    });
+    // 선택된 탭 버튼에 active 추가
+    const selectedBtn = document.querySelector(`#datasetBuilderTabs .wr-tab-btn[data-tab="${tabId}"]`);
+    if (selectedBtn) selectedBtn.classList.add('active');
+    // 선택된 탭 콘텐츠 표시
+    const selectedContent = document.getElementById(tabId);
+    if (selectedContent) selectedContent.classList.add('active');
+  }
+
+  // Dataset Builder 단계별 설정 저장
+  function saveDatasetBuilderStepSettings(stepNum) {
+    showToast(`Step ${stepNum} 설정을 저장했습니다.`, 'success', 2000);
+  }
+
+  // Dataset Builder 단계별 실행 (10단계 구조)
+  async function runDatasetBuilderStep(stepNum) {
+    switch(stepNum) {
+      case 1: // Source Scan
+        await runSourceScan();
+        break;
+      case 2: // Metadata Auto
+        await runMetadataAuto();
+        break;
+      case 3: // Metadata Review
+        showToast('Metadata Review는 문서 목록에서 개별 검수를 진행하세요.', 'info', 3000);
+        showWrPage('rag-source-files');
+        break;
+      case 4: // OCR/Parser
+        if (typeof wizardRun === 'function') {
+          wizardRun(5); // Legacy Step 5
+        }
+        break;
+      case 5: // Chunk Build
+        if (typeof wizardRun === 'function') {
+          wizardRun(6); // Legacy Step 6
+        }
+        break;
+      case 6: // Embedding Build
+        showToast('Embedding은 Chunk Build에 포함되어 있습니다.', 'info');
+        break;
+      case 7: // FAISS Build
+        if (typeof wizardRun === 'function') {
+          wizardRun(10); // Legacy Step 10
+        }
+        break;
+      case 8: // Graph Build
+        if (typeof wizardRun === 'function') {
+          wizardRun(7); // Legacy Step 7
+        }
+        break;
+      case 9: // Wiki Build
+        if (typeof wizardRun === 'function') {
+          wizardRun(8); // Legacy Step 8
+        }
+        break;
+      case 10: // Search Quality / Activate
+        showToast('Search Quality는 별도 페이지에서 진행하세요.', 'info');
+        break;
+      default:
+        showToast(`Step ${stepNum} 실행 함수를 찾을 수 없습니다.`, 'error');
+    }
+  }
+
+  // Step 1: Source Scan 실행
+  async function runSourceScan() {
+    showToast('Source Scan 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/rag-source/scan'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ overwrite: false }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      showToast('Source Scan 완료!', 'success');
+
+      // 결과 표시
+      if (d.total_files !== undefined) {
+        document.getElementById('sourceScanTotalFiles').textContent = d.total_files;
+      }
+      if (d.documents !== undefined) {
+        document.getElementById('sourceScanDocIds').textContent = d.documents;
+      }
+
+      // 상태 요약 새로고침
+      if (typeof loadDatasetStatusSummary === 'function') {
+        loadDatasetStatusSummary();
+      }
+    } catch (e) {
+      showToast('Source Scan 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Step 2: Metadata Auto 실행
+  async function runMetadataAuto() {
+    showToast('Metadata Auto 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/rag-source/metadata/build'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          only_missing: true,
+          overwrite: false
+        }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      showToast('Metadata Auto 완료!', 'success');
+
+      // 상태 요약 새로고침
+      if (typeof loadDatasetStatusSummary === 'function') {
+        loadDatasetStatusSummary();
+      }
+    } catch (e) {
+      showToast('Metadata Auto 실패: ' + e.message, 'error');
     }
   }
 
   window.syncWizardStepperState = function() {
-    // Docs-style stepper의 상태를 Legacy Wizard와 동기화
-    for (let i = 1; i <= 10; i++) {
+    // Docs-style stepper (6단계)의 상태를 Legacy Wizard와 동기화
+    for (let i = 1; i <= 6; i++) {
       const legacyStep = getDatasetBuilderLegacyStep(i);
       const legacyStatus = document.getElementById(`wstatus-${legacyStep}`);
       const docsStatus = document.querySelector(`#wrWizardStepper [data-wr-step-status="${i}"]`);
@@ -9505,6 +11488,113 @@ LIMIT 10`;
   let _wizardAutoRunning   = false;
   let _wizardAutoStop      = false;
 
+  // ── Wizard 상태 초기화 함수 ─────────────────────────────────────────────────
+  function resetWizardState() {
+    // 변수 초기화
+    _wizardFaissJobId = null;
+    _wizardFaissSnapshot = null;
+    _wizardAutoRunning = false;
+    _wizardAutoStop = false;
+
+    // 모든 step의 done/active-step 클래스 제거
+    document.querySelectorAll('.wizard-step').forEach(el => {
+      el.classList.remove('done', 'active-step');
+    });
+
+    // 모든 step status 초기화
+    document.querySelectorAll('[id^="wstatus-"]').forEach(el => {
+      el.textContent = '';
+      el.className = '';
+    });
+
+    // 모든 step log 초기화
+    document.querySelectorAll('[id^="wlog-"]').forEach(el => {
+      el.textContent = '';
+      el.classList.remove('show');
+    });
+
+    // 진행 바 초기화
+    renderWizardProgressBar();
+
+    // 결과 요약 초기화
+    const summaryEl = document.getElementById('wizardResultSummary');
+    const stampEl = document.getElementById('wizardResultStamp');
+    if (summaryEl) {
+      summaryEl.textContent = '대기 중';
+      summaryEl.style.color = 'var(--muted)';
+    }
+    if (stampEl) stampEl.textContent = '';
+
+    // 스냅샷 UI 업데이트
+    updateSnapshotUI();
+
+    console.log('[Wizard] 상태 초기화 완료');
+  }
+
+  // ── Snapshot UI 업데이트 ────────────────────────────────────────────────────
+  function updateSnapshotUI() {
+    const snapshotEl = document.getElementById('wizardCurrentSnapshot');
+    const sourceEl = document.getElementById('wizardCurrentSource');
+    const sourceId = document.getElementById('ctxSource')?.value?.trim() || 'rag_source';
+    const existingSnapshot = getSelectedSnapshot();
+
+    if (snapshotEl) {
+      snapshotEl.textContent = _wizardFaissSnapshot || existingSnapshot || '(자동 생성 예정)';
+    }
+    if (sourceEl) {
+      sourceEl.textContent = sourceId;
+    }
+  }
+
+  // 공통 스냅샷 ID 생성 함수 (snapshot_YYYYMMDD_Vn 형식)
+  function createNewSnapshotId() {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const prefix = `snapshot_${today}_V`;
+
+    // 기존 스냅샷 목록에서 같은 날짜의 최대 버전 번호 확인
+    let maxVersion = 0;
+    try {
+      const ctxSnapshotSelect = document.getElementById('ctxSnapshot');
+      if (ctxSnapshotSelect) {
+        Array.from(ctxSnapshotSelect.options).forEach(opt => {
+          const val = opt.value;
+          if (val && val.startsWith(prefix)) {
+            const versionStr = val.substring(prefix.length);
+            const versionNum = parseInt(versionStr, 10);
+            if (!isNaN(versionNum) && versionNum > maxVersion) {
+              maxVersion = versionNum;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('스냅샷 버전 확인 실패:', e);
+    }
+
+    const newVersion = maxVersion + 1;
+    return `${prefix}${newVersion}`;
+  }
+
+  async function generateNewSnapshot() {
+    _wizardFaissSnapshot = createNewSnapshotId();
+    updateSnapshotUI();
+    showToast(`새 스냅샷 생성: ${_wizardFaissSnapshot}`, 'success');
+  }
+
+  // ctxSource 변경 시 UI 업데이트
+  document.addEventListener('DOMContentLoaded', () => {
+    const sourceSelect = document.getElementById('ctxSource');
+    if (sourceSelect) {
+      sourceSelect.addEventListener('change', () => {
+        // source 변경 시 전체 Wizard 상태 초기화
+        resetWizardState();
+        showToast('Document Source가 변경되어 진행 상태가 초기화되었습니다.', 'info', 3000);
+      });
+    }
+    // 초기 로드 시 업데이트
+    setTimeout(updateSnapshotUI, 500);
+  });
+
   function _wizardSetRunSummary(text, cls = '') {
     const summaryEl = document.getElementById('wizardResultSummary');
     const stampEl = document.getElementById('wizardResultStamp');
@@ -9730,9 +11820,7 @@ LIMIT 10`;
     if (cfg?.special === 'faiss_start') {
       _wizardSetStatus(step, '잡 시작...', 'running');
       try {
-        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const sourceId = document.getElementById('ctxSource')?.value?.trim() || 'rag_source';
-        const snapshotSourceKey = sourceId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         // 기존 스냅샷이 선택되었는지 확인
         const existingSnapshot = getSelectedSnapshot();
@@ -9751,7 +11839,7 @@ LIMIT 10`;
           _wizardAppendLog(step, `Document Source: ${sourceId}`);
           _wizardAppendLog(step, `Stage ${startFromStage}부터 시작`);
         } else {
-          _wizardFaissSnapshot = `snapshot_${today}_${snapshotSourceKey}`;
+          _wizardFaissSnapshot = createNewSnapshotId();
           _wizardAppendLog(step, `Document Source: ${sourceId}`);
           _wizardAppendLog(step, `새 스냅샷: ${_wizardFaissSnapshot}`);
         }
@@ -9776,14 +11864,20 @@ LIMIT 10`;
         _wizardMarkDone(step);
         const resumeMsg = startFromStage > 1 ? ` (Stage ${startFromStage}부터 재개)` : '';
         _wizardSetRunSummary(_wizardBuildSummary(step, `OCR/청킹 잡 ${_wizardFaissJobId} 실행 완료.${resumeMsg}`), 'ok');
-        // 스냅샷 목록 새로고침
-        loadSnapshotList();
+        // 스냅샷 목록 새로고침 후 새 스냅샷 자동 선택
+        await loadSnapshotList();
+        const snapshotSelect = document.getElementById('ctxSnapshot');
+        if (snapshotSelect && _wizardFaissSnapshot) {
+          snapshotSelect.value = _wizardFaissSnapshot;
+          if (typeof onSnapshotChange === 'function') onSnapshotChange();
+        }
         return true;
       } catch (e) { _wizardMarkJobError(step, 'OCR/청킹', e); return false; }
     }
 
     // ── faiss_poll: 임베딩 + Vector + FAISS 생성 (Step 6) ──────────────────
     if (cfg?.special === 'faiss_poll') {
+      // Step 5에서 생성된 스냅샷 우선, 없으면 드롭다운 선택값 사용
       const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
       if (!snapshot) {
         _wizardMarkError(step, 'FAISS 스냅샷이 없습니다. Step 5 (OCR/청킹)를 먼저 실행하세요.');
@@ -9814,7 +11908,13 @@ LIMIT 10`;
         await _wizardSseStream(step, _wizardFaissJobId);
         _wizardMarkDone(step);
         _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 잡 ${_wizardFaissJobId} 실행 완료.`), 'ok');
-        loadSnapshotList();
+        // 스냅샷 목록 새로고침 후 현재 스냅샷 유지
+        await loadSnapshotList();
+        const snapshotSelect = document.getElementById('ctxSnapshot');
+        if (snapshotSelect && snapshot) {
+          snapshotSelect.value = snapshot;
+          if (typeof onSnapshotChange === 'function') onSnapshotChange();
+        }
         return true;
       } catch (e) { _wizardMarkJobError(step, '임베딩/FAISS', e); return false; }
     }
@@ -9867,8 +11967,10 @@ LIMIT 10`;
 
     if (step === 7) {
       const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
+      const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
       const params = new URLSearchParams();
       if (sourceId) params.set('source_id', sourceId);
+      if (snapshot) params.set('snapshot', snapshot);
       const url = params.toString() ? `${cfg.api}?${params.toString()}` : cfg.api;
       _wizardSetStatus(step, '실행 중...', 'running');
       _wizardAppendLog(step, `${cfg.method} ${url} ...`);
@@ -9890,22 +11992,32 @@ LIMIT 10`;
     if (step === 8) {
       const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
       const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
+      if (!sourceId) {
+        _wizardMarkError(step, 'Document Source가 선택되지 않았습니다.');
+        return false;
+      }
       const params = new URLSearchParams();
-      if (sourceId) params.set('source_id', sourceId);
+      params.set('source_id', sourceId);
       if (snapshot) params.set('snapshot', snapshot);
-      const url = params.toString() ? `${cfg.api}?${params.toString()}` : cfg.api;
-      _wizardSetStatus(step, '실행 중...', 'running');
-      _wizardAppendLog(step, `${cfg.method} ${url} ...`);
+      params.set('max_projects', '10');  // 기본 10개 프로젝트로 제한
+      const url = `${cfg.api}?${params.toString()}`;
+      _wizardSetStatus(step, 'Wiki 생성 중... (시간이 걸릴 수 있습니다)', 'running');
+      _wizardAppendLog(step, `${cfg.method} ${url}`);
+      _wizardAppendLog(step, `source_id: ${sourceId}, snapshot: ${snapshot || '(없음)'}`);
       try {
         const r = await fetch(apiUrl(url), {
           method: cfg.method,
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
         });
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(formatWizardErrorDetail(d.detail || d.message || d, `HTTP ${r.status}`));
+        if (!r.ok) {
+          const errDetail = d.detail || d.message || (Object.keys(d).length === 0 ? 'Wiki 빌드 스크립트 실행 실패 (상세 오류 없음)' : JSON.stringify(d));
+          throw new Error(formatWizardErrorDetail(errDetail, `HTTP ${r.status}`));
+        }
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 600));
         _wizardMarkDone(step);
-        _wizardSetRunSummary(_wizardBuildSummary(step, _wizardFormatResponseSummary(step, d)), 'ok');
+        const wikiCount = d.count || d.generated?.length || 0;
+        _wizardSetRunSummary(_wizardBuildSummary(step, `Wiki ${wikiCount}개 생성 완료`), 'ok');
         return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }
@@ -9933,11 +12045,46 @@ LIMIT 10`;
 
   async function wizardRunAll() {
     if (_wizardAutoRunning) return;
+
+    // ── 전체 실행 전 상태 초기화 ───────────────────────────────────────────
+    // 기존 선택된 스냅샷 유지 여부 확인
+    const keepSnapshot = getSelectedSnapshot();
+
+    // 진행 상태 초기화 (스냅샷 변수 제외)
+    document.querySelectorAll('.wizard-step').forEach(el => {
+      el.classList.remove('done', 'active-step');
+    });
+    document.querySelectorAll('[id^="wstatus-"]').forEach(el => {
+      el.textContent = '';
+      el.className = '';
+    });
+    document.querySelectorAll('[id^="wlog-"]').forEach(el => {
+      el.textContent = '';
+      el.classList.remove('show');
+    });
+    renderWizardProgressBar();
+
     _wizardAutoRunning = true;
     _wizardAutoStop    = false;
     const statusEl = document.getElementById('wizardAutoStatus');
     const stopBtn  = document.getElementById('wizardStopBtn');
     if (stopBtn) stopBtn.style.display = '';
+
+    // ── 전체 실행 전 snapshot_id 생성 ──────────────────────────────────────
+    const existingSnapshot = keepSnapshot;
+
+    if (!existingSnapshot) {
+      // 새 snapshot_id 생성 (createNewSnapshotId() 사용)
+      _wizardFaissSnapshot = createNewSnapshotId();
+      if (statusEl) statusEl.textContent = `새 스냅샷 생성: ${_wizardFaissSnapshot}`;
+      console.log('[wizardRunAll] 새 스냅샷 ID 생성:', _wizardFaissSnapshot);
+    } else {
+      _wizardFaissSnapshot = existingSnapshot;
+      if (statusEl) statusEl.textContent = `기존 스냅샷 사용: ${_wizardFaissSnapshot}`;
+      console.log('[wizardRunAll] 기존 스냅샷 사용:', _wizardFaissSnapshot);
+    }
+    await new Promise(r => setTimeout(r, 500));
+
     for (const step of [1, 3, 4, 5, 6, 7, 8, 9, 10]) {
       if (_wizardAutoStop) {
         if (statusEl) statusEl.textContent = '사용자가 중단했습니다.';
@@ -9968,6 +12115,257 @@ LIMIT 10`;
   checkAuth().then(() => {
     if (getToken()) initPage();
   });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // LPG Ontology 관련 함수 (Phase 8: 4-layer RAG)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * LPG 시스템 상태 로드
+   */
+  async function loadLpgStatus() {
+    try {
+      const r = await fetch(apiUrl('/api/graph/lpg/status'), {
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const d = await r.json();
+
+      // 상태 표시
+      const statusEl = document.getElementById('wrLpgStatus');
+      if (statusEl) {
+        statusEl.textContent = d.status === 'ready' ? '정상' : '미초기화';
+        statusEl.style.color = d.status === 'ready' ? 'var(--green)' : 'var(--amber)';
+      }
+
+      // 통계 표시
+      setText('wrLpgTotalNodes', d.total_nodes ?? '-');
+      setText('wrLpgTotalEdges', d.total_edges ?? '-');
+      setText('wrLpgOntologyTerms', d.ontology_terms ?? '-');
+
+      // 노드 타입별 통계
+      const nodeStatsEl = document.getElementById('wrLpgNodeStats');
+      if (nodeStatsEl && d.node_types) {
+        const nodeTypes = d.node_types;
+        const nodeColors = {
+          'Document': '#3498db', 'Project': '#E8971F', 'Organization': '#22c55e',
+          'Technology': '#8b5cf6', 'Methodology': '#ef4444', 'Domain': '#f59e0b',
+          'Category': '#6b7280', 'Source': '#1abc9c', 'Snapshot': '#9b59b6', 'Chunk': '#95a5a6'
+        };
+        nodeStatsEl.innerHTML = Object.entries(nodeTypes).map(([type, count]) => `
+          <div style="background:var(--surface1);padding:12px;border-radius:8px;border-left:4px solid ${nodeColors[type] || '#6b7280'}">
+            <div style="font-size:24px;font-weight:700;color:var(--text)">${count}</div>
+            <div style="font-size:12px;color:var(--muted)">${type}</div>
+          </div>
+        `).join('');
+      }
+
+      // 엣지 타입별 통계
+      const edgeStatsEl = document.getElementById('wrLpgEdgeStats');
+      if (edgeStatsEl && d.edge_types) {
+        edgeStatsEl.innerHTML = Object.entries(d.edge_types).map(([type, count]) => `
+          <div style="background:var(--surface1);padding:10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;color:var(--muted)">${type}</span>
+            <span style="font-size:14px;font-weight:600;color:var(--text)">${count}</span>
+          </div>
+        `).join('');
+      }
+
+    } catch (e) {
+      console.error('loadLpgStatus error:', e);
+      setText('wrLpgStatus', 'Error');
+    }
+  }
+
+  /**
+   * LPG 쿼리 라우팅 테스트
+   */
+  async function testLpgQueryRouter() {
+    const query = document.getElementById('wrLpgQueryInput')?.value?.trim();
+    if (!query) {
+      alert('검색 쿼리를 입력하세요.');
+      return;
+    }
+
+    try {
+      const r = await fetch(apiUrl('/api/graph/lpg/route'), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, top_k: 10 })
+      });
+      const d = await r.json();
+
+      // 결과 표시
+      const resultEl = document.getElementById('wrLpgQueryResult');
+      if (resultEl) resultEl.style.display = 'block';
+
+      // 쿼리 유형 색상
+      const typeColors = { factual: '#3498db', conceptual: '#9b59b6', relational: '#22c55e', summary: '#f39c12', unknown: '#95a5a6' };
+      const typeLabels = { factual: '사실 기반', conceptual: '개념 정의', relational: '관계 탐색', summary: '요약 생성', unknown: '알 수 없음' };
+
+      setText('wrLpgQueryType', `<span style="background:${typeColors[d.query_type] || '#95a5a6'};color:white;padding:2px 8px;border-radius:4px">${typeLabels[d.query_type] || d.query_type}</span>`);
+      document.getElementById('wrLpgQueryType').innerHTML = document.getElementById('wrLpgQueryType').textContent;
+      setText('wrLpgQueryConfidence', (d.confidence * 100).toFixed(0) + '%');
+
+      // 레이어 순서
+      const layerNames = { 1: 'FAISS', 2: 'Ontology', 3: 'GraphRAG', 4: 'LLM Wiki' };
+      setText('wrLpgQueryLayers', d.layer_names?.join(' → ') || d.layers?.map(l => layerNames[l]).join(' → ') || '-');
+
+      // 엔티티
+      setText('wrLpgQueryEntities', d.extracted_entities?.slice(0, 5).join(', ') || '-');
+
+      // 확장 검색어
+      setText('wrLpgQueryExpanded', d.expanded_terms?.slice(0, 8).join(', ') || '-');
+
+      // 필터
+      setText('wrLpgQueryFilters', d.filters && Object.keys(d.filters).length > 0
+        ? Object.entries(d.filters).map(([k, v]) => `${k}: ${v}`).join(', ')
+        : '-');
+
+    } catch (e) {
+      console.error('testLpgQueryRouter error:', e);
+      alert('쿼리 라우팅 테스트 실패: ' + e.message);
+    }
+  }
+
+  /**
+   * LPG 온톨로지 용어 목록 로드
+   */
+  async function loadLpgOntologyTerms() {
+    const termType = document.getElementById('wrLpgTermTypeFilter')?.value || '';
+    const search = document.getElementById('wrLpgTermSearch')?.value || '';
+
+    try {
+      const params = new URLSearchParams();
+      if (termType) params.set('term_type', termType);
+      if (search) params.set('search', search);
+      params.set('limit', '100');
+
+      const r = await fetch(apiUrl('/api/graph/lpg/ontology/terms?' + params.toString()), {
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const d = await r.json();
+
+      const listEl = document.getElementById('wrLpgTermsList');
+      if (!listEl) return;
+
+      if (!d.terms || d.terms.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">용어가 없습니다.</div>';
+        return;
+      }
+
+      const typeColors = {
+        organization: '#22c55e', technology: '#8b5cf6', methodology: '#ef4444',
+        domain: '#f59e0b', category: '#6b7280'
+      };
+
+      listEl.innerHTML = d.terms.map(term => `
+        <div style="background:var(--surface1);padding:10px;border-radius:6px;margin-bottom:8px;border-left:3px solid ${typeColors[term.type] || '#6b7280'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong style="color:var(--text)">${term.label}</strong>
+            <span style="font-size:10px;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:4px">${term.type}</span>
+          </div>
+          ${term.synonyms?.length ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">동의어: ${term.synonyms.join(', ')}</div>` : ''}
+          ${term.description ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">${term.description}</div>` : ''}
+        </div>
+      `).join('');
+
+    } catch (e) {
+      console.error('loadLpgOntologyTerms error:', e);
+      document.getElementById('wrLpgTermsList').innerHTML = '<div style="color:var(--red)">로드 실패</div>';
+    }
+  }
+
+  /**
+   * LPG 노드 빌드
+   */
+  async function buildLpgNodes() {
+    if (!confirm('LPG 노드를 새로 빌드하시겠습니까?')) return;
+
+    const logEl = document.getElementById('wrLpgBuildLog');
+    const preEl = logEl?.querySelector('pre');
+    if (logEl) logEl.style.display = 'block';
+    if (preEl) preEl.textContent = '노드 빌드 중...\n';
+
+    try {
+      const r = await fetch(apiUrl('/api/graph/lpg/build/nodes'), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const d = await r.json();
+
+      if (d.success) {
+        if (preEl) preEl.textContent += '성공!\n' + (d.output || '');
+        await loadLpgStatus();
+      } else {
+        if (preEl) preEl.textContent += '실패: ' + (d.detail || d.message || JSON.stringify(d));
+      }
+    } catch (e) {
+      if (preEl) preEl.textContent += '오류: ' + e.message;
+    }
+  }
+
+  /**
+   * LPG 엣지 빌드
+   */
+  async function buildLpgEdges() {
+    if (!confirm('LPG 엣지를 새로 빌드하시겠습니까?')) return;
+
+    const logEl = document.getElementById('wrLpgBuildLog');
+    const preEl = logEl?.querySelector('pre');
+    if (logEl) logEl.style.display = 'block';
+    if (preEl) preEl.textContent = '엣지 빌드 중...\n';
+
+    try {
+      const r = await fetch(apiUrl('/api/graph/lpg/build/edges'), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const d = await r.json();
+
+      if (d.success) {
+        if (preEl) preEl.textContent += '성공!\n' + (d.output || '');
+        await loadLpgStatus();
+      } else {
+        if (preEl) preEl.textContent += '실패: ' + (d.detail || d.message || JSON.stringify(d));
+      }
+    } catch (e) {
+      if (preEl) preEl.textContent += '오류: ' + e.message;
+    }
+  }
+
+  /**
+   * LPG 그래프 캐시 리로드
+   */
+  async function reloadLpgGraph() {
+    try {
+      const r = await fetch(apiUrl('/api/graph/lpg/reload'), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + getToken() }
+      });
+      const d = await r.json();
+
+      if (d.success) {
+        alert('LPG 그래프 캐시가 리로드되었습니다.');
+        await loadLpgStatus();
+      } else {
+        alert('리로드 실패: ' + (d.message || '알 수 없는 오류'));
+      }
+    } catch (e) {
+      alert('리로드 오류: ' + e.message);
+    }
+  }
+
+  // LPG Ontology 페이지 진입 시 자동 로드
+  const _origShowWrPage = typeof showWrPage === 'function' ? showWrPage : null;
+  if (_origShowWrPage) {
+    showWrPage = function(pageName) {
+      _origShowWrPage(pageName);
+      if (pageName === 'lpg-ontology') {
+        loadLpgStatus();
+        loadLpgOntologyTerms();
+      }
+    };
+  }
 </script>
 <script src="assets/js/admin/admin-docs-layout.js?v=20260523"></script>
 
