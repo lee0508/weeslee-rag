@@ -667,10 +667,44 @@ def post_json(url: str, payload: dict, headers: dict[str, str]) -> dict:
         raise RuntimeError(f"Request failed for {url}: {exc}") from exc
 
 
+def _load_llm_settings() -> dict:
+    """LLM 설정 파일에서 설정 로드."""
+    settings_path = Path(__file__).resolve().parents[2] / "data" / "config" / "llm_settings.json"
+    defaults = {
+        "system_prompt": "",
+        "temperature": 0.3,
+        "top_p": 0.9,
+        "max_tokens": 2000,
+        "typo_dict": ""
+    }
+    if not settings_path.exists():
+        return defaults
+    try:
+        import json as _json
+        saved = _json.loads(settings_path.read_text(encoding="utf-8"))
+        return {**defaults, **saved}
+    except Exception:
+        return defaults
+
+
 def generate_with_ollama(prompt: str, model: str, url: str) -> str:
+    llm_settings = _load_llm_settings()
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": llm_settings.get("temperature", 0.3),
+            "top_p": llm_settings.get("top_p", 0.9),
+            "num_predict": llm_settings.get("max_tokens", 2000),
+        }
+    }
+    system_prompt = llm_settings.get("system_prompt", "")
+    if system_prompt:
+        payload["system"] = system_prompt
     data = post_json(
         url,
-        {"model": model, "prompt": prompt, "stream": False},
+        payload,
         {"Content-Type": "application/json"},
     )
     return data.get("response", "").strip()

@@ -148,26 +148,33 @@ def main() -> int:
         else:
             vector = hashing_embedding(embedding_text, args.embedding_dim)
         embeddings.append(vector.astype(np.float32))
+
+        # 메타데이터 추출 (source_id 최상위 레벨에 포함)
+        meta = row.get("metadata", {}) or {}
         metadata_rows.append(
             {
                 "chunk_id": row.get("chunk_id"),
                 "document_id": row.get("document_id"),
+                "source_id": meta.get("source_id", ""),
                 "category": row.get("category"),
                 "section_heading": row.get("section_heading"),
                 "char_count": row.get("char_count"),
                 "source_path": row.get("source_path"),
                 "input_path": row.get("input_path"),
-                "organization": (row.get("metadata", {}) or {}).get("organization", ""),
-                "folder_year": (row.get("metadata", {}) or {}).get("folder_year", ""),
-                "root_group": (row.get("metadata", {}) or {}).get("root_group", ""),
-                "sub_group": (row.get("metadata", {}) or {}).get("sub_group", ""),
-                "section_label": (row.get("metadata", {}) or {}).get("section_label", ""),
-                "relative_path": (row.get("metadata", {}) or {}).get("relative_path", ""),
-                "original_source_path": (row.get("metadata", {}) or {}).get("original_source_path", ""),
-                "file_name": (row.get("metadata", {}) or {}).get("file_name", ""),
+                "organization": meta.get("organization", ""),
+                "folder_year": meta.get("folder_year", ""),
+                "root_group": meta.get("root_group", ""),
+                "sub_group": meta.get("sub_group", ""),
+                "section_label": meta.get("section_label", ""),
+                "relative_path": meta.get("relative_path", ""),
+                "original_source_path": meta.get("original_source_path", ""),
+                "file_name": meta.get("file_name", ""),
+                "document_category": meta.get("document_category", ""),
+                "document_group": meta.get("document_group", ""),
+                "project_name": meta.get("project_name", ""),
                 "embedding_text_length": len(embedding_text),
                 "original_text_length": len(text),
-                "metadata": row.get("metadata", {}),
+                "metadata": meta,
             }
         )
         if i % 200 == 0 or i == total:
@@ -184,9 +191,12 @@ def main() -> int:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     by_document: dict[str, int] = {}
+    by_source: dict[str, int] = {}
     for row in metadata_rows:
         doc_id = row["document_id"]
+        source_id = row.get("source_id", "") or "unknown"
         by_document[doc_id] = by_document.get(doc_id, 0) + 1
+        by_source[source_id] = by_source.get(source_id, 0) + 1
 
     manifest = {
         "chunks_jsonl": str(chunks_jsonl),
@@ -197,7 +207,9 @@ def main() -> int:
         "max_embed_chars": args.max_embed_chars,
         "vector_count": int(index.ntotal),
         "document_count": len(by_document),
+        "source_count": len(by_source),
         "counts_by_document": by_document,
+        "counts_by_source": by_source,
         "notes": [
             "hashing provider is for pipeline validation only",
             "use ollama embeddings for meaningful retrieval quality",

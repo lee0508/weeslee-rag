@@ -21,47 +21,69 @@ router = APIRouter(
 COL_STORE = "collection_templates"
 COL_ID = "template_id"
 
+# 위즐리 컬렉션 템플릿 - 실제 폴더 구조 기준 (2026-06-04 정합성 검토)
+# 실제 폴더 구조:
+#   00. RAG 소스/
+#   ├── 01. RFP (47개)
+#   ├── 02. 제안서/
+#   │   ├── 01. 전략및방법론 (36개)
+#   │   ├── 02. 기술및기능 (36개)
+#   │   ├── 03. 프로젝트관리 (34개)
+#   │   ├── 04. 프로젝트지원 (32개)
+#   │   └── 05. 연구과제 (9개)
+#   └── 03. 산출물/
+#       ├── 01. 환경분석 (8개)
+#       ├── 02. 현황분석 (15개)
+#       ├── 03. 목표모델 (19개)
+#       ├── 04. 이행계획 (10개)
+#       └── 05. 연구과제 (4개)
+# 주의: 감리/PMO/PoC 폴더는 현재 존재하지 않음 (enabled=False)
 _WEESLEE_COLLECTIONS = [
+    # 전체 및 최상위 카테고리
     {"template_id": "col_all", "client_id": "weeslee", "name": "전체",
-     "collection_key": "rag_source_all", "description": "모든 문서", "enabled": True},
+     "collection_key": "rag_source_all", "description": "모든 문서 (250개)", "enabled": True},
     {"template_id": "col_rfp", "client_id": "weeslee", "name": "RFP",
-     "collection_key": "rag_source_rfp", "description": "RFP 문서", "enabled": True},
+     "collection_key": "rag_source_rfp", "description": "RFP 문서 (47개)", "enabled": True},
     {"template_id": "col_proposal", "client_id": "weeslee", "name": "제안서",
-     "collection_key": "rag_source_proposal", "description": "제안서 전체", "enabled": True},
+     "collection_key": "rag_source_proposal", "description": "제안서 전체 (147개)", "enabled": True},
     {"template_id": "col_deliverable", "client_id": "weeslee", "name": "산출물",
-     "collection_key": "rag_source_deliverable", "description": "산출물 전체", "enabled": True},
+     "collection_key": "rag_source_deliverable", "description": "산출물 전체 (56개)", "enabled": True},
+    # 제안서 하위 - 실제 존재하는 폴더
     {"template_id": "col_prop_strategy", "client_id": "weeslee", "name": "제안서/전략및방법론",
-     "collection_key": "rag_source_proposal_strategy", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_strategy", "description": "36개 파일", "enabled": True},
     {"template_id": "col_prop_tech", "client_id": "weeslee", "name": "제안서/기술및기능",
-     "collection_key": "rag_source_proposal_tech", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_tech", "description": "36개 파일", "enabled": True},
     {"template_id": "col_prop_pm", "client_id": "weeslee", "name": "제안서/프로젝트관리",
-     "collection_key": "rag_source_proposal_pm", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_pm", "description": "34개 파일", "enabled": True},
     {"template_id": "col_prop_support", "client_id": "weeslee", "name": "제안서/프로젝트지원",
-     "collection_key": "rag_source_proposal_support", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_support", "description": "32개 파일", "enabled": True},
     {"template_id": "col_prop_research", "client_id": "weeslee", "name": "제안서/연구과제",
-     "collection_key": "rag_source_proposal_research", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_research", "description": "9개 파일", "enabled": True},
+    # 제안서 하위 - 미존재 폴더 (향후 확장용, 비활성화)
     {"template_id": "col_prop_audit", "client_id": "weeslee", "name": "제안서/감리",
-     "collection_key": "rag_source_proposal_audit", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_audit", "description": "폴더 미존재", "enabled": False},
     {"template_id": "col_prop_pmo", "client_id": "weeslee", "name": "제안서/PMO",
-     "collection_key": "rag_source_proposal_pmo", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_pmo", "description": "폴더 미존재", "enabled": False},
     {"template_id": "col_prop_poc", "client_id": "weeslee", "name": "제안서/PoC",
-     "collection_key": "rag_source_proposal_poc", "description": "", "enabled": True},
+     "collection_key": "rag_source_proposal_poc", "description": "폴더 미존재", "enabled": False},
+    # 산출물 하위 - 실제 존재하는 폴더
     {"template_id": "col_del_env", "client_id": "weeslee", "name": "산출물/환경분석",
-     "collection_key": "rag_source_deliverable_env", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_env", "description": "8개 파일", "enabled": True},
     {"template_id": "col_del_current", "client_id": "weeslee", "name": "산출물/현황분석",
-     "collection_key": "rag_source_deliverable_current", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_current", "description": "15개 파일", "enabled": True},
     {"template_id": "col_del_target", "client_id": "weeslee", "name": "산출물/목표모델",
-     "collection_key": "rag_source_deliverable_target", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_target", "description": "19개 파일", "enabled": True},
     {"template_id": "col_del_plan", "client_id": "weeslee", "name": "산출물/이행계획",
-     "collection_key": "rag_source_deliverable_plan", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_plan", "description": "10개 파일", "enabled": True},
     {"template_id": "col_del_research", "client_id": "weeslee", "name": "산출물/연구과제",
-     "collection_key": "rag_source_deliverable_research", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_research", "description": "4개 파일", "enabled": True},
+    # 산출물 하위 - 미존재 폴더 (향후 확장용, 비활성화)
     {"template_id": "col_del_audit", "client_id": "weeslee", "name": "산출물/감리",
-     "collection_key": "rag_source_deliverable_audit", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_audit", "description": "폴더 미존재", "enabled": False},
     {"template_id": "col_del_pmo", "client_id": "weeslee", "name": "산출물/PMO",
-     "collection_key": "rag_source_deliverable_pmo", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_pmo", "description": "폴더 미존재", "enabled": False},
     {"template_id": "col_del_poc", "client_id": "weeslee", "name": "산출물/PoC",
-     "collection_key": "rag_source_deliverable_poc", "description": "", "enabled": True},
+     "collection_key": "rag_source_deliverable_poc", "description": "폴더 미존재", "enabled": False},
 ]
 
 

@@ -322,6 +322,38 @@ def _log_query_event(
     )
 
 
+def _load_llm_settings() -> dict:
+    """LLM 설정 파일에서 설정 로드."""
+    settings_path = PROJECT_ROOT / "data" / "config" / "llm_settings.json"
+    defaults = {"typo_dict": ""}
+    if not settings_path.exists():
+        return defaults
+    try:
+        saved = json.loads(settings_path.read_text(encoding="utf-8"))
+        return {**defaults, **saved}
+    except Exception:
+        return defaults
+
+
+def _apply_typo_correction(query: str) -> str:
+    """오타 보정 사전 적용."""
+    llm_settings = _load_llm_settings()
+    typo_dict_str = llm_settings.get("typo_dict", "")
+    if not typo_dict_str:
+        return query
+
+    corrected = query
+    for line in typo_dict_str.split('\n'):
+        if '→' in line:
+            parts = line.split('→')
+            if len(parts) == 2:
+                from_text = parts[0].strip()
+                to_text = parts[1].strip()
+                if from_text and to_text:
+                    corrected = corrected.replace(from_text, to_text)
+    return corrected
+
+
 def _resolve_query_request(request: RagQueryRequest) -> tuple[str, str, Optional[dict]]:
     from app.services.query_expander import (
         detect_mode_with_reason,
@@ -329,20 +361,23 @@ def _resolve_query_request(request: RagQueryRequest) -> tuple[str, str, Optional
         expand_rfp_query,
     )
 
+    # 오타 보정 적용
+    corrected_query = _apply_typo_correction(request.query)
+
     effective_mode = request.mode
     mode_detection = None
     if request.mode == "auto":
-        mode_detection = detect_mode_with_reason(request.query)
+        mode_detection = detect_mode_with_reason(corrected_query)
         effective_mode = mode_detection["mode"]
 
     if effective_mode == "bid_project":
-        effective_query = expand_bid_query(request.query)
+        effective_query = expand_bid_query(corrected_query)
     elif effective_mode == "rfp_analysis":
-        effective_query = expand_rfp_query(request.query)
+        effective_query = expand_rfp_query(corrected_query)
     elif effective_mode == "graph_rag":
-        effective_query = request.query
+        effective_query = corrected_query
     else:
-        effective_query = expand_bid_query(request.query)
+        effective_query = expand_bid_query(corrected_query)
 
     return effective_mode, effective_query, mode_detection
 

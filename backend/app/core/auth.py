@@ -30,6 +30,10 @@ def decode_token(token: str) -> Optional[str]:
 
 def require_admin_token(token: Optional[str] = Depends(oauth2_scheme)) -> str:
     """인증된 Admin 토큰이 없으면 HTTP 401 반환하는 FastAPI 의존성."""
+    # [DEV MODE] 개발/시연 모드에서는 인증 우회
+    if settings.debug and settings.app_env == "development":
+        return "dev-user"
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -44,3 +48,11 @@ def require_admin_token(token: Optional[str] = Depends(oauth2_scheme)) -> str:
             headers={"WWW-Authenticate": "Bearer"},
         )
     return username
+
+
+def optional_admin_token(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
+    """선택적 인증 - 토큰이 있으면 검증하고, 없어도 통과 (읽기 전용 공개 엔드포인트용)."""
+    if not token:
+        return None
+    username = decode_token(token)
+    return username  # None일 수도 있음 (잘못된 토큰)

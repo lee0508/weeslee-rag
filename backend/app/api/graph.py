@@ -43,6 +43,22 @@ GraphRAG Agent API (Phase 6):
 POST /api/graph/agent/query          — Agent 질문 처리 (자동 수정 루프 + FAISS fallback)
 GET  /api/graph/agent/schema         — Agent가 사용하는 스키마 요약
 POST /api/graph/agent/search         — FAISS 직접 검색 (fallback 테스트용)
+
+LPG GraphRAG API (Phase 8) - 4-layer RAG 시스템:
+GET  /api/graph/lpg/status           — LPG 시스템 상태
+GET  /api/graph/lpg/schema           — LPG 스키마 조회
+POST /api/graph/lpg/route            — 쿼리 라우팅 (검색 레이어 결정)
+GET  /api/graph/lpg/nodes            — LPG 노드 목록 조회
+GET  /api/graph/lpg/node/{node_id}   — 특정 노드 상세 및 이웃 조회
+GET  /api/graph/lpg/document/{doc_id}/context — 문서 전체 컨텍스트 조회
+POST /api/graph/lpg/related-documents — 관련 문서 검색
+POST /api/graph/lpg/subgraph         — 서브그래프 추출 (시각화용)
+GET  /api/graph/lpg/path             — 두 노드 간 경로 찾기
+GET  /api/graph/lpg/ontology/terms   — 온톨로지 용어 목록
+POST /api/graph/lpg/expand-terms     — 온톨로지 기반 용어 확장
+POST /api/graph/lpg/build/nodes      — 노드 빌드 실행
+POST /api/graph/lpg/build/edges      — 엣지 빌드 실행
+POST /api/graph/lpg/reload           — 그래프 캐시 리로드
 """
 from __future__ import annotations
 
@@ -1624,4 +1640,464 @@ async def agent_stats(source_id: Optional[str] = None):
         "graph": graph_stats,
         "faiss": faiss_stats,
         "agent_ready": graph_stats["has_data"] or faiss_stats["loaded"],
+    }
+
+
+# ── LPG GraphRAG API (Phase 8) ─────────────────────────────────────────────────
+# 4-layer RAG 시스템을 위한 LPG(Labeled Property Graph) 기반 API
+# 1차: FAISS Index → 2차: Ontology → 3차: GraphRAG → 4차: LLM Wiki
+
+ONTOLOGY_DIR = DATA_DIR / "ontology"
+_lpg_graph = None  # LPGGraph 싱글톤
+
+
+def _get_lpg_graph():
+    """LPG 그래프 싱글톤 로드."""
+    global _lpg_graph
+
+    nodes_path = ONTOLOGY_DIR / "graph_nodes.jsonl"
+    edges_path = ONTOLOGY_DIR / "graph_edges.jsonl"
+    schema_path = ONTOLOGY_DIR / "schema.json"
+
+    if not nodes_path.exists():
+        return None
+
+    if _lpg_graph is None:
+        from backend.scripts.lpg_graph import LPGGraph
+        _lpg_graph = LPGGraph()
+        if schema_path.exists():
+            _lpg_graph.load_schema(schema_path)
+        _lpg_graph.load_from_jsonl(nodes_path, edges_path)
+
+    return _lpg_graph
+
+
+def _get_query_router():
+    """Query Router 싱글톤 로드."""
+    from backend.scripts.query_router import QueryRouter
+    terms_path = ONTOLOGY_DIR / "terms.jsonl"
+    return QueryRouter(terms_path=terms_path if terms_path.exists() else None)
+
+
+class LPGQueryRequest(BaseModel):
+    query: str = Field(..., description="자연어 검색 쿼리")
+    top_k: int = Field(10, ge=1, le=50, description="최대 결과 수")
+    layers: Optional[List[int]] = Field(None, description="사용할 검색 레이어 (1=FAISS, 2=Ontology, 3=GraphRAG, 4=Wiki)")
+
+
+class LPGSubgraphRequest(BaseModel):
+    seed_node_ids: List[str] = Field(..., description="시드 노드 ID 목록")
+    depth: int = Field(2, ge=1, le=5, description="탐색 깊이")
+    edge_types: Optional[List[str]] = Field(None, description="필터링할 엣지 타입")
+    max_nodes: int = Field(100, ge=10, le=500, description="최대 노드 수")
+
+
+class LPGRelatedDocsRequest(BaseModel):
+    document_id: str = Field(..., description="문서 ID")
+    relation_types: Optional[List[str]] = Field(None, description="관계 타입 필터")
+    max_results: int = Field(10, ge=1, le=50, description="최대 결과 수")
+
+
+@router.get("/lpg/status")
+async def lpg_status():
+    """
+    LPG GraphRAG 시스템 상태.
+
+    - 노드/엣지 통계
+    - 스키마 로드 상태
+    - 온톨로지 용어 수
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        return {
+            "status": "not_initialized",
+            "message": "LPG graph files not found. Run build_graph_nodes.py and build_graph_edges.py first.",
+            "nodes_path": str(ONTOLOGY_DIR / "graph_nodes.jsonl"),
+            "edges_path": str(ONTOLOGY_DIR / "graph_edges.jsonl"),
+        }
+
+    stats = graph.get_statistics()
+    terms_path = ONTOLOGY_DIR / "terms.jsonl"
+    terms_count = 0
+    if terms_path.exists():
+        with open(terms_path, 'r', encoding='utf-8') as f:
+            terms_count = sum(1 for line in f if line.strip())
+
+    return {
+        "status": "ready",
+        "total_nodes": stats["total_nodes"],
+        "total_edges": stats["total_edges"],
+        "node_types": stats["node_types"],
+        "edge_types": stats["edge_types"],
+        "schema_loaded": graph.schema is not None,
+        "ontology_terms": terms_count,
+        "loaded_at": stats["loaded_at"],
+    }
+
+
+@router.get("/lpg/schema")
+async def lpg_schema():
+    """
+    LPG 스키마 조회.
+
+    노드 타입, 엣지 타입, ID 규칙 등을 반환한다.
+    """
+    schema_path = ONTOLOGY_DIR / "schema.json"
+    if not schema_path.exists():
+        raise HTTPException(status_code=404, detail="LPG schema not found")
+
+    with open(schema_path, 'r', encoding='utf-8') as f:
+        schema = json.load(f)
+
+    return {
+        "version": schema.get("version", "1.0"),
+        "node_types": list(schema.get("node_types", {}).keys()),
+        "edge_types": list(schema.get("edge_types", {}).keys()),
+        "schema": schema,
+    }
+
+
+@router.post("/lpg/route")
+async def lpg_route_query(request: LPGQueryRequest):
+    """
+    쿼리 라우팅: 자연어 쿼리를 분석하여 최적의 검색 레이어를 결정한다.
+
+    반환값:
+    - query_type: factual, conceptual, relational, summary
+    - layers: 검색 레이어 순서 (1=FAISS, 2=Ontology, 3=GraphRAG, 4=Wiki)
+    - extracted_entities: 추출된 엔티티
+    - expanded_terms: 확장된 검색어
+    - filters: 검색 필터
+    """
+    router_instance = _get_query_router()
+    result = router_instance.route(request.query)
+    return router_instance.to_dict(result)
+
+
+@router.get("/lpg/nodes")
+async def lpg_list_nodes(
+    node_type: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 50,
+):
+    """
+    LPG 노드 목록 조회.
+
+    - node_type: 노드 타입 필터 (Document, Project, Organization 등)
+    - search: 검색어 (라벨, 속성에서 검색)
+    - limit: 최대 반환 수
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        raise HTTPException(status_code=503, detail="LPG graph not initialized")
+
+    if search:
+        node_types = [node_type] if node_type else None
+        nodes = graph.search_nodes(search, node_types=node_types, limit=limit)
+    elif node_type:
+        nodes = graph.get_nodes_by_type(node_type)[:limit]
+    else:
+        nodes = list(graph.nodes.values())[:limit]
+
+    return {
+        "nodes": nodes,
+        "count": len(nodes),
+        "filters": {"node_type": node_type, "search": search},
+    }
+
+
+@router.get("/lpg/node/{node_id:path}")
+async def lpg_get_node(node_id: str):
+    """
+    특정 노드 상세 정보 및 이웃 노드 조회.
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        raise HTTPException(status_code=503, detail="LPG graph not initialized")
+
+    node = graph.get_node(node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail=f"Node not found: {node_id}")
+
+    neighbors = graph.get_neighbors(node_id)
+
+    return {
+        "node": node,
+        "neighbors": neighbors,
+        "neighbor_count": len(neighbors),
+    }
+
+
+@router.get("/lpg/document/{doc_id}/context")
+async def lpg_document_context(doc_id: str):
+    """
+    문서의 전체 컨텍스트 조회.
+
+    프로젝트, 카테고리, 조직, 기술, 방법론, 도메인, 관련 문서 정보를 포함한다.
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        raise HTTPException(status_code=503, detail="LPG graph not initialized")
+
+    # doc: 프리픽스 처리
+    if not doc_id.startswith("doc:"):
+        doc_id = f"doc:{doc_id}"
+
+    context = graph.get_document_context(doc_id)
+    if not context.get("document"):
+        raise HTTPException(status_code=404, detail=f"Document not found: {doc_id}")
+
+    return context
+
+
+@router.post("/lpg/related-documents")
+async def lpg_related_documents(request: LPGRelatedDocsRequest):
+    """
+    특정 문서와 관련된 문서 목록 조회.
+
+    SIMILAR_TO, RELATED_SEQUENCE, 동일 프로젝트 문서 등을 반환한다.
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        raise HTTPException(status_code=503, detail="LPG graph not initialized")
+
+    doc_id = request.document_id
+    if not doc_id.startswith("doc:"):
+        doc_id = f"doc:{doc_id}"
+
+    if doc_id not in graph.nodes:
+        raise HTTPException(status_code=404, detail=f"Document not found: {doc_id}")
+
+    related = graph.find_related_documents(
+        doc_id,
+        relation_types=request.relation_types,
+        max_results=request.max_results,
+    )
+
+    return {
+        "document_id": doc_id,
+        "related_documents": related,
+        "count": len(related),
+    }
+
+
+@router.post("/lpg/subgraph")
+async def lpg_subgraph(request: LPGSubgraphRequest):
+    """
+    시드 노드들로부터 서브그래프 추출.
+
+    vis.js/Cytoscape 시각화에 사용할 수 있는 형식으로 반환한다.
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        raise HTTPException(status_code=503, detail="LPG graph not initialized")
+
+    subgraph = graph.get_subgraph(
+        seed_node_ids=request.seed_node_ids,
+        depth=request.depth,
+        edge_types=request.edge_types,
+        max_nodes=request.max_nodes,
+    )
+
+    # vis.js 형식으로 변환
+    vis_format = graph.to_vis_format(subgraph)
+
+    return {
+        "subgraph": subgraph,
+        "vis_format": vis_format,
+        "seed_node_ids": request.seed_node_ids,
+    }
+
+
+@router.get("/lpg/path")
+async def lpg_find_path(
+    start_id: str,
+    end_id: str,
+    max_depth: int = 5,
+    edge_types: Optional[str] = None,
+):
+    """
+    두 노드 사이의 최단 경로 찾기.
+
+    - start_id: 시작 노드 ID
+    - end_id: 종료 노드 ID
+    - max_depth: 최대 탐색 깊이
+    - edge_types: 엣지 타입 필터 (쉼표 구분)
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        raise HTTPException(status_code=503, detail="LPG graph not initialized")
+
+    edge_type_list = edge_types.split(",") if edge_types else None
+    path = graph.find_path(start_id, end_id, max_depth=max_depth, edge_types=edge_type_list)
+
+    if not path:
+        return {
+            "found": False,
+            "start_id": start_id,
+            "end_id": end_id,
+            "path": None,
+            "message": f"No path found within depth {max_depth}",
+        }
+
+    return {
+        "found": True,
+        "start_id": start_id,
+        "end_id": end_id,
+        "path": path,
+        "path_length": len(path) - 1,
+    }
+
+
+@router.get("/lpg/ontology/terms")
+async def lpg_ontology_terms(
+    term_type: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 100,
+):
+    """
+    온톨로지 용어 목록 조회.
+
+    - term_type: 용어 타입 필터 (organization, technology, methodology, domain, category)
+    - search: 검색어
+    - limit: 최대 반환 수
+    """
+    terms_path = ONTOLOGY_DIR / "terms.jsonl"
+    if not terms_path.exists():
+        raise HTTPException(status_code=404, detail="Ontology terms file not found")
+
+    terms = []
+    with open(terms_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            term = json.loads(line)
+
+            # 타입 필터
+            if term_type and term.get("type") != term_type:
+                continue
+
+            # 검색 필터
+            if search:
+                search_lower = search.lower()
+                label = term.get("label", "").lower()
+                synonyms = [s.lower() for s in term.get("synonyms", [])]
+                if search_lower not in label and not any(search_lower in s for s in synonyms):
+                    continue
+
+            terms.append(term)
+
+            if len(terms) >= limit:
+                break
+
+    return {
+        "terms": terms,
+        "count": len(terms),
+        "filters": {"term_type": term_type, "search": search},
+    }
+
+
+@router.post("/lpg/expand-terms")
+async def lpg_expand_terms(term_ids: List[str]):
+    """
+    온톨로지 기반 용어 확장.
+
+    입력된 용어 ID들의 부모/자식 용어와 동의어를 함께 반환한다.
+    """
+    graph = _get_lpg_graph()
+    if not graph:
+        raise HTTPException(status_code=503, detail="LPG graph not initialized")
+
+    expanded = graph.expand_by_ontology(term_ids, include_parents=True)
+
+    return {
+        "original_terms": term_ids,
+        "expanded_terms": expanded,
+        "expansion_count": len(expanded) - len(term_ids),
+    }
+
+
+@router.post("/lpg/build/nodes", dependencies=[Depends(require_admin_token)])
+async def lpg_build_nodes():
+    """
+    LPG 노드 빌드 스크립트 실행.
+    """
+    script_path = PROJECT_ROOT / "backend" / "scripts" / "build_graph_nodes.py"
+    if not script_path.exists():
+        raise HTTPException(status_code=500, detail="build_graph_nodes.py not found")
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True, text=True, encoding="utf-8", timeout=300,
+            cwd=str(PROJECT_ROOT),
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Build timed out (300s)")
+
+    if proc.returncode != 0:
+        raise HTTPException(status_code=500, detail=proc.stderr.strip() or "Build failed")
+
+    # 그래프 캐시 무효화
+    global _lpg_graph
+    _lpg_graph = None
+
+    return {
+        "success": True,
+        "output": proc.stdout.strip()[-1000:],
+    }
+
+
+@router.post("/lpg/build/edges", dependencies=[Depends(require_admin_token)])
+async def lpg_build_edges():
+    """
+    LPG 엣지 빌드 스크립트 실행.
+    """
+    script_path = PROJECT_ROOT / "backend" / "scripts" / "build_graph_edges.py"
+    if not script_path.exists():
+        raise HTTPException(status_code=500, detail="build_graph_edges.py not found")
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True, text=True, encoding="utf-8", timeout=300,
+            cwd=str(PROJECT_ROOT),
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Build timed out (300s)")
+
+    if proc.returncode != 0:
+        raise HTTPException(status_code=500, detail=proc.stderr.strip() or "Build failed")
+
+    # 그래프 캐시 무효화
+    global _lpg_graph
+    _lpg_graph = None
+
+    return {
+        "success": True,
+        "output": proc.stdout.strip()[-1000:],
+    }
+
+
+@router.post("/lpg/reload", dependencies=[Depends(require_admin_token)])
+async def lpg_reload():
+    """
+    LPG 그래프 캐시를 강제 리로드.
+    """
+    global _lpg_graph
+    _lpg_graph = None
+
+    graph = _get_lpg_graph()
+    if not graph:
+        return {
+            "success": False,
+            "message": "Failed to reload graph. Check if JSONL files exist.",
+        }
+
+    stats = graph.get_statistics()
+    return {
+        "success": True,
+        "message": "LPG graph reloaded successfully",
+        "stats": stats,
     }

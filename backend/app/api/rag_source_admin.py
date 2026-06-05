@@ -613,6 +613,133 @@ async def extract_keywords(body: KeywordsExtractRequest = KeywordsExtractRequest
     }
 
 
+class ScanV2Request(BaseModel):
+    overwrite: bool = False
+
+
+@router.post("/scan-v2")
+async def scan_rag_source_v2(body: ScanV2Request):
+    """B안: source_scan.py 스크립트를 호출하여 JSONL 생성 및 SQLite 동기화를 수행한다."""
+    import subprocess
+
+    script_path = SCRIPTS_DIR / "source_scan.py"
+    if not script_path.exists():
+        raise HTTPException(status_code=500, detail=f"스크립트를 찾을 수 없습니다: {script_path}")
+
+    cmd = ["python3", str(script_path)]
+    if body.overwrite:
+        cmd.append("--overwrite")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=str(PROJECT_ROOT),
+        )
+
+        if result.returncode != 0:
+            return {
+                "success": False,
+                "error": result.stderr or "스크립트 실행 실패",
+                "stdout": result.stdout,
+                "returncode": result.returncode,
+            }
+
+        # 스냅샷 파일에서 결과 읽기
+        snapshots_dir = PROJECT_ROOT / "data" / "metadata" / "snapshots"
+        snapshot_files = sorted(snapshots_dir.glob("snap_*.json"), reverse=True) if snapshots_dir.exists() else []
+
+        snapshot_data = {}
+        if snapshot_files:
+            try:
+                with open(snapshot_files[0], "r", encoding="utf-8") as f:
+                    snapshot_data = json.load(f)
+            except Exception:
+                pass
+
+        return {
+            "success": True,
+            "scanned_at": _now(),
+            "snapshot_id": snapshot_data.get("snapshot_id"),
+            "document_count": snapshot_data.get("document_count", 0),
+            "sqlite_sync": snapshot_data.get("sqlite_sync", {}),
+            "stdout": result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout,
+        }
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="스크립트 실행 시간 초과 (5분)")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"스크립트 실행 오류: {exc}")
+
+
+class DocumentUpdateRequest(BaseModel):
+    project_name: Optional[str] = None
+    organization: Optional[str] = None
+    project_type: Optional[str] = None
+    project_year: Optional[str] = None
+    business_domain: Optional[str] = None
+    document_type: Optional[str] = None
+    tags: Optional[str] = None  # JSON 문자열
+    meta_status: Optional[str] = None
+
+
+@router.patch("/documents/{document_id}")
+async def update_document(document_id: int, body: DocumentUpdateRequest):
+    """문서 메타데이터를 업데이트한다. (3순위: 관리자 검수 기능)"""
+    # 기존 문서 확인
+    doc = metadata_db_service.get_document(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
+
+    # 업데이트할 필드만 추출
+    update_data = {}
+    for field in ["project_name", "organization", "project_type", "project_year",
+                  "business_domain", "document_type", "tags", "meta_status"]:
+        value = getattr(body, field, None)
+        if value is not None:
+            update_data[field] = value
+
+    if not update_data:
+        return {"success": True, "message": "업데이트할 필드가 없습니다.", "document_id": document_id}
+
+    # 메타데이터 DB 서비스를 통해 업데이트
+    try:
+        # tags 필드 처리 - 새 컬럼이므로 직접 SQL 실행
+        with get_db_connection() as conn:
+            # 필드별 업데이트 쿼리 생성
+            updates = []
+            params = []
+            for field, value in update_data.items():
+                updates.append(f"{field} = ?")
+                params.append(value)
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(document_id)
+
+            query = f"UPDATE documents SET {', '.join(updates)} WHERE id = ?"
+            conn.execute(query, params)
+            conn.commit()
+
+        return {
+            "success": True,
+            "message": "메타데이터가 업데이트되었습니다.",
+            "document_id": document_id,
+            "updated_fields": list(update_data.keys()),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"업데이트 실패: {exc}")
+
+
+@router.get("/documents/{document_id}")
+async def get_document(document_id: int):
+    """문서 상세 정보를 조회한다."""
+    doc = metadata_db_service.get_document(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
+    return doc
+
+
 @router.post("/faiss/build")
 async def build_faiss(_body: dict = {}):
     """FAISS 인덱스 빌드를 요청한다. (기존 faiss_admin API로 위임)"""

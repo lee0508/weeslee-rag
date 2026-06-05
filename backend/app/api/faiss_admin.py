@@ -92,14 +92,31 @@ def _list_snapshots() -> list[str]:
 
 @router.get("/status")
 async def faiss_status():
-    """현재 활성 인덱스 상태."""
+    """현재 활성 인덱스 상태 및 서버 설정."""
+    from app.core.config import settings
+
     active = runner.read_active_index()
+    snapshot = (active or {}).get("snapshot", "")
+
+    # 서버 실제 설정값 (운영 .env 기준)
+    server_config = {
+        "embedding_provider": "ollama",
+        "embedding_model": settings.ollama_embed_model,
+        "embedding_dim": 768,  # nomic-embed-text 기준
+        "max_embed_chars": 8000,
+        "ollama_host": settings.ollama_host,
+        "answer_provider": settings.answer_provider,
+        "answer_model": settings.answer_model,
+        "active_snapshot": settings.faiss_snapshot,
+    }
+
     if not active:
-        return {"active": None, "stats": None}
-    snapshot = active.get("snapshot", "")
+        return {"active": None, "stats": None, "server_config": server_config}
+
     return {
         "active": active,
         "stats":  _index_stats(snapshot) if snapshot else None,
+        "server_config": server_config,
     }
 
 
