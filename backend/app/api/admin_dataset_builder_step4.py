@@ -15,8 +15,8 @@ from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus
 from app.services.processed_text_store import processed_text_store, ProcessingResult
-from app.extractors.hwp_extractor import extract_hwp_text
-from app.extractors.pptx_extractor import extract_pptx_text
+from app.extractors.hwp_extractor import HwpExtractor
+from app.extractors.pptx_extractor import PptxExtractor
 
 
 router = APIRouter(
@@ -104,7 +104,9 @@ def parse_document(document_id: int, file_path: str, force: bool = False) -> dic
         # 파일 형식별 파싱
         if file_ext in ['.hwp', '.hwpx']:
             # HWP 파싱
-            text = extract_hwp_text(file_path)
+            extractor = HwpExtractor()
+            result_dict = extractor.extract(file_path)
+            text = result_dict.get('full_text', '')
             processing_result.parser_type = "hwp5txt"
             processing_result.full_text = text
             processing_result.full_text_md = f"# {Path(file_path).name}\n\n{text}"
@@ -141,7 +143,9 @@ def parse_document(document_id: int, file_path: str, force: bool = False) -> dic
 
         elif file_ext in ['.pptx', '.ppt']:
             # PPTX 파싱
-            text = extract_pptx_text(file_path)
+            extractor = PptxExtractor()
+            result_dict = extractor.extract(file_path)
+            text = result_dict.get('full_text', '')
             processing_result.full_text = text
             processing_result.full_text_md = f"# {Path(file_path).name}\n\n{text}"
             processing_result.parser_type = "python-pptx"
