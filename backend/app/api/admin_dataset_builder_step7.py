@@ -16,7 +16,6 @@ import json
 
 from app.core.database import get_db
 from app.services.processed_text_store import ProcessedTextStore
-from app.core.config import settings
 # 확장 메서드 로드
 import app.services.processed_text_store_extensions
 
@@ -72,7 +71,9 @@ def get_text_store() -> ProcessedTextStore:
 
 def get_faiss_dir() -> Path:
     """FAISS 저장 디렉토리"""
-    faiss_dir = Path(settings.data_root) / "faiss"
+    # ProcessedTextStore와 동일한 경로 구조 사용
+    project_root = Path(__file__).resolve().parents[3]
+    faiss_dir = project_root / "data" / "faiss"
     faiss_dir.mkdir(parents=True, exist_ok=True)
     return faiss_dir
 
