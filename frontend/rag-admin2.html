@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weeslee RAG Admin v2 - Bootstrap 5 Draft</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --wr-sidebar: #17231f;
+      --wr-sidebar-soft: #22342e;
+      --wr-bg: #f5f7f6;
+      --wr-card: #ffffff;
+      --wr-line: #dbe4e0;
+      --wr-ink: #18231f;
+      --wr-muted: #6b7975;
+      --wr-green: #0e7a61;
+      --wr-blue: #2f65a7;
+      --wr-amber: #b67816;
+      --wr-red: #b14439;
+      --wr-console: #09110f;
+      --bs-border-radius: 0.5rem;
+      --bs-border-radius-lg: 0.5rem;
+      --bs-body-font-family: "Segoe UI", "Noto Sans KR", system-ui, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--wr-bg);
+      color: var(--wr-ink);
+      letter-spacing: 0;
+    }
+
+    .wr-shell {
+      display: grid;
+      grid-template-columns: 286px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .wr-sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--wr-sidebar);
+      color: #ecf7f4;
+    }
+
+    .wr-brand-mark {
+      width: 42px;
+      height: 42px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.08);
+      color: #6ee0c3;
+      font-weight: 800;
+    }
+
+    .wr-nav-caption {
+      color: #8fa59f;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .wr-nav-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 0.5rem;
+      background: transparent;
+      color: #d7e7e3;
+      text-align: left;
+    }
+
+    .wr-nav-btn:hover,
+    .wr-nav-btn.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
+    .wr-nav-btn.active {
+      box-shadow: inset 3px 0 0 #62d7b9;
+    }
+
+    .wr-main {
+      min-width: 0;
+    }
+
+    .wr-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--wr-line);
+      background: rgba(245, 247, 246, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .wr-context-card {
+      min-width: 0;
+      border: 1px solid var(--wr-line);
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .wr-context-label {
+      color: var(--wr-muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .wr-context-value {
+      overflow: hidden;
+      color: var(--wr-ink);
+      font-size: 0.82rem;
+      font-weight: 750;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wr-card {
+      border: 1px solid var(--wr-line);
+      border-radius: 0.5rem;
+      background: var(--wr-card);
+      box-shadow: 0 16px 40px rgba(26, 43, 39, 0.08);
+    }
+
+    .wr-card-flat {
+      border: 1px solid var(--wr-line);
+      border-radius: 0.5rem;
+      background: #fff;
+    }
+
+    .wr-kpi-value {
+      font-size: 1.85rem;
+      font-weight: 850;
+      line-height: 1.1;
+    }
+
+    .wr-muted {
+      color: var(--wr-muted);
+    }
+
+    .wr-status-dot {
+      width: 0.62rem;
+      height: 0.62rem;
+      border-radius: 999px;
+      display: inline-block;
+      background: var(--wr-green);
+    }
+
+    .wr-dot-warn {
+      background: var(--wr-amber);
+    }
+
+    .wr-dot-error {
+      background: var(--wr-red);
+    }
+
+    .wr-step-index {
+      width: 36px;
+      height: 36px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: #eaf5f2;
+      color: var(--wr-green);
+      font-weight: 850;
+      font-size: 0.8rem;
+      flex: 0 0 auto;
+    }
+
+    .wr-console {
+      height: 560px;
+      overflow: auto;
+      border-radius: 0 0 0.5rem 0.5rem;
+      background: var(--wr-console);
+      color: #c9ddd8;
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 0.75rem;
+      line-height: 1.55;
+    }
+
+    .wr-console-row {
+      display: grid;
+      grid-template-columns: 72px 72px minmax(0, 1fr);
+      gap: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.28rem 0;
+    }
+
+    .wr-log-time {
+      color: #7da298;
+    }
+
+    .wr-log-info {
+      color: #8bbcff;
+      font-weight: 850;
+    }
+
+    .wr-log-success {
+      color: #65ddb8;
+      font-weight: 850;
+    }
+
+    .wr-log-warn {
+      color: #ffd27a;
+      font-weight: 850;
+    }
+
+    .wr-log-error {
+      color: #ff8b80;
+      font-weight: 850;
+    }
+
+    .wr-api-code {
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 0.78rem;
+    }
+
+    .wr-section {
+      display: none;
+    }
+
+    .wr-section.active {
+      display: block;
+    }
+
+    .wr-table {
+      min-width: 760px;
+    }
+
+    @media (max-width: 1199.98px) {
+      .wr-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .wr-sidebar {
+        position: static;
+        height: auto;
+      }
+    }
+
+    @media (max-width: 767.98px) {
+      .wr-console-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wr-shell">
+    <aside class="wr-sidebar p-3 p-xl-4">
+      <div class="d-flex align-items-center gap-3 pb-4 mb-3 border-bottom border-light border-opacity-10">
+        <span class="wr-brand-mark">WR</span>
+        <div class="min-w-0">
+          <div class="fw-bold fs-5">RAG Admin v2</div>
+          <div class="small text-white-50">Bootstrap 5 dashboard draft</div>
+        </div>
+      </div>
+
+      <nav class="d-grid gap-2" aria-label="관리자 메뉴">
+        <div class="wr-nav-caption px-2 mt-2">Overview</div>
+        <button class="wr-nav-btn active p-2" type="button" data-target="dashboard">
+          <i class="bi bi-speedometer2 me-2"></i> Dashboard
+          <span class="badge text-bg-success float-end">9</span>
+        </button>
+        <button class="wr-nav-btn p-2" type="button" data-target="source">
+          <i class="bi bi-folder2-open me-2"></i> Source Documents
+          <span class="badge text-bg-secondary float-end">124</span>
+        </button>
+        <button class="wr-nav-btn p-2" type="button" data-target="metadata">
+          <i class="bi bi-ui-checks-grid me-2"></i> Metadata Review
+          <span class="badge text-bg-warning float-end">37</span>
+        </button>
+
+        <div class="wr-nav-caption px-2 mt-3">Dataset Build</div>
+        <button class="wr-nav-btn p-2" type="button" data-target="builder">
+          <i class="bi bi-diagram-3 me-2"></i> Dataset Builder
+          <span class="badge text-bg-primary float-end">10</span>
+        </button>
+        <button class="wr-nav-btn p-2" type="button" data-target="faiss">
+          <i class="bi bi-hdd-network me-2"></i> FAISS Index
+          <span class="badge text-bg-success float-end">OK</span>
+        </button>
+        <button class="wr-nav-btn p-2" type="button" data-target="graph">
+          <i class="bi bi-share me-2"></i> Graph JSON / Wiki
+          <span class="badge text-bg-warning float-end">2</span>
+        </button>
+
+        <div class="wr-nav-caption px-2 mt-3">Operation</div>
+        <button class="wr-nav-btn p-2" type="button" data-target="quality">
+          <i class="bi bi-search-heart me-2"></i> Search Quality
+          <span class="badge text-bg-info float-end">7</span>
+        </button>
+        <button class="wr-nav-btn p-2" type="button" data-target="jobs">
+          <i class="bi bi-terminal me-2"></i> Jobs / Logs
+          <span class="badge text-bg-danger float-end">4</span>
+        </button>
+        <button class="wr-nav-btn p-2" type="button" data-target="settings">
+          <i class="bi bi-sliders me-2"></i> Settings
+          <span class="badge text-bg-light float-end">API</span>
+        </button>
+      </nav>
+    </aside>
+
+    <main class="wr-main">
+      <header class="wr-topbar px-3 px-xl-4 py-3">
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-xl">
+            <div class="row g-2">
+              <div class="col-6 col-lg">
+                <div class="wr-context-card px-3 py-2">
+                  <div class="wr-context-label">Client</div>
+                  <div class="wr-context-value">Weeslee Internal</div>
+                </div>
+              </div>
+              <div class="col-6 col-lg">
+                <div class="wr-context-card px-3 py-2">
+                  <div class="wr-context-label">Source</div>
+                  <div class="wr-context-value">company-documents</div>
+                </div>
+              </div>
+              <div class="col-6 col-lg">
+                <div class="wr-context-card px-3 py-2">
+                  <div class="wr-context-label">Dataset</div>
+                  <div class="wr-context-value">combined-v2</div>
+                </div>
+              </div>
+              <div class="col-6 col-lg">
+                <div class="wr-context-card px-3 py-2">
+                  <div class="wr-context-label">Snapshot</div>
+                  <div class="wr-context-value">snapshot_2026-05-06</div>
+                </div>
+              </div>
+              <div class="col-12 col-lg">
+                <div class="wr-context-card px-3 py-2">
+                  <div class="wr-context-label">Publish</div>
+                  <div class="wr-context-value">RAG Search Active</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-xl-auto">
+            <span class="badge rounded-pill text-bg-dark px-3 py-2">
+              <i class="bi bi-shield-lock me-1"></i> Static UI draft, no API calls
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div class="container-fluid p-3 p-xl-4">
+        <section class="wr-card p-3 p-xl-4 mb-4">
+          <div class="row g-4 align-items-stretch">
+            <div class="col-12 col-xxl-8">
+              <div class="d-flex flex-column h-100">
+                <div class="text-uppercase fw-bold text-success small mb-2">Admin landing after login</div>
+                <h1 class="h2 fw-bold mb-2" id="viewTitle">현재 상태와 다음 작업을 먼저 보여주는 Bootstrap 5 관리자 화면</h1>
+                <p class="wr-muted mb-4" id="viewLead">
+                  이 v2 시안은 Bootstrap 5 카드, 테이블, 배지, 리스트 그룹 스타일을 기준으로 작성했습니다.
+                  왼쪽 메뉴를 클릭하면 오른쪽 영역에 관련 상태와 API 연결 상태, Console 로그가 함께 표시됩니다.
+                </p>
+                <div class="row g-3 mt-auto" id="kpiRow"></div>
+              </div>
+            </div>
+            <div class="col-12 col-xxl-4">
+              <div class="h-100 border-start border-4 border-warning wr-card-flat p-3">
+                <div class="text-uppercase fw-bold text-warning small mb-2">Next required action</div>
+                <h2 class="h5 fw-bold" id="nextTitle">Metadata Review 37건을 먼저 처리해야 합니다.</h2>
+                <p class="wr-muted mb-3" id="nextText">
+                  검수 대기 문서가 남아 있어 Graph JSON과 LLM Wiki 생성 전에 승인/반려가 필요합니다.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                  <button class="btn btn-success" type="button" data-simulate="run">
+                    <i class="bi bi-play-fill me-1"></i> 실행 시뮬레이션
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" data-simulate="refresh">
+                    <i class="bi bi-arrow-clockwise me-1"></i> 상태 새로고침
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="row g-4">
+          <div class="col-12 col-xxl-8">
+            <section class="wr-card p-3 p-xl-4">
+              <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 pb-3 mb-3 border-bottom">
+                <div>
+                  <h2 class="h4 fw-bold mb-1" id="panelTitle">Dashboard</h2>
+                  <p class="wr-muted mb-0" id="panelDesc">시스템 상태와 데이터셋 생성 진행률을 요약합니다.</p>
+                </div>
+                <span class="badge rounded-pill text-bg-warning px-3 py-2" id="panelBadge">운영 상태 확인 필요</span>
+              </div>
+
+              <div id="panelBody"></div>
+
+              <div class="mt-4">
+                <div class="text-uppercase fw-bold text-success small mb-2">Related API status</div>
+                <div class="table-responsive border rounded">
+                  <table class="table table-sm table-hover align-middle mb-0 wr-table">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width: 100px;">Method</th>
+                        <th>Endpoint</th>
+                        <th style="width: 140px;">Draft State</th>
+                      </tr>
+                    </thead>
+                    <tbody id="apiRows"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="alert alert-light border mt-4 mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                이 파일은 API 연결 전 UI 시안입니다. 실제 운영 반영 시 Mock 상태를 fetch 응답 코드, 실행 시간,
+                실패 메시지, 인증 토큰 상태로 교체해야 합니다.
+              </div>
+            </section>
+          </div>
+
+          <div class="col-12 col-xxl-4">
+            <section class="wr-card overflow-hidden">
+              <div class="d-flex align-items-center justify-content-between gap-2 px-3 py-3 bg-dark text-white">
+                <h2 class="h6 mb-0"><i class="bi bi-terminal me-2"></i>API Console</h2>
+                <button class="btn btn-sm btn-outline-light" type="button" data-simulate="clear">Clear</button>
+              </div>
+              <div class="wr-console p-3" id="consoleBody"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const panelData = {
+      dashboard: {
+        title: 'Dashboard',
+        lead: '로그인 직후 현재 시스템 상태, 데이터셋 생성 진행률, 다음 작업을 한 화면에서 확인합니다.',
+        badge: ['warning', '운영 상태 확인 필요'],
+        nextTitle: 'Metadata Review 37건을 먼저 처리해야 합니다.',
+        nextText: '검수 대기 문서가 남아 있어 Search Quality와 Activate 전에 Metadata Review 화면에서 승인/반려를 진행해야 합니다.',
+        kpis: [
+          ['Source Documents', '1,240', '신규 124건 / 오류 4건', 'bi-folder2-open'],
+          ['Metadata Review', '37', '검수 대기 문서', 'bi-ui-checks-grid'],
+          ['FAISS Index', 'OK', '7,066 vectors', 'bi-hdd-network'],
+          ['Active Snapshot', '1', 'combined-v2 공개 중', 'bi-broadcast']
+        ],
+        cards: [
+          ['현재 상태', '문서 수집과 기본 인덱스는 준비됐지만 Metadata Review, Graph JSON, LLM Wiki 상태 확인이 필요합니다.'],
+          ['다음 작업', '검수 대기 문서를 먼저 처리한 뒤 Graph JSON과 Wiki 생성으로 이동합니다.'],
+          ['운영 리스크', '정적 HTML 로딩 성공만으로 백엔드 API 정상 여부를 판단하면 안 됩니다.']
+        ],
+        apis: [
+          ['GET', '/api/admin/dataset/status-summary', '200 OK'],
+          ['GET', '/api/admin/faiss/status', '200 OK'],
+          ['GET', '/api/admin/jobs/recent', 'Mock'],
+          ['GET', '/api/admin/wiki/status', 'Mock']
+        ],
+        logs: [['INFO', 'Dashboard 메뉴 진입'], ['SUCCESS', 'KPI 카드 표시'], ['WARN', 'Metadata Review 대기 37건 감지']]
+      },
+      source: {
+        title: 'Source Documents',
+        lead: '원본 문서 스캔, 신규/변경/오류 문서 상태를 확인하고 Dataset Builder 시작 조건을 판단합니다.',
+        badge: ['warning', '오류 문서 확인 필요'],
+        nextTitle: '스캔 오류 4건을 확인한 뒤 Metadata Build를 진행하세요.',
+        nextText: '일부 파일 파싱 오류가 있는 상태입니다. 오류 문서를 분리하거나 재스캔해야 합니다.',
+        kpis: [['Total Files', '1,240', '스캔 대상', 'bi-files'], ['New', '124', '신규 감지', 'bi-plus-circle'], ['Changed', '18', '변경 감지', 'bi-pencil-square'], ['Errors', '4', '확인 필요', 'bi-exclamation-triangle']],
+        cards: [['Source Scan', '회사 문서 폴더 기준으로 신규, 변경, 누락, 오류 문서를 분류합니다.'], ['Inventory', '경로, 확장자, 크기, 수정일, source_id를 목록화합니다.'], ['다음 연결', '정상 문서는 Metadata Build로 이동하고 오류 문서는 Jobs / Logs에서 확인합니다.']],
+        apis: [['POST', '/api/admin/rag-source/scan', 'Ready'], ['GET', '/api/admin/rag-source/files', 'Mock'], ['GET', '/api/admin/dataset/status-summary', '200 OK']],
+        logs: [['INFO', 'Source Documents 메뉴 진입'], ['INFO', '문서 스캔 API 연결 상태 표시'], ['WARN', '스캔 오류 문서 4건 표시']]
+      },
+      metadata: {
+        title: 'Metadata Review',
+        lead: '자동 생성된 문서 분류, 키워드, 프로젝트명, 카테고리를 검수하고 승인 또는 반려합니다.',
+        badge: ['warning', '검수 대기 37건'],
+        nextTitle: '승인되지 않은 문서는 FAISS/Graph/Wiki 품질을 낮출 수 있습니다.',
+        nextText: '관리자가 검수한 문서만 다음 단계로 이동한다는 규칙을 UI에서 명확히 보여줘야 합니다.',
+        kpis: [['Review Required', '37', '관리자 검수 필요', 'bi-clipboard-check'], ['Approved', '812', '확정 완료', 'bi-check-circle'], ['Rejected', '9', '재처리 필요', 'bi-x-circle'], ['Auto Tagged', '91%', '자동 태깅률', 'bi-tags']],
+        table: [['RFP_2026_AI_Platform.pdf', '검수 필요', '공공 RFP', 'AI, 플랫폼, 제안'], ['K-water_project_report.docx', '승인', '사업 산출물', '수자원, 보고서'], ['legacy_scan_041.hwp', '반려', '분류 실패', 'OCR 확인 필요']],
+        apis: [['GET', '/api/admin/metadata/review-documents', 'Mock'], ['POST', '/api/admin/metadata/review/{id}/approve', 'Ready'], ['POST', '/api/admin/metadata/review/{id}/reject', 'Ready']],
+        logs: [['INFO', 'Metadata Review 메뉴 진입'], ['SUCCESS', '검수 대상 문서 목록 표시'], ['WARN', '반려 문서 9건 재처리 필요']]
+      },
+      builder: {
+        title: 'Dataset Builder',
+        lead: 'Source Scan부터 Activate까지 데이터셋 생성 흐름을 10단계로 보여주고, 단계별 실행 상태를 Console에 남깁니다.',
+        badge: ['info', 'Step 3 진행 필요'],
+        nextTitle: 'Step 3 Metadata Review 이후 Step 4 OCR / Parser로 이동하세요.',
+        nextText: '단계 실행 버튼은 나중에 기존 admin.html의 실제 API 함수와 연결하고, 이 시안에서는 실행 흐름만 표시합니다.',
+        kpis: [['Completed Steps', '2/10', 'Scan, Metadata Auto', 'bi-diagram-3'], ['Current Step', '3', 'Metadata Review', 'bi-flag'], ['Blocked Items', '37', '검수 대기', 'bi-pause-circle'], ['Last Run', '08:00', '시뮬레이션 값', 'bi-clock']],
+        pipeline: true,
+        apis: [['POST', '/api/admin/rag-source/scan', 'Step 1'], ['POST', '/api/admin/metadata/build', 'Step 2'], ['GET', '/api/admin/metadata/review-documents', 'Step 3'], ['POST', '/api/admin/faiss/jobs', 'Step 7']],
+        logs: [['INFO', 'Dataset Builder 메뉴 진입'], ['INFO', '10단계 빌드 상태 렌더링'], ['WARN', 'Step 3 검수 대기 때문에 다음 단계 보류']]
+      },
+      faiss: {
+        title: 'FAISS Index',
+        lead: '임베딩 모델, 벡터 수, Active Snapshot, 인덱스 Job 상태를 확인합니다.',
+        badge: ['success', 'Active Index 정상'],
+        nextTitle: 'FAISS 상태는 정상이며 Graph JSON 생성 상태를 확인하세요.',
+        nextText: 'FAISS가 정상이어도 Graph/Wiki가 최신 Snapshot 기준으로 생성됐는지 별도 확인해야 합니다.',
+        kpis: [['Vectors', '7,066', 'combined-v2', 'bi-hdd-stack'], ['Embedding', 'nomic', '예시 표시값', 'bi-cpu'], ['Dimension', '768', '예시 표시값', 'bi-braces'], ['Snapshot', 'Active', '검색 연결됨', 'bi-broadcast-pin']],
+        cards: [['Index Status', '현재 Active Snapshot과 벡터 수를 먼저 보여줍니다.'], ['Runtime Settings', '화면 입력값이 아니라 서버 적용값 기준으로 표시해야 합니다.'], ['Rollback', '이전 Snapshot으로 되돌릴 수 있는지 상태만 먼저 표시합니다.']],
+        apis: [['GET', '/api/admin/faiss/status', '200 OK'], ['POST', '/api/admin/faiss/jobs', 'Ready'], ['POST', '/api/admin/faiss/activate', 'Ready']],
+        logs: [['INFO', 'FAISS Index 메뉴 진입'], ['SUCCESS', 'Active Snapshot 확인'], ['INFO', '임베딩 설정은 서버 응답값 기준으로 표시']]
+      },
+      graph: {
+        title: 'Graph JSON / LLM Wiki',
+        lead: 'Graph DB 전제가 아니라 JSON Graph 파일과 LLM Wiki 생성 상태를 기준으로 운영 상태를 표시합니다.',
+        badge: ['warning', 'Wiki 재생성 필요'],
+        nextTitle: 'Graph JSON은 준비됐고 LLM Wiki는 최신 Snapshot 기준 재생성이 필요합니다.',
+        nextText: 'Graph/Wiki는 사용자 검색 품질과 직접 연결되므로 생성 파일, 노드, 엣지, Wiki 문서 수를 같이 표시해야 합니다.',
+        kpis: [['Graph Nodes', '124', '예시 노드 수', 'bi-diagram-2'], ['Graph Edges', '223', '예시 엣지 수', 'bi-share'], ['Wiki Docs', '3', '재생성 권장', 'bi-journal-text'], ['Schema', 'JSON', 'Neo4j 전제 없음', 'bi-filetype-json']],
+        cards: [['Graph JSON', '문서, 카테고리, 프로젝트, 키워드 관계를 JSON 파일 상태로 표시합니다.'], ['LLM Wiki', '생성 완료 문서 수와 마지막 생성 시간을 보여줍니다.'], ['User 연결', 'rag-assistant.html에서 Graph RAG / LLM Wiki 결과가 구분되는지 확인해야 합니다.']],
+        apis: [['POST', '/api/admin/graph/build', 'Mock'], ['GET', '/api/admin/graph/status', 'Mock'], ['POST', '/api/admin/wiki/build', 'Mock'], ['GET', '/api/admin/wiki/status', 'Mock']],
+        logs: [['INFO', 'Graph JSON / Wiki 메뉴 진입'], ['SUCCESS', 'Graph JSON 상태 카드 표시'], ['WARN', 'LLM Wiki 최신 생성 여부 확인 필요']]
+      },
+      quality: {
+        title: 'Search Quality',
+        lead: '사용자 검색 공개 전 샘플 질의, 유사 문서, 답변 출처, Graph/Wiki 탭 결과를 검증합니다.',
+        badge: ['info', '검증 대기'],
+        nextTitle: '대표 질의 7개를 실행해 검색 품질을 확인하세요.',
+        nextText: 'Activate 전에 RAG, RAG Agent, Graph RAG, LLM Wiki 결과가 모두 기대대로 나오는지 확인해야 합니다.',
+        kpis: [['Test Queries', '7', '대표 질의', 'bi-search'], ['Pass Rate', '86%', '예시 값', 'bi-graph-up'], ['Low Score', '1', '재검토 필요', 'bi-exclamation-circle'], ['Ready', 'No', '검증 필요', 'bi-toggle-off']],
+        cards: [['RAG Search', '유사 문서와 본문 일부가 정확히 표시되는지 확인합니다.'], ['Graph RAG', '관계 기반 결과와 일반 검색 결과를 구분합니다.'], ['LLM Wiki', 'Wiki 문서 연결과 요약 품질을 확인합니다.']],
+        apis: [['POST', '/api/admin/search-quality/run', 'Mock'], ['GET', '/api/admin/search-quality/history', 'Mock'], ['GET', '/api/rag/search', 'User API']],
+        logs: [['INFO', 'Search Quality 메뉴 진입'], ['INFO', '대표 질의 테스트 목록 표시'], ['WARN', '품질 검증 완료 전 Activate 보류']]
+      },
+      jobs: {
+        title: 'Jobs / Logs',
+        lead: '실행 중 Job, 실패 Job, 재시도 가능 여부, 백엔드 오류 메시지를 한 곳에서 확인합니다.',
+        badge: ['danger', '실패 Job 4건'],
+        nextTitle: '실패 Job의 API 경로와 서버 로그를 먼저 확인하세요.',
+        nextText: '401, 404, 500, timeout을 구분해 보여줘야 운영자가 프론트 문제인지 백엔드 문제인지 바로 판단할 수 있습니다.',
+        kpis: [['Running', '1', '현재 진행', 'bi-play-circle'], ['Failed', '4', '조치 필요', 'bi-bug'], ['Queued', '12', '대기 중', 'bi-list-task'], ['Retryable', '3', '재시도 가능', 'bi-arrow-repeat']],
+        table: [['job-1042', 'FAISS Build', '실패', '500 backend error'], ['job-1041', 'Source Scan', '완료', '1,240 files'], ['job-1040', 'Wiki Build', '대기', 'queued']],
+        apis: [['GET', '/api/admin/jobs/recent', 'Mock'], ['GET', '/api/admin/logs', 'Mock'], ['POST', '/api/admin/jobs/{id}/retry', 'Ready']],
+        logs: [['INFO', 'Jobs / Logs 메뉴 진입'], ['ERROR', '실패 Job 4건 표시'], ['WARN', '서버 journal 로그 확인 필요']]
+      },
+      settings: {
+        title: 'Settings',
+        lead: '화면 입력값이 아니라 실제 서버 적용값 기준으로 모델, 임베딩, Snapshot 설정을 확인합니다.',
+        badge: ['info', '서버 적용값 확인 필요'],
+        nextTitle: '설정 화면은 표시값과 서버 적용값을 분리해서 보여줘야 합니다.',
+        nextText: '관리자가 입력한 값이 실제 Job 요청에 반영되는지 별도 검증하지 않으면 운영 혼란이 생깁니다.',
+        kpis: [['Answer Model', 'gemma', '예시 표시값', 'bi-chat-square-text'], ['Embedding', 'nomic', '예시 표시값', 'bi-cpu'], ['Provider', 'ollama', '예시 표시값', 'bi-plugin'], ['API Base', 'server', '운영 기준', 'bi-server']],
+        cards: [['Runtime Truth', '서버 API 응답값을 기준으로 현재 설정을 표시합니다.'], ['UI Draft', '이 파일은 API 연결이 없으므로 설정값은 모두 예시입니다.'], ['Deploy Check', '서버 배포 후 admin.html과 rag-assistant.html 양쪽에서 확인합니다.']],
+        apis: [['GET', '/api/admin/faiss/status', '200 OK'], ['GET', '/api/admin/settings', 'Mock'], ['POST', '/api/admin/settings', 'Ready']],
+        logs: [['INFO', 'Settings 메뉴 진입'], ['INFO', '서버 적용값과 화면 입력값 분리 필요'], ['WARN', 'API 연결 없는 정적 시안 값입니다']]
+      }
+    };
+
+    const steps = [
+      ['01', 'Source Scan', '문서 폴더 스캔, 신규/변경/오류 문서 분리', '완료', 'success'],
+      ['02', 'Metadata Build', '자동 분류, 키워드, 프로젝트명 생성', '완료', 'success'],
+      ['03', 'Metadata Review', '관리자 승인/반려 검수', '진행 필요', 'warning'],
+      ['04', 'OCR / Parser', '본문 추출과 파서 상태 확인', '대기', 'secondary'],
+      ['05', 'Chunk Build', '검색 단위 청크 생성', '대기', 'secondary'],
+      ['06', 'Embedding Build', '임베딩 생성', '대기', 'secondary'],
+      ['07', 'FAISS Build', '벡터 인덱스 생성', '대기', 'secondary'],
+      ['08', 'Graph JSON Build', '관계 그래프 JSON 생성', '대기', 'secondary'],
+      ['09', 'LLM Wiki Build', 'Wiki 문서 생성', '대기', 'secondary'],
+      ['10', 'Search Quality / Activate', '품질 검증 후 사용자 검색 공개', '대기', 'secondary']
+    ];
+
+    const viewTitle = document.getElementById('viewTitle');
+    const viewLead = document.getElementById('viewLead');
+    const nextTitle = document.getElementById('nextTitle');
+    const nextText = document.getElementById('nextText');
+    const kpiRow = document.getElementById('kpiRow');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelDesc = document.getElementById('panelDesc');
+    const panelBadge = document.getElementById('panelBadge');
+    const panelBody = document.getElementById('panelBody');
+    const apiRows = document.getElementById('apiRows');
+    const consoleBody = document.getElementById('consoleBody');
+
+    function timeText() {
+      return new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function log(level, message) {
+      const row = document.createElement('div');
+      row.className = 'wr-console-row';
+      row.innerHTML = `
+        <span class="wr-log-time">${timeText()}</span>
+        <span class="wr-log-${level.toLowerCase()}">${level}</span>
+        <span>${message}</span>
+      `;
+      consoleBody.appendChild(row);
+      consoleBody.scrollTop = consoleBody.scrollHeight;
+    }
+
+    function renderKpis(items) {
+      kpiRow.innerHTML = items.map(([label, value, note, icon]) => `
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="wr-card-flat p-3 h-100">
+            <div class="d-flex justify-content-between gap-2">
+              <div class="small fw-bold wr-muted">${label}</div>
+              <i class="bi ${icon} text-success"></i>
+            </div>
+            <div class="wr-kpi-value mt-2">${value}</div>
+            <div class="small wr-muted mt-1">${note}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderCards(cards) {
+      return `
+        <div class="row g-3">
+          ${cards.map(([title, text]) => `
+            <div class="col-12 col-lg-4">
+              <div class="wr-card-flat p-3 h-100">
+                <h3 class="h6 fw-bold">${title}</h3>
+                <p class="small wr-muted mb-0">${text}</p>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderPipeline() {
+      return `
+        <div class="list-group">
+          ${steps.map(([index, title, desc, state, tone]) => `
+            <div class="list-group-item py-3">
+              <div class="d-flex align-items-start gap-3">
+                <span class="wr-step-index">${index}</span>
+                <div class="flex-grow-1 min-w-0">
+                  <div class="fw-bold">${title}</div>
+                  <div class="small wr-muted">${desc}</div>
+                </div>
+                <span class="badge text-bg-${tone}">${state}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderDataTable(rows) {
+      return `
+        <div class="table-responsive border rounded">
+          <table class="table table-hover align-middle mb-0 wr-table">
+            <thead class="table-light">
+              <tr>
+                <th>대상</th>
+                <th>상태</th>
+                <th>분류</th>
+                <th>메모</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  <td class="fw-semibold">${row[0]}</td>
+                  <td>${row[1]}</td>
+                  <td>${row[2]}</td>
+                  <td class="wr-muted">${row[3]}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderApis(items) {
+      apiRows.innerHTML = items.map(([method, endpoint, state]) => `
+        <tr>
+          <td><span class="badge text-bg-light border wr-api-code">${method}</span></td>
+          <td class="wr-api-code">${endpoint}</td>
+          <td><span class="badge text-bg-secondary">${state}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderPanel(name) {
+      const data = panelData[name];
+      viewTitle.textContent = data.title;
+      viewLead.textContent = data.lead;
+      nextTitle.textContent = data.nextTitle;
+      nextText.textContent = data.nextText;
+      panelTitle.textContent = data.title;
+      panelDesc.textContent = data.lead;
+      panelBadge.className = `badge rounded-pill text-bg-${data.badge[0]} px-3 py-2`;
+      panelBadge.textContent = data.badge[1];
+      renderKpis(data.kpis);
+      renderApis(data.apis);
+
+      if (data.pipeline) {
+        panelBody.innerHTML = renderPipeline();
+      } else if (data.table) {
+        panelBody.innerHTML = renderDataTable(data.table);
+      } else {
+        panelBody.innerHTML = renderCards(data.cards);
+      }
+
+      log('INFO', `${data.title} 화면 표시`);
+      data.logs.forEach(([level, message]) => log(level, message));
+    }
+
+    document.querySelectorAll('[data-target]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-target]').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        renderPanel(button.dataset.target);
+      });
+    });
+
+    document.querySelector('[data-simulate="run"]').addEventListener('click', () => {
+      log('INFO', '실행 시뮬레이션 시작');
+      log('SUCCESS', 'API 호출 없이 Bootstrap UI 상태만 갱신했습니다');
+      log('WARN', '실제 운영 반영 시 fetch, token, error handling 연결 필요');
+    });
+
+    document.querySelector('[data-simulate="refresh"]').addEventListener('click', () => {
+      log('INFO', '상태 새로고침 시뮬레이션');
+      log('SUCCESS', 'KPI와 Related API Status 영역 갱신 완료');
+    });
+
+    document.querySelector('[data-simulate="clear"]').addEventListener('click', () => {
+      consoleBody.innerHTML = '';
+      log('INFO', 'Console cleared');
+    });
+
+    // v2 is intentionally static. Do not call backend APIs from this draft.
+    renderPanel('dashboard');
+  </script>
+</body>
+</html>

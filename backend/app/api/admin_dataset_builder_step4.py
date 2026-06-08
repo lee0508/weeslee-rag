@@ -61,7 +61,7 @@ class Step4StatusResponse(BaseModel):
 # ── Helper Functions ────────────────────────────────────────────────────────
 
 
-def parse_document(document_id: int, file_path: str, force: bool = False) -> dict:
+async def parse_document(document_id: int, file_path: str, force: bool = False) -> dict:
     """
     단일 문서 파싱 처리
 
@@ -105,9 +105,9 @@ def parse_document(document_id: int, file_path: str, force: bool = False) -> dic
         if file_ext in ['.hwp', '.hwpx']:
             # HWP 파싱
             extractor = HwpExtractor()
-            result_dict = extractor.extract(file_path)
-            text = result_dict.get('full_text', '')
-            processing_result.parser_type = "hwp5txt"
+            result_dict = await extractor.extract(file_path)
+            text = result_dict.get('content', '')
+            processing_result.parser_type = result_dict.get('method', 'hwp5txt')
             processing_result.full_text = text
             processing_result.full_text_md = f"# {Path(file_path).name}\n\n{text}"
 
@@ -144,11 +144,11 @@ def parse_document(document_id: int, file_path: str, force: bool = False) -> dic
         elif file_ext in ['.pptx', '.ppt']:
             # PPTX 파싱
             extractor = PptxExtractor()
-            result_dict = extractor.extract(file_path)
-            text = result_dict.get('full_text', '')
+            result_dict = await extractor.extract(file_path)
+            text = result_dict.get('content', '')
+            processing_result.parser_type = result_dict.get('method', 'python-pptx')
             processing_result.full_text = text
             processing_result.full_text_md = f"# {Path(file_path).name}\n\n{text}"
-            processing_result.parser_type = "python-pptx"
 
         elif file_ext in ['.xlsx', '.xls']:
             # XLSX 파싱
@@ -270,7 +270,7 @@ async def parse_documents(
                 failed += 1
                 continue
 
-            result = parse_document(
+            result = await parse_document(
                 document_id=doc.document_id,
                 file_path=doc.file_path,
                 force=request.force_reparse
