@@ -276,6 +276,11 @@
   }
 
   async function refreshRightSourcePanel(forceScan = false) {
+    // 토큰 없으면 API 호출 생략 (로그인 전 401 방지)
+    if (!localStorage.getItem('admin_token')) {
+      setRightSourcePanelError('로그인 필요');
+      return;
+    }
     try {
       const [sources, faissStatus, jobsData] = await Promise.all([
         fetchJson('/admin/document-sources'),
@@ -435,6 +440,7 @@
   }
 
   window.syncWizardStepperState = syncWizardStepperState;
+  window.refreshRightSourcePanel = refreshRightSourcePanel;
 
   async function refreshLogSummary() {
     try {
