@@ -25,6 +25,12 @@
 → LLM Wiki 생성
 → 사용자 검색 반영 여부 확인
 ```
+# https://github.com/topics/bootstrap-5-dashboard
+1. https://github.com/ColorlibHQ/gentelella
+2. https://github.com/puikinsh/Adminator-admin-dashboard
+3. https://github.com/themesberg/volt-bootstrap-5-dashboard
+4. https://github.com/themeselection/sneat-bootstrap-html-admin-template-free
+5. https://github.com/themeselection/materio-bootstrap-html-admin-template-free
 
 참조한 디자인 방향은 다음과 같다.
 
