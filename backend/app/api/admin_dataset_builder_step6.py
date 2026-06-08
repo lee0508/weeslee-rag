@@ -157,25 +157,21 @@ async def build_embeddings(
             raise HTTPException(status_code=503, detail="Ollama service not available")
 
         # 처리할 문서 조회
+        from app.models.document_metadata import DocumentMetadata, MetaStatus
+
+        query = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        )
+
         if req.document_ids:
-            query = text("""
-                SELECT document_id, file_name
-                FROM document_metadata
-                WHERE document_id IN :ids
-                AND extraction_status = 'completed'
-            """)
-            docs = db.execute(query, {"ids": tuple(req.document_ids)}).fetchall()
-        else:
-            query = text("""
-                SELECT document_id, file_name
-                FROM document_metadata
-                WHERE extraction_status = 'completed'
-            """)
-            docs = db.execute(query).fetchall()
+            query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
+
+        docs = query.all()
 
         for doc in docs:
             document_id = doc.document_id
-            file_name = doc.file_name
+            file_name = Path(doc.file_path).name if doc.file_path else f"doc_{document_id}"
 
             try:
                 # 청크 로드
@@ -282,27 +278,34 @@ async def get_embedding_status(db: Session = Depends(get_db)):
     """
     임베딩 상태 조회
     """
+    from app.models.document_metadata import DocumentMetadata, MetaStatus
     text_store = get_text_store()
 
     try:
         # 전체 문서 수
-        result = db.execute(text("SELECT COUNT(*) FROM document_metadata WHERE extraction_status = 'completed'"))
-        total_documents = result.scalar()
+        total_documents = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        ).count()
 
         # 임베딩된 문서 수 계산
         embedded_documents = 0
         total_embeddings = 0
         model_used = None
 
-        result = db.execute(text("SELECT document_id FROM document_metadata WHERE extraction_status = 'completed'"))
-        for row in result:
-            embeddings = text_store.load_embeddings(row.document_id)
+        docs = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        ).all()
+
+        for doc in docs:
+            embeddings = text_store.load_embeddings(doc.document_id)
             if embeddings and len(embeddings) > 0:
                 embedded_documents += 1
                 total_embeddings += len(embeddings)
                 # 모델 정보 가져오기 (첫 번째 문서에서)
                 if model_used is None:
-                    meta = text_store.load_embedding_metadata(row.document_id)
+                    meta = text_store.load_embedding_metadata(doc.document_id)
                     if meta:
                         model_used = meta.get("model")
 
@@ -326,10 +329,14 @@ async def get_embedding_stats(db: Session = Depends(get_db)):
     """
     임베딩 통계 정보
     """
+    from app.models.document_metadata import DocumentMetadata, MetaStatus
     text_store = get_text_store()
 
     try:
-        result = db.execute(text("SELECT document_id, file_name FROM document_metadata WHERE extraction_status = 'completed'"))
+        docs = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        ).all()
 
         stats = {
             "total_documents": 0,
@@ -344,16 +351,16 @@ async def get_embedding_stats(db: Session = Depends(get_db)):
         embedding_counts = []
         models_set = set()
 
-        for row in result:
+        for doc in docs:
             stats["total_documents"] += 1
-            embeddings = text_store.load_embeddings(row.document_id)
+            embeddings = text_store.load_embeddings(doc.document_id)
             if embeddings and len(embeddings) > 0:
                 stats["embedded_documents"] += 1
                 stats["total_embeddings"] += len(embeddings)
                 embedding_counts.append(len(embeddings))
 
                 # 모델 정보
-                meta = text_store.load_embedding_metadata(row.document_id)
+                meta = text_store.load_embedding_metadata(doc.document_id)
                 if meta and meta.get("model"):
                     models_set.add(meta["model"])
 
@@ -378,19 +385,19 @@ async def get_document_embeddings(
     """
     특정 문서의 임베딩 정보 조회 (벡터 값 제외, 메타데이터만)
     """
+    from app.models.document_metadata import DocumentMetadata
     text_store = get_text_store()
 
     try:
         # 문서 정보 조회
-        result = db.execute(
-            text("SELECT file_name FROM document_metadata WHERE document_id = :id"),
-            {"id": document_id}
-        )
-        row = result.fetchone()
-        if not row:
+        doc = db.query(DocumentMetadata).filter(
+            DocumentMetadata.document_id == document_id
+        ).first()
+
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        file_name = row.file_name
+        file_name = Path(doc.file_path).name if doc.file_path else f"doc_{document_id}"
 
         # 임베딩 로드
         embeddings = text_store.load_embeddings(document_id)

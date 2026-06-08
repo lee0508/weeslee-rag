@@ -150,23 +150,17 @@ async def build_faiss_index(
 
     try:
         # 처리할 문서 조회
+        from app.models.document_metadata import DocumentMetadata, MetaStatus
+
+        query = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        ).order_by(DocumentMetadata.document_id)
+
         if req.document_ids:
-            query = text("""
-                SELECT document_id, file_name
-                FROM document_metadata
-                WHERE document_id IN :ids
-                AND extraction_status = 'completed'
-                ORDER BY document_id
-            """)
-            docs = db.execute(query, {"ids": tuple(req.document_ids)}).fetchall()
-        else:
-            query = text("""
-                SELECT document_id, file_name
-                FROM document_metadata
-                WHERE extraction_status = 'completed'
-                ORDER BY document_id
-            """)
-            docs = db.execute(query).fetchall()
+            query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
+
+        docs = query.all()
 
         if not docs:
             raise HTTPException(status_code=400, detail="No documents found")
@@ -178,7 +172,7 @@ async def build_faiss_index(
 
         for doc in docs:
             document_id = doc.document_id
-            file_name = doc.file_name
+            file_name = Path(doc.file_path).name if doc.file_path else f"doc_{document_id}"
 
             try:
                 # 임베딩 로드

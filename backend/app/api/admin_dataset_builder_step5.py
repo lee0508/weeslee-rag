@@ -144,26 +144,21 @@ async def build_chunks(
 
     try:
         # 처리할 문서 조회
+        from app.models.document_metadata import DocumentMetadata, MetaStatus
+
+        query = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        )
+
         if req.document_ids:
-            query = text("""
-                SELECT document_id, file_name, extracted_text
-                FROM document_metadata
-                WHERE document_id IN :ids
-                AND extraction_status = 'completed'
-            """)
-            docs = db.execute(query, {"ids": tuple(req.document_ids)}).fetchall()
-        else:
-            query = text("""
-                SELECT document_id, file_name, extracted_text
-                FROM document_metadata
-                WHERE extraction_status = 'completed'
-            """)
-            docs = db.execute(query).fetchall()
+            query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
+
+        docs = query.all()
 
         for doc in docs:
             document_id = doc.document_id
-            file_name = doc.file_name
-            extracted_text = doc.extracted_text
+            file_name = Path(doc.file_path).name if doc.file_path else f"doc_{document_id}"
 
             try:
                 # 이미 청킹되었는지 확인
@@ -180,6 +175,10 @@ async def build_chunks(
                         ))
                         continue
 
+                # Step 4에서 추출된 텍스트 로드
+                from app.services.processed_text_store import processed_text_store
+                extracted_text = processed_text_store.get_text(str(document_id), format="txt")
+
                 # 텍스트 없으면 스킵
                 if not extracted_text:
                     skipped += 1
@@ -189,7 +188,7 @@ async def build_chunks(
                         status="skipped",
                         chunks_count=0,
                         total_tokens=0,
-                        error="No extracted text"
+                        error="No extracted text from Step 4"
                     ))
                     continue
 
@@ -251,20 +250,27 @@ async def get_chunk_status(db: Session = Depends(get_db)):
     """
     청킹 상태 조회
     """
+    from app.models.document_metadata import DocumentMetadata, MetaStatus
     text_store = get_text_store()
 
     try:
         # 전체 문서 수
-        result = db.execute(text("SELECT COUNT(*) FROM document_metadata WHERE extraction_status = 'completed'"))
-        total_documents = result.scalar()
+        total_documents = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        ).count()
 
         # 청킹된 문서 수 계산
         chunked_documents = 0
         total_chunks = 0
 
-        result = db.execute(text("SELECT document_id FROM document_metadata WHERE extraction_status = 'completed'"))
-        for row in result:
-            chunks = text_store.load_chunks(row.document_id)
+        docs = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        ).all()
+
+        for doc in docs:
+            chunks = text_store.load_chunks(doc.document_id)
             if chunks and len(chunks) > 0:
                 chunked_documents += 1
                 total_chunks += len(chunks)
@@ -291,19 +297,19 @@ async def get_document_chunks(
     """
     특정 문서의 청크 조회
     """
+    from app.models.document_metadata import DocumentMetadata
     text_store = get_text_store()
 
     try:
         # 문서 정보 조회
-        result = db.execute(
-            text("SELECT file_name FROM document_metadata WHERE document_id = :id"),
-            {"id": document_id}
-        )
-        row = result.fetchone()
-        if not row:
+        doc = db.query(DocumentMetadata).filter(
+            DocumentMetadata.document_id == document_id
+        ).first()
+
+        if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        file_name = row.file_name
+        file_name = Path(doc.file_path).name if doc.file_path else f"doc_{document_id}"
 
         # 청크 로드
         chunks_data = text_store.load_chunks(document_id)
@@ -336,10 +342,14 @@ async def get_chunk_stats(db: Session = Depends(get_db)):
     """
     청킹 통계 정보
     """
+    from app.models.document_metadata import DocumentMetadata, MetaStatus
     text_store = get_text_store()
 
     try:
-        result = db.execute(text("SELECT document_id, file_name FROM document_metadata WHERE extraction_status = 'completed'"))
+        docs = db.query(DocumentMetadata).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+            DocumentMetadata.include_in_rag == True
+        ).all()
 
         stats = {
             "total_documents": 0,
@@ -352,9 +362,9 @@ async def get_chunk_stats(db: Session = Depends(get_db)):
 
         chunk_counts = []
 
-        for row in result:
+        for doc in docs:
             stats["total_documents"] += 1
-            chunks = text_store.load_chunks(row.document_id)
+            chunks = text_store.load_chunks(doc.document_id)
             if chunks and len(chunks) > 0:
                 stats["chunked_documents"] += 1
                 stats["total_chunks"] += len(chunks)
