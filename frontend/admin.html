@@ -11137,9 +11137,7 @@ LIMIT 10`;
         showWrPage('rag-source-files');
         break;
       case 4: // OCR/Parser
-        if (typeof wizardRun === 'function') {
-          wizardRun(5); // Legacy Step 5
-        }
+        await runOcrParser();
         break;
       case 5: // Chunk Build
         if (typeof wizardRun === 'function') {
@@ -11224,6 +11222,36 @@ LIMIT 10`;
       }
     } catch (e) {
       showToast('Metadata Auto 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Step 4: OCR/Parser 실행
+  async function runOcrParser() {
+    showToast('OCR/Parser 실행 중... (검수 완료된 문서 대상)', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step4/parse'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document_ids: null,  // null이면 모든 검수 완료 문서 처리
+          force_reparse: false
+        }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+
+      if (d.success) {
+        showToast(`OCR/Parser 완료! 처리: ${d.processed}개, 실패: ${d.failed}개, 건너뜀: ${d.skipped}개`, 'success', 5000);
+      } else {
+        showToast('OCR/Parser 실패: ' + d.message, 'error');
+      }
+
+      // 상태 요약 새로고침
+      if (typeof loadDatasetStatusSummary === 'function') {
+        loadDatasetStatusSummary();
+      }
+    } catch (e) {
+      showToast('OCR/Parser 실패: ' + e.message, 'error');
     }
   }
 
