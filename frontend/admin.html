@@ -8991,8 +8991,9 @@ POST /api/admin/faiss/activate</code>
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
     try {
-      const r = await fetch(apiUrl('/api/benchmark/history'), { headers: h });
-      if (!r.ok) {
+      // Benchmark history 엔드포인트 호출 (404면 조용히 무시)
+      const r = await fetch(apiUrl('/api/benchmark/history'), { headers: h }).catch(() => null);
+      if (!r || !r.ok) {
         // Benchmark 엔드포인트가 없으면 기본값 표시
         setText('wrSystemTotalQueries', '-');
         setText('wrSystemSuccessRate', '-');
