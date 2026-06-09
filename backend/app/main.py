@@ -36,6 +36,9 @@ from app.api.admin_dataset_builder_step4 import router as admin_dataset_builder_
 from app.api.admin_dataset_builder_step5 import router as admin_dataset_builder_step5_router
 from app.api.admin_dataset_builder_step6 import router as admin_dataset_builder_step6_router
 from app.api.admin_dataset_builder_step7 import router as admin_dataset_builder_step7_router
+from app.api.admin_dataset_builder_step8 import router as admin_dataset_builder_step8_router
+from app.api.admin_dataset_builder_step9 import router as admin_dataset_builder_step9_router
+from app.api.admin_dataset_builder_step10 import router as admin_dataset_builder_step10_router
 try:
     from app.api.ocr_results import router as ocr_results_router
     _ocr_results_available = True
@@ -124,6 +127,9 @@ app.include_router(admin_dataset_builder_step4_router, prefix="/api", tags=["Adm
 app.include_router(admin_dataset_builder_step5_router, prefix="/api", tags=["Admin - Dataset Builder Step 5"])
 app.include_router(admin_dataset_builder_step6_router, prefix="/api", tags=["Admin - Dataset Builder Step 6"])
 app.include_router(admin_dataset_builder_step7_router, prefix="/api", tags=["Admin - Dataset Builder Step 7"])
+app.include_router(admin_dataset_builder_step8_router, prefix="/api", tags=["Admin - Dataset Builder Step 8"])
+app.include_router(admin_dataset_builder_step9_router, prefix="/api", tags=["Admin - Dataset Builder Step 9"])
+app.include_router(admin_dataset_builder_step10_router, prefix="/api", tags=["Admin - Dataset Builder Step 10"])
 if _ocr_results_available and ocr_results_router is not None:
     app.include_router(ocr_results_router, prefix="/api", tags=["OCR Results"])
 if _collections_available and collections_router is not None:
