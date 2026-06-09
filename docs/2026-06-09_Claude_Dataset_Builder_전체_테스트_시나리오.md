@@ -61,7 +61,7 @@ curl -s http://192.168.0.207:8080/api/health
 TOKEN=$(curl -s -X POST "http://192.168.0.207:8080/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"weeslee12#$"}' \
-  | jq -r '.token')
+  | jq -r '.access_token')
 
 echo "Token: $TOKEN"
 ```
@@ -104,11 +104,11 @@ curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step1/scan"
 }
 ```
 
-### 테스트 케이스 1-2: 상태 조회
+### 테스트 케이스 1-2: 통계 조회
 
 ```bash
-# Step 1 상태 조회
-curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step1/status" \
+# Step 1 통계 조회
+curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step1/stats" \
   -H "Authorization: Bearer $TOKEN" | jq '.'
 ```
 
@@ -121,6 +121,10 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step1/status
     "01_RFP": 20,
     "02_제안서": 50,
     "03_산출물": 80
+  },
+  "by_status": {
+    "registered": 120,
+    "metadata_suggested": 30
   }
 }
 ```
@@ -139,14 +143,14 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step1/status
 LLM을 사용하여 문서 메타데이터를 자동 추출합니다.
 
 ### API 엔드포인트
-- **URL**: `POST /api/admin/dataset-builder/step2/generate`
+- **URL**: `POST /api/admin/dataset-builder/step2/metadata-auto`
 - **인증**: 필요 (Bearer Token)
 
 ### 테스트 케이스 2-1: 30개 문서 메타데이터 생성
 
 ```bash
 # Step 2 실행 (30개 문서만)
-curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step2/generate" \
+curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step2/metadata-auto" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -167,11 +171,11 @@ curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step2/gener
 }
 ```
 
-### 테스트 케이스 2-2: 상태 조회
+### 테스트 케이스 2-2: 통계 조회
 
 ```bash
-# Step 2 상태 조회
-curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step2/status" \
+# Step 2 통계 조회
+curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step2/stats" \
   -H "Authorization: Bearer $TOKEN" | jq '.'
 ```
 
@@ -179,32 +183,13 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step2/status
 ```json
 {
   "total_documents": 150,
-  "generated": 30,
-  "pending": 120,
-  "avg_confidence": 0.85
-}
-```
-
-### 테스트 케이스 2-3: 개별 문서 메타데이터 조회
-
-```bash
-# 특정 문서의 메타데이터 조회 (document_id=1로 가정)
-curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step2/document/1" \
-  -H "Authorization: Bearer $TOKEN" | jq '.'
-```
-
-**예상 결과**:
-```json
-{
-  "document_id": 1,
-  "file_name": "ISP_제안서_2024.pptx",
-  "metadata": {
-    "organization": "한국수자원공사",
-    "project_name": "ISP 수립 사업",
-    "project_year": "2024",
-    "document_type": "proposal"
+  "by_status": {
+    "registered": 120,
+    "metadata_suggested": 30,
+    "review_required": 0,
+    "metadata_reviewed": 0
   },
-  "confidence": 0.92
+  "avg_confidence": 0.85
 }
 ```
 
@@ -222,14 +207,14 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step2/docume
 생성된 메타데이터를 검수하고 승인합니다.
 
 ### API 엔드포인트
-- **URL**: `GET /api/admin/metadata-review/pending`
+- **URL**: `GET /api/admin/metadata-review/documents`
 - **인증**: 필요 (Bearer Token)
 
 ### 테스트 케이스 3-1: 검수 대기 문서 조회
 
 ```bash
-# 검수 대기 문서 목록
-curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/pending?limit=30" \
+# 검수 대기 문서 목록 (review_required 상태)
+curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/documents?status=review_required&limit=30" \
   -H "Authorization: Bearer $TOKEN" | jq '.'
 ```
 
@@ -252,13 +237,13 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/pending?limi
 
 ```bash
 # 30개 문서 일괄 승인
-DOCUMENT_IDS=$(curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/pending?limit=30" \
+DOCUMENT_IDS=$(curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/documents?status=review_required&limit=30" \
   -H "Authorization: Bearer $TOKEN" | jq -r '.documents[].document_id' | jq -s '.')
 
-curl -s -X POST "http://192.168.0.207:8080/api/admin/metadata-review/approve-batch" \
+curl -s -X POST "http://192.168.0.207:8080/api/admin/metadata-review/approve" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"document_ids\": $DOCUMENT_IDS}" | jq '.'
+  -d "{\"document_ids\": $DOCUMENT_IDS, \"reviewer\": \"admin\"}" | jq '.'
 ```
 
 **예상 결과**:
@@ -273,7 +258,7 @@ curl -s -X POST "http://192.168.0.207:8080/api/admin/metadata-review/approve-bat
 ### 테스트 케이스 3-3: 검수 상태 확인
 
 ```bash
-# Step 3 상태 조회
+# Step 3 통계 조회
 curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/stats" \
   -H "Authorization: Bearer $TOKEN" | jq '.'
 ```
@@ -282,9 +267,14 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/stats" \
 ```json
 {
   "total": 150,
-  "pending": 120,
-  "approved": 30,
-  "rejected": 0
+  "by_status": {
+    "registered": 0,
+    "metadata_suggested": 0,
+    "review_required": 120,
+    "metadata_reviewed": 30
+  },
+  "reviewed_today": 30,
+  "avg_review_time_seconds": 5.2
 }
 ```
 
@@ -553,8 +543,11 @@ curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step7/build
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "source_id": null,
-    "force_rebuild": false
+    "collection_name": "test_collection_30docs",
+    "document_ids": null,
+    "index_type": "flat",
+    "metric": "l2",
+    "normalize": true
   }' | jq '.'
 ```
 
@@ -562,10 +555,14 @@ curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step7/build
 ```json
 {
   "success": true,
-  "message": "FAISS index built successfully",
+  "collection_name": "test_collection_30docs",
+  "index_path": "/data/weeslee/weeslee-rag/data/faiss/test_collection_30docs/index.faiss",
   "total_vectors": 450,
-  "index_file": "/data/weeslee/weeslee-rag/data/indexes/faiss/default.index",
-  "processing_time": 15.3
+  "embedding_dim": 768,
+  "documents_indexed": 30,
+  "documents": [...],
+  "index_type": "flat",
+  "created_at": "2026-06-09T10:30:00"
 }
 ```
 
@@ -580,10 +577,10 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step7/status
 **예상 결과**:
 ```json
 {
-  "index_status": "ready",
+  "collections": ["test_collection_30docs"],
+  "total_collections": 1,
   "total_vectors": 450,
-  "index_file_size_mb": 3.5,
-  "last_built_at": "2026-06-09T10:30:00"
+  "total_documents": 30
 }
 ```
 
@@ -979,7 +976,7 @@ curl -s -X GET "http://192.168.0.207:8080/api/admin/dataset-builder/step10/statu
 TOKEN=$(curl -s -X POST "http://192.168.0.207:8080/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"weeslee12#$"}' \
-  | jq -r '.token')
+  | jq -r '.access_token')
 
 echo "Token obtained: ${TOKEN:0:20}..."
 
@@ -992,20 +989,20 @@ curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step1/scan"
 
 # Step 2: Metadata Auto (30개만)
 echo "\n=== Step 2: Metadata Auto ==="
-curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step2/generate" \
+curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step2/metadata-auto" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"limit": 30, "force_regenerate": false}' | jq '.success, .processed'
 
 # Step 3: Metadata Review (일괄 승인)
 echo "\n=== Step 3: Metadata Review ==="
-DOCUMENT_IDS=$(curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/pending?limit=30" \
+DOCUMENT_IDS=$(curl -s -X GET "http://192.168.0.207:8080/api/admin/metadata-review/documents?status=review_required&limit=30" \
   -H "Authorization: Bearer $TOKEN" | jq -r '.documents[].document_id' | jq -s '.')
 
-curl -s -X POST "http://192.168.0.207:8080/api/admin/metadata-review/approve-batch" \
+curl -s -X POST "http://192.168.0.207:8080/api/admin/metadata-review/approve" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"document_ids\": $DOCUMENT_IDS}" | jq '.success, .approved_count'
+  -d "{\"document_ids\": $DOCUMENT_IDS, \"reviewer\": \"admin\"}" | jq '.success, .approved_count'
 
 # Step 4: OCR/Parser
 echo "\n=== Step 4: OCR/Parser ==="
@@ -1035,7 +1032,7 @@ echo "\n=== Step 7: FAISS Build ==="
 curl -s -X POST "http://192.168.0.207:8080/api/admin/dataset-builder/step7/build" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"force_rebuild": false}' | jq '.success, .total_vectors'
+  -d '{"collection_name": "test_collection_30docs", "index_type": "flat", "metric": "l2", "normalize": true}' | jq '.success, .total_vectors'
 
 # Step 8: Graph Build
 echo "\n=== Step 8: Graph Build ==="
@@ -1112,7 +1109,7 @@ echo "\n=== 전체 파이프라인 실행 완료 ==="
 TOKEN=$(curl -s -X POST "http://192.168.0.207:8080/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"weeslee12#$"}' \
-  | jq -r '.token')
+  | jq -r '.access_token')
 ```
 
 #### 2. FastAPI 서버 다운
