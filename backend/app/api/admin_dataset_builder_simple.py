@@ -61,6 +61,7 @@ class ScanResponse(BaseModel):
     success: bool
     total_files: int
     metadata_records: int
+    total_metadata: int  # 총 document_metadata 레코드 수
     message: str
 
 
@@ -133,6 +134,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                 success=False,
                 total_files=0,
                 metadata_records=0,
+                total_metadata=0,
                 message=f"RAG 소스 폴더를 찾을 수 없습니다: {RAG_SOURCE_ROOT}"
             )
 
@@ -245,11 +247,15 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
         db.commit()
 
+        # 총 document_metadata 레코드 수 조회
+        total_metadata = db.query(func.count(DocumentMetadata.id)).scalar() or 0
+
         return ScanResponse(
             success=True,
             total_files=total_files,
             metadata_records=metadata_created,
-            message=f"Source Scan 완료: {total_files}개 파일 스캔, {metadata_created}개 메타데이터 레코드 생성"
+            total_metadata=total_metadata,
+            message=f"Source Scan 완료: {total_files}개 파일 스캔, {metadata_created}개 신규 생성, 총 {total_metadata}개 레코드"
         )
 
     except Exception as e:
@@ -258,6 +264,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
             success=False,
             total_files=0,
             metadata_records=0,
+            total_metadata=0,
             message=f"Source Scan 실패: {str(e)}"
         )
 

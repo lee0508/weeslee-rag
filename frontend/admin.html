@@ -11207,14 +11207,14 @@ LIMIT 10`;
       const d = await r.json();
       showToast('Source Scan 완료!', 'success');
 
-      // 결과 표시 (API 응답: total_files, metadata_records, message)
+      // 결과 표시 (API 응답: total_files, metadata_records, total_metadata, message)
       if (d.total_files !== undefined) {
         document.getElementById('sourceScanTotalFiles').textContent = d.total_files;
         // source별 파일 수는 현재 API에서 제공하지 않으므로 total_files로 대체
         document.getElementById('sourceScanBySource').textContent = d.total_files;
       }
-      // metadata_records 또는 documents 필드 사용
-      const docCount = d.metadata_records !== undefined ? d.metadata_records : (d.documents || 0);
+      // total_metadata (총 document_id 수) 사용, 없으면 metadata_records 사용
+      const docCount = d.total_metadata !== undefined ? d.total_metadata : (d.metadata_records || 0);
       document.getElementById('sourceScanDocIds').textContent = docCount;
       // excluded 필드가 없으면 0으로 표시
       document.getElementById('sourceScanExcluded').textContent = d.excluded !== undefined ? d.excluded : 0;
