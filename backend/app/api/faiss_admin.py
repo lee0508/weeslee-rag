@@ -107,7 +107,7 @@ async def faiss_status():
         "ollama_host": settings.ollama_host,
         "answer_provider": settings.answer_provider,
         "answer_model": settings.answer_model,
-        "active_snapshot": settings.faiss_snapshot,
+        "active_snapshot": snapshot,  # active_index.json에서 읽은 값 사용
     }
 
     if not active:
