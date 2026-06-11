@@ -11,6 +11,7 @@ import asyncio
 import json
 
 from app.core.auth import require_admin_token
+from app.core.database import SessionLocal
 from app.services.document_pipeline import (
     document_pipeline_service,
     PipelineProgress,
