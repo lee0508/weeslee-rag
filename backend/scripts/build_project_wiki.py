@@ -28,6 +28,19 @@ from pathlib import Path
 
 import os
 
+# LangSmith 트레이싱 (환경변수로 활성화)
+try:
+    from langsmith import traceable
+    from langsmith.run_helpers import get_current_run_tree
+    LANGSMITH_AVAILABLE = True
+except ImportError:
+    # LangSmith 미설치 시 더미 데코레이터
+    def traceable(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    LANGSMITH_AVAILABLE = False
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 WIKI_DIR = DATA_DIR / "wiki" / "projects"
@@ -219,6 +232,7 @@ def _snapshot_paths(snapshot: str, category: str) -> dict:
     return paths
 
 
+@traceable(name="rag_search_for_wiki", run_type="retriever")
 def query_rag_for_project(
     project_name: str, category: str, top_docs: int = 3, timeout: int = RAG_QUERY_TIMEOUT, snapshot: str = ""
 ) -> list[dict]:
@@ -238,7 +252,23 @@ def query_rag_for_project(
     payload.update(_snapshot_paths(snapshot, category))
     try:
         result = _http_post(f"{RAG_API_BASE}/api/rag/query", payload, timeout=timeout)
-        return result.get("documents", [])
+        documents = result.get("documents", [])
+
+        # LangSmith에 검색 결과 기록
+        if LANGSMITH_AVAILABLE:
+            try:
+                run_tree = get_current_run_tree()
+                if run_tree:
+                    run_tree.add_metadata({
+                        "query": query,
+                        "category": category,
+                        "documents_found": len(documents),
+                        "top_docs": top_docs
+                    })
+            except:
+                pass
+
+        return documents
     except Exception as e:
         print(f"    [WARN] RAG query failed ({category}): {e}", file=sys.stderr)
         return []
@@ -309,6 +339,7 @@ def build_ollama_prompt(meta: dict, evidence: dict[str, list[str]]) -> str:
 각 섹션 제목은 **굵은 글씨**로 표시하고, 내용만 작성하세요. 추측이나 모르는 내용은 "문서에서 확인되지 않음"으로 표시하세요."""
 
 
+@traceable(name="wiki_generation_llm", run_type="llm")
 def call_ollama(prompt: str, model: str = OLLAMA_MODEL, timeout: int = 120) -> str:
     """Call Ollama generate API and return the response text."""
     payload = {
@@ -319,7 +350,24 @@ def call_ollama(prompt: str, model: str = OLLAMA_MODEL, timeout: int = 120) -> s
     }
     try:
         result = _http_post(f"{OLLAMA_BASE}/api/generate", payload, timeout=timeout)
-        return result.get("response", "").strip()
+        response_text = result.get("response", "").strip()
+
+        # LangSmith에 LLM 호출 정보 기록
+        if LANGSMITH_AVAILABLE:
+            try:
+                run_tree = get_current_run_tree()
+                if run_tree:
+                    run_tree.add_metadata({
+                        "model": model,
+                        "prompt_length": len(prompt),
+                        "response_length": len(response_text),
+                        "temperature": 0.3,
+                        "max_tokens": 1024
+                    })
+            except:
+                pass
+
+        return response_text
     except Exception as e:
         return f"[Ollama 생성 실패: {e}]"
 
@@ -406,6 +454,7 @@ def load_inventory(source_id: str = None) -> dict:
     return json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
 
 
+@traceable(name="project_wiki_generation", run_type="chain")
 def generate_wiki(folder_name: str, meta: dict, inventory: dict, snapshot: str) -> Path:
     """Generate wiki for one project. Returns the saved file path."""
     print(f"\n{'='*60}")
@@ -415,6 +464,21 @@ def generate_wiki(folder_name: str, meta: dict, inventory: dict, snapshot: str) 
 
     WIKI_DIR.mkdir(parents=True, exist_ok=True)
     out_path = WIKI_DIR / f"{meta['slug']}.md"
+
+    # LangSmith에 프로젝트 메타데이터 기록
+    if LANGSMITH_AVAILABLE:
+        try:
+            run_tree = get_current_run_tree()
+            if run_tree:
+                run_tree.add_metadata({
+                    "project": meta['display_name'],
+                    "organization": meta['organization'],
+                    "project_type": meta['project_type'],
+                    "slug": meta['slug'],
+                    "snapshot": snapshot
+                })
+        except:
+            pass
 
     # Step 1: Collect RAG evidence
     print("  Collecting evidence from RAG API...")
