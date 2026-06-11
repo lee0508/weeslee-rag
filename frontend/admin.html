@@ -9331,20 +9331,9 @@ POST /api/admin/faiss/activate</code>
     }
   }
 
-  // Dataset Builder 페이지가 열릴 때 자동으로 상태 로드
-  window.addEventListener('DOMContentLoaded', () => {
-    // rag-build-wizard 페이지가 활성화될 때 상태 로드
-    const observer = new MutationObserver(() => {
-      const wizardPage = document.querySelector('[data-wr-page-panel="rag-build-wizard"]');
-      // wr-is-active 클래스를 확인 (기존 wr-page-active는 사용하지 않음)
-      if (wizardPage && wizardPage.classList.contains('wr-is-active')) {
-        loadDatasetStatusSummary();
-      }
-    });
-
-    // body의 class 변경 감지
-    observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
-  });
+  // Dataset Builder 자동 새로고침 제거됨 (버튼 클릭 시에만 동작)
+  // 이전에는 페이지가 활성화될 때마다 자동으로 상태를 로드했으나,
+  // 사용자 요청에 따라 "🔄 상태 새로고침" 버튼 클릭 시에만 동작하도록 변경
 
   // ── Dataset Status Summary 끝 ──────────────────────────────────────────────────
 
