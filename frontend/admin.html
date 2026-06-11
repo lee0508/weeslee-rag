@@ -5532,6 +5532,7 @@ POST /api/admin/faiss/activate</code>
       }
       const data = await r.json();
       setToken(data.access_token);
+      sessionStorage.setItem('freshLogin', 'true');  // 로그인 직후 플래그 설정
       hideLoginModal();
       initPage();
     } catch (e) {
@@ -8639,7 +8640,12 @@ POST /api/admin/faiss/activate</code>
     loadDashboard();
     renderWizardProgressBar();
     _initCtxBar();
-    loadOverviewStepStatus();
+    // 로그인 직후에만 Dataset Alert 정보 로드 (페이지 새로고침 시에는 로드하지 않음)
+    // "상태 새로고침" 버튼 클릭 시에만 수동으로 로드
+    if (sessionStorage.getItem('freshLogin') === 'true') {
+      loadOverviewStepStatus();
+      sessionStorage.removeItem('freshLogin');  // 플래그 제거 (1회만 실행)
+    }
     initSidebar();
     // 로그인 후 Docs Layout 우측 패널 새로고침
     if (typeof window.refreshRightSourcePanel === 'function') {
