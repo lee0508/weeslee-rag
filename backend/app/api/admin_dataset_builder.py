@@ -70,6 +70,8 @@ class ScanResponse(BaseModel):
     success: bool
     total_files: int
     documents: int
+    by_source: dict  # 소스별 파일 수 {"src_rfp": 10, "src_proposal": 20, "src_output": 15}
+    excluded: int    # 제외된 파일 수 (지원하지 않는 확장자)
     message: str
 
 
@@ -91,11 +93,17 @@ class MetadataAutoResponse(BaseModel):
 # ── Helper Functions ────────────────────────────────────────────────────────
 
 
-def scan_folder(folder_path: str, extensions: set) -> List[dict]:
-    """폴더를 재귀적으로 스캔하여 파일 목록 반환"""
+def scan_folder(folder_path: str, extensions: set) -> tuple[List[dict], int]:
+    """폴더를 재귀적으로 스캔하여 파일 목록 반환
+
+    Returns:
+        (files, excluded_count): 지원 파일 목록과 제외된 파일 수
+    """
     files = []
+    excluded_count = 0
+
     if not os.path.exists(folder_path):
-        return files
+        return files, excluded_count
 
     for root, dirs, filenames in os.walk(folder_path):
         for filename in filenames:
@@ -110,7 +118,10 @@ def scan_folder(folder_path: str, extensions: set) -> List[dict]:
                     "size": stat.st_size,
                     "modified_at": datetime.fromtimestamp(stat.st_mtime),
                 })
-    return files
+            elif ext:  # 확장자는 있지만 지원하지 않는 파일
+                excluded_count += 1
+
+    return files, excluded_count
 
 
 def extract_project_name(filename: str) -> str:
@@ -158,11 +169,15 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
         total_files = 0
         documents_created = 0
+        total_excluded = 0
+        by_source = {"src_rfp": 0, "src_proposal": 0, "src_output": 0}
 
         # 01. RFP 폴더 스캔
         rfp_folder = os.path.join(RAG_SOURCE_ROOT, "01. RFP")
         if os.path.exists(rfp_folder):
-            files = scan_folder(rfp_folder, SUPPORTED_EXTENSIONS)
+            files, excluded = scan_folder(rfp_folder, SUPPORTED_EXTENSIONS)
+            total_excluded += excluded
+
             for file_info in files:
                 # documents 테이블에 레코드 생성 또는 업데이트
                 existing_doc = db.query(Document).filter(
@@ -201,6 +216,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     documents_created += 1
 
                 total_files += 1
+                by_source["src_rfp"] += 1
 
         # 02. 제안서 폴더 스캔
         proposal_folder = os.path.join(RAG_SOURCE_ROOT, "02. 제안서")
@@ -211,7 +227,8 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     continue
 
                 category_id = CATEGORY_ID_MAP.get(category_folder, f"cat_{category_folder}")
-                files = scan_folder(category_path, SUPPORTED_EXTENSIONS)
+                files, excluded = scan_folder(category_path, SUPPORTED_EXTENSIONS)
+                total_excluded += excluded
 
                 for file_info in files:
                     existing_doc = db.query(Document).filter(
@@ -249,6 +266,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         documents_created += 1
 
                     total_files += 1
+                    by_source["src_proposal"] += 1
 
         # 03. 산출물 폴더 스캔
         output_folder = os.path.join(RAG_SOURCE_ROOT, "03. 산출물")
@@ -259,7 +277,8 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     continue
 
                 category_id = CATEGORY_ID_MAP.get(category_folder, f"cat_{category_folder}")
-                files = scan_folder(category_path, SUPPORTED_EXTENSIONS)
+                files, excluded = scan_folder(category_path, SUPPORTED_EXTENSIONS)
+                total_excluded += excluded
 
                 for file_info in files:
                     existing_doc = db.query(Document).filter(
@@ -297,6 +316,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         documents_created += 1
 
                     total_files += 1
+                    by_source["src_output"] += 1
 
         db.commit()
 
@@ -304,7 +324,9 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
             success=True,
             total_files=total_files,
             documents=documents_created,
-            message=f"Source Scan 완료: {total_files}개 파일 스캔, {documents_created}개 문서 등록"
+            by_source=by_source,
+            excluded=total_excluded,
+            message=f"Source Scan 완료: {total_files}개 파일 스캔, {documents_created}개 문서 등록, {total_excluded}개 파일 제외됨"
         )
 
     except Exception as e:

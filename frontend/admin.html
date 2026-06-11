@@ -1670,8 +1670,13 @@ POST /api/admin/faiss/activate</code>
         <p class="wr-page-lead">PDF, HWP, HWPX, DOCX, PPTX, XLSX 파일에서 텍스트를 추출합니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
-          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(4)">Step 4 실행</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runStep4ParseStreaming()">Step 4 실행 (스트리밍)</button>
         </div>
+
+        <!-- 2열 레이아웃: 왼쪽 설정+콘솔, 오른쪽 결과+선택 -->
+        <div class="row" style="margin:0">
+          <!-- 왼쪽: 설정 + 콘솔 로그 -->
+          <div class="col-lg-5" style="padding-right:12px">
         <div class="wr-card">
           <h3 class="wr-card-title">OCR/파싱 설정</h3>
               <div class="wr-callout wr-callout-info">PDF, HWP, HWPX, DOCX, PPTX, XLSX 파일에서 텍스트를 추출합니다. 이미지 기반 PDF는 OCR을 사용합니다.</div>
@@ -1748,13 +1753,26 @@ POST /api/admin/faiss/activate</code>
                 </div>
               </div>
           <div class="wr-inline-actions" style="margin-top:16px">
-            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(1)">설정 저장</button>
-            <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(1)">Step 1 실행</button>
+            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(4)">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runStep4ParseStreaming()">Step 4 실행</button>
           </div>
         </div>
-        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">POST /api/admin/faiss/jobs (stages 1-3)</code>
 
+        <!-- 콘솔 로그 카드 -->
+        <div class="wr-card" style="margin-top:16px">
+          <h3 class="wr-card-title">실시간 콘솔 로그</h3>
+          <div class="wr-progress" id="step4ProgressBar" style="display:none;margin-bottom:12px">
+            <div class="wr-progress-fill" id="step4ProgressFill" style="width:0%"></div>
+            <span class="wr-progress-text" id="step4ProgressText">0%</span>
+          </div>
+          <div id="step4ConsolePanel" style="background:#1e1e1e;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:13px;padding:12px;border-radius:6px;max-height:400px;overflow-y:auto;min-height:200px">
+            <div style="color:#888">콘솔 로그가 여기에 표시됩니다...</div>
+          </div>
+        </div>
+          </div><!-- col-lg-5 끝 -->
+
+          <!-- 오른쪽: 결과 목록 + 문서 선택 -->
+          <div class="col-lg-7" style="padding-left:12px">
         <!-- OCR 결과 조회 섹션 -->
         <div class="wr-card" style="margin-top:24px">
           <h3 class="wr-card-title">OCR/파싱 결과 조회</h3>
@@ -1818,7 +1836,19 @@ POST /api/admin/faiss/activate</code>
             </table>
             <div id="ocrResultsPagination" style="margin-top:12px;text-align:center"></div>
           </div>
+
+          <!-- 문서 선택 및 청킹 진행 버튼 -->
+          <div id="step4SelectionActions" style="display:none;margin-top:16px;padding:16px;background:#f8f9fa;border-radius:6px">
+            <div style="margin-bottom:12px">
+              <strong>선택된 문서:</strong> <span id="step4SelectedCount">0</span>개
+              <button class="wr-btn" type="button" onclick="selectAllStep4RagReady()" style="margin-left:12px">RAG 준비 완료만 선택</button>
+              <button class="wr-btn" type="button" onclick="clearStep4Selection()" style="margin-left:8px">선택 해제</button>
+            </div>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="proceedToStep5Chunking()">선택 문서 청킹 (Step 5로 진행)</button>
+          </div>
         </div>
+          </div><!-- col-lg-7 끝 -->
+        </div><!-- row 끝 -->
 
         <!-- OCR 결과 상세 모달 -->
         <div id="ocrDetailModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;overflow:auto">
@@ -9719,25 +9749,25 @@ LIMIT 10`;
   // Graph Overview 통계 로드
   async function loadGraphOverviewStats() {
     try {
-      const r = await fetch(`${API_BASE}/graph/stats`, { headers: authHeaders() });
+      const r = await fetch(`${API_BASE}/graph/statistics`, { headers: authHeaders() });
       if (!r.ok) throw new Error('Graph stats API 실패');
       const data = await r.json();
 
       document.getElementById('wrGraphTotalNodes').textContent = data.total_nodes?.toLocaleString() || '0';
       document.getElementById('wrGraphTotalEdges').textContent = data.total_edges?.toLocaleString() || '0';
-      document.getElementById('wrGraphOrgCount').textContent = data.node_counts?.organization || '0';
-      document.getElementById('wrGraphProjectCount').textContent = data.node_counts?.project || '0';
-      document.getElementById('wrGraphDocCount').textContent = data.node_counts?.document || '0';
-      document.getElementById('wrGraphLastBuild').textContent = data.last_build || '-';
+      document.getElementById('wrGraphOrgCount').textContent = data.node_types?.organization || '0';
+      document.getElementById('wrGraphProjectCount').textContent = data.node_types?.project || '0';
+      document.getElementById('wrGraphDocCount').textContent = data.node_types?.document || '0';
+      document.getElementById('wrGraphLastBuild').textContent = '-';
 
       // 노드 분포 렌더링
-      renderNodeDistribution(data.node_counts || {});
+      renderNodeDistribution(data.node_types || {});
       // 최근 활동 로드
       loadGraphRecentActivity();
     } catch (e) {
       console.error('Graph 통계 로드 실패:', e);
       document.getElementById('wrGraphTotalNodes').textContent = '오류';
-      document.getElementById('wrGraphNodeDistribution').innerHTML = '<div style="color:var(--muted);">API 연결 실패. Dataset Builder 7단계에서 Graph를 먼저 빌드하세요.</div>';
+      document.getElementById('wrGraphNodeDistribution').innerHTML = '<div style="color:var(--muted);">API 연결 실패. Dataset Builder 8단계에서 Graph를 먼저 빌드하세요.</div>';
     }
   }
 
@@ -9774,17 +9804,13 @@ LIMIT 10`;
       if (!r.ok) throw new Error('Agent stats API 실패');
       const data = await r.json();
 
-      if (!data.recent_queries?.length) {
-        container.innerHTML = '<div style="color:var(--muted);font-size:12px;">최근 활동이 없습니다.</div>';
-        return;
-      }
-
-      let html = '<table style="width:100%;font-size:11px;"><thead><tr><th style="text-align:left;padding:4px;">시간</th><th style="text-align:left;padding:4px;">질문</th><th style="text-align:center;padding:4px;">상태</th></tr></thead><tbody>';
-      data.recent_queries.slice(0, 10).forEach(q => {
-        const statusBadge = q.status === 'success' ? '<span style="color:#22c55e;">✓</span>' : q.status === 'retry_success' ? '<span style="color:#f59e0b;">↻</span>' : '<span style="color:#ef4444;">✗</span>';
-        html += `<tr><td style="padding:4px;color:var(--muted);">${q.timestamp || '-'}</td><td style="padding:4px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escTxt(q.question || '-')}</td><td style="text-align:center;padding:4px;">${statusBadge}</td></tr>`;
-      });
-      html += '</tbody></table>';
+      // API가 recent_queries를 제공하지 않으므로 Graph 통계 표시
+      let html = '<div style="font-size:12px;color:var(--muted);">';
+      html += `<div style="margin-bottom:8px;"><strong>Graph 상태:</strong> ${data.graph?.has_data ? '데이터 있음' : '데이터 없음'}</div>`;
+      html += `<div style="margin-bottom:8px;"><strong>노드 수:</strong> ${data.graph?.node_count?.toLocaleString() || 0}</div>`;
+      html += `<div style="margin-bottom:8px;"><strong>엣지 수:</strong> ${data.graph?.edge_count?.toLocaleString() || 0}</div>`;
+      html += `<div><strong>Agent 상태:</strong> ${data.agent_ready ? '준비됨' : '준비 안됨'}</div>`;
+      html += '</div>';
       container.innerHTML = html;
     } catch (e) {
       container.innerHTML = '<div style="color:var(--muted);font-size:12px;">활동 데이터 로드 실패.</div>';
@@ -9798,18 +9824,21 @@ LIMIT 10`;
       if (!r.ok) throw new Error('Schema API 실패');
       const data = await r.json();
 
-      // 노드 유형 렌더링
+      // 노드 유형 렌더링 (API는 문자열 배열 반환)
       const nodeTypesEl = document.getElementById('wrSchemaNodeTypes');
       if (data.node_types?.length) {
-        nodeTypesEl.innerHTML = data.node_types.map(t => `<div style="padding:4px 8px;background:var(--surface);border-radius:4px;margin-bottom:4px;"><strong>${t.name}</strong>: ${t.properties?.join(', ') || '-'}</div>`).join('');
+        nodeTypesEl.innerHTML = data.node_types.map(t => {
+          const nodeName = typeof t === 'string' ? t : (t.name || t);
+          return `<div style="padding:4px 8px;background:var(--surface);border-radius:4px;margin-bottom:4px;"><strong>${nodeName}</strong></div>`;
+        }).join('');
       } else {
         nodeTypesEl.innerHTML = '<div style="color:var(--muted);">노드 유형 정보 없음</div>';
       }
 
-      // 관계 유형 렌더링
+      // 관계 유형 렌더링 (API는 문자열 배열 반환)
       const relTypesEl = document.getElementById('wrSchemaRelTypes');
-      if (data.relationship_types?.length) {
-        relTypesEl.innerHTML = data.relationship_types.map(r => `<div style="padding:4px 8px;background:var(--surface);border-radius:4px;margin-bottom:4px;"><strong>${r}</strong></div>`).join('');
+      if (data.relation_types?.length) {
+        relTypesEl.innerHTML = data.relation_types.map(r => `<div style="padding:4px 8px;background:var(--surface);border-radius:4px;margin-bottom:4px;"><strong>${r}</strong></div>`).join('');
       } else {
         relTypesEl.innerHTML = '<div style="color:var(--muted);">관계 유형 정보 없음</div>';
       }
@@ -11190,6 +11219,14 @@ LIMIT 10`;
       if (d.documents !== undefined) {
         document.getElementById('sourceScanDocIds').textContent = d.documents;
       }
+      if (d.by_source !== undefined) {
+        const total = (d.by_source.src_rfp || 0) + (d.by_source.src_proposal || 0) + (d.by_source.src_output || 0);
+        const breakdown = `${total} (RFP: ${d.by_source.src_rfp || 0}, 제안서: ${d.by_source.src_proposal || 0}, 산출물: ${d.by_source.src_output || 0})`;
+        document.getElementById('sourceScanBySource').textContent = breakdown;
+      }
+      if (d.excluded !== undefined) {
+        document.getElementById('sourceScanExcluded').textContent = d.excluded;
+      }
 
       // 상태 요약 새로고침
       if (typeof loadDatasetStatusSummary === 'function') {
@@ -11496,6 +11533,22 @@ LIMIT 10`;
     document.querySelector('[data-wr-page="logs"]')?.addEventListener('click', wrRefreshLogs);
     // Search Quality 페이지 진입 시
     document.querySelector('[data-wr-page="search-quality"]')?.addEventListener('click', wrLoadBenchmarkHistory);
+    // Graph Overview 페이지 진입 시
+    document.querySelector('[data-wr-page="graph-overview"]')?.addEventListener('click', function() {
+      showWrPage('graph-overview');
+      loadGraphOverviewStats();
+    });
+    // Schema Viewer 페이지 진입 시
+    document.querySelector('[data-wr-page="schema-viewer"]')?.addEventListener('click', function() {
+      showWrPage('schema-viewer');
+      loadGraphSchema();
+    });
+    // LPG Ontology 페이지 진입 시
+    document.querySelector('[data-wr-page="lpg-ontology"]')?.addEventListener('click', function() {
+      showWrPage('lpg-ontology');
+      loadLpgStatus();
+      loadLpgOntologyTerms();
+    });
   });
 
   function renderWizardProgressBar() {
@@ -12240,6 +12293,19 @@ LIMIT 10`;
     } catch (e) {
       console.error('loadLpgStatus error:', e);
       setText('wrLpgStatus', 'Error');
+      setText('wrLpgTotalNodes', '-');
+      setText('wrLpgTotalEdges', '-');
+      setText('wrLpgOntologyTerms', '-');
+
+      const nodeStatsEl = document.getElementById('wrLpgNodeStats');
+      if (nodeStatsEl) {
+        nodeStatsEl.innerHTML = '<div style="color:var(--muted);font-size:12px;">LPG 시스템이 아직 초기화되지 않았습니다. Dataset Builder 8단계에서 Graph Build를 먼저 실행하세요.</div>';
+      }
+
+      const edgeStatsEl = document.getElementById('wrLpgEdgeStats');
+      if (edgeStatsEl) {
+        edgeStatsEl.innerHTML = '<div style="color:var(--muted);font-size:12px;">LPG 시스템이 아직 초기화되지 않았습니다.</div>';
+      }
     }
   }
 
@@ -12714,6 +12780,252 @@ LIMIT 10`;
       }
     } catch (e) {
       showToast('반려 오류: ' + e.message, 'error');
+    }
+  }
+
+  // ── Step 4: OCR/Parser 스트리밍 및 결과 관리 ──────────────────────────────
+
+  let step4SseSource = null;
+  let step4SelectedIds = new Set();
+
+  async function runStep4ParseStreaming() {
+    try {
+      // 1. 파싱 작업 시작 (SSE job_id 받기)
+      const response = await fetch(`${API_BASE}/admin/dataset-builder/step4/parse/stream`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          document_ids: null,  // null이면 모든 검수 완료 문서
+          force_reparse: false
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Parsing job start failed');
+      }
+
+      const data = await response.json();
+      const jobId = data.job_id;
+
+      showToast(`파싱 작업 시작 (Job ID: ${jobId})`, 'info');
+
+      // 콘솔 패널 초기화
+      clearStep4Console();
+      document.getElementById('step4ProgressBar').style.display = 'block';
+
+      // 2. SSE 연결 (진행 상황 수신)
+      const token = getToken();
+      step4SseSource = new EventSource(`${API_BASE}/admin/dataset-builder/step4/parse/stream/${jobId}?token=${encodeURIComponent(token)}`);
+
+      step4SseSource.onmessage = (e) => {
+        const event = JSON.parse(e.data);
+
+        if (event.heartbeat) {
+          return; // heartbeat는 무시
+        }
+
+        // 진행률 업데이트
+        if (event.progress !== undefined) {
+          updateStep4Progress(event.progress, event.stage || '');
+        }
+
+        // 로그 출력
+        if (event.log) {
+          appendStep4Log(event.level || 'info', event.log);
+        }
+
+        // 완료 처리
+        if (event.done) {
+          step4SseSource.close();
+          step4SseSource = null;
+
+          if (event.error) {
+            showToast(`파싱 작업 실패: ${event.error}`, 'error');
+          } else {
+            showToast('파싱 작업 완료', 'success');
+            // 결과 자동 로드
+            setTimeout(() => loadStep4ParseResults(), 500);
+          }
+        }
+      };
+
+      step4SseSource.onerror = (e) => {
+        console.error('Step 4 SSE error:', e);
+        appendStep4Log('error', 'SSE 연결 오류 발생');
+        if (step4SseSource) {
+          step4SseSource.close();
+          step4SseSource = null;
+        }
+      };
+
+    } catch (e) {
+      const errorMsg = e.message || e.toString() || '알 수 없는 오류';
+      showToast(`파싱 작업 시작 실패: ${errorMsg}`, 'error');
+      appendStep4Log('error', `오류: ${errorMsg}`);
+      console.error('runStep4ParseStreaming error:', e);
+    }
+  }
+
+  function clearStep4Console() {
+    const panel = document.getElementById('step4ConsolePanel');
+    panel.innerHTML = '<div style="color:#888">콘솔 로그 시작...</div>';
+  }
+
+  function appendStep4Log(level, message) {
+    const panel = document.getElementById('step4ConsolePanel');
+    const time = new Date().toLocaleTimeString('ko-KR');
+    let color = '#d4d4d4';
+    if (level === 'error') color = '#f48771';
+    else if (level === 'warning') color = '#dcdcaa';
+    else if (level === 'success') color = '#4ec9b0';
+
+    const logLine = document.createElement('div');
+    logLine.style.color = color;
+    logLine.style.marginBottom = '4px';
+    logLine.textContent = `[${time}] ${message}`;
+    panel.appendChild(logLine);
+
+    // 자동 스크롤
+    panel.scrollTop = panel.scrollHeight;
+  }
+
+  function updateStep4Progress(percent, stage) {
+    const fill = document.getElementById('step4ProgressFill');
+    const text = document.getElementById('step4ProgressText');
+    fill.style.width = percent + '%';
+    text.textContent = `${percent}% ${stage}`;
+  }
+
+  async function loadStep4ParseResults() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/dataset-builder/step4/parse/results`, {
+        headers: authHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load parse results');
+      }
+
+      const data = await response.json();
+
+      // 결과 테이블 렌더링
+      renderStep4ResultsTable(data.results);
+
+      // 통계 업데이트 (필요시)
+      showToast(`결과 ${data.total}개 로드 완료 (RAG 준비: ${data.rag_ready_count}개)`, 'info');
+
+      // 선택 액션 영역 표시
+      document.getElementById('step4SelectionActions').style.display = 'block';
+
+    } catch (e) {
+      const errorMsg = e.message || e.toString() || '알 수 없는 오류';
+      showToast(`결과 로드 실패: ${errorMsg}`, 'error');
+      console.error('loadStep4ParseResults error:', e);
+    }
+  }
+
+  function renderStep4ResultsTable(results) {
+    const tbody = document.getElementById('ocrResultsBody');
+    tbody.innerHTML = '';
+
+    if (!results || results.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty">결과가 없습니다.</td></tr>';
+      return;
+    }
+
+    results.forEach(result => {
+      const row = document.createElement('tr');
+      const docId = result.document_id;
+      const isRagReady = result.quality?.rag_ready || false;
+      const qualityScore = (result.quality?.quality_score || 0).toFixed(2);
+      const statusBadge = result.status === 'success' ?
+        '<span style="color:green">성공</span>' :
+        (result.status === 'failed' ? '<span style="color:red">실패</span>' : '건너뜀');
+
+      row.innerHTML = `
+        <td>
+          ${isRagReady ? `<input type="checkbox" class="step4-doc-checkbox" data-doc-id="${docId}" onchange="toggleStep4DocSelection('${docId}', this.checked)">` : ''}
+          ${docId}
+        </td>
+        <td>${result.file_name || 'N/A'}</td>
+        <td>${result.parser_type || 'N/A'}</td>
+        <td>${qualityScore}</td>
+        <td>${(result.text_length || 0).toLocaleString()}</td>
+        <td>${result.page_count || 0}</td>
+        <td>${result.ocr_required ? 'Yes' : 'No'}</td>
+        <td>${result.updated_at || 'N/A'}</td>
+        <td>${statusBadge}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function toggleStep4DocSelection(docId, checked) {
+    if (checked) {
+      step4SelectedIds.add(docId);
+    } else {
+      step4SelectedIds.delete(docId);
+    }
+    document.getElementById('step4SelectedCount').textContent = step4SelectedIds.size;
+  }
+
+  function selectAllStep4RagReady() {
+    step4SelectedIds.clear();
+    const checkboxes = document.querySelectorAll('.step4-doc-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = true;
+      step4SelectedIds.add(cb.dataset.docId);
+    });
+    document.getElementById('step4SelectedCount').textContent = step4SelectedIds.size;
+  }
+
+  function clearStep4Selection() {
+    step4SelectedIds.clear();
+    const checkboxes = document.querySelectorAll('.step4-doc-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = false;
+    });
+    document.getElementById('step4SelectedCount').textContent = 0;
+  }
+
+  async function proceedToStep5Chunking() {
+    if (step4SelectedIds.size === 0) {
+      showToast('선택된 문서가 없습니다', 'warning');
+      return;
+    }
+
+    const confirmed = confirm(`선택된 ${step4SelectedIds.size}개 문서를 청킹하시겠습니까?`);
+    if (!confirmed) return;
+
+    try {
+      const documentIds = Array.from(step4SelectedIds).map(id => parseInt(id));
+
+      const response = await fetch(`${API_BASE}/admin/dataset-builder/step5/chunk`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          document_ids: documentIds,
+          chunk_size: 1000,
+          chunk_overlap: 200
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Chunking failed');
+      }
+
+      const data = await response.json();
+      showToast(`청킹 완료: ${data.total_chunks}개 청크 생성`, 'success');
+
+      // Step 5 페이지로 이동 (선택 사항)
+      // showWrPage('db-step-5');
+
+    } catch (e) {
+      const errorMsg = e.message || e.toString() || '알 수 없는 오류';
+      showToast(`청킹 실패: ${errorMsg}`, 'error');
+      console.error('proceedToStep5Chunking error:', e);
     }
   }
 
