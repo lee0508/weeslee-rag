@@ -8821,7 +8821,7 @@ POST /api/admin/faiss/activate</code>
     const stepStates = {};
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     setText('wrAlertNewDocs', '0건');
-    setText('wrAlertChangedDocs', '0건');
+    // wrAlertChangedDocs는 hidden 처리되어 초기화 불필요
     setText('wrAlertPendingDocs', '0건');
     setText('wrAlertFailedJobs', '0건');
     setText('wrSystemTotalQueries', '-');
@@ -8886,13 +8886,7 @@ POST /api/admin/faiss/activate</code>
         setStep(2, total > 0 ? 'ok' : 'err', total > 0 ? `✓ ${total}개 파일` : '스캔 필요');
         setText('wrOverviewFileState', total > 0 ? `${total}개` : '스캔 필요');
         setText('wrAlertNewDocs', `${newFiles}건`);
-        setText('wrAlertChangedDocs', `${changedFiles}건`);
-
-        // API 호출 성공 시 "수정 문서" 카드 표시
-        const wrChangedCard = document.getElementById('wrAlertChangedDocsCard');
-        const legacyChangedCard = document.getElementById('alertModifiedDocsCard');
-        if (wrChangedCard) wrChangedCard.style.display = '';
-        if (legacyChangedCard) legacyChangedCard.style.display = '';
+        // "수정 문서" 카드는 hidden 처리되어 표시하지 않음
       } else {
         setStep(2, 'err', '확인 실패');
         setText('wrOverviewFileState', '확인 실패');
