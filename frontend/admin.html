@@ -5111,40 +5111,50 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
     <div id="sourceList"><div class="empty">로딩 중...</div></div>
-    <!-- 신규/수정 폼 -->
-    <div id="sourceForm" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label>Source ID</label><input type="text" id="sfSourceId" placeholder="새 등록 시 자동 생성"></div>
-        <div class="form-group"><label>고객사 *</label>
-          <select id="sfClientId" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
-            <option value="">-- 선택 --</option>
-          </select>
-        </div>
-        <div class="form-group"><label>소스명</label><input type="text" id="sfSourceName" placeholder="예: 00. RAG 소스"></div>
-        <div class="form-group"><label>서버 유형</label>
-          <select id="sfSourceType" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
-            <option value="smb">SMB (Windows 공유/NAS)</option>
-            <option value="nfs">NFS</option>
-            <option value="local">Local Path</option>
-            <option value="sftp">SFTP</option>
-          </select>
-        </div>
-        <div class="form-group"><label>원본 문서 경로 (URI)</label><input type="text" id="sfSourceUri" placeholder="\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스"></div>
-        <div class="form-group"><label>서비스 서버 마운트 경로</label><input type="text" id="sfMountPath" placeholder="/mnt/w2_project/00. RAG 소스"></div>
-        <div class="form-group" style="display:flex;align-items:center;gap:8px;align-self:end">
-          <input type="checkbox" id="sfReadonly" checked style="width:auto">
-          <label for="sfReadonly">읽기 전용</label>
-        </div>
-        <div class="form-group" style="display:flex;align-items:center;gap:8px;align-self:end">
-          <input type="checkbox" id="sfEnabled" checked style="width:auto">
-          <label for="sfEnabled">사용 여부</label>
-        </div>
+  </div>
+
+  <!-- Document Source 등록/수정 모달 -->
+  <div id="sourceFormModal" class="modal" style="display:none">
+    <div class="modal-backdrop" onclick="closeSourceForm()"></div>
+    <div class="modal-content" style="max-width:600px;max-height:90vh;overflow-y:auto">
+      <div class="modal-header">
+        <h3 style="margin:0;font-size:16px" id="sourceFormTitle">📂 문서 위치 등록</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeSourceForm()" style="padding:4px 8px">✕</button>
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="btn btn-primary" onclick="saveSource()">저장</button>
+      <div class="modal-body" style="padding:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group"><label>Source ID</label><input type="text" id="sfSourceId" placeholder="새 등록 시 자동 생성" disabled></div>
+          <div class="form-group"><label>고객사</label>
+            <select id="sfClientId" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+              <option value="">-- 선택 --</option>
+            </select>
+          </div>
+          <div class="form-group"><label>소스명 *</label><input type="text" id="sfSourceName" placeholder="예: 00. RAG 소스"></div>
+          <div class="form-group"><label>서버 유형</label>
+            <select id="sfSourceType" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+              <option value="smb">SMB (Windows 공유/NAS)</option>
+              <option value="nfs">NFS</option>
+              <option value="local">Local Path</option>
+              <option value="sftp">SFTP</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1"><label>원본 문서 경로 (URI) *</label><input type="text" id="sfSourceUri" placeholder="\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스"></div>
+          <div class="form-group" style="grid-column:1/-1"><label>서비스 서버 마운트 경로 *</label><input type="text" id="sfMountPath" placeholder="/mnt/w2_project/00. RAG 소스"></div>
+          <div class="form-group" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="sfReadonly" checked style="width:auto">
+            <label for="sfReadonly">읽기 전용</label>
+          </div>
+          <div class="form-group" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="sfEnabled" checked style="width:auto">
+            <label for="sfEnabled">사용 여부</label>
+          </div>
+        </div>
+        <input type="hidden" id="sfEditId">
+      </div>
+      <div class="modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
         <button class="btn btn-outline" onclick="closeSourceForm()">취소</button>
+        <button class="btn btn-primary" onclick="saveSource()">저장</button>
       </div>
-      <input type="hidden" id="sfEditId">
     </div>
   </div>
 
@@ -7356,8 +7366,9 @@ POST /api/admin/faiss/activate</code>
   }
 
   function openSourceForm(data) {
+    const isEdit = !!data?.source_id;
+    document.getElementById('sourceFormTitle').textContent = isEdit ? '📂 문서 위치 수정' : '📂 문서 위치 등록';
     document.getElementById('sfSourceId').value = data?.source_id || '';
-    document.getElementById('sfSourceId').disabled = true;
     document.getElementById('sfClientId').value = data?.client_id || '';
     document.getElementById('sfSourceName').value = data?.source_name || '';
     document.getElementById('sfSourceType').value = data?.source_type || 'smb';
@@ -7366,11 +7377,11 @@ POST /api/admin/faiss/activate</code>
     document.getElementById('sfReadonly').checked = data?.readonly !== false;
     document.getElementById('sfEnabled').checked = data?.enabled !== false;
     document.getElementById('sfEditId').value = data?.source_id || '';
-    document.getElementById('sourceForm').style.display = 'block';
+    document.getElementById('sourceFormModal').style.display = 'flex';
     _populateClientSelects();
   }
 
-  function closeSourceForm() { document.getElementById('sourceForm').style.display = 'none'; }
+  function closeSourceForm() { document.getElementById('sourceFormModal').style.display = 'none'; }
 
   function editSource(id) {
     const s = _sources.find(x => x.source_id === id);
