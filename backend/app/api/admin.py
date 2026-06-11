@@ -1248,72 +1248,61 @@ async def get_dataset_status_summary():
     """
     from pathlib import Path
     from datetime import datetime
+    from sqlalchemy import func
+    from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
 
     project_root = Path(__file__).resolve().parents[3]
 
     # ── 초기화 ─────────────────────────────────────────────────────────────
     summary = DatasetStatusSummary()
 
-    # ── Step 1: Source Scan ────────────────────────────────────────────────
-    # manifest 파일들을 읽어서 스캔된 문서 수 집계
-    manifest_dir = project_root / "data" / "staged" / "manifest"
-    if manifest_dir.exists():
-        manifest_files = list(manifest_dir.glob("*.jsonl"))
-        for manifest_file in manifest_files:
-            try:
-                for line in manifest_file.read_text(encoding="utf-8").splitlines():
-                    if line.strip():
-                        summary.total_documents += 1
-                        data = json.loads(line)
-                        if data.get("copy_status") == "copied":
-                            summary.step1_completed += 1
-                        elif data.get("copy_status") == "failed":
-                            summary.step1_failed += 1
-            except Exception:
-                pass
-
-    # ── Step 2: Metadata Auto ──────────────────────────────────────────────
-    # metadata 파일들을 읽어서 자동 생성된 메타데이터 집계
-    metadata_dir = project_root / "data" / "staged" / "metadata"
-    if metadata_dir.exists():
-        metadata_files = list(metadata_dir.glob("*.json"))
-        confidence_sum = 0.0
-        confidence_count = 0
-
-        for metadata_file in metadata_files:
-            try:
-                metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
-
-                # Metadata Auto 완료 여부 확인
-                if metadata.get("project_name", {}).get("provenance") in ["INFERRED", "EXTRACTED"]:
-                    summary.step2_completed += 1
-
-                    # confidence 집계
-                    conf = metadata.get("project_name", {}).get("confidence", 0.0)
-                    if conf > 0:
-                        confidence_sum += conf
-                        confidence_count += 1
-                else:
-                    summary.step2_pending += 1
-            except Exception:
-                pass
-
-        if confidence_count > 0:
-            summary.step2_avg_confidence = round(confidence_sum / confidence_count, 3)
-
-    # ── Step 3: Metadata Review ────────────────────────────────────────────
-    # SQLite metadata_db에서 review 상태 조회
+    # ── MySQL document_metadata 기준 통계 (Step 1~3) ────────────────────────
+    db = SessionLocal()
     try:
-        review_docs = metadata_db_service.list_documents(meta_status="confirmed", limit=10000)
-        summary.step3_reviewed = len(review_docs)
+        # Step 1: Source Scan - 전체 문서 수 (MySQL document_metadata 기준)
+        summary.total_documents = db.query(func.count(DocumentMetadata.id)).scalar() or 0
+        summary.step1_completed = summary.total_documents  # 등록된 문서는 모두 Step 1 완료
 
-        review_required_docs = metadata_db_service.list_documents(meta_status="review_required", limit=10000)
-        summary.step3_review_required = len(review_required_docs)
+        # Step 2: Metadata Auto - metadata_suggested 이상 상태인 문서
+        step2_statuses = [
+            MetaStatus.METADATA_SUGGESTED.value,
+            MetaStatus.REVIEW_REQUIRED.value,
+            MetaStatus.METADATA_REVIEWED.value,
+            MetaStatus.REJECTED.value,
+        ]
+        summary.step2_completed = db.query(func.count(DocumentMetadata.id)).filter(
+            DocumentMetadata.meta_status.in_(step2_statuses)
+        ).scalar() or 0
+        summary.step2_pending = summary.total_documents - summary.step2_completed
 
-        rejected_docs = metadata_db_service.list_documents(meta_status="rejected", limit=10000)
-        summary.step3_rejected = len(rejected_docs)
+        # Step 2 평균 신뢰도
+        avg_conf = db.query(func.avg(DocumentMetadata.project_name_confidence)).filter(
+            DocumentMetadata.project_name_confidence.isnot(None)
+        ).scalar()
+        if avg_conf:
+            summary.step2_avg_confidence = round(float(avg_conf), 3)
+
+        # Step 3: Metadata Review
+        summary.step3_reviewed = db.query(func.count(DocumentMetadata.id)).filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value
+        ).scalar() or 0
+
+        # 검수 대기 = metadata_suggested + review_required
+        summary.step3_review_required = db.query(func.count(DocumentMetadata.id)).filter(
+            DocumentMetadata.meta_status.in_([
+                MetaStatus.METADATA_SUGGESTED.value,
+                MetaStatus.REVIEW_REQUIRED.value
+            ])
+        ).scalar() or 0
+
+        summary.step3_rejected = db.query(func.count(DocumentMetadata.id)).filter(
+            DocumentMetadata.meta_status == MetaStatus.REJECTED.value
+        ).scalar() or 0
+
     except Exception:
         pass
+    finally:
+        db.close()
 
     # ── Step 4: OCR/Parser ─────────────────────────────────────────────────
     # processed_text 디렉토리에서 OCR 완료 문서 집계
