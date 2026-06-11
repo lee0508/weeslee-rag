@@ -1,6 +1,7 @@
-# Dataset Builder Step 1, 2 API (Simplified - metadata only)
+# Dataset Builder Step 1, 2 API (Unified schema - MySQL primary)
 """
-Dataset Builder API - document_metadata 테이블만 사용
+Dataset Builder API - document_metadata 테이블 사용 (통합 스키마)
+MySQL을 primary로, SQLite는 비동기 동기화 대상으로 사용
 """
 from datetime import datetime
 from typing import Optional, List
@@ -14,7 +15,7 @@ from sqlalchemy import func
 
 from app.core.auth import require_admin_token
 from app.core.database import get_db
-from app.models.document_metadata import DocumentMetadata, MetaStatus
+from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
 
 router = APIRouter(
     prefix="/admin/dataset-builder",
@@ -155,13 +156,21 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
                 if existing_meta:
                     if request.overwrite:
+                        # 파일 정보 업데이트
+                        existing_meta.file_name = file_info["filename"]
+                        existing_meta.file_type = file_info["extension"]
+                        existing_meta.file_size = file_info["size"]
                         existing_meta.updated_at = datetime.utcnow()
                 else:
                     new_meta = DocumentMetadata(
                         document_id=next_doc_id,
                         source_id="src_rfp",
                         file_path=file_info["filepath"],
+                        file_name=file_info["filename"],
+                        file_type=file_info["extension"],
+                        file_size=file_info["size"],
                         category_id="cat_rfp",
+                        status=ProcessingStatus.REGISTERED.value,
                         meta_status=MetaStatus.REGISTERED.value,
                         include_in_rag=True,
                         include_in_graph=True,
@@ -169,7 +178,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     )
                     db.add(new_meta)
                     metadata_created += 1
-                    next_doc_id += 1  # Increment for next file
+                    next_doc_id += 1
 
                 total_files += 1
 
@@ -191,13 +200,20 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
                     if existing_meta:
                         if request.overwrite:
+                            existing_meta.file_name = file_info["filename"]
+                            existing_meta.file_type = file_info["extension"]
+                            existing_meta.file_size = file_info["size"]
                             existing_meta.updated_at = datetime.utcnow()
                     else:
                         new_meta = DocumentMetadata(
                             document_id=next_doc_id,
                             source_id="src_proposal",
                             file_path=file_info["filepath"],
+                            file_name=file_info["filename"],
+                            file_type=file_info["extension"],
+                            file_size=file_info["size"],
                             category_id=category_id,
+                            status=ProcessingStatus.REGISTERED.value,
                             meta_status=MetaStatus.REGISTERED.value,
                             include_in_rag=True,
                             include_in_graph=True,
@@ -205,7 +221,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         )
                         db.add(new_meta)
                         metadata_created += 1
-                        next_doc_id += 1  # Increment for next file
+                        next_doc_id += 1
 
                     total_files += 1
 
@@ -227,13 +243,20 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
                     if existing_meta:
                         if request.overwrite:
+                            existing_meta.file_name = file_info["filename"]
+                            existing_meta.file_type = file_info["extension"]
+                            existing_meta.file_size = file_info["size"]
                             existing_meta.updated_at = datetime.utcnow()
                     else:
                         new_meta = DocumentMetadata(
                             document_id=next_doc_id,
                             source_id="src_output",
                             file_path=file_info["filepath"],
+                            file_name=file_info["filename"],
+                            file_type=file_info["extension"],
+                            file_size=file_info["size"],
                             category_id=category_id,
+                            status=ProcessingStatus.REGISTERED.value,
                             meta_status=MetaStatus.REGISTERED.value,
                             include_in_rag=True,
                             include_in_graph=True,
@@ -241,7 +264,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         )
                         db.add(new_meta)
                         metadata_created += 1
-                        next_doc_id += 1  # Increment for next file
+                        next_doc_id += 1
 
                     total_files += 1
 

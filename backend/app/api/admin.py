@@ -16,7 +16,8 @@ from app.services.document_pipeline import (
     PipelineProgress,
 )
 from app.services.knowledge_source import knowledge_source_service
-from app.services.metadata_db import metadata_db_service
+from app.services.metadata_db import metadata_db_service  # Legacy SQLite (deprecated)
+from app.services.unified_document_service import unified_document_service  # MySQL primary
 from app.services.metadata_auto_generator import metadata_auto_generator
 from app.services.admin_stats_service import get_snapshot_stats
 from app.core.config import settings
@@ -650,17 +651,17 @@ async def get_admin_stats():
 
 
 # ────────────────────────────────────────────────────────────────────────────
-# SQLite 기반 문서 메타데이터 관리 API (Phase 1-2)
+# MySQL 기반 문서 메타데이터 관리 API (통합 스키마)
 # ────────────────────────────────────────────────────────────────────────────
 
 @router.get("/documents/stats")
 async def get_document_stats():
-    """문서 현황 통계 반환 (SQLite)."""
-    return metadata_db_service.get_document_stats()
+    """문서 현황 통계 반환 (MySQL document_metadata 기준)."""
+    return unified_document_service.get_document_stats()
 
 
 @router.get("/documents")
-async def list_documents_sqlite(
+async def list_documents_mysql(
     document_type: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     meta_status: Optional[str] = Query(None),
@@ -670,8 +671,8 @@ async def list_documents_sqlite(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
-    """문서 목록 조회 (SQLite)."""
-    documents = metadata_db_service.list_documents(
+    """문서 목록 조회 (MySQL document_metadata 기준)."""
+    documents = unified_document_service.list_documents(
         document_type=document_type,
         status=status,
         meta_status=meta_status,
@@ -686,30 +687,33 @@ async def list_documents_sqlite(
 
 @router.get("/documents/{document_id}")
 async def get_document_detail(document_id: int):
-    """문서 상세 조회 (SQLite) - suggestion 포함."""
-    doc = metadata_db_service.get_document(document_id)
+    """문서 상세 조회 (MySQL) - suggestion 포함."""
+    doc = unified_document_service.get_document(document_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    # suggestion 데이터 포함
-    suggestion = metadata_db_service.get_suggestion(document_id)
-    if suggestion:
-        doc["suggestion"] = suggestion
+    # Legacy SQLite suggestion 데이터 포함 (하위 호환)
+    try:
+        suggestion = metadata_db_service.get_suggestion(document_id)
+        if suggestion:
+            doc["suggestion"] = suggestion
+    except Exception:
+        pass  # SQLite 없으면 무시
     return doc
 
 
 @router.put("/documents/{document_id}")
 async def update_document_metadata(document_id: int, data: dict):
-    """문서 메타데이터 업데이트 (SQLite)."""
-    success = metadata_db_service.update_document(document_id, data)
+    """문서 메타데이터 업데이트 (MySQL)."""
+    success = unified_document_service.update_document(document_id, data)
     if not success:
         raise HTTPException(status_code=404, detail="Document not found or no changes")
     return {"success": True}
 
 
 @router.delete("/documents/{document_id}")
-async def delete_document_sqlite(document_id: int):
-    """문서 삭제 (SQLite)."""
-    success = metadata_db_service.delete_document(document_id)
+async def delete_document_mysql(document_id: int):
+    """문서 삭제 (MySQL)."""
+    success = unified_document_service.delete_document(document_id)
     if not success:
         raise HTTPException(status_code=404, detail="Document not found")
     return {"success": True}
@@ -717,7 +721,7 @@ async def delete_document_sqlite(document_id: int):
 
 @router.get("/documents/{document_id}/suggestion")
 async def get_metadata_suggestion(document_id: int):
-    """자동 생성 메타데이터 제안 조회."""
+    """자동 생성 메타데이터 제안 조회 (Legacy SQLite)."""
     suggestion = metadata_db_service.get_suggestion(document_id)
     if not suggestion:
         raise HTTPException(status_code=404, detail="No suggestion found")

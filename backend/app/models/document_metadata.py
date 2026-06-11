@@ -1,10 +1,10 @@
-# Dataset Builder Step 3 메타데이터 모델
+# Dataset Builder 통합 메타데이터 모델 (MySQL 기준, SQLite 비동기 동기화)
 """
-Document metadata for Dataset Builder workflow
+Document metadata for Dataset Builder workflow.
+MySQL을 primary로 사용하고, SQLite는 비동기 캐시/백업으로 동기화.
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Float, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, Boolean, Float, JSON
 import enum
 
 from app.core.database import Base
@@ -19,20 +19,35 @@ class MetaStatus(str, enum.Enum):
     REJECTED = "rejected"  # Step 3: 검수 반려
 
 
+class ProcessingStatus(str, enum.Enum):
+    """Document processing status for pipeline tracking"""
+    REGISTERED = "registered"  # Step 1 완료
+    TEXT_EXTRACTED = "text_extracted"  # Step 4: OCR/텍스트 추출 완료
+    CHUNKED = "chunked"  # Step 5: 청킹 완료
+    EMBEDDED = "embedded"  # Step 6: 임베딩 완료
+    FAISS_INDEXED = "faiss_indexed"  # Step 7: FAISS 인덱스 완료
+    GRAPH_CREATED = "graph_created"  # Step 8: 그래프 생성 완료
+    WIKI_CREATED = "wiki_created"  # Step 9: Wiki 생성 완료
+    RAG_READY = "rag_ready"  # Step 10: RAG 활성화 완료
+
+
 class DocumentMetadata(Base):
     """
     Document metadata table for Dataset Builder workflow.
-    Stores operational metadata separate from basic document info.
+    Unified schema for MySQL (primary) and SQLite (sync target).
     """
 
     __tablename__ = "document_metadata"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    document_id = Column(Integer, nullable=False, unique=True, index=True)  # FK removed for Dataset Builder
+    document_id = Column(Integer, nullable=False, unique=True, index=True)
 
-    # Step 1: Source Scan
+    # Step 1: Source Scan - 파일 정보
     source_id = Column(String(100), nullable=True, index=True, comment="RAG Source ID")
     file_path = Column(String(1000), nullable=True, comment="Full file path on source mount")
+    file_name = Column(String(500), nullable=True, index=True, comment="Original filename")
+    file_type = Column(String(50), nullable=True, comment="File extension type (pdf, hwp, docx, etc)")
+    file_size = Column(BigInteger, nullable=True, comment="File size in bytes")
     category_id = Column(String(100), nullable=True, comment="Category from source folder structure")
 
     # Step 2: Metadata Auto-generation
@@ -40,8 +55,16 @@ class DocumentMetadata(Base):
     project_name_confidence = Column(Float, nullable=True, comment="Confidence score 0.0-1.0")
     organization = Column(String(500), nullable=True, comment="Client organization name")
     organization_confidence = Column(Float, nullable=True, comment="Confidence score 0.0-1.0")
-    document_type = Column(String(100), nullable=True, comment="RFP, 제안서, ISP보고서 etc")
+    business_domain = Column(String(200), nullable=True, comment="Business domain category")
+    reuse_level = Column(String(20), default="medium", comment="Reuse level: high, medium, low")
+    document_type = Column(String(100), nullable=True, index=True, comment="RFP, 제안서, ISP보고서 etc")
+    document_type_confidence = Column(Float, nullable=True, comment="Document type confidence 0.0-1.0")
     year = Column(Integer, nullable=True, comment="Project year")
+    summary = Column(Text, nullable=True, comment="Document summary")
+
+    # Processing status (pipeline tracking)
+    status = Column(String(50), default=ProcessingStatus.REGISTERED.value, index=True,
+                    comment="Processing status: registered, text_extracted, chunked, embedded, faiss_indexed, rag_ready")
 
     # Step 3: Metadata Review
     meta_status = Column(String(50), default=MetaStatus.REGISTERED.value, nullable=False, index=True)
@@ -62,12 +85,52 @@ class DocumentMetadata(Base):
     include_in_graph = Column(Boolean, default=True, nullable=False, comment="Include in Graph build")
     include_in_wiki = Column(Boolean, default=True, nullable=False, comment="Include in Wiki build")
 
+    # FAISS integration
+    faiss_snapshot = Column(String(100), nullable=True, comment="FAISS snapshot name")
+    chunk_count = Column(Integer, default=0, comment="Number of chunks")
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Relationships
-    # document = relationship("Document", backref="metadata")  # Commented for Dataset Builder workflow
-
     def __repr__(self):
-        return f"<DocumentMetadata(id={self.id}, document_id={self.document_id}, status={self.meta_status})>"
+        return f"<DocumentMetadata(id={self.id}, document_id={self.document_id}, status={self.status}, meta_status={self.meta_status})>"
+
+    def to_dict(self):
+        """Convert to dictionary for API responses and SQLite sync."""
+        return {
+            "id": self.id,
+            "document_id": self.document_id,
+            "source_id": self.source_id,
+            "file_path": self.file_path,
+            "file_name": self.file_name,
+            "file_type": self.file_type,
+            "file_size": self.file_size,
+            "category_id": self.category_id,
+            "project_name": self.project_name,
+            "project_name_confidence": self.project_name_confidence,
+            "organization": self.organization,
+            "organization_confidence": self.organization_confidence,
+            "business_domain": self.business_domain,
+            "reuse_level": self.reuse_level,
+            "document_type": self.document_type,
+            "document_type_confidence": self.document_type_confidence,
+            "year": self.year,
+            "summary": self.summary,
+            "status": self.status,
+            "meta_status": self.meta_status,
+            "reviewed_by": self.reviewed_by,
+            "reviewed_at": self.reviewed_at.isoformat() if self.reviewed_at else None,
+            "rejection_reason": self.rejection_reason,
+            "collection_candidates": self.collection_candidates,
+            "final_collections": self.final_collections,
+            "tags": self.tags,
+            "keywords": self.keywords,
+            "include_in_rag": self.include_in_rag,
+            "include_in_graph": self.include_in_graph,
+            "include_in_wiki": self.include_in_wiki,
+            "faiss_snapshot": self.faiss_snapshot,
+            "chunk_count": self.chunk_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
