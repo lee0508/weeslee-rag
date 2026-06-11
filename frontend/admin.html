@@ -1250,7 +1250,7 @@
           </div>
         </div>
 
-        <div class="wr-grid" style="margin-top:20px">
+        <div class="wr-grid" style="margin-top:20px; display: none;" id="wrDashboardSettingsSection">
           <div class="wr-card">
             <h2 class="wr-card-title">대시보드 설정</h2>
             <div class="wr-form-grid">
@@ -3747,7 +3747,7 @@ POST /api/admin/faiss/activate</code>
   <!-- 2-Column Grid: Settings + Result (Figma) -->
   <div class="dashboard-grid">
     <!-- Settings Form Section -->
-    <div class="section-card">
+    <div class="section-card" style="display: none;" id="legacyDashboardSettingsSection">
       <div class="section-header">
         <span class="section-title">📝 대시보드 설정</span>
         <button class="section-toggle" onclick="toggleDashboardSection('dashSettingsBody')">접기 ▲</button>
@@ -3780,7 +3780,7 @@ POST /api/admin/faiss/activate</code>
     </div>
 
     <!-- Result Section -->
-    <div class="section-card">
+    <div class="section-card" style="display: none;" id="legacySystemStatusSection">
       <div class="section-header">
         <span class="section-title">📊 시스템 현황</span>
         <span style="font-size:11px;color:var(--muted)">
