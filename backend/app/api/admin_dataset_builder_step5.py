@@ -117,6 +117,34 @@ def save_chunks_to_store(document_id: int, chunks: list, text_store: ProcessedTe
         }
 
 
+def validate_step4_quality(document_id: int, text_store: ProcessedTextStore) -> tuple[bool, str]:
+    """Step 4 OCR/Parser 결과가 RAG 청킹 기준을 통과했는지 확인한다."""
+    report = text_store.get_report(str(document_id))
+    if not report:
+        return False, "Missing Step 4 OCR report"
+
+    status = report.get("status")
+    if status != "done":
+        return False, f"Step 4 status is not done: {status}"
+
+    text_length = int(report.get("text_length") or 0)
+    if text_length < 500:
+        return False, f"Extracted text too short: {text_length}"
+
+    quality = report.get("quality") or {}
+    if quality.get("rag_ready") is False:
+        return False, "Step 4 quality gate did not pass"
+
+    quality_score = float(quality.get("quality_score") or 0)
+    if quality_score < 0.7:
+        return False, f"Quality score too low: {quality_score}"
+
+    if report.get("parser_type") == "hwp_all_failed":
+        return False, "HWP extraction failed"
+
+    return True, ""
+
+
 # ── API Endpoints ────────────────────────────────────────────────────────
 
 @router.post("/chunk", response_model=ChunkBuildResponse)
@@ -175,8 +203,22 @@ async def build_chunks(
                         ))
                         continue
 
-                # Step 4에서 추출된 텍스트 로드
+                # Step 4 품질 게이트 통과 문서만 청킹한다.
                 from app.services.processed_text_store import processed_text_store
+                quality_ok, quality_error = validate_step4_quality(document_id, processed_text_store)
+                if not quality_ok:
+                    skipped += 1
+                    results.append(ChunkBuildResult(
+                        document_id=document_id,
+                        file_name=file_name,
+                        status="skipped",
+                        chunks_count=0,
+                        total_tokens=0,
+                        error=quality_error
+                    ))
+                    continue
+
+                # Step 4에서 추출된 텍스트 로드
                 extracted_text = processed_text_store.get_text(str(document_id), format="txt")
 
                 # 텍스트 없으면 스킵

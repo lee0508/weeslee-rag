@@ -152,6 +152,23 @@ def _manifest(source_id: Optional[str] = None) -> dict:
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
+@router.get("/stats")
+async def graph_stats(source_id: Optional[str] = None):
+    """Graph Overview UI용 통계 (Frontend 호환)."""
+    from app.services.graph_traversal import get_graph_statistics
+
+    stats = get_graph_statistics()
+    cache = _load_graph(source_id)
+    manifest = _manifest(source_id)
+
+    return {
+        "total_nodes": stats["total_nodes"],
+        "total_edges": stats["total_edges"],
+        "node_counts": stats["node_types"],
+        "last_build": manifest.get("built_at", "-"),
+    }
+
+
 @router.get("/summary")
 async def graph_summary(source_id: Optional[str] = None):
     """그래프 전체 통계."""
