@@ -140,6 +140,7 @@ htmlcov/
 credentials.json
 
 # Weeslee RAG data pipeline
+data/active_index.json
 data/raw/
 data/indexes/
 data/staged/ocr/
