@@ -291,7 +291,11 @@ def collect_evidence(folder_name: str, meta: dict, inventory: dict, snapshot: st
             headings = doc.get("section_headings") or [""]
             heading = headings[0] if headings else ""
             for snippet in doc.get("evidence_snippets", []):
-                text = snippet.strip()
+                # snippet이 dict일 수도 있고 str일 수도 있음 (API 응답 형식 변경 대응)
+                if isinstance(snippet, dict):
+                    text = snippet.get("text", "").strip()
+                else:
+                    text = snippet.strip() if isinstance(snippet, str) else ""
                 if text and len(text) > 30:
                     label = f"[{heading}] " if heading else ""
                     snippets.append(f"{label}{text}")
