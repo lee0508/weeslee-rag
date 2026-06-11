@@ -20,6 +20,7 @@ from app.api.files import router as files_router
 from app.api.faiss_admin import router as faiss_admin_router, sse_router as faiss_sse_router
 from app.api.graph import router as graph_router
 from app.api.wiki import router as wiki_router
+from app.api.benchmark import router as benchmark_router
 from app.api.review import router as review_router
 from app.api.documents import router as documents_router
 from app.api.clients import router as clients_router
@@ -32,7 +33,10 @@ from app.api.keywords import router as keywords_router
 from app.api.query_logs import router as query_logs_router
 from app.api.admin_metadata_review import router as admin_metadata_review_router
 from app.api.admin_dataset_builder_simple import router as admin_dataset_builder_router
-from app.api.admin_dataset_builder_step4 import router as admin_dataset_builder_step4_router
+from app.api.admin_dataset_builder_step4 import (
+    router as admin_dataset_builder_step4_router,
+    sse_router as admin_dataset_builder_step4_sse_router,
+)
 from app.api.admin_dataset_builder_step5 import router as admin_dataset_builder_step5_router
 from app.api.admin_dataset_builder_step6 import router as admin_dataset_builder_step6_router
 from app.api.admin_dataset_builder_step7 import router as admin_dataset_builder_step7_router
@@ -112,6 +116,7 @@ app.include_router(faiss_admin_router, prefix="/api", tags=["FAISS Admin"])
 app.include_router(faiss_sse_router, prefix="/api", tags=["FAISS Admin SSE"])
 app.include_router(graph_router, prefix="/api", tags=["Graph"])
 app.include_router(wiki_router, prefix="/api", tags=["Wiki"])
+app.include_router(benchmark_router, prefix="/api", tags=["Benchmark"])
 app.include_router(review_router, prefix="/api", tags=["Review"])
 app.include_router(clients_router, prefix="/api", tags=["Platform - Clients"])
 app.include_router(document_sources_router, prefix="/api", tags=["Platform - Document Sources"])
@@ -124,6 +129,7 @@ app.include_router(query_logs_router, prefix="/api", tags=["Admin Query Logs"])
 app.include_router(admin_metadata_review_router, prefix="/api", tags=["Admin - Metadata Review"])
 app.include_router(admin_dataset_builder_router, prefix="/api", tags=["Admin - Dataset Builder"])
 app.include_router(admin_dataset_builder_step4_router, prefix="/api", tags=["Admin - Dataset Builder Step 4"])
+app.include_router(admin_dataset_builder_step4_sse_router, prefix="/api", tags=["Admin - Dataset Builder Step 4 SSE"])
 app.include_router(admin_dataset_builder_step5_router, prefix="/api", tags=["Admin - Dataset Builder Step 5"])
 app.include_router(admin_dataset_builder_step6_router, prefix="/api", tags=["Admin - Dataset Builder Step 6"])
 app.include_router(admin_dataset_builder_step7_router, prefix="/api", tags=["Admin - Dataset Builder Step 7"])
