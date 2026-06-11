@@ -11248,6 +11248,18 @@ LIMIT 10`;
       const d = await r.json();
       showToast('Metadata Auto 완료!', 'success');
 
+      // 출력 결과 표시
+      if (d.success) {
+        // processed: 처리된 문서 수 (프로젝트명 추출 대상)
+        document.getElementById('metaAutoProjects').textContent = d.processed || 0;
+        // updated: 실제 업데이트된 문서 수 (문서유형 추정 완료)
+        document.getElementById('metaAutoDocTypes').textContent = d.updated || 0;
+        // skipped: 건너뛴 문서 수 (Collection 후보로 표시)
+        document.getElementById('metaAutoCollections').textContent = d.skipped || 0;
+        // confidence: 자동 추출 신뢰도 (기본값 0.5)
+        document.getElementById('metaAutoConfidence').textContent = '0.5';
+      }
+
       // 상태 요약 새로고침
       if (typeof loadDatasetStatusSummary === 'function') {
         loadDatasetStatusSummary();
