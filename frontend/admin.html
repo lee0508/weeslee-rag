@@ -1202,7 +1202,7 @@
               <div class="wr-summary-label">신규 문서</div>
               <div class="wr-summary-value" id="wrAlertNewDocs">확인 중</div>
             </div>
-            <div class="wr-summary-card">
+            <div class="wr-summary-card" id="wrAlertChangedDocsCard" style="display: none;">
               <div class="wr-summary-label">수정 문서</div>
               <div class="wr-summary-value" id="wrAlertChangedDocs">확인 중</div>
             </div>
@@ -3666,7 +3666,7 @@ POST /api/admin/faiss/activate</code>
         <div class="alert-card-label">신규 문서</div>
         <div class="alert-card-value blue" id="alertNewDocs">-</div>
       </div>
-      <div class="alert-card" onclick="switchTab('ragsource')" title="수정 문서 목록 보기">
+      <div class="alert-card" id="alertModifiedDocsCard" onclick="switchTab('ragsource')" title="수정 문서 목록 보기" style="display: none;">
         <div class="alert-card-label">수정 문서</div>
         <div class="alert-card-value blue" id="alertModifiedDocs">-</div>
       </div>
@@ -8881,6 +8881,12 @@ POST /api/admin/faiss/activate</code>
         setText('wrOverviewFileState', total > 0 ? `${total}개` : '스캔 필요');
         setText('wrAlertNewDocs', `${newFiles}건`);
         setText('wrAlertChangedDocs', `${changedFiles}건`);
+
+        // API 호출 성공 시 "수정 문서" 카드 표시
+        const wrChangedCard = document.getElementById('wrAlertChangedDocsCard');
+        const legacyChangedCard = document.getElementById('alertModifiedDocsCard');
+        if (wrChangedCard) wrChangedCard.style.display = '';
+        if (legacyChangedCard) legacyChangedCard.style.display = '';
       } else {
         setStep(2, 'err', '확인 실패');
         setText('wrOverviewFileState', '확인 실패');
