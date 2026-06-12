@@ -1645,40 +1645,43 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
 
-        <!-- 메타데이터 수정 모달 (placeholder) -->
-        <div id="metaEditModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;overflow:auto">
-          <div style="background:white;max-width:600px;margin:50px auto;border-radius:8px;padding:24px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-              <h3 style="margin:0">메타데이터 수정</h3>
-              <button onclick="closeMetaEditModal()" style="border:none;background:none;font-size:24px;cursor:pointer">&times;</button>
+        <!-- 메타데이터 수정 모달 -->
+        <div id="metaEditModal" class="modal">
+          <div class="modal-backdrop" onclick="closeMetaEditModal()"></div>
+          <div class="modal-content" style="max-width:600px;max-height:90vh;overflow-y:auto">
+            <div class="modal-header">
+              <h3 style="margin:0;font-size:16px;font-weight:600">메타데이터 수정</h3>
+              <button onclick="closeMetaEditModal()" class="wr-btn wr-btn-sm" style="padding:4px 8px">&times;</button>
             </div>
-            <div class="wr-form-grid">
-              <div class="wr-field">
-                <label>프로젝트명</label>
-                <input id="metaEditProjectName" type="text">
-              </div>
-              <div class="wr-field">
-                <label>기관명</label>
-                <input id="metaEditOrganization" type="text">
-              </div>
-              <div class="wr-field">
-                <label>문서유형</label>
-                <input id="metaEditDocumentType" type="text">
-              </div>
-              <div class="wr-field">
-                <label>연도</label>
-                <input id="metaEditYear" type="number">
-              </div>
-              <div class="wr-field">
-                <label>Tags (쉼표 구분)</label>
-                <input id="metaEditTags" type="text" placeholder="tag1, tag2, tag3">
-              </div>
-              <div class="wr-field">
-                <label>Keywords (쉼표 구분)</label>
-                <input id="metaEditKeywords" type="text" placeholder="keyword1, keyword2">
+            <div class="modal-body">
+              <div class="wr-form-grid">
+                <div class="wr-field">
+                  <label>프로젝트명</label>
+                  <input id="metaEditProjectName" type="text">
+                </div>
+                <div class="wr-field">
+                  <label>기관명</label>
+                  <input id="metaEditOrganization" type="text">
+                </div>
+                <div class="wr-field">
+                  <label>문서유형</label>
+                  <input id="metaEditDocumentType" type="text">
+                </div>
+                <div class="wr-field">
+                  <label>연도</label>
+                  <input id="metaEditYear" type="number">
+                </div>
+                <div class="wr-field">
+                  <label>Tags (쉼표 구분)</label>
+                  <input id="metaEditTags" type="text" placeholder="tag1, tag2, tag3">
+                </div>
+                <div class="wr-field">
+                  <label>Keywords (쉼표 구분)</label>
+                  <input id="metaEditKeywords" type="text" placeholder="keyword1, keyword2">
+                </div>
               </div>
             </div>
-            <div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end">
+            <div class="modal-footer">
               <button class="wr-btn" onclick="closeMetaEditModal()">취소</button>
               <button class="wr-btn wr-btn-primary" onclick="saveMetadataChanges()">저장</button>
             </div>
@@ -5161,8 +5164,20 @@ POST /api/admin/faiss/activate</code>
               <option value="sftp">SFTP</option>
             </select>
           </div>
-          <div class="form-group" style="grid-column:1/-1"><label>원본 문서 경로 (URI) *</label><input type="text" id="sfSourceUri" placeholder="\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스"></div>
-          <div class="form-group" style="grid-column:1/-1"><label>서비스 서버 마운트 경로 *</label><input type="text" id="sfMountPath" placeholder="/mnt/w2_project/00. RAG 소스"></div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>원본 문서 경로 (URI) *</label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="sfSourceUri" placeholder="\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스" style="flex:1">
+              <button type="button" class="btn btn-outline btn-sm" onclick="openFolderBrowser('sfSourceUri')" title="폴더 선택">📁</button>
+            </div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>서비스 서버 마운트 경로 *</label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="sfMountPath" placeholder="/mnt/w2_project/00. RAG 소스" style="flex:1">
+              <button type="button" class="btn btn-outline btn-sm" onclick="openFolderBrowser('sfMountPath')" title="폴더 선택">📁</button>
+            </div>
+          </div>
           <div class="form-group" style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" id="sfReadonly" checked style="width:auto">
             <label for="sfReadonly">읽기 전용</label>
@@ -5177,6 +5192,31 @@ POST /api/admin/faiss/activate</code>
       <div class="modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
         <button class="btn btn-outline" onclick="closeSourceForm()">취소</button>
         <button class="btn btn-primary" onclick="saveSource()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Browser Modal -->
+  <div id="folderBrowserModal" class="modal" style="display:none">
+    <div class="modal-backdrop" onclick="closeFolderBrowser()"></div>
+    <div class="modal-content" style="width:560px;max-height:80vh;display:flex;flex-direction:column">
+      <div class="modal-header">
+        <span>📂 폴더 선택</span>
+        <button onclick="closeFolderBrowser()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:18px">&times;</button>
+      </div>
+      <div class="modal-body" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+          <button class="btn btn-outline btn-sm" onclick="folderBrowserUp()" title="상위 폴더">⬆️</button>
+          <input type="text" id="folderBrowserPath" placeholder="/" style="flex:1" onkeydown="if(event.key==='Enter')loadFolderContents(this.value)">
+          <button class="btn btn-outline btn-sm" onclick="loadFolderContents(document.getElementById('folderBrowserPath').value)">이동</button>
+        </div>
+        <div id="folderBrowserList" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:6px;min-height:300px">
+          <div class="empty">폴더를 로드하는 중...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeFolderBrowser()">취소</button>
+        <button class="btn btn-primary" onclick="selectCurrentFolder()">이 폴더 선택</button>
       </div>
     </div>
   </div>
@@ -5495,7 +5535,7 @@ POST /api/admin/faiss/activate</code>
   </div>
 </div>
 
-<script src="config.js?v=20260603"></script>
+<script src="config.js?v=20260611e"></script>
 <script>
   function detectApiBase() {
     if (window.__API_BASE__) return window.__API_BASE__;
@@ -6505,10 +6545,18 @@ POST /api/admin/faiss/activate</code>
     const subpath = document.getElementById('ksSubpath').value.trim();
     const el = document.getElementById('ksFileList');
     const sumEl = document.getElementById('ksScanSummary');
+
+    // 유효성 검사: 하위 경로가 비어있으면 경고
+    if (!subpath) {
+      el.innerHTML = '<div class="empty" style="color:var(--amber)">⚠️ 하위 경로를 입력하세요. (예: 00. RAG 소스)</div>';
+      sumEl.innerHTML = '';
+      return;
+    }
+
     el.innerHTML = '<div class="empty">스캔 중...</div>';
     sumEl.innerHTML = '';
     try {
-      const qs = `recursive=true&max_depth=5${subpath ? '&subpath=' + encodeURIComponent(subpath) : ''}`;
+      const qs = `recursive=true&max_depth=5&subpath=${encodeURIComponent(subpath)}`;
       const d = await _ksFetch(`/api/knowledge-sources/scan?${qs}`, 30000);
       const files = d.files || [];
       const summary = d.summary || {};
@@ -6526,8 +6574,16 @@ POST /api/admin/faiss/activate</code>
   async function searchKsFiles() {
     const q = document.getElementById('ksSearchQ').value.trim();
     const subpath = document.getElementById('ksSubpath').value.trim();
-    if (!q) { scanKsPath(); return; }
     const el = document.getElementById('ksFileList');
+    const sumEl = document.getElementById('ksScanSummary');
+
+    // 유효성 검사: 검색어가 비어있으면 경고
+    if (!q) {
+      el.innerHTML = '<div class="empty" style="color:var(--amber)">⚠️ 검색어를 입력하세요.</div>';
+      sumEl.innerHTML = '';
+      return;
+    }
+
     el.innerHTML = '<div class="empty">검색 중...</div>';
     try {
       let qs = `q=${encodeURIComponent(q)}`;
@@ -7405,6 +7461,89 @@ POST /api/admin/faiss/activate</code>
   }
 
   function closeSourceForm() { document.getElementById('sourceFormModal').style.display = 'none'; }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Folder Browser Functions
+  // ─────────────────────────────────────────────────────────────────────────────
+  let _folderBrowserTargetInput = null;
+  let _folderBrowserCurrentPath = '/';
+
+  function openFolderBrowser(targetInputId) {
+    _folderBrowserTargetInput = targetInputId;
+    const currentValue = document.getElementById(targetInputId)?.value || '';
+    _folderBrowserCurrentPath = currentValue || '/';
+    document.getElementById('folderBrowserPath').value = _folderBrowserCurrentPath;
+    document.getElementById('folderBrowserModal').style.display = 'flex';
+    loadFolderContents(_folderBrowserCurrentPath);
+  }
+
+  function closeFolderBrowser() {
+    document.getElementById('folderBrowserModal').style.display = 'none';
+    _folderBrowserTargetInput = null;
+  }
+
+  function folderBrowserUp() {
+    const path = _folderBrowserCurrentPath;
+    if (path === '/' || path === '') return;
+    const parts = path.split('/').filter(Boolean);
+    parts.pop();
+    const parentPath = '/' + parts.join('/');
+    loadFolderContents(parentPath);
+  }
+
+  async function loadFolderContents(path) {
+    const listEl = document.getElementById('folderBrowserList');
+    listEl.innerHTML = '<div class="empty">로딩 중...</div>';
+
+    _folderBrowserCurrentPath = path || '/';
+    document.getElementById('folderBrowserPath').value = _folderBrowserCurrentPath;
+
+    try {
+      const res = await platformFetch(`/knowledge-sources/folders?path=${encodeURIComponent(_folderBrowserCurrentPath)}`);
+      // API가 배열을 직접 반환하거나 {items: [...]} 형태로 반환할 수 있음
+      const items = Array.isArray(res) ? res : (res.items || []);
+
+      if (items.length === 0) {
+        listEl.innerHTML = '<div class="empty">이 폴더는 비어 있습니다.</div>';
+        return;
+      }
+
+      // API 응답에서 full_path 사용 (폴더만 반환됨)
+      const folders = items.sort((a, b) => a.name.localeCompare(b.name));
+
+      let html = '';
+      for (const folder of folders) {
+        const fullPath = folder.full_path || (_folderBrowserCurrentPath === '/'
+          ? '/' + folder.name
+          : _folderBrowserCurrentPath + '/' + folder.name);
+        html += `<div class="folder-item" onclick="loadFolderContents('${fullPath.replace(/'/g, "\\'")}')"
+                     style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:8px"
+                     onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+          <span style="font-size:18px">📁</span>
+          <span style="flex:1">${folder.name}</span>
+          <span style="color:var(--text-muted);font-size:12px">→</span>
+        </div>`;
+      }
+      listEl.innerHTML = html;
+    } catch (e) {
+      listEl.innerHTML = `<div class="empty" style="color:var(--error)">폴더 로드 실패: ${e.message}</div>`;
+    }
+  }
+
+  function selectCurrentFolder() {
+    if (_folderBrowserTargetInput) {
+      document.getElementById(_folderBrowserTargetInput).value = _folderBrowserCurrentPath;
+    }
+    closeFolderBrowser();
+  }
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
 
   function editSource(id) {
     const s = _sources.find(x => x.source_id === id);
@@ -8674,12 +8813,11 @@ POST /api/admin/faiss/activate</code>
     loadDashboard();
     renderWizardProgressBar();
     _initCtxBar();
-    // 로그인 직후에만 Dataset Alert 정보 로드 (페이지 새로고침 시에는 로드하지 않음)
-    // "상태 새로고침" 버튼 클릭 시에만 수동으로 로드
-    if (sessionStorage.getItem('freshLogin') === 'true') {
-      loadOverviewStepStatus();
-      sessionStorage.removeItem('freshLogin');  // 플래그 제거 (1회만 실행)
-    }
+    // 로그인 성공 시 항상 Dashboard 상태 정보를 로드
+    // (신규 문서 알림, 시스템 상태 패널에 실제 데이터 표시)
+    loadOverviewStepStatus();
+    // freshLogin 플래그는 더 이상 사용하지 않음 (항상 로드)
+    sessionStorage.removeItem('freshLogin');
     initSidebar();
     // 로그인 후 Docs Layout 우측 패널 새로고침
     if (typeof window.refreshRightSourcePanel === 'function') {
@@ -11191,8 +11329,12 @@ LIMIT 10`;
         await runMetadataAuto();
         break;
       case 3: // Metadata Review
-        showToast('Metadata Review는 문서 목록에서 개별 검수를 진행하세요.', 'info', 3000);
-        showWrPage('rag-source-files');
+        // Step 3 화면에 이미 검수 대기 문서 목록이 표시되어 있으므로 페이지 이동 없이 안내만 표시
+        showToast('아래 검수 대기 문서 목록에서 개별 문서를 선택하여 검수하세요.', 'info', 3000);
+        // 검수 대기 문서 목록 새로고침
+        if (typeof loadStep3ReviewList === 'function') {
+          loadStep3ReviewList();
+        }
         break;
       case 4: // OCR/Parser
         await runOcrParser();
@@ -12700,7 +12842,7 @@ LIMIT 10`;
       document.getElementById('metaEditTags').value = (doc.tags || []).join(', ');
       document.getElementById('metaEditKeywords').value = (doc.keywords || []).join(', ');
 
-      document.getElementById('metaEditModal').style.display = 'block';
+      document.getElementById('metaEditModal').style.display = 'flex';
     } catch (e) {
       showToast('문서 조회 실패: ' + e.message, 'error');
     }

@@ -231,7 +231,22 @@
 
 완료 조건: 선택 Source 기준으로 OCR/텍스트 추출과 청킹까지만 완료된다.
 
-### 4.7.1 구조 기반 청킹 고도화 (P1)
+#### 4.7.1 OCR/Parser 서버 의존성 체크리스트 (P0)
+
+- [x] Python OCR fallback 패키지를 `backend/requirements.txt`에 명시.
+  - `pytesseract>=0.3.13`
+  - `pdf2image>=1.17.0`
+  - `Pillow>=10.0.0`
+- [x] 서버 `.venv` 기준 `pip install -r backend/requirements.txt` 실행 확인.
+- [x] HWP 직접 추출 도구 `.venv/bin/hwp5txt` 설치 확인.
+- [x] 시스템 OCR 명령 `tesseract` 설치 확인.
+- [x] Tesseract 언어팩 `kor`, `eng`, `osd` 설치 확인.
+- [x] PDF 이미지 변환용 `poppler-utils` 명령 `pdftoppm`, `pdftocairo` 설치 확인.
+- [x] 확장자가 `.hwp`여도 내부가 HWPX(ZIP/XML)인 파일은 `HwpxExtractor` fallback으로 처리.
+- [x] 샘플 90개 기준 OCR/Parser 결과 `done=90`, `failed=0`, `text_length<500=0` 확인.
+- [ ] 신규 서버 설치 문서에 `apt install tesseract-ocr tesseract-ocr-kor poppler-utils` 항목 반영.
+
+### 4.7.2 구조 기반 청킹 고도화 (P1)
 
 - [x] 기본 section heading 감지와 chunk_id 생성.
 - [x] 원본 파일 경로와 metadata 유지.

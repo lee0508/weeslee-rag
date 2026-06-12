@@ -124,7 +124,7 @@
       ['wrJobPageStatus', 'Job API', '/admin/faiss/jobs'],
       ['wrFaissStatus', 'FAISS API', '/admin/faiss/status'],
       ['wrGraphStatus', 'Graph API', '/graph/summary'],
-      ['wrWikiStatus', 'Wiki API', '/wiki/list'],
+      ['wrWikiStatus', 'Wiki API', '/wiki/projects'],
     ];
 
     await Promise.all(checks.map(async ([id, label, path]) => {

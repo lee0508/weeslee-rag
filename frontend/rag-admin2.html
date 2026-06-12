@@ -6,6 +6,7 @@
   <title>Weeslee RAG Admin v2 - Bootstrap 5 Draft</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="config.js?v=20260609"></script>
   <style>
     :root {
       --wr-sidebar: #17231f;
@@ -57,6 +58,20 @@
       background: rgba(255, 255, 255, 0.08);
       color: #6ee0c3;
       font-weight: 800;
+    }
+
+    .wr-brand-home {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+
+    .wr-brand-home:hover,
+    .wr-brand-home:focus-visible {
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 0.18rem;
     }
 
     .wr-nav-caption {
@@ -234,6 +249,53 @@
       min-width: 760px;
     }
 
+    .wr-quality-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .wr-quality-metric {
+      min-width: 0;
+      border: 1px solid var(--wr-line);
+      border-radius: 0.5rem;
+      background: #f8fbfa;
+      padding: 0.85rem;
+    }
+
+    .wr-quality-label {
+      color: var(--wr-muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .wr-quality-value {
+      margin-top: 0.28rem;
+      color: var(--wr-ink);
+      font-size: 1.45rem;
+      font-weight: 850;
+      line-height: 1.1;
+    }
+
+    .wr-quality-note {
+      color: var(--wr-muted);
+      font-size: 0.75rem;
+    }
+
+    .wr-progress-slim {
+      height: 0.55rem;
+      border-radius: 999px;
+      background: #e5eeeb;
+      overflow: hidden;
+    }
+
+    .wr-progress-slim > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--wr-green);
+    }
+
     @media (max-width: 1199.98px) {
       .wr-shell {
         grid-template-columns: 1fr;
@@ -249,6 +311,16 @@
       .wr-console-row {
         grid-template-columns: 1fr;
       }
+
+      .wr-quality-strip {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (min-width: 768px) and (max-width: 1199.98px) {
+      .wr-quality-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
@@ -258,7 +330,7 @@
       <div class="d-flex align-items-center gap-3 pb-4 mb-3 border-bottom border-light border-opacity-10">
         <span class="wr-brand-mark">WR</span>
         <div class="min-w-0">
-          <div class="fw-bold fs-5">RAG Admin v2</div>
+          <button class="wr-brand-home fw-bold fs-5 p-0" type="button" data-action="go-home">RAG Admin v2</button>
           <div class="small text-white-50">Bootstrap 5 dashboard draft</div>
         </div>
       </div>
@@ -347,7 +419,7 @@
           </div>
           <div class="col-12 col-xl-auto">
             <span class="badge rounded-pill text-bg-dark px-3 py-2">
-              <i class="bi bi-shield-lock me-1"></i> Static UI draft, no API calls
+              <i class="bi bi-shield-lock me-1"></i> Read API phase 1
             </span>
           </div>
         </div>
@@ -376,7 +448,7 @@
                 </p>
                 <div class="d-flex flex-wrap gap-2">
                   <button class="btn btn-success" type="button" data-simulate="run">
-                    <i class="bi bi-play-fill me-1"></i> 실행 시뮬레이션
+                    <i class="bi bi-play-fill me-1"></i> 실행
                   </button>
                   <button class="btn btn-outline-secondary" type="button" data-simulate="refresh">
                     <i class="bi bi-arrow-clockwise me-1"></i> 상태 새로고침
@@ -418,8 +490,8 @@
 
               <div class="alert alert-light border mt-4 mb-0">
                 <i class="bi bi-info-circle me-1"></i>
-                이 파일은 API 연결 전 UI 시안입니다. 실제 운영 반영 시 Mock 상태를 fetch 응답 코드, 실행 시간,
-                실패 메시지, 인증 토큰 상태로 교체해야 합니다.
+                이 화면은 read-only API phase입니다. 메뉴별 조회 결과를 먼저 확인하고, 실행 API는 상태 표시가 안정화된 뒤
+                단계별로 연결해야 합니다.
               </div>
             </section>
           </div>
@@ -493,11 +565,11 @@
         lead: 'Source Scan부터 Activate까지 데이터셋 생성 흐름을 10단계로 보여주고, 단계별 실행 상태를 Console에 남깁니다.',
         badge: ['info', 'Step 3 진행 필요'],
         nextTitle: 'Step 3 Metadata Review 이후 Step 4 OCR / Parser로 이동하세요.',
-        nextText: '단계 실행 버튼은 나중에 기존 admin.html의 실제 API 함수와 연결하고, 이 시안에서는 실행 흐름만 표시합니다.',
-        kpis: [['Completed Steps', '2/10', 'Scan, Metadata Auto', 'bi-diagram-3'], ['Current Step', '3', 'Metadata Review', 'bi-flag'], ['Blocked Items', '37', '검수 대기', 'bi-pause-circle'], ['Last Run', '08:00', '시뮬레이션 값', 'bi-clock']],
+        nextText: 'rag-admin2.html에서는 실행 API를 바로 붙이지 않고, OCR 품질 게이트와 Step 5 진입 가능 여부를 읽기 API로 먼저 검증합니다.',
+        kpis: [['Completed Steps', '2/10', 'Scan, Metadata Auto', 'bi-diagram-3'], ['OCR Gate', '확인 중', 'Step 4 품질 기준', 'bi-file-earmark-check'], ['Chunk Ready', '확인 중', 'Step 5 진입 조건', 'bi-text-paragraph'], ['Last Run', '서버 기준', '읽기 API phase', 'bi-clock']],
         pipeline: true,
-        apis: [['POST', '/api/admin/rag-source/scan', 'Step 1'], ['POST', '/api/admin/metadata/build', 'Step 2'], ['GET', '/api/admin/metadata/review-documents', 'Step 3'], ['POST', '/api/admin/faiss/jobs', 'Step 7']],
-        logs: [['INFO', 'Dataset Builder 메뉴 진입'], ['INFO', '10단계 빌드 상태 렌더링'], ['WARN', 'Step 3 검수 대기 때문에 다음 단계 보류']]
+        apis: [['GET', '/api/admin/dataset-builder/step4/status', 'Read'], ['GET', '/api/admin/dataset-builder/step4/stats', 'Read'], ['GET', '/api/admin/dataset-builder/step5/status', 'Read']],
+        logs: [['INFO', 'Dataset Builder 메뉴 진입'], ['INFO', '10단계 빌드 상태 렌더링'], ['INFO', 'OCR Quality Gate 읽기 API 연결 대기']]
       },
       faiss: {
         title: 'FAISS Index',
@@ -638,11 +710,73 @@
                   <div class="fw-bold">${title}</div>
                   <div class="small wr-muted">${desc}</div>
                 </div>
-                <span class="badge text-bg-${tone}">${state}</span>
+                ${state === '완료'
+                  ? `<span class="badge text-bg-success">${state}</span>`
+                  : index === '03'
+                    ? `<button class="btn btn-sm btn-warning fw-bold" type="button" data-action="show-step3-status" data-step="${index}">${state}</button>`
+                    : `<span class="badge text-bg-${tone}">${state}</span>`}
               </div>
             </div>
           `).join('')}
         </div>
+        <section class="wr-card-flat p-3 mt-4" id="ocrQualityGate">
+          <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+            <div>
+              <div class="text-uppercase fw-bold text-success small mb-1">OCR Quality Gate</div>
+              <h3 class="h5 fw-bold mb-1">Step 4 전처리 품질과 Step 5 진입 가능 여부</h3>
+              <p class="small wr-muted mb-0">전처리 결과가 품질 기준을 통과한 문서만 Chunk Build로 넘어가야 합니다.</p>
+            </div>
+            <span class="badge rounded-pill text-bg-secondary" id="ocrGateBadge">API 대기</span>
+          </div>
+          <div class="wr-quality-strip" id="ocrGateMetrics">
+            <div class="wr-quality-metric">
+              <div class="wr-quality-label">Step 4 Done</div>
+              <div class="wr-quality-value">-</div>
+              <div class="wr-quality-note">OCR/Parser 완료 문서</div>
+            </div>
+            <div class="wr-quality-metric">
+              <div class="wr-quality-label">Failed</div>
+              <div class="wr-quality-value">-</div>
+              <div class="wr-quality-note">재처리 필요</div>
+            </div>
+            <div class="wr-quality-metric">
+              <div class="wr-quality-label">Chunk Ready</div>
+              <div class="wr-quality-value">-</div>
+              <div class="wr-quality-note">Step 5 진입 가능</div>
+            </div>
+            <div class="wr-quality-metric">
+              <div class="wr-quality-label">Total Chars</div>
+              <div class="wr-quality-value">-</div>
+              <div class="wr-quality-note">추출 텍스트 합계</div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div class="d-flex justify-content-between small fw-bold mb-1">
+              <span>OCR/Parser 완료율</span>
+              <span id="ocrGateRate">-</span>
+            </div>
+            <div class="wr-progress-slim" aria-label="OCR Parser completion rate">
+              <span id="ocrGateProgress" style="width:0%"></span>
+            </div>
+          </div>
+          <div class="table-responsive border rounded mt-3">
+            <table class="table table-sm align-middle mb-0 wr-table">
+              <thead class="table-light">
+                <tr>
+                  <th>구분</th>
+                  <th>완료</th>
+                  <th>실패</th>
+                  <th>대기</th>
+                </tr>
+              </thead>
+              <tbody id="ocrGateBreakdown">
+                <tr>
+                  <td colspan="4" class="text-center wr-muted py-3">Dataset Builder 메뉴 진입 후 API 상태를 불러옵니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       `;
     }
 
@@ -717,9 +851,8 @@
     });
 
     document.querySelector('[data-simulate="run"]').addEventListener('click', () => {
-      log('INFO', '실행 시뮬레이션 시작');
-      log('SUCCESS', 'API 호출 없이 Bootstrap UI 상태만 갱신했습니다');
-      log('WARN', '실제 운영 반영 시 fetch, token, error handling 연결 필요');
+      log('INFO', '실행 버튼 클릭');
+      log('INFO', '메뉴별 실행 조회는 rag-admin2.js에서 처리합니다');
     });
 
     document.querySelector('[data-simulate="refresh"]').addEventListener('click', () => {
@@ -732,8 +865,12 @@
       log('INFO', 'Console cleared');
     });
 
-    // v2 is intentionally static. Do not call backend APIs from this draft.
+    // Initial render uses draft data. frontend/js/rag-admin2.js replaces
+    // Dashboard KPI and API rows with live read-only API responses.
     renderPanel('dashboard');
   </script>
+  <script src="js/api-client.js?v=20260609"></script>
+  <script src="js/admin-console.js?v=20260609"></script>
+  <script src="js/rag-admin2.js?v=20260611-waitbadge1"></script>
 </body>
 </html>

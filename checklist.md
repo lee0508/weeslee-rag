@@ -1,5 +1,21 @@
 # 2026-05-28 오늘 작업 체크리스트
 
+## 2026-06-09 OCR 전처리 서버 의존성 체크리스트
+
+- [x] Python OCR fallback 패키지를 `backend/requirements.txt`에 명시한다.
+  - `pytesseract>=0.3.13`
+  - `pdf2image>=1.17.0`
+  - `Pillow>=10.0.0`
+- [x] 서버 `.venv`에서 `pip install -r backend/requirements.txt` 실행 여부를 확인한다.
+- [x] 서버에 `tesseract` 명령이 설치되어 있는지 확인한다.
+- [x] 서버에 한국어 OCR 언어팩 `kor`가 설치되어 있는지 확인한다.
+- [x] 서버에 영어 OCR 언어팩 `eng`가 설치되어 있는지 확인한다.
+- [x] 서버에 `poppler-utils` 계열 명령 `pdftoppm`, `pdftocairo`가 설치되어 있는지 확인한다.
+- [x] 서버에 `.venv/bin/hwp5txt`가 설치되어 있는지 확인한다.
+- [x] HWPX 또는 HWPX 구조 파일은 `HwpxExtractor`로 텍스트 추출되는지 확인한다.
+- [x] OCR/Parser 품질 기준을 통과하지 못한 문서가 Step 5 Chunking으로 넘어가지 않는지 확인한다.
+- [x] 샘플 90개 기준 `status=done`, `text_length>=500`, `failed=0` 상태를 확인한다.
+
 ## 2026-05-30 Lee 문서 기반 우선순위 정리
 
 - [x] `docs/2026-05-30_Lee_프로젝트_기능개선안.md` 기준 라우팅 방향 정리.
