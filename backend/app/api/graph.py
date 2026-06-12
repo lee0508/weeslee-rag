@@ -1680,7 +1680,7 @@ def _get_lpg_graph():
         return None
 
     if _lpg_graph is None:
-        from backend.scripts.lpg_graph import LPGGraph
+        from scripts.lpg_graph import LPGGraph
         _lpg_graph = LPGGraph()
         if schema_path.exists():
             _lpg_graph.load_schema(schema_path)
@@ -1691,7 +1691,7 @@ def _get_lpg_graph():
 
 def _get_query_router():
     """Query Router 싱글톤 로드."""
-    from backend.scripts.query_router import QueryRouter
+    from scripts.query_router import QueryRouter
     terms_path = ONTOLOGY_DIR / "terms.jsonl"
     return QueryRouter(terms_path=terms_path if terms_path.exists() else None)
 
