@@ -150,12 +150,14 @@ async def build_faiss_index(
     faiss_dir = get_faiss_dir()
 
     try:
-        # 처리할 문서 조회
+        # 처리할 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
         from app.models.document_metadata import DocumentMetadata, MetaStatus
 
         query = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True
+            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         ).order_by(DocumentMetadata.document_id)
 
         if req.document_ids:

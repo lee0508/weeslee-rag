@@ -156,12 +156,14 @@ async def build_embeddings(
         if not health.get("connected"):
             raise HTTPException(status_code=503, detail="Ollama service not available")
 
-        # 처리할 문서 조회
+        # 처리할 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
         from app.models.document_metadata import DocumentMetadata, MetaStatus
 
         query = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True
+            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         )
 
         if req.document_ids:
@@ -282,10 +284,12 @@ async def get_embedding_status(db: Session = Depends(get_db)):
     text_store = get_text_store()
 
     try:
-        # 전체 문서 수
+        # 전체 문서 수 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
         total_documents = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True
+            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         ).count()
 
         # 임베딩된 문서 수 계산
@@ -295,7 +299,9 @@ async def get_embedding_status(db: Session = Depends(get_db)):
 
         docs = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True
+            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         ).all()
 
         for doc in docs:
@@ -333,9 +339,12 @@ async def get_embedding_stats(db: Session = Depends(get_db)):
     text_store = get_text_store()
 
     try:
+        # 검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서
         docs = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True
+            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         ).all()
 
         stats = {

@@ -1,9 +1,25 @@
-# Dataset Builder 10단계 워크플로우 API
+# ============================================================
+# DEPRECATED: 2026-06-12
+# ============================================================
+# 이 파일은 과거 Dataset Builder API 실험용 파일입니다.
+# 실제 운영 라우터는 main.py에서 import되는 파일을 기준으로 합니다.
+#
+# 운영 파일:
+#   - admin_dataset_builder_simple.py (Step 1-3)
+#   - admin_dataset_builder_step4.py ~ step10.py
+#
+# 신규 수정은 운영 라우터 파일에만 적용하세요.
+# 삭제 예정: Dataset Builder Step 1~10 통합 완료 및 안정화 확인 후
+# ============================================================
+
+# Dataset Builder 10단계 워크플로우 API (DEPRECATED)
 """
 Dataset Builder 10-Step Workflow API
 
 Step 1: Source Scan - 소스 폴더 스캔 및 documents, document_metadata 레코드 생성
 Step 2: Metadata Auto - 자동 메타데이터 생성 (프로젝트명, 기관명, 연도 등)
+
+[DEPRECATED] 이 모듈은 더 이상 main.py에서 import되지 않습니다.
 """
 from datetime import datetime
 from typing import Optional, List

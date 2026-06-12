@@ -318,10 +318,12 @@ async def parse_documents(
     start_time = datetime.now()
 
     try:
-        # 처리 대상 문서 조회
+        # 처리 대상 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
         query = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         )
 
         if request.document_ids:
@@ -400,16 +402,20 @@ async def get_step4_status(db: Session = Depends(get_db)):
     Step 4 처리 상태를 조회합니다.
     """
     try:
-        # 전체 검수 완료 문서 수
+        # 전체 검수 완료 문서 수 (제외/삭제되지 않은 문서만)
         total = db.query(func.count(DocumentMetadata.id)).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         ).scalar()
 
         # 처리 완료 문서 확인
         documents = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         ).all()
 
         completed = 0
@@ -650,10 +656,12 @@ async def parse_documents_streaming(
 ):
     """백그라운드에서 문서를 파싱하고 SSE로 진행 상황 전송."""
     try:
-        # 처리 대상 문서 조회
+        # 처리 대상 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
         query = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.removed_at.is_(None),
         )
 
         if document_ids:

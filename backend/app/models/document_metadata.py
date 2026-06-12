@@ -44,10 +44,14 @@ class DocumentMetadata(Base):
 
     # Step 1: Source Scan - 파일 정보
     source_id = Column(String(100), nullable=True, index=True, comment="RAG Source ID")
+    document_uid = Column(String(64), nullable=True, index=True, comment="sha1(source_id:relative_path) 문서 고유 식별자")
     file_path = Column(String(1000), nullable=True, comment="Full file path on source mount")
+    relative_path = Column(String(1000), nullable=True, comment="Document Source 기준 상대 경로")
     file_name = Column(String(500), nullable=True, index=True, comment="Original filename")
     file_type = Column(String(50), nullable=True, comment="File extension type (pdf, hwp, docx, etc)")
     file_size = Column(BigInteger, nullable=True, comment="File size in bytes")
+    file_checksum = Column(String(64), nullable=True, comment="SHA256 파일 내용 체크섬")
+    file_modified_at = Column(DateTime, nullable=True, comment="원본 파일 수정 시간")
     category_id = Column(String(100), nullable=True, comment="Category from source folder structure")
 
     # Step 2: Metadata Auto-generation
@@ -85,6 +89,14 @@ class DocumentMetadata(Base):
     include_in_graph = Column(Boolean, default=True, nullable=False, comment="Include in Graph build")
     include_in_wiki = Column(Boolean, default=True, nullable=False, comment="Include in Wiki build")
 
+    # Exclusion and removal tracking
+    is_excluded = Column(Boolean, default=False, nullable=False, comment="전체 처리 제외 여부")
+    exclude_reason = Column(String(255), nullable=True, comment="제외 사유")
+    removed_at = Column(DateTime, nullable=True, comment="원본 파일 삭제 감지 일시")
+    removed_reason = Column(String(255), nullable=True, comment="삭제/제거 사유")
+    is_orphan = Column(Boolean, default=False, nullable=False, comment="Document Source 매칭 실패 여부")
+    orphan_reason = Column(String(255), nullable=True, comment="orphan 사유")
+
     # FAISS integration
     faiss_snapshot = Column(String(100), nullable=True, comment="FAISS snapshot name")
     chunk_count = Column(Integer, default=0, comment="Number of chunks")
@@ -102,10 +114,14 @@ class DocumentMetadata(Base):
             "id": self.id,
             "document_id": self.document_id,
             "source_id": self.source_id,
+            "document_uid": self.document_uid,
             "file_path": self.file_path,
+            "relative_path": self.relative_path,
             "file_name": self.file_name,
             "file_type": self.file_type,
             "file_size": self.file_size,
+            "file_checksum": self.file_checksum,
+            "file_modified_at": self.file_modified_at.isoformat() if self.file_modified_at else None,
             "category_id": self.category_id,
             "project_name": self.project_name,
             "project_name_confidence": self.project_name_confidence,
@@ -129,6 +145,12 @@ class DocumentMetadata(Base):
             "include_in_rag": self.include_in_rag,
             "include_in_graph": self.include_in_graph,
             "include_in_wiki": self.include_in_wiki,
+            "is_excluded": self.is_excluded,
+            "exclude_reason": self.exclude_reason,
+            "removed_at": self.removed_at.isoformat() if self.removed_at else None,
+            "removed_reason": self.removed_reason,
+            "is_orphan": self.is_orphan,
+            "orphan_reason": self.orphan_reason,
             "faiss_snapshot": self.faiss_snapshot,
             "chunk_count": self.chunk_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,

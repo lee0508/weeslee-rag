@@ -48,6 +48,12 @@ class Document(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Dataset Builder UID tracking (2026-06-12)
+    document_uid = Column(String(64), nullable=True, index=True, comment="sha1(source_id:relative_path) 문서 고유 식별자")
+    source_id = Column(String(100), nullable=True, index=True, comment="RAG Source ID")
+    relative_path = Column(String(1000), nullable=True, comment="Document Source 기준 상대 경로")
+    removed_at = Column(DateTime, nullable=True, comment="원본 파일 삭제 감지 일시")
+
     # Relationships
     collection = relationship("Collection", back_populates="documents")
     chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
