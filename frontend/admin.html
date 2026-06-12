@@ -11096,7 +11096,7 @@ LIMIT 10`;
     if (nextBtn) nextBtn.style.display = msg !== '모든 단계가 준비되었습니다.' ? '' : 'none';
 
     // Source Settings 동적 로드 (2026-06-12: 하드코딩 제거)
-    await loadSourceSettingsFromApi();
+    loadSourceSettingsFromApi();
   }
 
   // Source Settings를 Document Source API에서 동적 로드 (2026-06-12)
