@@ -535,12 +535,14 @@ class CleanupResponse(BaseModel):
 @router.post("/cleanup/hard-delete-removed", response_model=CleanupResponse)
 async def hard_delete_removed(
     days_threshold: int = 30,
+    dry_run: bool = False,
     db: Session = Depends(get_db)
 ):
     """
     removed_at이 설정된 문서 중 일정 기간(days_threshold)이 지난 문서를 완전 삭제합니다.
 
     - 기본: 30일 이상 지난 removed 문서만 삭제
+    - dry_run=True: 미리보기만 수행 (실제 삭제 없음)
     - 관련 document_chunks, processed_text 등도 함께 정리
     """
     from datetime import timedelta
@@ -560,18 +562,23 @@ async def hard_delete_removed(
         for doc in removed_docs:
             doc_info = f"document_id={doc.document_id}, file_name={doc.file_name}, removed_at={doc.removed_at}"
             deleted_details.append(doc_info)
-
-            # DocumentMetadata 삭제
-            db.delete(doc)
             deleted_count += 1
 
-        db.commit()
+            # dry_run이 아닐 때만 실제 삭제
+            if not dry_run:
+                db.delete(doc)
+
+        if not dry_run:
+            db.commit()
+
+        action = "hard_delete_removed_dry_run" if dry_run else "hard_delete_removed"
+        msg_suffix = " (미리보기)" if dry_run else ""
 
         return CleanupResponse(
             success=True,
-            action="hard_delete_removed",
+            action=action,
             deleted_count=deleted_count,
-            message=f"{days_threshold}일 이상 지난 removed 문서 {deleted_count}건 삭제 완료",
+            message=f"{days_threshold}일 이상 지난 removed 문서 {deleted_count}건 삭제 예정{msg_suffix}",
             details=deleted_details[:20]  # 최대 20건만 반환
         )
 
@@ -582,6 +589,7 @@ async def hard_delete_removed(
 
 @router.post("/cleanup/delete-orphans", response_model=CleanupResponse)
 async def delete_orphans(
+    dry_run: bool = False,
     db: Session = Depends(get_db)
 ):
     """
@@ -589,6 +597,7 @@ async def delete_orphans(
 
     - Document Source가 삭제되어 더 이상 매칭되지 않는 문서
     - 경로 변경 등으로 orphan 처리된 문서
+    - dry_run=True: 미리보기만 수행 (실제 삭제 없음)
     """
     try:
         orphan_docs = db.query(DocumentMetadata).filter(
@@ -601,17 +610,23 @@ async def delete_orphans(
         for doc in orphan_docs:
             doc_info = f"document_id={doc.document_id}, file_name={doc.file_name}, orphan_reason={doc.orphan_reason}"
             deleted_details.append(doc_info)
-
-            db.delete(doc)
             deleted_count += 1
 
-        db.commit()
+            # dry_run이 아닐 때만 실제 삭제
+            if not dry_run:
+                db.delete(doc)
+
+        if not dry_run:
+            db.commit()
+
+        action = "delete_orphans_dry_run" if dry_run else "delete_orphans"
+        msg_suffix = " (미리보기)" if dry_run else ""
 
         return CleanupResponse(
             success=True,
-            action="delete_orphans",
+            action=action,
             deleted_count=deleted_count,
-            message=f"orphan 문서 {deleted_count}건 삭제 완료",
+            message=f"orphan 문서 {deleted_count}건 삭제 예정{msg_suffix}",
             details=deleted_details[:20]
         )
 
@@ -624,6 +639,7 @@ async def delete_orphans(
 async def mark_excluded(
     document_ids: List[int],
     reason: str = "수동 제외",
+    dry_run: bool = False,
     db: Session = Depends(get_db)
 ):
     """
@@ -632,6 +648,7 @@ async def mark_excluded(
     - is_excluded=True로 설정
     - exclude_reason에 사유 기록
     - FAISS/Graph/Wiki 빌드에서 자동 제외됨
+    - dry_run=True: 미리보기만 수행 (실제 변경 없음)
     """
     try:
         updated_count = 0
@@ -643,19 +660,26 @@ async def mark_excluded(
             ).first()
 
             if doc:
-                doc.is_excluded = True
-                doc.exclude_reason = reason
-                doc.updated_at = datetime.utcnow()
                 updated_details.append(f"document_id={doc_id}, file_name={doc.file_name}")
                 updated_count += 1
 
-        db.commit()
+                # dry_run이 아닐 때만 실제 변경
+                if not dry_run:
+                    doc.is_excluded = True
+                    doc.exclude_reason = reason
+                    doc.updated_at = datetime.utcnow()
+
+        if not dry_run:
+            db.commit()
+
+        action = "mark_excluded_dry_run" if dry_run else "mark_excluded"
+        msg_suffix = " (미리보기)" if dry_run else ""
 
         return CleanupResponse(
             success=True,
-            action="mark_excluded",
+            action=action,
             deleted_count=updated_count,
-            message=f"{updated_count}건 제외 처리 완료 (사유: {reason})",
+            message=f"{updated_count}건 제외 처리 예정{msg_suffix} (사유: {reason})",
             details=updated_details[:20]
         )
 
@@ -667,6 +691,7 @@ async def mark_excluded(
 @router.post("/cleanup/restore-excluded", response_model=CleanupResponse)
 async def restore_excluded(
     document_ids: List[int],
+    dry_run: bool = False,
     db: Session = Depends(get_db)
 ):
     """
@@ -674,6 +699,7 @@ async def restore_excluded(
 
     - is_excluded=False로 복원
     - exclude_reason 초기화
+    - dry_run=True: 미리보기만 수행 (실제 변경 없음)
     """
     try:
         restored_count = 0
@@ -686,19 +712,26 @@ async def restore_excluded(
             ).first()
 
             if doc:
-                doc.is_excluded = False
-                doc.exclude_reason = None
-                doc.updated_at = datetime.utcnow()
                 restored_details.append(f"document_id={doc_id}, file_name={doc.file_name}")
                 restored_count += 1
 
-        db.commit()
+                # dry_run이 아닐 때만 실제 변경
+                if not dry_run:
+                    doc.is_excluded = False
+                    doc.exclude_reason = None
+                    doc.updated_at = datetime.utcnow()
+
+        if not dry_run:
+            db.commit()
+
+        action = "restore_excluded_dry_run" if dry_run else "restore_excluded"
+        msg_suffix = " (미리보기)" if dry_run else ""
 
         return CleanupResponse(
             success=True,
-            action="restore_excluded",
+            action=action,
             deleted_count=restored_count,
-            message=f"{restored_count}건 복원 완료",
+            message=f"{restored_count}건 복원 예정{msg_suffix}",
             details=restored_details[:20]
         )
 
