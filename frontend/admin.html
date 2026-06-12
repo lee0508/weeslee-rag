@@ -1368,8 +1368,8 @@
         </div>
         <h2 class="wr-section-title" id="wr-source-settings" data-wr-anchor>Source Settings</h2>
         <div class="wr-form-grid">
-          <div class="wr-field"><label>Default source path</label><input id="wrSourceDefaultPath" value="/data/weeslee/source_documents" readonly></div>
-          <div class="wr-field"><label>Default client</label><input id="wrSourceDefaultClient" value="weeslee" readonly></div>
+          <div class="wr-field"><label>Default source path</label><input id="wrSourceDefaultPath" value="(로딩 중...)" readonly></div>
+          <div class="wr-field"><label>Default client</label><input id="wrSourceDefaultClient" value="(로딩 중...)" readonly></div>
         </div>
       </section>
 
@@ -6449,10 +6449,36 @@ POST /api/admin/faiss/activate</code>
   // ── Tab switching ─────────────────────────────────────────────────────────
 
   function switchTab(name) {
+    // 방어 코드: null 체크 (2026-06-12)
+    const tabBtn = document.querySelector(`.tab-btn[onclick="switchTab('${name}')"]`) ||
+                   document.querySelector(`.tab-btn[data-tab="${name}"]`);
+    const tabPanel = document.getElementById(`tab-${name}`);
+
+    if (!tabPanel) {
+      console.warn(`[switchTab] 탭 패널을 찾을 수 없습니다: tab-${name}`);
+      if (typeof showToast === 'function') {
+        showToast(`탭 '${name}'을 찾을 수 없습니다.`, 'warning');
+      }
+      return;
+    }
+
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelector(`.tab-btn[onclick="switchTab('${name}')"]`).classList.add('active');
-    document.getElementById(`tab-${name}`).classList.add('active');
+
+    if (tabBtn) {
+      tabBtn.classList.add('active');
+    } else {
+      console.warn(`[switchTab] 탭 버튼을 찾을 수 없습니다: ${name}`);
+    }
+
+    tabPanel.classList.add('active');
+
+    // Legacy 탭 데이터 로드
+    loadLegacyTabData(name);
+  }
+
+  // Legacy 탭별 데이터 로드 함수 분리 (2026-06-12)
+  function loadLegacyTabData(name) {
     if (name === 'graph') {
       // 작성일: 2026-05-12 | 기능: 그래프 탭 전환 시 Cytoscape 초기화 및 데이터 로드
       if (!cy) initCytoscape();
@@ -6463,10 +6489,11 @@ POST /api/admin/faiss/activate</code>
       loadDocumentStats();
     }
     if (name === 'platform') {
-      loadClients();
-      loadSources();
-      loadCollectionTemplates();
-      loadMetadataTemplates();
+      if (typeof loadClients === 'function') loadClients();
+      if (typeof loadSources === 'function') loadSources();
+      if (typeof loadCollectionTemplates === 'function') loadCollectionTemplates();
+      if (typeof loadMetadataTemplates === 'function') loadMetadataTemplates();
+      if (typeof loadLlmSettings === 'function') loadLlmSettings();
     }
     if (name === 'knowledgesource') loadKsStatus();
     if (name === 'ragsource') loadRagSourceFiles();
@@ -6476,6 +6503,9 @@ POST /api/admin/faiss/activate</code>
     if (name === 'wizard') renderWizardProgressBar();
     if (name === 'docsource') loadDocSources();
     if (name === 'querylogs') loadQueryLogsDashboard();
+    if (name === 'documents') loadDocuments();
+    if (name === 'wiki') loadWikiStats();
+    if (name === 'pipeline') syncPipelineSelectionState();
   }
 
   // ── Knowledge Source 탭 ──────────────────────────────────────────────────
@@ -7827,20 +7857,17 @@ POST /api/admin/faiss/activate</code>
     // localStorage 저장
     localStorage.setItem(LLM_SETTINGS_KEY, JSON.stringify(settings));
 
-    // 서버 저장 시도
+    // 서버 저장 시도 - platformFetch 사용 (인증 헤더 포함)
+    // 2026-06-12: 인증 헤더 누락 문제 수정
     try {
-      const res = await fetch(`${API_BASE}/api/admin/llm-settings`, {
+      await platformFetch('/admin/llm-settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      if (res.ok) {
-        alert('LLM 설정이 저장되었습니다.');
-      } else {
-        alert('서버 저장 실패. localStorage에만 저장됨.');
-      }
+      showToast('LLM 설정이 저장되었습니다.', 'success');
     } catch (e) {
-      alert('서버 연결 실패. localStorage에만 저장됨.');
+      console.warn('[saveLlmSettings] 서버 저장 실패:', e.message);
+      showToast('서버 저장 실패. 브라우저에만 임시 저장됨.', 'warning');
     }
   }
 
@@ -7864,16 +7891,20 @@ POST /api/admin/faiss/activate</code>
       }
     }
 
-    // Ollama 연결 테스트
+    // 시스템 상태 테스트 - /admin/system-check 사용 (2026-06-12: /ollama/status 대체)
     try {
-      const ollamaRes = await fetch(`${API_BASE}/api/ollama/status`);
-      const ollamaData = await ollamaRes.json();
+      const systemCheck = await platformFetch('/admin/system-check');
+      const ollamaOk = systemCheck.ollama?.connected || systemCheck.ollama?.ok || false;
 
       resultEl.innerHTML = `
         <div style="margin-bottom:8px"><strong>✅ 설정 테스트 결과</strong></div>
         <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:11px">
           <span style="color:var(--muted)">Ollama 상태:</span>
-          <span style="color:${ollamaData.ok ? 'var(--green)' : 'var(--red)'}">${ollamaData.ok ? '연결됨' : '연결 실패'}</span>
+          <span style="color:${ollamaOk ? 'var(--green)' : 'var(--red)'}">${ollamaOk ? '연결됨' : '연결 실패'}</span>
+          <span style="color:var(--muted)">HWP 추출기:</span>
+          <span style="color:${systemCheck.hwp?.available ? 'var(--green)' : 'var(--red)'}">${systemCheck.hwp?.available ? '사용 가능' : '사용 불가'}</span>
+          <span style="color:var(--muted)">OCR:</span>
+          <span style="color:${systemCheck.ocr?.available ? 'var(--green)' : 'var(--red)'}">${systemCheck.ocr?.available ? '사용 가능' : '사용 불가'}</span>
           <span style="color:var(--muted)">Temperature:</span>
           <span>${settings.temperature}</span>
           <span style="color:var(--muted)">Top-p:</span>
@@ -7892,13 +7923,7 @@ POST /api/admin/faiss/activate</code>
   }
 
   // 플랫폼 설정 탭 로드 시 LLM 설정도 로드
-  const origSwitchTab = window.switchTab;
-  window.switchTab = function(name) {
-    origSwitchTab(name);
-    if (name === 'platform') {
-      loadLlmSettings();
-    }
-  };
+  // 2026-06-12: 래핑 코드 제거 - loadLlmSettings()는 loadLegacyTabData('platform')에서 호출됨
 
   // ── Graph View ────────────────────────────────────────────────────────────
 
@@ -8794,16 +8819,7 @@ POST /api/admin/faiss/activate</code>
   }
 
   // ── Tab switching (extended) ────────────────────────────────────────────
-
-  const _origSwitchTab = switchTab;
-  switchTab = function(name) {
-    _origSwitchTab(name);
-    if (name === 'documents') loadDocuments();
-    if (name === 'metadata') loadDocumentStats();
-    if (name === 'wiki') loadWikiStats();
-    if (name === 'pipeline') syncPipelineSelectionState();
-    if (name === 'querylogs') loadQueryLogsDashboard();
-  };
+  // 2026-06-12: 래핑 코드 제거 - 모든 탭 로드 로직이 loadLegacyTabData()에 통합됨
 
   // Init — 인증 확인 후 페이지 초기화
   function initPage() {
@@ -11078,6 +11094,47 @@ LIMIT 10`;
 
     if (nextText) nextText.textContent = msg;
     if (nextBtn) nextBtn.style.display = msg !== '모든 단계가 준비되었습니다.' ? '' : 'none';
+
+    // Source Settings 동적 로드 (2026-06-12: 하드코딩 제거)
+    await loadSourceSettingsFromApi();
+  }
+
+  // Source Settings를 Document Source API에서 동적 로드 (2026-06-12)
+  async function loadSourceSettingsFromApi() {
+    try {
+      const sources = await platformFetch('/admin/document-sources');
+
+      // 기본 Source 선택: rag_source > enabled 첫 번째 > 목록 첫 번째
+      const selected =
+        sources.find(s => s.source_id === 'rag_source') ||
+        sources.find(s => s.enabled) ||
+        sources[0];
+
+      const pathEl = document.getElementById('wrSourceDefaultPath');
+      const clientEl = document.getElementById('wrSourceDefaultClient');
+
+      if (!selected) {
+        if (pathEl) pathEl.value = '등록된 Source 없음';
+        if (clientEl) clientEl.value = '-';
+        return;
+      }
+
+      // mount_path + root_subpath 조합
+      const root = [selected.mount_path, selected.root_subpath]
+        .filter(Boolean)
+        .join('/')
+        .replace(/\/+/g, '/');
+
+      if (pathEl) pathEl.value = root || selected.mount_path || '(경로 없음)';
+      if (clientEl) clientEl.value = selected.client_id || 'weeslee';
+
+    } catch (e) {
+      console.warn('[loadSourceSettingsFromApi] Document Source 로드 실패:', e.message);
+      const pathEl = document.getElementById('wrSourceDefaultPath');
+      const clientEl = document.getElementById('wrSourceDefaultClient');
+      if (pathEl) pathEl.value = '로드 실패';
+      if (clientEl) clientEl.value = '-';
+    }
   }
 
   // ── Dashboard Figma 개선 함수들 ────────────────────────────────────
@@ -11320,6 +11377,7 @@ LIMIT 10`;
   }
 
   // Dataset Builder 단계별 실행 (10단계 구조)
+  // 2026-06-12 수정: Step 7에서 wizardRun(10) 호출 금지 (FAISS Activate는 Step 10에서 수동 실행)
   async function runDatasetBuilderStep(stepNum) {
     switch(stepNum) {
       case 1: // Source Scan
@@ -11341,16 +11399,18 @@ LIMIT 10`;
         break;
       case 5: // Chunk Build
         if (typeof wizardRun === 'function') {
-          wizardRun(6); // Legacy Step 6
+          wizardRun(6); // Legacy Step 6: Chunk & Embedding
         }
         break;
       case 6: // Embedding Build
-        showToast('Embedding은 Chunk Build에 포함되어 있습니다.', 'info');
+        showToast('Embedding은 Chunk Build(Step 5)에 포함되어 있습니다.', 'info');
         break;
-      case 7: // FAISS Build
-        if (typeof wizardRun === 'function') {
-          wizardRun(10); // Legacy Step 10
-        }
+      case 7: // FAISS Build - 상태 확인만, Activate 금지
+        // 2026-06-12: wizardRun(10) 호출 금지 - FAISS Activate는 Step 10에서 수동 실행
+        if (typeof loadStatus === 'function') loadStatus();
+        if (typeof loadIndexes === 'function') loadIndexes();
+        if (typeof loadJobs === 'function') loadJobs();
+        showToast('FAISS 생성 상태를 확인했습니다. 활성화는 Step 10에서 검색 품질 확인 후 진행하세요.', 'info', 5000);
         break;
       case 8: // Graph Build
         if (typeof wizardRun === 'function') {
@@ -11363,7 +11423,8 @@ LIMIT 10`;
         }
         break;
       case 10: // Search Quality / Activate
-        showToast('Search Quality는 별도 페이지에서 진행하세요.', 'info');
+        switchTab('benchmark');
+        showToast('검색 품질을 확인한 후 필요한 Snapshot을 활성화하세요.', 'info', 5000);
         break;
       default:
         showToast(`Step ${stepNum} 실행 함수를 찾을 수 없습니다.`, 'error');
