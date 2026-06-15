@@ -3561,19 +3561,25 @@ POST /api/admin/faiss/activate</code>
     </select>
   </div>
   <div style="display:flex;align-items:center;gap:6px">
-    <span>스냅샷</span>
+    <span>Working Snapshot</span>
     <select id="ctxSnapshot" onchange="onSnapshotChange()"
       style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">
       <option value="">새 스냅샷</option>
     </select>
     <span id="ctxSnapshotStage" style="font-size:10px;color:var(--muted)"></span>
+    <button class="btn btn-outline btn-sm" onclick="showSnapshotDetail()" title="Snapshot 상세 정보"
+      style="padding:2px 6px;font-size:10px">📋</button>
   </div>
-  <div id="ctxActiveBadge" style="
-    margin-left:auto; padding:2px 10px; border-radius:99px; font-size:10px;
-    background:rgba(34,197,94,.15); color:var(--green); font-weight:700;
-  ">● ACTIVE</div>
+  <div style="display:flex;align-items:center;gap:6px;margin-left:auto;border-left:1px solid var(--border);padding-left:16px">
+    <span style="color:var(--green)">Active Snapshot</span>
+    <span id="ctxActiveSnapshotId" style="font-family:monospace;color:var(--text);font-size:10px">-</span>
+    <div id="ctxActiveBadge" style="
+      padding:2px 10px; border-radius:99px; font-size:10px;
+      background:rgba(34,197,94,.15); color:var(--green); font-weight:700;
+    ">● ACTIVE</div>
+  </div>
   <button class="btn btn-outline btn-sm" onclick="switchTab('docsource')"
-    style="margin-left:4px;font-size:10px">+ 새 Source 등록</button>
+    style="font-size:10px">+ 새 Source 등록</button>
 </div>
 
 <!-- ───────────────────────────────────────────────────────────── -->
@@ -10428,34 +10434,57 @@ LIMIT 10`;
     const sel = document.getElementById('ctxSnapshot');
     if (!sel) return;
 
+    const sourceId = document.getElementById('ctxSource')?.value || 'rag_source';
+
     try {
-      // Active 스냅샷 정보와 스냅샷 목록을 병렬로 가져옴
-      const [statusData, summaryData] = await Promise.all([
+      // 새 Snapshot API와 기존 FAISS API를 병렬로 호출
+      const [newSnapshots, statusData, summaryData] = await Promise.all([
+        platformFetch(`/admin/snapshot/list?source_id=${encodeURIComponent(sourceId)}&limit=50`).catch(() => ({ snapshots: [] })),
         api('/admin/faiss/status').catch(() => null),
-        api('/admin/faiss/staged-summary')
+        api('/admin/faiss/staged-summary').catch(() => ({ snapshots: [] }))
       ]);
 
       const activeSnapshot = statusData?.active?.snapshot || _currentActiveSnapshot || '';
-      const snapshots = summaryData.snapshots || [];
+      const faissSnapshots = summaryData.snapshots || [];
+      const manifestSnapshots = newSnapshots.snapshots || [];
 
-      // 옵션 초기화
-      sel.innerHTML = '<option value="">새 스냅샷</option>';
+      // 옵션 초기화: 새 Snapshot 생성 버튼
+      sel.innerHTML = '<option value="">+ 새 스냅샷 생성</option>';
 
-      // 스냅샷 추가
-      snapshots.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.snapshot;
-        const status = s.faiss_indexed ? '✓ FAISS' : (s.chunks_exist ? '◐ Chunk' : '○');
-        opt.textContent = `${s.snapshot} (${status})`;
-        // Active 스냅샷이면 선택
-        if (s.snapshot === activeSnapshot) {
-          opt.selected = true;
-        }
-        sel.appendChild(opt);
-      });
+      // Manifest 기반 Snapshot 먼저 추가 (새 시스템)
+      if (manifestSnapshots.length > 0) {
+        const optGroup1 = document.createElement('optgroup');
+        optGroup1.label = '📋 Snapshot Manifest';
+        manifestSnapshots.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.snapshot_id;
+          const statusIcon = s.is_active ? '●' : (s.status === 'validated' ? '◉' : '○');
+          opt.textContent = `${s.snapshot_id} (${statusIcon} ${s.status})`;
+          if (s.is_active) opt.selected = true;
+          optGroup1.appendChild(opt);
+        });
+        sel.appendChild(optGroup1);
+      }
 
-      // Active 스냅샷이 선택되었으면 onSnapshotChange 호출
-      if (activeSnapshot && sel.value === activeSnapshot) {
+      // 기존 FAISS 스냅샷 추가 (레거시)
+      if (faissSnapshots.length > 0) {
+        const optGroup2 = document.createElement('optgroup');
+        optGroup2.label = '📦 FAISS Index (레거시)';
+        faissSnapshots.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.snapshot;
+          const status = s.faiss_indexed ? '✓' : (s.chunks_exist ? '◐' : '○');
+          opt.textContent = `${s.snapshot} (${status})`;
+          if (s.snapshot === activeSnapshot && !manifestSnapshots.some(m => m.is_active)) {
+            opt.selected = true;
+          }
+          optGroup2.appendChild(opt);
+        });
+        sel.appendChild(optGroup2);
+      }
+
+      // 선택된 스냅샷이 있으면 onSnapshotChange 호출
+      if (sel.value) {
         onSnapshotChange();
       }
     } catch (e) {
@@ -10501,12 +10530,235 @@ LIMIT 10`;
     return _snapshotStages?.recommended_start || 1;
   }
 
+  // ── Active Snapshot 정보 로드 ────────────────────────────────────
+  let _activeSnapshotInfo = null;
+
+  async function loadActiveSnapshotInfo() {
+    try {
+      const data = await platformFetch('/admin/snapshot/active');
+      if (data.success && data.active_config) {
+        _activeSnapshotInfo = data.active_config;
+        updateActiveSnapshotDisplay(data.active_config);
+      } else {
+        _activeSnapshotInfo = null;
+        updateActiveSnapshotDisplay(null);
+      }
+    } catch (e) {
+      console.warn('[snapshot] loadActiveSnapshotInfo error:', e);
+      _activeSnapshotInfo = null;
+      updateActiveSnapshotDisplay(null);
+    }
+  }
+
+  function updateActiveSnapshotDisplay(config) {
+    const idEl = document.getElementById('ctxActiveSnapshotId');
+    const badgeEl = document.getElementById('ctxActiveBadge');
+
+    if (!config || !config.active_snapshot_id) {
+      if (idEl) idEl.textContent = '없음';
+      if (badgeEl) {
+        badgeEl.style.background = 'rgba(239,68,68,.15)';
+        badgeEl.style.color = 'var(--red)';
+        badgeEl.textContent = '● NO ACTIVE';
+      }
+      return;
+    }
+
+    if (idEl) idEl.textContent = config.active_snapshot_id;
+    if (badgeEl) {
+      badgeEl.style.background = 'rgba(34,197,94,.15)';
+      badgeEl.style.color = 'var(--green)';
+      badgeEl.textContent = '● ACTIVE';
+    }
+  }
+
+  // ── Snapshot 상세 정보 모달 ──────────────────────────────────────
+  async function showSnapshotDetail() {
+    const snapshotId = document.getElementById('ctxSnapshot')?.value;
+    if (!snapshotId) {
+      showToast('Working Snapshot을 선택해주세요.', 'warning');
+      return;
+    }
+
+    try {
+      const data = await platformFetch(`/admin/snapshot/detail/${encodeURIComponent(snapshotId)}`);
+      if (!data.success || !data.snapshot) {
+        showToast('Snapshot 정보를 불러올 수 없습니다.', 'error');
+        return;
+      }
+
+      const snap = data.snapshot;
+      const ds = snap.dataset || {};
+      const meta = snap.metadata_build || {};
+      const tagkw = snap.tag_keyword || {};
+      const rag = snap.rag_build || {};
+      const graph = snap.graph_build || {};
+      const wiki = snap.wiki_build || {};
+
+      const statusBadge = {
+        'draft': '<span style="color:var(--amber)">● Draft</span>',
+        'validated': '<span style="color:var(--blue)">● Validated</span>',
+        'active': '<span style="color:var(--green)">● Active</span>',
+        'archived': '<span style="color:var(--muted)">● Archived</span>',
+      }[snap.status] || snap.status;
+
+      const html = `
+        <div style="max-width:600px">
+          <h3 style="margin:0 0 16px;font-size:16px;color:var(--text)">
+            📋 Snapshot 상세 정보
+          </h3>
+
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:12px">
+            <div style="color:var(--muted)">Snapshot ID</div>
+            <div style="font-family:monospace;color:var(--amber)">${snap.snapshot_id || '-'}</div>
+
+            <div style="color:var(--muted)">이름</div>
+            <div>${snap.snapshot_name || '-'}</div>
+
+            <div style="color:var(--muted)">상태</div>
+            <div>${statusBadge} ${snap.is_active ? '(현재 Active)' : ''}</div>
+
+            <div style="color:var(--muted)">생성일</div>
+            <div>${snap.created_at ? new Date(snap.created_at).toLocaleString('ko-KR') : '-'}</div>
+          </div>
+
+          <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
+
+          <div style="font-weight:700;margin-bottom:8px;color:var(--text)">📂 Dataset</div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:12px;margin-bottom:12px">
+            <div style="color:var(--muted)">Dataset ID</div>
+            <div style="font-family:monospace">${ds.dataset_id || '-'}</div>
+            <div style="color:var(--muted)">Source ID</div>
+            <div style="font-family:monospace">${ds.source_id || '-'}</div>
+            <div style="color:var(--muted)">문서 수</div>
+            <div>${ds.document_count || 0}개</div>
+          </div>
+
+          <div style="font-weight:700;margin-bottom:8px;color:var(--text)">🏷️ Metadata / Tag / Keyword</div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:12px;margin-bottom:12px">
+            <div style="color:var(--muted)">Metadata Build</div>
+            <div style="font-family:monospace">${meta.metadata_version_id || '-'}</div>
+            <div style="color:var(--muted)">Tag/Keyword Build</div>
+            <div style="font-family:monospace">${tagkw.tag_keyword_build_id || '-'}</div>
+            <div style="color:var(--muted)">Tag / Keyword</div>
+            <div>${tagkw.tag_count || 0}개 / ${tagkw.keyword_count || 0}개</div>
+          </div>
+
+          <div style="font-weight:700;margin-bottom:8px;color:var(--text)">🔍 RAG / FAISS</div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:12px;margin-bottom:12px">
+            <div style="color:var(--muted)">RAG Build</div>
+            <div style="font-family:monospace">${rag.rag_build_id || '-'}</div>
+            <div style="color:var(--muted)">FAISS Index</div>
+            <div style="font-family:monospace">${rag.faiss_index_id || '-'}</div>
+            <div style="color:var(--muted)">Chunk / Vector</div>
+            <div>${rag.chunk_count || 0} / ${rag.vector_count || 0}</div>
+            <div style="color:var(--muted)">Embedding Model</div>
+            <div>${rag.embedding_model || '-'}</div>
+          </div>
+
+          <div style="font-weight:700;margin-bottom:8px;color:var(--text)">🕸️ Knowledge Graph</div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:12px;margin-bottom:12px">
+            <div style="color:var(--muted)">Ontology</div>
+            <div style="font-family:monospace">${graph.ontology_id || '-'}</div>
+            <div style="color:var(--muted)">Graph Build</div>
+            <div style="font-family:monospace">${graph.graph_build_id || '-'}</div>
+            <div style="color:var(--muted)">Node / Edge</div>
+            <div>${graph.node_count || 0} / ${graph.edge_count || 0}</div>
+          </div>
+
+          <div style="font-weight:700;margin-bottom:8px;color:var(--text)">📖 LLM Wiki</div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:12px;margin-bottom:12px">
+            <div style="color:var(--muted)">Wiki Build</div>
+            <div style="font-family:monospace">${wiki.wiki_build_id || '-'}</div>
+            <div style="color:var(--muted)">Articles</div>
+            <div>${wiki.article_count || 0}개</div>
+            <div style="color:var(--muted)">LLM Model</div>
+            <div>${wiki.llm_model || '-'}</div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+            ${!snap.is_active ? `<button class="btn btn-primary btn-sm" onclick="activateSnapshot('${snap.snapshot_id}')">이 Snapshot 활성화</button>` : ''}
+            <button class="btn btn-outline btn-sm" onclick="closeModal()">닫기</button>
+          </div>
+        </div>
+      `;
+
+      openModal(html);
+    } catch (e) {
+      console.error('[snapshot] showSnapshotDetail error:', e);
+      showToast('Snapshot 정보 조회 실패: ' + e.message, 'error');
+    }
+  }
+
+  // ── Snapshot 활성화 ──────────────────────────────────────────────
+  async function activateSnapshot(snapshotId) {
+    if (!confirm(`"${snapshotId}"를 Active Snapshot으로 설정하시겠습니까?\n\n이 Snapshot이 사용자 검색 화면에 적용됩니다.`)) {
+      return;
+    }
+
+    try {
+      const data = await platformFetch('/admin/snapshot/activate', {
+        method: 'POST',
+        body: JSON.stringify({ snapshot_id: snapshotId, activated_by: 'admin' }),
+      });
+
+      if (data.success) {
+        showToast(`Snapshot "${snapshotId}" 활성화 완료`, 'success');
+        closeModal();
+        loadActiveSnapshotInfo();
+        loadSnapshotList();
+      } else {
+        showToast('활성화 실패: ' + (data.message || '알 수 없는 오류'), 'error');
+      }
+    } catch (e) {
+      showToast('활성화 실패: ' + e.message, 'error');
+    }
+  }
+
+  // ── Snapshot 생성 ────────────────────────────────────────────────
+  async function createNewSnapshot() {
+    const sourceId = document.getElementById('ctxSource')?.value || 'rag_source';
+
+    const name = prompt('새 Snapshot 이름을 입력하세요 (선택사항):');
+    if (name === null) return; // 취소
+
+    try {
+      const data = await platformFetch('/admin/snapshot/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          source_id: sourceId,
+          snapshot_name: name || null,
+          description: null,
+        }),
+      });
+
+      if (data.success) {
+        showToast(`Snapshot "${data.snapshot_id}" 생성 완료`, 'success');
+        loadSnapshotList();
+
+        // 새로 생성된 Snapshot 선택
+        setTimeout(() => {
+          const sel = document.getElementById('ctxSnapshot');
+          if (sel) {
+            sel.value = data.snapshot_id;
+            onSnapshotChange();
+          }
+        }, 500);
+      } else {
+        showToast('생성 실패: ' + (data.message || '알 수 없는 오류'), 'error');
+      }
+    } catch (e) {
+      showToast('생성 실패: ' + e.message, 'error');
+    }
+  }
+
   // 초기 로드 - 로그인 완료 후에만 실행
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       // 토큰이 있을 때만 API 호출
       if (localStorage.getItem('admin_token')) {
         loadSnapshotList();
+        loadActiveSnapshotInfo();
       }
     }, 500);
   });
