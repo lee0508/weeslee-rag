@@ -68,9 +68,11 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
     if ACTIVE_INDEX_FILE.exists():
         with open(ACTIVE_INDEX_FILE, "r", encoding="utf-8") as f:
             old_data = json.load(f)
+        # active_snapshot 또는 snapshot 키 지원 (하위 호환성)
+        snap_id = old_data.get("active_snapshot") or old_data.get("snapshot", "")
         return ActiveSnapshotConfig(
-            active_snapshot_id=old_data.get("active_snapshot", ""),
-            faiss_index_id=old_data.get("active_snapshot"),
+            active_snapshot_id=snap_id,
+            faiss_index_id=snap_id,
             index_file=old_data.get("index_file"),
             metadata_file=old_data.get("metadata_file"),
             embedding_provider=old_data.get("embedding_provider", "ollama"),
