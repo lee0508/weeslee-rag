@@ -768,3 +768,63 @@ async def build_wiki(_body: dict = {}):
         "message": "Wiki 빌드는 /api/wiki/build 엔드포인트를 사용해 주세요.",
         "redirect": "/api/wiki/build",
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tag/Keyword 통합 생성 API (QA2 기반, 2026-06-15)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TagKeywordGenerateRequest(BaseModel):
+    """
+    Tag/Keyword 생성 요청 모델.
+
+    source_id: 현재 선택된 Document Source ID (예: rag_source)
+    snapshot_id: 현재 작업 또는 활성 Snapshot ID (예: snapshot_2026-05-20_rag_source_v1)
+    overwrite: 기존 자동 생성 태그/키워드를 덮어쓸지 여부 (manual 태그는 보존)
+    """
+    source_id: str = "rag_source"
+    snapshot_id: Optional[str] = None
+    overwrite: bool = False
+
+
+@router.post("/tag-keyword/generate")
+async def generate_tag_keyword(body: TagKeywordGenerateRequest):
+    """
+    현재 선택된 Document Source 기준으로 Tag/Keyword/문서별 매핑을 생성합니다.
+
+    이 API는 문서 본문을 파싱하지 않습니다.
+    document_metadata의 file_name, relative_path, project_name, document_group, section_type을 기준으로
+    빠르게 1차 태그/키워드를 생성합니다.
+
+    처리 기준:
+    - document_metadata 테이블의 source_id 기준 문서 조회
+    - removed_at이 NULL인 문서만 대상
+    - document_group, section_type, project_name에서 태그 추출
+    - 파일명에서 기술/프로젝트 유형/키워드 추출
+    """
+    from app.core.database import SessionLocal
+    from app.services.tag_keyword_generator import TagKeywordGenerator
+
+    db = SessionLocal()
+    try:
+        generator = TagKeywordGenerator(
+            db=db,
+            source_id=body.source_id,
+            snapshot_id=body.snapshot_id,
+            overwrite=body.overwrite,
+        )
+
+        result = generator.run()
+        return result
+
+    except Exception as e:
+        import traceback
+        return {
+            "success": False,
+            "message": f"Tag/Keyword 생성 중 오류 발생: {str(e)}",
+            "source_id": body.source_id,
+            "snapshot_id": body.snapshot_id,
+            "error_detail": traceback.format_exc(),
+        }
+    finally:
+        db.close()

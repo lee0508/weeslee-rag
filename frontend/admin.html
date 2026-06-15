@@ -1327,6 +1327,17 @@
           </div>
         </div>
 
+        <h2 class="wr-section-title" id="wr-overview-client" data-wr-anchor>클라이언트 정보</h2>
+        <div class="wr-card" id="wrDashboardClientInfo">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 class="wr-card-title" style="margin:0">🏢 Client Manager</h3>
+            <button class="wr-btn" type="button" onclick="loadDashboardClientInfo()">↻ 새로고침</button>
+          </div>
+          <div id="wrDashboardClientList">
+            <div style="text-align:center;padding:20px;color:#718096">클라이언트 정보를 불러오는 중...</div>
+          </div>
+        </div>
+
         <h2 class="wr-section-title" id="wr-overview-flow" data-wr-anchor>빠른 이동</h2>
         <div class="wr-status-list">
           <div class="wr-status-row"><span>Source Documents</span><button class="wr-btn" type="button" onclick="openSourceManagement()">소스 관리 열기</button></div>
@@ -1942,7 +1953,7 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">POST /api/admin/dataset/chunk-build</code>
+        <code class="wr-code-block">POST /api/admin/dataset-builder/step5/chunk</code>
       </section>
 
       <!-- Step 6: Embedding Build -->
@@ -1986,7 +1997,7 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">POST /api/admin/dataset/embedding-build</code>
+        <code class="wr-code-block">POST /api/admin/dataset-builder/step6/embed</code>
 
         <!-- 서버 실제 설정 표시 (읽기 전용) -->
         <div class="wr-card" style="margin-top:24px">
@@ -2033,7 +2044,7 @@ POST /api/admin/faiss/activate</code>
           collection_id 기준 FAISS Index 생성: index.faiss, index_meta.jsonl, snapshot 생성
         </div>
         <h2 class="wr-section-title">Execution API</h2>
-        <code class="wr-code-block">POST /api/admin/dataset/faiss-build</code>
+        <code class="wr-code-block">POST /api/admin/dataset-builder/step7/build</code>
       </section>
 
       <!-- Step 8: Graph Build (Ontology / JSON Graph) -->
@@ -2103,7 +2114,7 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">POST /api/admin/dataset/graph-build</code>
+        <code class="wr-code-block">POST /api/admin/dataset-builder/step8/build</code>
       </section>
 
       <!-- Step 9: Wiki Build -->
@@ -2245,9 +2256,9 @@ Content-Type: application/json
           </div>
         </div>
         <h2 class="wr-section-title" style="margin-top:24px">Execution APIs</h2>
-        <code class="wr-code-block">POST /api/admin/search-quality/run
-POST /api/admin/dataset/activate
-POST /api/admin/dataset/rollback</code>
+        <code class="wr-code-block">POST /api/admin/dataset-builder/step10/test
+POST /api/admin/faiss/activate
+POST /api/admin/faiss/rollback</code>
       </section>
 
         <!-- Hidden: Legacy UI 호환용 (기존 상태 표시 요소) -->
@@ -3412,11 +3423,19 @@ POST /api/admin/faiss/activate</code>
         <h1 class="wr-page-title" id="wr-settings-title" data-wr-anchor>Settings</h1>
         <p class="wr-page-lead">관리자 화면에서 필요한 기본 경로, 모델, 운영 설정을 확인하는 페이지입니다. 1차에서는 입력 UI와 안내 상태만 제공합니다.</p>
         <div class="wr-form-grid">
-          <div class="wr-field"><label>LLM model</label><input value="gemma3:12b" readonly></div>
-          <div class="wr-field"><label>Embedding model</label><input value="nomic-embed-text" readonly></div>
+          <div class="wr-field"><label>LLM model</label><input id="wrSettingsLlmModel" value="로딩 중..." readonly></div>
+          <div class="wr-field"><label>Embedding model</label><input id="wrSettingsEmbedModel" value="로딩 중..." readonly></div>
           <div class="wr-field"><label>Document ID strategy</label><input value="file hash based document_id" readonly></div>
           <div class="wr-field"><label>Job runner</label><input value="Python Thread based runner" readonly></div>
         </div>
+        <h2 class="wr-section-title" style="margin-top:24px">System Status</h2>
+        <div class="wr-form-grid">
+          <div class="wr-field"><label>HWP Extractor</label><input id="wrSettingsHwpStatus" value="확인 중..." readonly></div>
+          <div class="wr-field"><label>OCR (Tesseract)</label><input id="wrSettingsOcrStatus" value="확인 중..." readonly></div>
+          <div class="wr-field"><label>Ollama</label><input id="wrSettingsOllamaStatus" value="확인 중..." readonly></div>
+          <div class="wr-field"><label>FAISS Index</label><input id="wrSettingsFaissStatus" value="확인 중..." readonly></div>
+        </div>
+        <button class="wr-btn" type="button" onclick="loadWrSettingsFromServer()" style="margin-top:16px">↻ 상태 새로고침</button>
         <h2 class="wr-section-title" id="wr-settings-legacy" data-wr-anchor>Platform Settings</h2>
         <button class="wr-btn" type="button" data-wr-legacy-tab="platform">Legacy Platform 설정 열기</button>
       </section>
@@ -4507,53 +4526,7 @@ POST /api/admin/faiss/activate</code>
           <button class="btn btn-primary" onclick="switchTab('faiss')">FAISS Index 탭으로 이동</button>
         </div>
       </div>
-      <!-- duplicate docs search-quality block removed from legacy pipeline
-        <div class="wr-eyebrow">Operations</div>
-        <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Search Quality</h1>
-        <p class="wr-page-lead">검색 품질 검증과 벤치마크 이력을 새 레이아웃에서 요약하고, 실제 실행은 기존 Search Quality 탭으로 연결합니다.</p>
-        <div class="wr-summary-grid">
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">History Count</div>
-            <div class="wr-summary-value" id="wrBenchmarkCount">-</div>
-          </div>
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">Latest Score</div>
-            <div class="wr-summary-value" id="wrBenchmarkScore">-</div>
-          </div>
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">Latest Snapshot</div>
-            <div class="wr-summary-value" id="wrBenchmarkSnapshot">-</div>
-          </div>
-        </div>
-        <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
-        <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">상세 검색 품질 열기</button>
-        </div>
-      </section>
-      <section class="wr-page" data-wr-page-panel="search-quality">
-        <div class="wr-eyebrow">Operations</div>
-        <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Search Quality</h1>
-        <p class="wr-page-lead">검색 품질 검증과 벤치마크 이력을 새 레이아웃에서 요약하고, 실제 실행은 기존 Search Quality 탭으로 연결합니다.</p>
-        <div class="wr-summary-grid">
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">History Count</div>
-            <div class="wr-summary-value" id="wrBenchmarkCount">-</div>
-          </div>
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">Latest Score</div>
-            <div class="wr-summary-value" id="wrBenchmarkScore">-</div>
-          </div>
-          <div class="wr-summary-card">
-            <div class="wr-summary-label">Latest Snapshot</div>
-            <div class="wr-summary-value" id="wrBenchmarkSnapshot">-</div>
-          </div>
-        </div>
-        <div class="wr-callout">테스트 실행 버튼과 상세 결과 테이블은 기존 Benchmark 탭을 그대로 사용합니다.</div>
-        <div class="wr-inline-actions">
-          <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="benchmark">상세 검색 품질 열기</button>
-        </div>
-      </section>
-      -->
+      <!-- duplicate docs search-quality block removed (2026-06-15) -->
     </main>
   </div>
 </div><!-- /tab-pipeline -->
@@ -5026,6 +4999,11 @@ POST /api/admin/faiss/activate</code>
         <div class="card-title">Keyword</div>
         <button class="btn btn-outline" style="width:100%" onclick="switchTagKeyword('keyword')">Keyword 관리</button>
       </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">통합 생성</div>
+        <button class="btn btn-primary" style="width:100%" onclick="runTagKeywordGenerateFromCurrentContext()">🚀 Tag/Keyword 통합 생성</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">현재 Source 기준으로 document_metadata에서 태그와 키워드를 자동 생성합니다.</div>
+      </div>
     </aside>
 
     <!-- 우측: Tag 테이블 -->
@@ -5125,6 +5103,9 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
       </div>
+
+      <!-- Tag/Keyword 통합 생성 결과 표시 영역 -->
+      <div id="tagKeywordResult" style="margin-top:16px"></div>
     </main>
   </div>
 </div><!-- /tab-tagkeyword -->
@@ -7455,6 +7436,39 @@ POST /api/admin/faiss/activate</code>
     } catch (e) { showToast(e.message, 'error'); }
   }
 
+  // ── Dashboard Client Info ──────────────────────────────────────────────────
+  async function loadDashboardClientInfo() {
+    const container = document.getElementById('wrDashboardClientList');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#718096">클라이언트 정보를 불러오는 중...</div>';
+    try {
+      const clients = await platformFetch('/admin/clients');
+      if (!clients || clients.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:#718096">등록된 클라이언트가 없습니다.</div>';
+        return;
+      }
+      container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:1px solid var(--wr-border);color:var(--wr-muted)">
+          <th style="text-align:left;padding:8px">Client ID</th>
+          <th style="text-align:left;padding:8px">고객사명</th>
+          <th style="text-align:left;padding:8px">데이터 저장 경로</th>
+          <th style="text-align:left;padding:8px">기본 LLM 모델</th>
+          <th style="text-align:left;padding:8px">기본 임베딩 모델</th>
+        </tr></thead>
+        <tbody>${clients.map(c => `
+          <tr style="border-bottom:1px solid var(--wr-border)">
+            <td style="padding:8px;font-family:monospace;color:var(--wr-accent)">${esc(c.client_id || '-')}</td>
+            <td style="padding:8px">${esc(c.client_name || '-')}</td>
+            <td style="padding:8px;font-family:monospace;font-size:11px;color:var(--wr-muted)">${esc(c.service_data_path || '-')}</td>
+            <td style="padding:8px;font-family:monospace;font-size:11px">${esc(c.default_llm_model || '-')}</td>
+            <td style="padding:8px;font-family:monospace;font-size:11px">${esc(c.default_embedding_model || '-')}</td>
+          </tr>`).join('')}
+        </tbody></table>`;
+    } catch (e) {
+      container.innerHTML = `<div style="text-align:center;padding:20px;color:#e53e3e">오류: ${esc(e.message)}</div>`;
+    }
+  }
+
   // ── Document Source Manager ──────────────────────────────────────────────
 
   let _sources = [];
@@ -8865,6 +8879,8 @@ POST /api/admin/faiss/activate</code>
     // 로그인 성공 시 항상 Dashboard 상태 정보를 로드
     // (신규 문서 알림, 시스템 상태 패널에 실제 데이터 표시)
     loadOverviewStepStatus();
+    // 대시보드 클라이언트 정보 로드
+    loadDashboardClientInfo();
     // freshLogin 플래그는 더 이상 사용하지 않음 (항상 로드)
     sessionStorage.removeItem('freshLogin');
     initSidebar();
@@ -9927,6 +9943,13 @@ LIMIT 10`;
     const pagePanel = document.querySelector(`[data-wr-page-panel="${pagePanelId}"]`);
     if (pagePanel) {
       showWrPage(pagePanelId);
+      // Dataset Builder Step 메뉴 active 상태 동기화
+      document.querySelectorAll('.wr-nav-link').forEach(el => {
+        el.classList.remove('wr-is-active');
+      });
+      // 해당 Step 버튼 찾아서 활성화 (onclick 내용으로 매칭)
+      const stepBtn = document.querySelector(`.wr-nav-link[onclick*="openDatasetBuilderStep(${figmaStep})"]`);
+      if (stepBtn) stepBtn.classList.add('wr-is-active');
       showToast(`Dataset Builder Step ${figmaStep}로 이동했습니다.`, 'info', 2000);
     } else {
       // 폴백: 기존 방식
@@ -10315,6 +10338,8 @@ LIMIT 10`;
     if (pageName === 'graph-overview') loadGraphOverviewStats();
     if (pageName === 'schema-viewer') loadGraphSchema();
     if (pageName === 'agent-logs') loadAgentLogs();
+    // Settings 페이지 서버 데이터 로드 (2026-06-15)
+    if (pageName === 'settings') loadWrSettingsFromServer();
 
     return result;
   };
@@ -10404,8 +10429,14 @@ LIMIT 10`;
     if (!sel) return;
 
     try {
-      const data = await api('/admin/faiss/staged-summary');
-      const snapshots = data.snapshots || [];
+      // Active 스냅샷 정보와 스냅샷 목록을 병렬로 가져옴
+      const [statusData, summaryData] = await Promise.all([
+        api('/admin/faiss/status').catch(() => null),
+        api('/admin/faiss/staged-summary')
+      ]);
+
+      const activeSnapshot = statusData?.active?.snapshot || _currentActiveSnapshot || '';
+      const snapshots = summaryData.snapshots || [];
 
       // 옵션 초기화
       sel.innerHTML = '<option value="">새 스냅샷</option>';
@@ -10416,8 +10447,17 @@ LIMIT 10`;
         opt.value = s.snapshot;
         const status = s.faiss_indexed ? '✓ FAISS' : (s.chunks_exist ? '◐ Chunk' : '○');
         opt.textContent = `${s.snapshot} (${status})`;
+        // Active 스냅샷이면 선택
+        if (s.snapshot === activeSnapshot) {
+          opt.selected = true;
+        }
         sel.appendChild(opt);
       });
+
+      // Active 스냅샷이 선택되었으면 onSnapshotChange 호출
+      if (activeSnapshot && sel.value === activeSnapshot) {
+        onSnapshotChange();
+      }
     } catch (e) {
       console.warn('[snapshot] loadSnapshotList error:', e);
     }
@@ -11170,6 +11210,46 @@ LIMIT 10`;
     }
   }
 
+  // ── Settings 페이지 서버 기반 로드 (2026-06-15) ────────────────────
+  async function loadWrSettingsFromServer() {
+    // FAISS status API에서 LLM/Embedding 모델 정보 조회
+    try {
+      const r = await fetch(apiUrl('/api/admin/faiss/status'), {
+        headers: authHeaders()
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const cfg = d.server_config || {};
+        const llmEl = document.getElementById('wrSettingsLlmModel');
+        const embedEl = document.getElementById('wrSettingsEmbedModel');
+        if (llmEl) llmEl.value = cfg.answer_model || '(미설정)';
+        if (embedEl) embedEl.value = cfg.embedding_model || '(미설정)';
+      }
+    } catch (e) {
+      console.warn('[loadWrSettingsFromServer] FAISS status 조회 실패:', e.message);
+    }
+
+    // system-check API에서 HWP/OCR/Ollama/FAISS 상태 조회
+    try {
+      const r = await fetch(apiUrl('/api/admin/system-check'), {
+        headers: authHeaders()
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const hwpEl = document.getElementById('wrSettingsHwpStatus');
+        const ocrEl = document.getElementById('wrSettingsOcrStatus');
+        const ollamaEl = document.getElementById('wrSettingsOllamaStatus');
+        const faissEl = document.getElementById('wrSettingsFaissStatus');
+        if (hwpEl) hwpEl.value = d.hwp_extractor?.ok ? '✅ 정상' : '❌ ' + (d.hwp_extractor?.detail || '오류');
+        if (ocrEl) ocrEl.value = d.ocr_tesseract?.ok ? '✅ 정상' : '❌ ' + (d.ocr_tesseract?.detail || '오류');
+        if (ollamaEl) ollamaEl.value = d.ollama?.ok ? '✅ ' + (d.ollama?.detail || '정상') : '❌ ' + (d.ollama?.detail || '오류');
+        if (faissEl) faissEl.value = d.faiss_index?.ok ? '✅ ' + (d.faiss_index?.detail || '정상') : '❌ ' + (d.faiss_index?.detail || '오류');
+      }
+    } catch (e) {
+      console.warn('[loadWrSettingsFromServer] system-check 조회 실패:', e.message);
+    }
+  }
+
   // ── Dashboard Figma 개선 함수들 ────────────────────────────────────
   let _dashboardRefreshInterval = null;
 
@@ -11459,33 +11539,22 @@ LIMIT 10`;
         await runOcrParser();
         break;
       case 5: // Chunk Build
-        if (typeof wizardRun === 'function') {
-          wizardRun(6); // Legacy Step 6: Chunk & Embedding
-        }
+        await runStep5ChunkBuild();
         break;
       case 6: // Embedding Build
-        showToast('Embedding은 Chunk Build(Step 5)에 포함되어 있습니다.', 'info');
+        await runStep6EmbedBuild();
         break;
-      case 7: // FAISS Build - 상태 확인만, Activate 금지
-        // 2026-06-12: wizardRun(10) 호출 금지 - FAISS Activate는 Step 10에서 수동 실행
-        if (typeof loadStatus === 'function') loadStatus();
-        if (typeof loadIndexes === 'function') loadIndexes();
-        if (typeof loadJobs === 'function') loadJobs();
-        showToast('FAISS 생성 상태를 확인했습니다. 활성화는 Step 10에서 검색 품질 확인 후 진행하세요.', 'info', 5000);
+      case 7: // FAISS Build
+        await runStep7FaissBuild();
         break;
       case 8: // Graph Build
-        if (typeof wizardRun === 'function') {
-          wizardRun(7); // Legacy Step 7
-        }
+        await runStep8GraphBuild();
         break;
       case 9: // Wiki Build
-        if (typeof wizardRun === 'function') {
-          wizardRun(8); // Legacy Step 8
-        }
+        await runStep9WikiBuild();
         break;
       case 10: // Search Quality / Activate
-        switchTab('benchmark');
-        showToast('검색 품질을 확인한 후 필요한 Snapshot을 활성화하세요.', 'info', 5000);
+        await runStep10SearchQuality();
         break;
       default:
         showToast(`Step ${stepNum} 실행 함수를 찾을 수 없습니다.`, 'error');
@@ -11593,6 +11662,142 @@ LIMIT 10`;
     }
   }
 
+  // Step 5: Chunk Build 실행
+  async function runStep5ChunkBuild() {
+    showToast('Chunk Build 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step5/chunk'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      if (d.success) {
+        showToast(`Chunk Build 완료! 처리: ${d.processed || 0}개`, 'success', 5000);
+      } else {
+        showToast('Chunk Build 실패: ' + (d.message || d.error), 'error');
+      }
+      if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
+    } catch (e) {
+      showToast('Chunk Build 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Step 6: Embedding Build 실행
+  async function runStep6EmbedBuild() {
+    showToast('Embedding Build 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step6/embed'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      if (d.success) {
+        showToast(`Embedding Build 완료! 처리: ${d.processed || 0}개`, 'success', 5000);
+      } else {
+        showToast('Embedding Build 실패: ' + (d.message || d.error), 'error');
+      }
+      if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
+    } catch (e) {
+      showToast('Embedding Build 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Step 7: FAISS Build 실행
+  async function runStep7FaissBuild() {
+    showToast('FAISS Build 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step7/build'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      if (d.success) {
+        showToast(`FAISS Build 완료! ${d.message || ''}`, 'success', 5000);
+      } else {
+        showToast('FAISS Build 실패: ' + (d.message || d.error), 'error');
+      }
+      if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
+      if (typeof loadStatus === 'function') loadStatus();
+      if (typeof loadIndexes === 'function') loadIndexes();
+    } catch (e) {
+      showToast('FAISS Build 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Step 8: Graph Build 실행
+  async function runStep8GraphBuild() {
+    showToast('Graph Build 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step8/build'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      if (d.success) {
+        showToast(`Graph Build 완료! 노드: ${d.nodes || 0}개, 엣지: ${d.edges || 0}개`, 'success', 5000);
+      } else {
+        showToast('Graph Build 실패: ' + (d.message || d.error), 'error');
+      }
+      if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
+    } catch (e) {
+      showToast('Graph Build 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Step 9: Wiki Build 실행
+  async function runStep9WikiBuild() {
+    showToast('Wiki Build 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step9/build'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      if (d.success) {
+        showToast(`Wiki Build 완료! ${d.message || ''}`, 'success', 5000);
+      } else {
+        showToast('Wiki Build 실패: ' + (d.message || d.error), 'error');
+      }
+      if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
+    } catch (e) {
+      showToast('Wiki Build 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Step 10: Search Quality / Activate 실행
+  async function runStep10SearchQuality() {
+    showToast('Search Quality 테스트 실행 중...', 'info');
+    try {
+      const r = await fetch(apiUrl('/api/admin/dataset-builder/step10/test'), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      if (d.success) {
+        showToast(`Search Quality 테스트 완료! ${d.message || ''}`, 'success', 5000);
+        // 벤치마크 탭으로 이동하여 결과 확인
+        if (typeof switchTab === 'function') switchTab('benchmark');
+      } else {
+        showToast('Search Quality 테스트 실패: ' + (d.message || d.error), 'error');
+      }
+      if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
+    } catch (e) {
+      showToast('Search Quality 테스트 실패: ' + e.message, 'error');
+    }
+  }
+
   window.syncWizardStepperState = function() {
     // Docs-style stepper (6단계)의 상태를 Legacy Wizard와 동기화
     for (let i = 1; i <= 6; i++) {
@@ -11676,7 +11881,7 @@ LIMIT 10`;
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">로딩 중...</td></tr>';
 
     try {
-      const res = await fetch(apiUrl('/api/query_log'), {
+      const res = await fetch(apiUrl('/api/admin/query-logs'), {
         headers: { Authorization: 'Bearer ' + getToken() }
       });
       if (!res.ok) throw new Error('API 오류');
@@ -11738,7 +11943,7 @@ LIMIT 10`;
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">검색 중...</td></tr>';
 
     try {
-      const res = await fetch(apiUrl('/api/search'), {
+      const res = await fetch(apiUrl('/api/rag/search'), {
         method: 'POST',
         headers: {
           Authorization: 'Bearer ' + getToken(),
@@ -12173,35 +12378,164 @@ LIMIT 10`;
   }
 
   async function _wizardRunTagKeywordBootstrap(step) {
-    const requests = [
-      { label: 'Tag bootstrap', api: '/api/admin/rag-source/tags/bootstrap' },
-      { label: 'Keyword extract', api: '/api/admin/rag-source/keywords/extract', body: {} },
-    ];
+    // 새 통합 API 사용 (QA2 기반, 2026-06-15)
+    const sourceId = document.getElementById('ctxSource')?.value?.trim()
+      || window.currentContext?.source_id
+      || 'rag_source';
+
+    const snapshotId = document.getElementById('ctxSnapshot')?.value?.trim()
+      || window.currentContext?.snapshot_id
+      || getSelectedSnapshot?.()
+      || '';
+
+    const body = {
+      source_id: sourceId,
+      snapshot_id: snapshotId || null,
+      overwrite: false,
+    };
+
     _wizardSetStatus(step, '실행 중...', 'running');
-    const results = [];
-    for (const req of requests) {
-      _wizardAppendLog(step, `POST ${req.api} ...`);
-      const response = await fetch(apiUrl(req.api), {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-        body: req.body ? JSON.stringify(req.body) : undefined,
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(`[${req.label}] ` + formatWizardErrorDetail(data.detail || data.message || data, `HTTP ${response.status}`));
-      }
-      results.push({ label: req.label, data });
-      _wizardAppendLog(step, `[${req.label}] ` + JSON.stringify(data, null, 2).slice(0, 400));
+    _wizardAppendLog(step, `POST /api/admin/rag-source/tag-keyword/generate ...`);
+    _wizardAppendLog(step, `source_id: ${sourceId}, snapshot_id: ${snapshotId || '(없음)'}`);
+
+    const response = await fetch(apiUrl('/api/admin/rag-source/tag-keyword/generate'), {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data.success) {
+      throw new Error(formatWizardErrorDetail(data.detail || data.message || data.error_detail || data, `HTTP ${response.status}`));
     }
-    loadTags();
-    loadKeywords();
+
+    _wizardAppendLog(step, `문서 ${data.document_count || 0}건 처리`);
+    _wizardAppendLog(step, `Tag ${data.tag_count || 0}개, Keyword ${data.keyword_count || 0}개 생성`);
+    _wizardAppendLog(step, `문서-Tag 매핑 ${data.document_tag_mapping_count || 0}건`);
+    _wizardAppendLog(step, `문서-Keyword 매핑 ${data.document_keyword_mapping_count || 0}건`);
+
+    if (typeof loadTags === 'function') loadTags();
+    if (typeof loadKeywords === 'function') loadKeywords();
+
     _wizardMarkDone(step);
-    const summary = results.map(result => {
-      if (result.label === 'Tag bootstrap') return `Tag 생성 ${Number(result.data?.created || 0)}건`;
-      return `Keyword 생성 ${Number(result.data?.created || 0)}건`;
-    }).join(', ');
-    _wizardSetRunSummary(_wizardBuildSummary(step, summary || 'Tag와 Keyword 생성이 완료되었습니다.'), 'ok');
+    const summary = `문서 ${data.document_count || 0}건, Tag ${data.tag_count || 0}개, Keyword ${data.keyword_count || 0}개`;
+    _wizardSetRunSummary(_wizardBuildSummary(step, summary), 'ok');
     return true;
+  }
+
+  // Tag/Keyword 통합 생성 (현재 컨텍스트 기준) - QA2 문서 기반
+  async function runTagKeywordGenerateFromCurrentContext() {
+    const sourceId = document.getElementById('ctxSource')?.value?.trim()
+      || window.currentContext?.source_id
+      || 'rag_source';
+
+    const snapshotId = document.getElementById('ctxSnapshot')?.value?.trim()
+      || window.currentContext?.snapshot_id
+      || getSelectedSnapshot?.()
+      || '';
+
+    if (!sourceId) {
+      showToast('Document Source가 선택되지 않았습니다.', 'error');
+      return;
+    }
+
+    const body = {
+      source_id: sourceId,
+      snapshot_id: snapshotId || null,
+      overwrite: false,
+    };
+
+    showToast('현재 Dataset 기준 Tag/Keyword 생성 중...', 'info');
+
+    try {
+      const result = await platformFetch('/admin/rag-source/tag-keyword/generate', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+
+      if (result.success) {
+        showToast(
+          `Tag/Keyword 생성 완료: 문서 ${result.document_count || 0}건, Tag ${result.tag_count || 0}개, Keyword ${result.keyword_count || 0}개`,
+          'success',
+          5000
+        );
+        renderTagKeywordGenerateResult(result);
+      } else {
+        showToast('Tag/Keyword 생성 실패: ' + (result.message || '알 수 없는 오류'), 'error');
+      }
+
+      if (typeof loadTags === 'function') loadTags();
+      if (typeof loadKeywords === 'function') loadKeywords();
+
+    } catch (e) {
+      showToast('Tag/Keyword 생성 실패: ' + e.message, 'error');
+    }
+  }
+
+  // Tag/Keyword 생성 결과 표시 (QA2 문서 기반)
+  function renderTagKeywordGenerateResult(result) {
+    const box = document.getElementById('tagKeywordResult');
+    if (!box) return;
+
+    const tagSummary = result.tag_summary || {};
+    const tagSummaryHtml = Object.entries(tagSummary)
+      .map(([type, count]) => `<span class="chip">${type}: ${count}</span>`)
+      .join(' ');
+
+    const keywordTop10 = (result.keyword_top10 || []).slice(0, 10);
+    const keywordHtml = keywordTop10.map(k => `<span class="chip">${k}</span>`).join(' ');
+
+    box.innerHTML = `
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Tag/Keyword 생성 결과</div>
+
+        <div class="stat-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>Source ID</span>
+          <span style="font-weight:600">${result.source_id || '-'}</span>
+        </div>
+
+        <div class="stat-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>Snapshot ID</span>
+          <span style="font-weight:600">${result.snapshot_id || '-'}</span>
+        </div>
+
+        <div class="stat-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>처리 문서 수</span>
+          <span style="font-weight:600;color:var(--amber)">${result.document_count || 0}</span>
+        </div>
+
+        <div class="stat-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>생성 Tag 수</span>
+          <span style="font-weight:600;color:var(--green)">${result.tag_count || 0}</span>
+        </div>
+
+        <div class="stat-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>생성 Keyword 수</span>
+          <span style="font-weight:600;color:var(--green)">${result.keyword_count || 0}</span>
+        </div>
+
+        <div class="stat-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>문서-Tag 매핑</span>
+          <span style="font-weight:600">${result.document_tag_mapping_count || 0}</span>
+        </div>
+
+        <div class="stat-row" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>문서-Keyword 매핑</span>
+          <span style="font-weight:600">${result.document_keyword_mapping_count || 0}</span>
+        </div>
+
+        ${tagSummaryHtml ? `<div style="margin-top:12px"><strong>태그 유형별</strong><div class="chips" style="margin-top:6px">${tagSummaryHtml}</div></div>` : ''}
+        ${keywordHtml ? `<div style="margin-top:12px"><strong>상위 키워드</strong><div class="chips" style="margin-top:6px">${keywordHtml}</div></div>` : ''}
+
+        <div style="margin-top:12px;font-size:11px;color:var(--muted)">
+          저장 위치: <code>${result.output_path || '-'}</code>
+        </div>
+
+        <div style="margin-top:12px;font-size:12px;color:var(--amber)">
+          다음 작업: ${result.next_action || 'Metadata Review를 진행하세요.'}
+        </div>
+      </div>
+    `;
   }
 
   function _wizardSseStream(step, jobId) {
