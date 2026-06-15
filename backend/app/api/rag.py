@@ -49,7 +49,8 @@ def _active_snapshot() -> str:
     if ACTIVE_INDEX_PATH.exists():
         try:
             data = json.loads(ACTIVE_INDEX_PATH.read_text(encoding="utf-8"))
-            snap = data.get("snapshot", "")
+            # active_snapshot 키 우선, 하위 호환성을 위해 snapshot도 지원
+            snap = data.get("active_snapshot") or data.get("snapshot", "")
             if snap:
                 return snap
         except Exception:

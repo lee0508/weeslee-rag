@@ -1,7 +1,7 @@
 # Snapshot 관리 API - Dataset과 Snapshot 통합 버전 관리
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 import json
 
 from fastapi import APIRouter, HTTPException
@@ -22,13 +22,15 @@ from app.models.snapshot_manifest import (
 
 router = APIRouter(prefix="/snapshot", tags=["Snapshot Admin"])
 
-# 데이터 경로
+# 데이터 경로 - RAG 검색과 동일한 경로 사용
 DATA_DIR = Path("/data/weeslee/weeslee-rag/data")
 SNAPSHOT_DIR = DATA_DIR / "snapshots"
-ACTIVE_SNAPSHOT_FILE = DATA_DIR / "active_snapshot.json"
 
-# 하위 호환성: 기존 FAISS active_index.json
-FAISS_ACTIVE_INDEX_FILE = DATA_DIR / "indexes" / "faiss" / "active_index.json"
+# 메인 active_index.json - RAG 검색이 사용하는 파일 (data/active_index.json)
+ACTIVE_INDEX_FILE = DATA_DIR / "active_index.json"
+
+# 새 Snapshot Manifest 설정 파일
+ACTIVE_SNAPSHOT_FILE = DATA_DIR / "active_snapshot.json"
 
 
 def _ensure_dirs():
@@ -55,50 +57,53 @@ def _save_snapshot(snapshot: SnapshotManifest):
 
 
 def _load_active_config() -> Optional[ActiveSnapshotConfig]:
-    """활성 Snapshot 설정 로드"""
-    if not ACTIVE_SNAPSHOT_FILE.exists():
-        # 하위 호환성: 기존 active_index.json에서 읽기
-        if FAISS_ACTIVE_INDEX_FILE.exists():
-            with open(FAISS_ACTIVE_INDEX_FILE, "r", encoding="utf-8") as f:
-                old_data = json.load(f)
-            return ActiveSnapshotConfig(
-                active_snapshot_id=old_data.get("active_snapshot", ""),
-                faiss_index_id=old_data.get("active_snapshot"),
-                index_file=old_data.get("index_file"),
-                metadata_file=old_data.get("metadata_file"),
-                embedding_provider=old_data.get("embedding_provider", "ollama"),
-                vector_count=old_data.get("vector_count", 0),
-                document_count=old_data.get("document_count", 0),
-                activated_at=datetime.fromisoformat(old_data["activated_at"]) if old_data.get("activated_at") else None,
-            )
-        return None
+    """활성 Snapshot 설정 로드 - data/active_index.json에서 읽기"""
+    # 1. 새 active_snapshot.json 파일이 있으면 우선 사용
+    if ACTIVE_SNAPSHOT_FILE.exists():
+        with open(ACTIVE_SNAPSHOT_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return ActiveSnapshotConfig(**data)
 
-    with open(ACTIVE_SNAPSHOT_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return ActiveSnapshotConfig(**data)
+    # 2. 기존 active_index.json에서 읽기 (RAG 검색이 사용하는 파일)
+    if ACTIVE_INDEX_FILE.exists():
+        with open(ACTIVE_INDEX_FILE, "r", encoding="utf-8") as f:
+            old_data = json.load(f)
+        return ActiveSnapshotConfig(
+            active_snapshot_id=old_data.get("active_snapshot", ""),
+            faiss_index_id=old_data.get("active_snapshot"),
+            index_file=old_data.get("index_file"),
+            metadata_file=old_data.get("metadata_file"),
+            embedding_provider=old_data.get("embedding_provider", "ollama"),
+            vector_count=old_data.get("vector_count", 0),
+            document_count=old_data.get("document_count", 0),
+            activated_at=datetime.fromisoformat(old_data["activated_at"]) if old_data.get("activated_at") else None,
+        )
+
+    return None
 
 
 def _save_active_config(config: ActiveSnapshotConfig):
-    """활성 Snapshot 설정 저장"""
+    """활성 Snapshot 설정 저장 - 두 파일 모두 업데이트"""
     _ensure_dirs()
+
+    # 1. 새 active_snapshot.json 저장 (확장 정보)
     with open(ACTIVE_SNAPSHOT_FILE, "w", encoding="utf-8") as f:
         json.dump(config.dict(), f, ensure_ascii=False, indent=2, default=str)
 
-    # 하위 호환성: active_index.json도 업데이트
-    if config.index_file:
-        old_format = {
-            "active_snapshot": config.faiss_index_id or config.active_snapshot_id,
-            "index_file": config.index_file,
-            "metadata_file": config.metadata_file,
-            "embedding_provider": config.embedding_provider,
-            "vector_count": config.vector_count,
-            "document_count": config.document_count,
-            "source_count": 1,
-            "activated_at": config.activated_at.isoformat() if config.activated_at else None,
-        }
-        FAISS_ACTIVE_INDEX_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(FAISS_ACTIVE_INDEX_FILE, "w", encoding="utf-8") as f:
-            json.dump(old_format, f, ensure_ascii=False, indent=2)
+    # 2. 기존 active_index.json 업데이트 (RAG 검색 호환성 - 필수)
+    # RAG 검색이 이 파일을 읽으므로 반드시 업데이트해야 함
+    old_format = {
+        "active_snapshot": config.faiss_index_id or config.active_snapshot_id,
+        "index_file": config.index_file,
+        "metadata_file": config.metadata_file,
+        "embedding_provider": config.embedding_provider,
+        "vector_count": config.vector_count,
+        "document_count": config.document_count,
+        "source_count": 1,
+        "activated_at": config.activated_at.isoformat() if config.activated_at else None,
+    }
+    with open(ACTIVE_INDEX_FILE, "w", encoding="utf-8") as f:
+        json.dump(old_format, f, ensure_ascii=False, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

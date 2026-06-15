@@ -10715,6 +10715,29 @@ LIMIT 10`;
     }
   }
 
+  // ── Snapshot Rollback ──────────────────────────────────────────────
+  async function rollbackSnapshot() {
+    if (!confirm('이전 Snapshot으로 롤백하시겠습니까?\n\n현재 활성 Snapshot이 이전 버전으로 복원됩니다.')) {
+      return;
+    }
+
+    try {
+      const data = await platformFetch('/admin/snapshot/rollback', {
+        method: 'POST',
+      });
+
+      if (data.success) {
+        showToast(`Snapshot "${data.active_snapshot}" 으로 롤백 완료`, 'success');
+        loadActiveSnapshotInfo();
+        loadSnapshotList();
+      } else {
+        showToast('롤백 실패: ' + (data.message || data.detail || '롤백 가능한 이전 Snapshot이 없습니다'), 'error');
+      }
+    } catch (e) {
+      showToast('롤백 실패: ' + e.message, 'error');
+    }
+  }
+
   // ── Snapshot 생성 ────────────────────────────────────────────────
   async function createNewSnapshot() {
     const sourceId = document.getElementById('ctxSource')?.value || 'rag_source';
