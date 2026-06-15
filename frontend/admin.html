@@ -1113,13 +1113,13 @@
     <form onsubmit="submitLogin(event)">
       <div class="login-field">
         <label>아이디</label>
-        <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
+        <input type="text" id="loginBtn" placeholder="admin" autocomplete="username" value="admin">
       </div>
       <div class="login-field">
         <label>비밀번호</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+        <input type="password" id="loginPwdBtn" placeholder="••••••••" autocomplete="current-password" value="admin123">
       </div>
-      <button type="submit" class="login-btn" id="loginBtn">로그인</button>
+      <button type="submit" class="login-btn" id="loginSubmitBtn">로그인</button>
       <div class="login-error" id="loginError"></div>
     </form>
   </div>
@@ -5599,10 +5599,10 @@ POST /api/admin/faiss/activate</code>
 
   function showLoginModal() {
     document.getElementById('loginOverlay').classList.remove('hidden');
-    document.getElementById('loginUsername').value = '';
-    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginBtn').value = 'admin';
+    document.getElementById('loginPwdBtn').value = 'admin123';
     document.getElementById('loginError').classList.remove('show');
-    setTimeout(() => document.getElementById('loginUsername').focus(), 100);
+    setTimeout(() => document.getElementById('loginBtn').focus(), 100);
   }
 
   function hideLoginModal() {
@@ -5611,10 +5611,10 @@ POST /api/admin/faiss/activate</code>
 
   async function submitLogin(event) {
     event?.preventDefault();
-    const btn = document.getElementById('loginBtn');
+    const btn = document.getElementById('loginSubmitBtn');
     const errEl = document.getElementById('loginError');
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value;
+    const username = document.getElementById('loginBtn').value.trim();
+    const password = document.getElementById('loginPwdBtn').value;
 
     if (!username || !password) {
       errEl.textContent = '아이디와 비밀번호를 입력하세요.';
