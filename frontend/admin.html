@@ -3707,6 +3707,39 @@ POST /api/admin/faiss/activate</code>
     </div>
   </div>
 
+  <!-- 플랫폼 설정 정보 (Client Info) -->
+  <div class="platform-info-banner" style="background:linear-gradient(135deg,var(--navy-light),var(--navy-dark));border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:20px">🏢</span>
+      <div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Client ID</div>
+        <div id="dashClientId" style="font-size:14px;font-weight:600;color:var(--text)">-</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:20px">📋</span>
+      <div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">고객사명</div>
+        <div id="dashClientName" style="font-size:14px;font-weight:600;color:var(--text)">-</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:20px">🤖</span>
+      <div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">기본 LLM 모델</div>
+        <div id="dashLlmModel" style="font-size:14px;font-weight:600;color:var(--amber)">-</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:20px">📊</span>
+      <div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">기본 임베딩 모델</div>
+        <div id="dashEmbedModel" style="font-size:14px;font-weight:600;color:var(--green)">-</div>
+      </div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="switchTab('platform')" style="margin-left:auto">설정 변경 →</button>
+  </div>
+
   <!-- Status Cards Grid (Figma) -->
   <div class="status-cards-grid">
     <div class="status-card">
@@ -11286,12 +11319,40 @@ LIMIT 10`;
     }
   }
 
+  // 대시보드에 플랫폼 설정 정보 표시
+  async function loadDashboardPlatformInfo() {
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    try {
+      const clients = await platformFetch('/admin/clients');
+      if (clients && clients.length > 0) {
+        // 첫 번째 활성화된 클라이언트 또는 첫 번째 클라이언트
+        const client = clients.find(c => c.enabled) || clients[0];
+        setText('dashClientId', client.client_id || '-');
+        setText('dashClientName', client.client_name || '-');
+        setText('dashLlmModel', client.default_llm_model || 'gemma4:latest');
+        setText('dashEmbedModel', client.default_embedding_model || 'nomic-embed-text');
+      } else {
+        setText('dashClientId', '미설정');
+        setText('dashClientName', '미설정');
+        setText('dashLlmModel', '-');
+        setText('dashEmbedModel', '-');
+      }
+    } catch (e) {
+      console.warn('플랫폼 설정 로드 실패:', e);
+      setText('dashClientId', '로드 실패');
+      setText('dashClientName', '-');
+      setText('dashLlmModel', '-');
+      setText('dashEmbedModel', '-');
+    }
+  }
+
   // 초기화 시 대시보드 설정 및 데이터 로드
   const _origLoadDashboard = loadDashboard;
   loadDashboard = async function() {
     await _origLoadDashboard();
     await loadDashboardAlerts();
     await loadDashboardStats();
+    await loadDashboardPlatformInfo();
     loadDashboardSettings();
   };
 
