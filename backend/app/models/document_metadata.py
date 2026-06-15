@@ -4,7 +4,7 @@ Document metadata for Dataset Builder workflow.
 MySQL을 primary로 사용하고, SQLite는 비동기 캐시/백업으로 동기화.
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, Boolean, Float, JSON
+from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, Boolean, Float, JSON, UniqueConstraint
 import enum
 
 from app.core.database import Base
@@ -38,13 +38,16 @@ class DocumentMetadata(Base):
     """
 
     __tablename__ = "document_metadata"
+    __table_args__ = (
+        UniqueConstraint('source_id', 'relative_path', name='uq_document_metadata_source_path'),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     document_id = Column(Integer, nullable=False, unique=True, index=True)
 
     # Step 1: Source Scan - 파일 정보
     source_id = Column(String(100), nullable=True, index=True, comment="RAG Source ID")
-    document_uid = Column(String(64), nullable=True, index=True, comment="sha1(source_id:relative_path) 문서 고유 식별자")
+    document_uid = Column(String(64), nullable=True, unique=True, index=True, comment="sha1(source_id:relative_path) 문서 고유 식별자")
     file_path = Column(String(1000), nullable=True, comment="Full file path on source mount")
     relative_path = Column(String(1000), nullable=True, comment="Document Source 기준 상대 경로")
     file_name = Column(String(500), nullable=True, index=True, comment="Original filename")
@@ -53,6 +56,8 @@ class DocumentMetadata(Base):
     file_checksum = Column(String(64), nullable=True, comment="SHA256 파일 내용 체크섬")
     file_modified_at = Column(DateTime, nullable=True, comment="원본 파일 수정 시간")
     category_id = Column(String(100), nullable=True, comment="Category from source folder structure")
+    document_group = Column(String(50), nullable=True, index=True, comment="문서 그룹: RFP, 제안서, 산출물")
+    section_type = Column(String(100), nullable=True, comment="섹션 유형: 전략및방법론, 현황분석, 목표모델 등")
 
     # Step 2: Metadata Auto-generation
     project_name = Column(String(500), nullable=True, comment="Extracted project name")
@@ -123,6 +128,8 @@ class DocumentMetadata(Base):
             "file_checksum": self.file_checksum,
             "file_modified_at": self.file_modified_at.isoformat() if self.file_modified_at else None,
             "category_id": self.category_id,
+            "document_group": self.document_group,
+            "section_type": self.section_type,
             "project_name": self.project_name,
             "project_name_confidence": self.project_name_confidence,
             "organization": self.organization,
