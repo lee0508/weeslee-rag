@@ -1117,7 +1117,7 @@
       </div>
       <div class="login-field">
         <label>비밀번호</label>
-        <input type="password" id="loginPwdBtn" placeholder="••••••••" autocomplete="current-password" value="weeslee12#$">
+        <input type="password" id="loginPwdBtn" placeholder="••••••••" autocomplete="current-password" value="1234">
       </div>
       <button type="submit" class="login-btn" id="loginSubmitBtn">로그인</button>
       <div class="login-error" id="loginError"></div>
@@ -5600,7 +5600,7 @@ POST /api/admin/faiss/activate</code>
   function showLoginModal() {
     document.getElementById('loginOverlay').classList.remove('hidden');
     document.getElementById('loginBtn').value = 'admin';
-    document.getElementById('loginPwdBtn').value = 'weeslee12#$';
+    document.getElementById('loginPwdBtn').value = '1234';
     document.getElementById('loginError').classList.remove('show');
     setTimeout(() => document.getElementById('loginBtn').focus(), 100);
   }
