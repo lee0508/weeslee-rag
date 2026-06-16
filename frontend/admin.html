@@ -11519,10 +11519,14 @@ LIMIT 10`;
       const publishData = await publishResponse.json();
 
       // UI 업데이트 (Step 8 Dataset Summary)
-      document.getElementById('summaryGraphNodes')?.textContent = kgData.node_count || 0;
-      document.getElementById('summaryGraphEdges')?.textContent = kgData.edge_count || 0;
-      document.getElementById('summaryWikiCount')?.textContent = wikiData.total_wikis || 0;
-      document.getElementById('summaryActiveSnapshot')?.textContent = publishData.active_snapshot || '없음';
+      const graphNodesEl = document.getElementById('summaryGraphNodes');
+      if (graphNodesEl) graphNodesEl.textContent = kgData.node_count || 0;
+      const graphEdgesEl = document.getElementById('summaryGraphEdges');
+      if (graphEdgesEl) graphEdgesEl.textContent = kgData.edge_count || 0;
+      const wikiCountEl = document.getElementById('summaryWikiCount');
+      if (wikiCountEl) wikiCountEl.textContent = wikiData.total_wikis || 0;
+      const activeSnapEl = document.getElementById('summaryActiveSnapshot');
+      if (activeSnapEl) activeSnapEl.textContent = publishData.active_snapshot || '없음';
 
       showToast('Dataset Summary 새로고침 완료', 'success');
     } catch (error) {
