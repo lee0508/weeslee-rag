@@ -44,6 +44,9 @@ from app.api.admin_dataset_builder_step8 import router as admin_dataset_builder_
 from app.api.admin_dataset_builder_step9 import router as admin_dataset_builder_step9_router
 from app.api.admin_dataset_builder_step10 import router as admin_dataset_builder_step10_router
 from app.api.snapshot_admin import router as snapshot_admin_router
+from app.api.admin_knowledge_graph import router as admin_knowledge_graph_router
+from app.api.admin_llm_wiki import router as admin_llm_wiki_router
+from app.api.admin_publish import router as admin_publish_router
 try:
     from app.api.ocr_results import router as ocr_results_router
     _ocr_results_available = True
@@ -138,6 +141,9 @@ app.include_router(admin_dataset_builder_step8_router, prefix="/api", tags=["Adm
 app.include_router(admin_dataset_builder_step9_router, prefix="/api", tags=["Admin - Dataset Builder Step 9"])
 app.include_router(admin_dataset_builder_step10_router, prefix="/api", tags=["Admin - Dataset Builder Step 10"])
 app.include_router(snapshot_admin_router, prefix="/api/admin", tags=["Admin - Snapshot"])
+app.include_router(admin_knowledge_graph_router, prefix="/api", tags=["Admin - Knowledge Graph"])
+app.include_router(admin_llm_wiki_router, prefix="/api", tags=["Admin - LLM Wiki"])
+app.include_router(admin_publish_router, prefix="/api", tags=["Admin - Publish"])
 if _ocr_results_available and ocr_results_router is not None:
     app.include_router(ocr_results_router, prefix="/api", tags=["OCR Results"])
 if _collections_available and collections_router is not None:

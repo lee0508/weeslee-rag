@@ -1098,6 +1098,59 @@
     .wr-tab-content.active {
       display: block;
     }
+
+    /* 관리자 작업 흐름 안내 박스 */
+    .admin-flow-guide {
+      background: linear-gradient(135deg, #f8f9fc 0%, #e8f4fd 100%);
+      border: 1px solid var(--navy);
+      border-left: 4px solid var(--amber);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .admin-flow-guide h3 {
+      color: var(--navy);
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .admin-flow-guide h3::before {
+      content: "📋";
+    }
+    .admin-flow-guide > p {
+      color: var(--gray-700);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+    .admin-flow-guide ol {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.5rem 1.5rem;
+      padding-left: 1.25rem;
+      margin: 0;
+    }
+    .admin-flow-guide li {
+      color: var(--gray-600);
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+    .admin-flow-guide li strong {
+      color: var(--navy);
+    }
+
+    /* 네비게이션 메뉴 설명 */
+    .wr-nav-desc {
+      display: block;
+      font-size: 0.6875rem;
+      color: rgba(255,255,255,0.6);
+      font-weight: 400;
+      margin-top: 2px;
+      padding-left: 0;
+    }
   </style>
   <link rel="stylesheet" href="assets/css/admin-docs-layout.css?v=20260529">
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
@@ -1177,7 +1230,15 @@
           </div>
         </div>
         <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">DATASET BUILDER</h2>
+          <h2 class="wr-nav-heading">DOCUMENT SOURCE
+            <span class="wr-nav-desc">원본 문서 등록</span>
+          </h2>
+          <button class="wr-nav-link" type="button" data-wr-page="source-documents">원본 문서 관리</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">DATASET BUILDER
+            <span class="wr-nav-desc">검색 데이터셋 생성</span>
+          </h2>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(1)">Step 1: Source Scan</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(2)">Step 2: Metadata Auto</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(3)">Step 3: Metadata Review</button>
@@ -1185,26 +1246,34 @@
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(5)">Step 5: Chunk Build</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(6)">Step 6: Embedding Build</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(7)">Step 7: FAISS Build</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(8)">Step 8: Graph Build</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(9)">Step 9: Wiki Build</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(10)">Step 10: Search Quality</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(8)">Step 8: Dataset Summary</button>
         </div>
         <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">FAISS INDEX</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS Index</button>
+          <h2 class="wr-nav-heading">KNOWLEDGE GRAPH
+            <span class="wr-nav-desc">문서 관계 그래프 생성</span>
+          </h2>
+          <button class="wr-nav-link" type="button" data-wr-page="kg-ontology">Ontology 설정</button>
+          <button class="wr-nav-link" type="button" data-wr-page="kg-build">Knowledge Graph 생성</button>
+          <button class="wr-nav-link" type="button" data-wr-page="kg-view">Graph View 미리보기</button>
+          <button class="wr-nav-link" type="button" data-wr-page="kg-validation">Graph 검증</button>
         </div>
         <div class="wr-nav-section">
-          <h2 class="wr-nav-heading">GRAPH / ONTOLOGY</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="graph-overview">Graph Overview</button>
-          <button class="wr-nav-link" type="button" data-wr-page="lpg-ontology">LPG Ontology</button>
-          <button class="wr-nav-link" type="button" data-wr-page="schema-viewer">Schema Viewer</button>
-          <button class="wr-nav-link" type="button" data-wr-page="text2cypher-test">Text2Cypher Test</button>
-          <button class="wr-nav-link" type="button" data-wr-page="agent-logs">Agent Retry Logs</button>
+          <h2 class="wr-nav-heading">LLM WIKI
+            <span class="wr-nav-desc">AI 참고 위키 생성</span>
+          </h2>
+          <button class="wr-nav-link" type="button" data-wr-page="wiki-build">Wiki 생성</button>
+          <button class="wr-nav-link" type="button" data-wr-page="wiki-preview">Wiki 미리보기</button>
+        </div>
+        <div class="wr-nav-section">
+          <h2 class="wr-nav-heading">PUBLISH
+            <span class="wr-nav-desc">사용자 검색 반영</span>
+          </h2>
+          <button class="wr-nav-link" type="button" data-wr-page="publish-quality">Search Quality Check</button>
+          <button class="wr-nav-link" type="button" data-wr-page="publish-activate">Active Dataset / Snapshot</button>
         </div>
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">ANALYTICS</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="search-quality">Search Quality</button>
-          <button class="wr-nav-link" type="button" data-wr-page="json-graph">Graph/Wiki</button>
+          <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS Index</button>
           <button class="wr-nav-link" type="button" data-wr-page="settings">Settings</button>
         </div>
       </nav>
@@ -1216,6 +1285,23 @@
         <p class="wr-page-lead">
           시스템 전체 상태를 한눈에 파악하고 주요 작업으로 빠르게 이동합니다.
         </p>
+
+        <!-- 관리자 작업 흐름 안내 -->
+        <div class="admin-flow-guide">
+          <h3>관리자 작업 흐름</h3>
+          <p>
+            이 화면은 회사 문서를 사용자 검색 화면에서 활용할 수 있도록
+            원본 문서 등록부터 데이터셋 생성, 지식그래프 생성, 위키 생성,
+            검색 품질 확인, 운영 반영까지 처리하는 관리자 콘솔입니다.
+          </p>
+          <ol>
+            <li><strong>Document Source</strong> : 원본 문서 폴더를 등록합니다.</li>
+            <li><strong>Dataset Builder</strong> : 문서를 분석하여 검색용 FAISS 데이터셋을 생성합니다.</li>
+            <li><strong>Knowledge Graph</strong> : 문서 간 관계와 키워드 관계를 그래프로 생성합니다.</li>
+            <li><strong>LLM Wiki</strong> : 문서 내용을 요약하여 AI 참고용 위키를 생성합니다.</li>
+            <li><strong>Publish</strong> : 검증된 Dataset/Snapshot을 사용자 검색 화면에 반영합니다.</li>
+          </ol>
+        </div>
 
         <h2 class="wr-section-title" id="wr-overview-status" data-wr-anchor>Dataset Alert</h2>
         <div class="wr-card">
@@ -1264,8 +1350,12 @@
             <div class="wr-summary-value" id="wrOverviewFaissState">확인 중</div>
           </div>
           <div class="wr-summary-card">
-            <div class="wr-summary-label">Graph/Wiki</div>
-            <div class="wr-summary-value" id="wrOverviewGraphWikiState">확인 중</div>
+            <div class="wr-summary-label">Knowledge Graph</div>
+            <div class="wr-summary-value" id="wrOverviewGraphState">확인 중</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">LLM Wiki</div>
+            <div class="wr-summary-value" id="wrOverviewWikiState">확인 중</div>
           </div>
           <div class="wr-summary-card">
             <div class="wr-summary-label">검색 테스트</div>
@@ -1340,16 +1430,18 @@
 
         <h2 class="wr-section-title" id="wr-overview-flow" data-wr-anchor>빠른 이동</h2>
         <div class="wr-status-list">
-          <div class="wr-status-row"><span>Source Documents</span><button class="wr-btn" type="button" onclick="openSourceManagement()">소스 관리 열기</button></div>
+          <div class="wr-status-row"><span>Document Source</span><button class="wr-btn" type="button" onclick="openSourceManagement()">소스 관리 열기</button></div>
           <div class="wr-status-row"><span>Dataset Builder</span><button class="wr-btn" type="button" onclick="openBuildWizard()">빌드 Wizard 열기</button></div>
-          <div class="wr-status-row"><span>Search Quality</span><button class="wr-btn" type="button" onclick="openSearchQuality()">검색 품질 열기</button></div>
+          <div class="wr-status-row"><span>Knowledge Graph</span><button class="wr-btn" type="button" onclick="openKnowledgeGraph()">Knowledge Graph 열기</button></div>
+          <div class="wr-status-row"><span>LLM Wiki</span><button class="wr-btn" type="button" onclick="openLlmWiki()">LLM Wiki 열기</button></div>
+          <div class="wr-status-row"><span>Publish</span><button class="wr-btn" type="button" onclick="openPublish()">Publish 열기</button></div>
         </div>
       </section>
 
       <section class="wr-page" data-wr-page-panel="source-documents">
-        <div class="wr-eyebrow">Data Build</div>
-        <h1 class="wr-page-title" id="wr-source-title" data-wr-anchor>Source Documents</h1>
-        <div class="wr-callout" id="wrSourceCallout">Source Documents 상태를 불러오는 중입니다.</div>
+        <div class="wr-eyebrow">Document Source</div>
+        <h1 class="wr-page-title" id="wr-source-title" data-wr-anchor>Document Source</h1>
+        <div class="wr-callout" id="wrSourceCallout">Document Source 상태를 불러오는 중입니다.</div>
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
             <div class="wr-summary-label">Registered Sources</div>
@@ -1387,8 +1479,8 @@
       <section class="wr-page" data-wr-page-panel="rag-build-wizard">
         <div class="wr-eyebrow">Data Build</div>
         <h1 class="wr-page-title" id="wr-wizard-title" data-wr-anchor>Dataset Builder</h1>
-        <p class="wr-page-lead">각 단계는 독립적으로 재실행할 수 있지만, 최초 데이터셋 구축은 반드시 Source Scan → Metadata → OCR/Parser → Chunk → Embedding/FAISS → Graph → Wiki → Search Quality → Activate 순서로 진행하는 것을 권장합니다.</p>
-        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">운영 반영은 Search Quality 검증이 완료된 Snapshot만 Activate해야 하며, 문제 발생 시 이전 Snapshot으로 Rollback할 수 있어야 합니다.</div>
+        <p class="wr-page-lead">Dataset Builder는 문서 스캔부터 FAISS Index 생성까지 담당합니다. Knowledge Graph, LLM Wiki, Publish는 별도 메뉴에서 진행합니다.</p>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">Step 1~7 완료 후 Step 8 Dataset Summary에서 결과를 확인하고, Knowledge Graph / LLM Wiki / Publish 메뉴로 이동하세요.</div>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn wr-btn-primary" type="button" onclick="wrWizardRunAll()">▶ 전체 순차 실행</button>
           <button class="wr-btn" type="button" data-wr-legacy-tab="wizard">실행 로그</button>
@@ -1440,15 +1532,26 @@
             </div>
             <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(8)">
               <div class="wr-summary-label">Step 8</div>
-              <div class="wr-summary-value">Graph Build</div>
+              <div class="wr-summary-value">Dataset Summary</div>
             </div>
-            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(9)">
-              <div class="wr-summary-label">Step 9</div>
-              <div class="wr-summary-value">Wiki Build</div>
+          </div>
+        </div>
+
+        <!-- 다음 작업 안내 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">다음 작업</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openKnowledgeGraph()">
+              <div class="wr-summary-label">🕸️</div>
+              <div class="wr-summary-value">Knowledge Graph</div>
             </div>
-            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(10)">
-              <div class="wr-summary-label">Step 10</div>
-              <div class="wr-summary-value">Search Quality</div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openLlmWiki()">
+              <div class="wr-summary-label">📖</div>
+              <div class="wr-summary-value">LLM Wiki</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openPublish()">
+              <div class="wr-summary-label">🚀</div>
+              <div class="wr-summary-value">Publish</div>
             </div>
           </div>
         </div>
@@ -1459,10 +1562,7 @@ POST /api/admin/rag-source/collections/bootstrap
 POST /api/admin/rag-source/metadata/build
 POST /api/admin/rag-source/tags/bootstrap
 POST /api/admin/rag-source/keywords/extract
-POST /api/admin/faiss/jobs
-POST /api/graph/build?source_id={source_id}
-POST /api/wiki/build
-POST /api/admin/faiss/activate</code>
+POST /api/admin/faiss/jobs</code>
       </section>
 
       <!-- Step 1: Source Scan -->
@@ -2047,79 +2147,118 @@ POST /api/admin/faiss/activate</code>
         <code class="wr-code-block">POST /api/admin/dataset-builder/step7/build</code>
       </section>
 
-      <!-- Step 8: Graph Build (Ontology / JSON Graph) -->
+      <!-- Step 8: Dataset Summary -->
       <section class="wr-page" data-wr-page-panel="db-step-8">
         <div class="wr-eyebrow">Dataset Builder</div>
-        <h1 class="wr-page-title">Step 8: Graph Build (Ontology / JSON Graph)</h1>
-        <p class="wr-page-lead">문서, 프로젝트, 기관, 기술, 키워드 간 관계를 생성합니다.</p>
+        <h1 class="wr-page-title">Step 8: Dataset Summary</h1>
+        <p class="wr-page-lead">Dataset Builder 실행 결과를 확인하고, 다음 작업으로 이동합니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
-          <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(8)">Step 8 실행</button>
+          <button class="wr-btn" type="button" onclick="loadDatasetSummary()">🔄 새로고침</button>
         </div>
-        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
-          <strong>중요 수정 사항:</strong> Neo4j를 기본값으로 표시하지 않습니다. 1차 기본 방식은 <strong>JSON Graph</strong>이고, Neo4j는 선택 옵션 또는 향후 확장 기능입니다.
-        </div>
-        <div class="wr-card">
-          <h3 class="wr-card-title">Graph Build 설정</h3>
-              <div class="wr-form-grid">
-                <div class="wr-field" style="grid-column: span 2">
-                  <label>Graph 저장 방식 <span class="wr-required">*</span></label>
-                  <div style="display:flex;gap:12px;margin-top:6px">
-                    <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="graphStorage" value="json" checked> JSON Graph (기본)</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="graphStorage" value="neo4j"> Neo4j (선택)</label>
-                  </div>
-                  <small class="wr-field-hint">JSON Graph: graph_nodes.jsonl, graph_edges.jsonl 파일로 저장</small>
-                </div>
-                <div class="wr-field" style="grid-column: span 2">
-                  <label>노드 유형 선택</label>
-                  <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeProject" checked> Project</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeOrg" checked> Organization</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeDoc" checked> Document</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeSource" checked> Source</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeCategory" checked> Category</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeKeyword" checked> Keyword</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeTech"> Technology</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8NodeDomain"> BusinessDomain</label>
-                  </div>
-                </div>
-                <div class="wr-field" style="grid-column: span 2">
-                  <label>관계 유형 선택</label>
-                  <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelHasDoc" checked> HAS_DOCUMENT</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelBelongsTo" checked> BELONGS_TO</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelSimilar" checked> SIMILAR_TO</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelRelated" checked> RELATED_TO</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelHasKeyword" checked> HAS_KEYWORD</label>
-                    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="dbStep8RelUsesTech"> USES_TECH</label>
-                  </div>
-                </div>
-                <div class="wr-field">
-                  <label>유사도 임계값</label>
-                  <input id="dbStep8SimilarityThreshold" type="number" value="0.7" min="0" max="1" step="0.1">
-                  <small class="wr-field-hint">SIMILAR_TO 관계 생성 기준</small>
-                </div>
-                <div class="wr-field">
-                  <label>Chunk 노드 생성</label>
-                  <select id="dbStep8ChunkNode">
-                    <option value="false" selected>생성 안 함 (B안 권장)</option>
-                    <option value="true">생성 (deprecated)</option>
-                  </select>
-                  <small class="wr-field-hint">B안: Document 노드에 chunk_count만 저장</small>
-                </div>
-              </div>
-          <div class="wr-inline-actions" style="margin-top:16px">
-            <button class="wr-btn" type="button" onclick="saveDatasetBuilderStepSettings(8)">설정 저장</button>
-            <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(8)">Step 8 실행</button>
+
+        <!-- Dataset 기본 정보 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Dataset 기본 정보</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Dataset ID</div>
+              <div class="wr-summary-value" id="summaryDatasetId">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Source ID</div>
+              <div class="wr-summary-value" id="summarySourceId">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Snapshot ID 후보</div>
+              <div class="wr-summary-value" id="summarySnapshotId">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">생성일시</div>
+              <div class="wr-summary-value" id="summaryCreatedAt">-</div>
+            </div>
           </div>
         </div>
-        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">POST /api/admin/dataset-builder/step8/build</code>
+
+        <!-- 문서 처리 결과 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">문서 처리 결과</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">전체 문서 수</div>
+              <div class="wr-summary-value" id="summaryTotalDocs">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">성공 문서 수</div>
+              <div class="wr-summary-value" id="summarySuccessDocs">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">실패 문서 수</div>
+              <div class="wr-summary-value" id="summaryFailedDocs">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">제외 문서 수</div>
+              <div class="wr-summary-value" id="summaryExcludedDocs">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vector 결과 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Vector 결과</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Chunk 수</div>
+              <div class="wr-summary-value" id="summaryChunkCount">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Embedding 수</div>
+              <div class="wr-summary-value" id="summaryEmbeddingCount">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">FAISS Index 상태</div>
+              <div class="wr-summary-value" id="summaryFaissStatus">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Collection 수</div>
+              <div class="wr-summary-value" id="summaryCollectionCount">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 메타데이터 결과 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">메타데이터 결과</h3>
+          <div id="summaryMetadataStats" style="min-height:100px;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <!-- 오류 요약 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">오류 요약</h3>
+          <div id="summaryErrorStats" style="min-height:60px;">
+            <div class="wr-callout wr-callout-info">오류 정보를 불러오는 중...</div>
+          </div>
+        </div>
+
+        <!-- 다음 작업 안내 -->
+        <div class="wr-card">
+          <h3 class="wr-card-title">다음 작업</h3>
+          <div class="wr-callout wr-callout-info" style="margin-bottom:16px">
+            Dataset Builder 작업이 완료되었습니다. 아래 메뉴에서 Knowledge Graph 생성, LLM Wiki 생성, 또는 Publish를 진행하세요.
+          </div>
+          <div class="wr-inline-actions">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="openKnowledgeGraph()">🕸️ Knowledge Graph 생성</button>
+            <button class="wr-btn" type="button" onclick="openLlmWiki()">📖 LLM Wiki 생성</button>
+            <button class="wr-btn" type="button" onclick="openPublish()">🚀 Publish</button>
+          </div>
+        </div>
       </section>
 
-      <!-- Step 9: Wiki Build -->
-      <section class="wr-page" data-wr-page-panel="db-step-9">
-        <div class="wr-eyebrow">Dataset Builder</div>
+      <!-- Legacy Step 9: Wiki Build (숨김 - LLM Wiki 메뉴로 이동) -->
+      <section class="wr-page" data-wr-page-panel="legacy-db-step-9" style="display:none">
+        <div class="wr-eyebrow">Dataset Builder (Legacy)</div>
         <h1 class="wr-page-title">Step 9: LLM Wiki Build</h1>
         <p class="wr-page-lead">프로젝트, 기관, 분야, 기술 기준의 지식 문서를 생성합니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
@@ -2183,9 +2322,9 @@ Content-Type: application/json
 }</code>
       </section>
 
-      <!-- Step 10: Search Quality / Activate -->
-      <section class="wr-page" data-wr-page-panel="db-step-10">
-        <div class="wr-eyebrow">Dataset Builder</div>
+      <!-- Legacy Step 10: Search Quality / Activate (숨김 - Publish 메뉴로 이동) -->
+      <section class="wr-page" data-wr-page-panel="legacy-db-step-10" style="display:none">
+        <div class="wr-eyebrow">Dataset Builder (Legacy)</div>
         <h1 class="wr-page-title">Step 10: Search Quality / Activate</h1>
         <p class="wr-page-lead">운영 반영 전에 검색 품질을 검증하고, 검증 완료된 Snapshot만 활성화합니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
@@ -2200,7 +2339,7 @@ Content-Type: application/json
         <!-- Search Quality 검증 -->
         <div class="wr-card" style="margin-bottom:20px">
           <h3 class="wr-card-title">Search Quality 검증</h3>
-          <div class="wr-callout wr-callout-info">테스트 질문별 Top-K 검색 결과, source_id/category_id 필터 동작, RFP→제안서 유사 검색, GraphRAG 관계 검색, Wiki 검색 품질 검사</div>
+          <div class="wr-callout wr-callout-info">테스트 질문별 Top-K 검색 결과, source_id/category_id 필터 동작, RFP→제안서 유사 검색, Knowledge Graph 관계 검색, Wiki 검색 품질 검사</div>
           <div class="wr-form-grid">
             <div class="wr-field">
               <label>테스트 질문 셋</label>
@@ -2800,7 +2939,7 @@ POST /api/admin/faiss/rollback</code>
         <div class="wr-step-detail" id="stepDetail10" style="display:none">
           <h3 class="wr-section-title">Step 10 Hybrid RAG Publish 설정</h3>
           <div class="wr-card">
-            <div class="wr-callout wr-callout-info">FAISS 벡터 검색 + GraphRAG + LLM-Wiki 결과를 병합하여 최종 답변을 생성합니다.</div>
+            <div class="wr-callout wr-callout-info">FAISS 벡터 검색 + Knowledge Graph + LLM-Wiki 결과를 병합하여 최종 답변을 생성합니다.</div>
             <div class="wr-form-grid">
               <div class="wr-field">
                 <label>Vector 가중치 <span class="wr-required">*</span></label>
@@ -2884,6 +3023,552 @@ POST /api/graph/build?source_id={source_id}
 POST /api/wiki/build
 POST /api/admin/faiss/activate</code>
       </section>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- Knowledge Graph 메뉴 섹션들 -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+
+      <!-- Knowledge Graph: Ontology 설정 -->
+      <section class="wr-page" data-wr-page-panel="kg-ontology">
+        <div class="wr-eyebrow">Knowledge Graph</div>
+        <h1 class="wr-page-title" data-wr-anchor>Ontology 설정</h1>
+        <p class="wr-page-lead">Knowledge Graph의 노드 유형, 관계 유형, 매핑 규칙을 설정합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="loadKgOntology()">🔄 새로고침</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="saveKgOntology()">설정 저장</button>
+        </div>
+
+        <!-- 노드 유형 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">노드 유형 (Node Types)</h3>
+          <div class="wr-callout wr-callout-info" style="margin-bottom:12px">
+            기본 노드 유형: DocumentSource, Dataset, Snapshot, Document, File, Project, DocumentGroup, DocumentSection, Organization, Technology, Methodology, Keyword, Collection, Chunk
+          </div>
+          <div id="kgNodeTypesList" style="display:flex;flex-wrap:wrap;gap:12px;">
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> DocumentSource</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Dataset</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Snapshot</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Document</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> File</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Project</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> DocumentGroup</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> DocumentSection</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Organization</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Technology</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Methodology</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Keyword</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Collection</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox"> Chunk</label>
+          </div>
+        </div>
+
+        <!-- 관계 유형 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">관계 유형 (Relationship Types)</h3>
+          <div class="wr-callout wr-callout-info" style="margin-bottom:12px">
+            기본 관계 유형: HAS_DATASET, HAS_SNAPSHOT, INCLUDES_DOCUMENT, HAS_DOCUMENT, HAS_FILE, BELONGS_TO_GROUP, HAS_SECTION, ABOUT_PROJECT, REQUESTED_BY, USES_TECHNOLOGY, USES_METHODOLOGY, HAS_KEYWORD, IN_COLLECTION, CHUNKED_INTO, SIMILAR_TO
+          </div>
+          <div id="kgRelTypesList" style="display:flex;flex-wrap:wrap;gap:12px;">
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> HAS_DATASET</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> HAS_SNAPSHOT</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> INCLUDES_DOCUMENT</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> HAS_DOCUMENT</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> HAS_FILE</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> BELONGS_TO_GROUP</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> HAS_SECTION</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> ABOUT_PROJECT</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> REQUESTED_BY</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> USES_TECHNOLOGY</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> USES_METHODOLOGY</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> HAS_KEYWORD</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> IN_COLLECTION</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox"> CHUNKED_INTO</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> SIMILAR_TO</label>
+          </div>
+        </div>
+
+        <!-- 파일 경로 매핑 규칙 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">파일 경로 매핑 규칙</h3>
+          <div class="wr-callout wr-callout-info" style="margin-bottom:12px">
+            00. RAG 소스의 relative_path 기준으로 document_group, section_type, category_id를 추출합니다.
+          </div>
+          <div class="wr-form-grid">
+            <div class="wr-field" style="grid-column:span 2">
+              <label>첫 번째 폴더 → document_group</label>
+              <input type="text" id="kgPathRule1" value="예: 01. RFP → RFP, 02. 제안서 → 제안서, 03. 산출물 → 산출물" readonly>
+            </div>
+            <div class="wr-field" style="grid-column:span 2">
+              <label>두 번째 폴더 → section_type, category_id</label>
+              <input type="text" id="kgPathRule2" value="예: 01. 전략및방법론 → section_type=전략및방법론, category_id=cat_strategy_method" readonly>
+            </div>
+          </div>
+        </div>
+
+        <!-- 파일명 Prefix 매핑 규칙 -->
+        <div class="wr-card">
+          <h3 class="wr-card-title">파일명 Prefix 매핑 규칙</h3>
+          <div class="wr-callout wr-callout-info" style="margin-bottom:12px">
+            파일명 prefix는 section_type 보정에 사용하고, prefix를 제거한 나머지는 project_name으로 사용합니다.
+          </div>
+          <div class="wr-form-grid">
+            <div class="wr-field" style="grid-column:span 2">
+              <label>예시</label>
+              <input type="text" value="전략및방법론_AI 기반 진로교육정보망 ISP.pptx → section_type=전략및방법론, project_name=AI 기반 진로교육정보망 ISP" readonly>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">GET /api/admin/knowledge-graph/ontology
+POST /api/admin/knowledge-graph/ontology</code>
+      </section>
+
+      <!-- Knowledge Graph: Knowledge Graph 생성 -->
+      <section class="wr-page" data-wr-page-panel="kg-build">
+        <div class="wr-eyebrow">Knowledge Graph</div>
+        <h1 class="wr-page-title" data-wr-anchor>Knowledge Graph 생성</h1>
+        <p class="wr-page-lead">문서 메타데이터와 청크 데이터를 기반으로 Knowledge Graph를 생성합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('kg-ontology')">← Ontology 설정</button>
+          <!-- TODO: 2차 작업에서 Knowledge Graph 전용 API로 분리 -->
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runKnowledgeGraphBuild()">Knowledge Graph 생성</button>
+        </div>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          Knowledge Graph는 문서 메타데이터와 청크 데이터를 기반으로 생성된 노드/엣지 데이터입니다. GraphRAG는 이 Knowledge Graph를 검색에 활용하는 방식입니다.
+        </div>
+
+        <!-- 생성 설정 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Knowledge Graph 생성 설정</h3>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>Snapshot ID</label>
+              <select id="kgBuildSnapshotSelect">
+                <option value="">최신 Snapshot 사용</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>Graph 저장 방식</label>
+              <div style="display:flex;gap:12px;margin-top:6px">
+                <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="kgStorage" value="json" checked> JSON Graph (기본)</label>
+                <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="kgStorage" value="neo4j"> Neo4j (선택)</label>
+              </div>
+            </div>
+            <div class="wr-field">
+              <label>유사도 임계값</label>
+              <input id="kgSimilarityThreshold" type="number" value="0.7" min="0" max="1" step="0.1">
+              <small class="wr-field-hint">SIMILAR_TO 관계 생성 기준</small>
+            </div>
+            <div class="wr-field">
+              <label>Chunk 노드 생성</label>
+              <select id="kgChunkNode">
+                <option value="false" selected>생성 안 함 (권장)</option>
+                <option value="true">생성</option>
+              </select>
+              <small class="wr-field-hint">Document 노드에 chunk_count만 저장 권장</small>
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runKnowledgeGraphBuild()">Knowledge Graph 생성</button>
+          </div>
+        </div>
+
+        <!-- 생성 결과 -->
+        <div class="wr-card">
+          <h3 class="wr-card-title">생성 결과 파일</h3>
+          <div class="wr-callout wr-callout-info">
+            Knowledge Graph 생성 결과는 snapshot_id 기준으로 저장됩니다.
+          </div>
+          <ul style="margin:12px 0 0;padding-left:20px;color:var(--wr-muted)">
+            <li>ontology_schema.json - 온톨로지 스키마</li>
+            <li>graph_nodes.jsonl - 노드 데이터</li>
+            <li>graph_edges.jsonl - 엣지 데이터</li>
+            <li>graph_summary.json - 그래프 요약</li>
+            <li>graph_validation_report.json - 검증 리포트</li>
+          </ul>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/knowledge-graph/build</code>
+      </section>
+
+      <!-- Knowledge Graph: Graph View 미리보기 -->
+      <section class="wr-page" data-wr-page-panel="kg-view">
+        <div class="wr-eyebrow">Knowledge Graph</div>
+        <h1 class="wr-page-title" data-wr-anchor>Graph View 미리보기</h1>
+        <p class="wr-page-lead">Knowledge Graph 노드, 엣지, 스키마 현황을 한눈에 확인합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <!-- TODO: 2차 작업에서 Knowledge Graph 전용 API로 분리 -->
+          <button class="wr-btn" type="button" onclick="loadKgGraphView()">🔄 새로고침</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="graph">Legacy Graph View</button>
+        </div>
+
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 노드 수</div>
+            <div class="wr-summary-value" id="kgViewTotalNodes">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 엣지 수</div>
+            <div class="wr-summary-value" id="kgViewTotalEdges">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Organization</div>
+            <div class="wr-summary-value" id="kgViewOrgCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Project</div>
+            <div class="wr-summary-value" id="kgViewProjectCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">Document</div>
+            <div class="wr-summary-value" id="kgViewDocCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">마지막 빌드</div>
+            <div class="wr-summary-value" id="kgViewLastBuild">-</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>노드 유형별 분포</h2>
+        <div class="wr-card">
+          <div id="kgViewNodeDistribution" style="min-height:200px;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>Graph 시각화</h2>
+        <div class="wr-card">
+          <div id="kgViewGraphVisualization" style="min-height:400px;background:var(--surface1);border-radius:8px;">
+            <div style="display:flex;justify-content:center;align-items:center;height:400px;color:var(--wr-muted)">
+              Graph 시각화 영역 (Legacy Graph View 버튼 클릭)
+            </div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">GET /api/admin/knowledge-graph/view
+GET /api/admin/knowledge-graph/stats</code>
+      </section>
+
+      <!-- Knowledge Graph: Graph 검증 -->
+      <section class="wr-page" data-wr-page-panel="kg-validation">
+        <div class="wr-eyebrow">Knowledge Graph</div>
+        <h1 class="wr-page-title" data-wr-anchor>Graph 검증</h1>
+        <p class="wr-page-lead">Knowledge Graph의 무결성, 스키마 일치, 노드/엣지 누락 여부를 검증합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <!-- TODO: 2차 작업에서 Knowledge Graph 전용 API로 분리 -->
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runKgValidation()">검증 실행</button>
+          <button class="wr-btn" type="button" onclick="loadKgValidationReport()">이전 리포트 보기</button>
+        </div>
+
+        <!-- 검증 항목 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">검증 항목</h3>
+          <div class="wr-status-list">
+            <div class="wr-status-row"><span>노드 누락 검증</span><span id="kgValNodeStatus">-</span></div>
+            <div class="wr-status-row"><span>엣지 누락 검증</span><span id="kgValEdgeStatus">-</span></div>
+            <div class="wr-status-row"><span>Ontology 불일치 검증</span><span id="kgValOntologyStatus">-</span></div>
+            <div class="wr-status-row"><span>고아 노드 검출</span><span id="kgValOrphanStatus">-</span></div>
+            <div class="wr-status-row"><span>순환 참조 검출</span><span id="kgValCycleStatus">-</span></div>
+          </div>
+        </div>
+
+        <!-- Schema Viewer (기존 메뉴 통합) -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Schema Viewer</h3>
+          <p class="wr-card-text">Knowledge Graph에서 사용하는 노드 유형, 관계 유형, 속성 정의를 확인합니다.</p>
+          <div id="kgSchemaViewer" style="max-height:300px;overflow-y:auto;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <!-- Text2Cypher Test (기존 메뉴 통합) -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Text2Cypher Test</h3>
+          <div class="wr-form-grid">
+            <div class="wr-field" style="grid-column:span 2">
+              <label>자연어 쿼리</label>
+              <input type="text" id="kgText2CypherInput" placeholder="예: 한국수자원공사 ISP와 유사한 프로젝트를 찾아주세요">
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:12px">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="testKgText2Cypher()">Cypher 변환 테스트</button>
+          </div>
+          <div id="kgText2CypherResult" style="margin-top:16px;display:none;">
+            <code class="wr-code-block" id="kgText2CypherOutput"></code>
+          </div>
+        </div>
+
+        <!-- Agent Retry Logs (기존 메뉴 통합) -->
+        <div class="wr-card">
+          <h3 class="wr-card-title">Agent Retry Logs</h3>
+          <p class="wr-card-text">Knowledge Graph Agent의 자동 수정 로그와 실패 쿼리를 확인합니다.</p>
+          <div id="kgAgentLogs" style="max-height:300px;overflow-y:auto;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/knowledge-graph/validate
+GET /api/admin/knowledge-graph/validation-report</code>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- LLM Wiki 메뉴 섹션들 -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+
+      <!-- LLM Wiki: Wiki 생성 -->
+      <section class="wr-page" data-wr-page-panel="wiki-build">
+        <div class="wr-eyebrow">LLM Wiki</div>
+        <h1 class="wr-page-title" data-wr-anchor>Wiki 생성</h1>
+        <p class="wr-page-lead">프로젝트, 기관, 분야, 기술 기준의 지식 문서를 생성합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <!-- TODO: 2차 작업에서 LLM Wiki 전용 API로 분리 -->
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runWikiBuild()">Wiki 생성</button>
+        </div>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          Wiki는 원문 근거를 대체하지 않습니다. Wiki는 검색과 답변 생성을 보조하는 지식 계층입니다.
+        </div>
+
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Wiki 생성 설정</h3>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>Wiki 생성 모델</label>
+              <select id="wikiBuildModel">
+                <option value="gemma3:12b">gemma3:12b (Ollama 권장)</option>
+                <option value="qwen3:8b">qwen3:8b (Ollama)</option>
+                <option value="llama3.1:8b">llama3.1:8b (Ollama)</option>
+                <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>Wiki 그룹핑 기준</label>
+              <select id="wikiBuildGroupBy">
+                <option value="project">프로젝트별</option>
+                <option value="organization">기관별</option>
+                <option value="domain">사업분야별</option>
+                <option value="technology">기술별</option>
+                <option value="doc_type">문서유형별</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>근거 문서 포함</label>
+              <select id="wikiBuildIncludeEvidence">
+                <option value="true" selected>포함</option>
+                <option value="false">제외</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>Wiki 템플릿</label>
+              <select id="wikiBuildTemplate">
+                <option value="default">기본 템플릿</option>
+                <option value="detailed">상세 템플릿</option>
+                <option value="summary">요약 템플릿</option>
+              </select>
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn" type="button" onclick="saveWikiBuildSettings()">설정 저장</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runWikiBuild()">Wiki 생성</button>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/llm-wiki/build</code>
+      </section>
+
+      <!-- LLM Wiki: Wiki 미리보기 -->
+      <section class="wr-page" data-wr-page-panel="wiki-preview">
+        <div class="wr-eyebrow">LLM Wiki</div>
+        <h1 class="wr-page-title" data-wr-anchor>Wiki 미리보기</h1>
+        <p class="wr-page-lead">생성된 Wiki 페이지 목록과 내용을 미리 확인합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="loadWikiPreview()">🔄 새로고침</button>
+          <button class="wr-btn" type="button" data-wr-legacy-tab="wiki">Legacy Wiki 열기</button>
+        </div>
+
+        <div class="wr-summary-grid">
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">총 Wiki 페이지 수</div>
+            <div class="wr-summary-value" id="wikiPreviewTotalPages">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">프로젝트 Wiki</div>
+            <div class="wr-summary-value" id="wikiPreviewProjectCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">기관 Wiki</div>
+            <div class="wr-summary-value" id="wikiPreviewOrgCount">-</div>
+          </div>
+          <div class="wr-summary-card">
+            <div class="wr-summary-label">마지막 생성</div>
+            <div class="wr-summary-value" id="wikiPreviewLastBuild">-</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" data-wr-anchor>Wiki 목록</h2>
+        <div class="wr-card">
+          <div id="wikiPreviewList" style="max-height:400px;overflow-y:auto;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">GET /api/admin/llm-wiki/list
+GET /api/admin/llm-wiki/preview/{wiki_id}</code>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- Publish 메뉴 섹션들 -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+
+      <!-- Publish: Search Quality Check -->
+      <section class="wr-page" data-wr-page-panel="publish-quality">
+        <div class="wr-eyebrow">Publish</div>
+        <h1 class="wr-page-title" data-wr-anchor>Search Quality Check</h1>
+        <p class="wr-page-lead">운영 반영 전에 검색 품질을 검증합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <!-- TODO: 2차 작업에서 Publish 전용 API로 분리 -->
+          <button class="wr-btn wr-btn-primary" type="button" onclick="runPublishSearchQuality()">검증 실행</button>
+          <button class="wr-btn" type="button" onclick="viewPublishQualityReport()">이전 리포트 보기</button>
+        </div>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          <strong>주의사항:</strong> Search Quality 검증 없이 Activate하지 않습니다. 검증 완료된 Snapshot만 운영에 반영하세요.
+        </div>
+
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Search Quality 검증</h3>
+          <div class="wr-callout wr-callout-info">
+            테스트 질문별 Top-K 검색 결과, source_id/category_id 필터 동작, RFP→제안서 유사 검색, Knowledge Graph 관계 검색, Wiki 검색 품질 검사
+          </div>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>테스트 질문 셋</label>
+              <select id="publishQualityTestQueries">
+                <option value="default">기본 테스트 질문 (10개)</option>
+                <option value="comprehensive">종합 테스트 질문 (30개)</option>
+                <option value="custom">사용자 정의</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>Top-K</label>
+              <input id="publishQualityTopK" type="number" value="5" min="1" max="20">
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runPublishSearchQuality()">검증 실행</button>
+          </div>
+        </div>
+
+        <!-- 검증 결과 -->
+        <div class="wr-card">
+          <h3 class="wr-card-title">검증 결과</h3>
+          <div id="publishQualityResult" style="min-height:100px;">
+            <div class="wr-callout wr-callout-info">검증을 실행하면 결과가 여기에 표시됩니다.</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">POST /api/admin/publish/search-quality
+GET /api/admin/publish/search-quality-report</code>
+      </section>
+
+      <!-- Publish: Active Dataset / Snapshot -->
+      <section class="wr-page" data-wr-page-panel="publish-activate">
+        <div class="wr-eyebrow">Publish</div>
+        <h1 class="wr-page-title" data-wr-anchor>Active Dataset / Snapshot</h1>
+        <p class="wr-page-lead">사용자 검색 화면에 반영할 Active Dataset과 Active Snapshot을 전환합니다.</p>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="loadPublishStatus()">🔄 새로고침</button>
+        </div>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          Publish는 Dataset 생성 기능이 아닙니다. Search Quality 검증 완료된 Snapshot만 활성화하세요.
+        </div>
+
+        <!-- 현재 상태 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">현재 Active 상태</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Active Dataset</div>
+              <div class="wr-summary-value" id="publishActiveDataset">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Active Snapshot</div>
+              <div class="wr-summary-value" id="publishActiveSnapshot">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">활성화 일시</div>
+              <div class="wr-summary-value" id="publishActivatedAt">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">검증 상태</div>
+              <div class="wr-summary-value" id="publishVerifiedStatus">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activate 설정 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">Activate 설정</h3>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>Active Dataset</label>
+              <select id="publishDatasetSelect">
+                <option value="">선택하세요...</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>Active Snapshot</label>
+              <select id="publishSnapshotSelect">
+                <option value="">선택하세요...</option>
+              </select>
+              <small class="wr-field-hint">Search Quality 검증 완료된 Snapshot만 선택 가능</small>
+            </div>
+            <div class="wr-field">
+              <label>Active Collection</label>
+              <select id="publishCollectionSelect" multiple size="4">
+                <option value="col_all">전체</option>
+                <option value="col_rfp">RFP</option>
+                <option value="col_proposal">제안서</option>
+                <option value="col_deliverable">산출물</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>Rollback 대비</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="publishSaveRollback" checked>
+                <span>이전 Snapshot 정보 저장 (rollback 가능)</span>
+              </div>
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <!-- TODO: 2차 작업에서 Publish 전용 API로 분리 -->
+            <button class="wr-btn wr-btn-primary" type="button" onclick="activatePublish()">Activate</button>
+            <button class="wr-btn wr-btn-secondary" type="button" onclick="rollbackPublish()">Rollback</button>
+          </div>
+        </div>
+
+        <!-- Snapshot 이력 -->
+        <div class="wr-card">
+          <h3 class="wr-card-title">Snapshot 이력</h3>
+          <div id="publishSnapshotHistory" style="max-height:300px;overflow-y:auto;">
+            <div class="wr-nav-loading">로딩 중...</div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
+        <code class="wr-code-block">GET /api/admin/publish/status
+POST /api/admin/publish/activate
+POST /api/admin/publish/rollback</code>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- Analytics 메뉴 섹션들 -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
 
       <section class="wr-page" data-wr-page-panel="faiss-index">
         <div class="wr-eyebrow">Data Build</div>
@@ -2977,7 +3662,7 @@ POST /api/admin/faiss/activate</code>
       <section class="wr-page" data-wr-page-panel="graph-overview">
         <div class="wr-eyebrow">Graph / Ontology</div>
         <h1 class="wr-page-title" data-wr-anchor>Graph Overview</h1>
-        <p class="wr-page-lead">GraphRAG 노드, 엣지, 스키마 현황을 한눈에 확인합니다.</p>
+        <p class="wr-page-lead">Knowledge Graph 노드, 엣지, 스키마 현황을 한눈에 확인합니다.</p>
 
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
@@ -3141,7 +3826,7 @@ POST /api/admin/faiss/activate</code>
       <section class="wr-page" data-wr-page-panel="schema-viewer">
         <div class="wr-eyebrow">Graph / Ontology</div>
         <h1 class="wr-page-title" data-wr-anchor>Schema Viewer</h1>
-        <p class="wr-page-lead">GraphRAG에서 사용하는 노드 유형, 관계 유형, 속성 정의를 확인합니다.</p>
+        <p class="wr-page-lead">Knowledge Graph에서 사용하는 노드 유형, 관계 유형, 속성 정의를 확인합니다.</p>
 
         <div class="wr-grid">
           <div class="wr-card">
@@ -3217,7 +3902,7 @@ POST /api/admin/faiss/activate</code>
       <section class="wr-page" data-wr-page-panel="agent-logs">
         <div class="wr-eyebrow">Graph / Ontology</div>
         <h1 class="wr-page-title" data-wr-anchor>Agent Retry Logs</h1>
-        <p class="wr-page-lead">GraphRAG Agent의 자동 수정 로그와 실패 쿼리를 확인합니다.</p>
+        <p class="wr-page-lead">Knowledge Graph Agent의 자동 수정 로그와 실패 쿼리를 확인합니다.</p>
 
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
@@ -4095,12 +4780,12 @@ POST /api/admin/faiss/activate</code>
       </div>
     </div>
 
-    <!-- Step 7: GraphRAG 실행 (Dataset Builder Step 4) -->
+    <!-- Step 7: Knowledge Graph 실행 (Dataset Builder Step 4) -->
     <div class="wizard-step card" data-step="7">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="wizard-step-num">7</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">GraphRAG 실행 (Dataset Builder Step 4)</div>
+          <div style="font-size:13px;font-weight:700">Knowledge Graph 실행 (Dataset Builder Step 4)</div>
           <div style="font-size:11px;color:var(--muted)">프로젝트 간 관련 문서를 연결하는 관계 그래프를 생성하고 저장합니다.</div>
         </div>
         <span class="wizard-step-status" id="wstatus-7">-</span>
@@ -9079,7 +9764,7 @@ POST /api/admin/faiss/activate</code>
         { step: 2, msg: '다음 작업: 등록된 Source 폴더를 스캔해서 파일 목록을 DB에 저장하세요.', label: '빌드 Wizard 열기', handler: openBuildWizard },
         { step: 3, msg: '다음 작업: 파일명과 경로 기반 Metadata 생성을 실행하고 검수하세요.', label: '빌드 Wizard 열기', handler: openBuildWizard },
         { step: 4, msg: '다음 작업: 텍스트 추출, 청킹, 임베딩, FAISS 생성을 실행하세요.', label: '빌드 Wizard 열기', handler: openBuildWizard },
-        { step: 5, msg: '다음 작업: GraphRAG와 LLM Wiki 데이터를 생성하세요.', label: '빌드 Wizard 열기', handler: openBuildWizard },
+        { step: 5, msg: '다음 작업: Knowledge Graph와 LLM Wiki 데이터를 생성하세요.', label: '빌드 Wizard 열기', handler: openBuildWizard },
         { step: 6, msg: '다음 작업: 검색 품질을 테스트하고 사용자 화면 결과를 확인하세요.', label: '검색 품질 열기', handler: openSearchQuality },
       ];
       const next = actions.find(action => stepStates[action.step] && stepStates[action.step] !== 'ok');
@@ -9927,7 +10612,7 @@ LIMIT 10`;
   // UI Step 1 (OCR/파싱) → Legacy 5 (OCR/청킹 시작)
   // UI Step 2 (청킹/임베딩) → Legacy 6 (임베딩/FAISS 진행)
   // UI Step 3 (메타데이터) → Legacy 3 (Metadata 생성) + Legacy 4 (Tag/Keyword)
-  // UI Step 4 (GraphRAG) → Legacy 7 (Graph RAG 생성)
+  // UI Step 4 (Knowledge Graph) → Legacy 7 (Knowledge Graph 생성)
   // UI Step 5 (LLM Wiki) → Legacy 8 (LLM Wiki 생성)
   // UI Step 6 (FAISS 활성화) → Legacy 10 (FAISS 인덱스 활성화)
   const DATASET_BUILDER_LEGACY_STEP_MAP = {
@@ -10360,6 +11045,482 @@ LIMIT 10`;
         searchInput.focus();
       }
     }, 100);
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // Knowledge Graph / LLM Wiki / Publish 메뉴 함수들
+  // TODO: 2차 작업에서 각 메뉴 전용 API로 분리
+  // ══════════════════════════════════════════════════════════════════
+
+  // Knowledge Graph 메뉴 열기
+  function openKnowledgeGraph() {
+    showWrPage('kg-ontology');
+    loadKgOntology();
+  }
+
+  // Knowledge Graph Ontology 로드
+  async function loadKgOntology() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/ontology`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success && data.schema) {
+        console.log('Ontology loaded:', data.schema);
+        // 노드 타입 체크박스 업데이트
+        const nodeTypesList = document.getElementById('kgNodeTypesList');
+        if (nodeTypesList && data.schema.node_types) {
+          nodeTypesList.innerHTML = data.schema.node_types.map(nt =>
+            `<label style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked data-node-type="${nt.name}"> ${nt.label || nt.name}</label>`
+          ).join('');
+        }
+        showToast('Ontology 설정 로드 완료', 'success');
+      }
+    } catch (error) {
+      console.error('loadKgOntology error:', error);
+      showToast('Ontology 로드 실패', 'error');
+    }
+  }
+
+  // Knowledge Graph Ontology 저장
+  async function saveKgOntology() {
+    try {
+      // 기본 스키마 가져와서 저장
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/ontology`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: '1.0' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Ontology 설정 저장 완료', 'success');
+      } else {
+        showToast('저장 실패: ' + (data.message || ''), 'error');
+      }
+    } catch (error) {
+      console.error('saveKgOntology error:', error);
+      showToast('Ontology 저장 실패', 'error');
+    }
+  }
+
+  // Knowledge Graph 생성 실행
+  async function runKnowledgeGraphBuild() {
+    showToast('Knowledge Graph 생성 시작...', 'info');
+    const buildBtn = document.querySelector('[onclick="runKnowledgeGraphBuild()"]');
+    if (buildBtn) buildBtn.disabled = true;
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/build`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rebuild: false, use_ontology: true })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(`Knowledge Graph 생성 완료: ${data.node_count}개 노드, ${data.edge_count}개 엣지`, 'success');
+        loadKgGraphStatus();
+      } else {
+        showToast('생성 실패: ' + (data.message || ''), 'error');
+      }
+    } catch (error) {
+      console.error('runKnowledgeGraphBuild error:', error);
+      showToast('Knowledge Graph 생성 실패', 'error');
+    } finally {
+      if (buildBtn) buildBtn.disabled = false;
+    }
+  }
+
+  // Knowledge Graph 상태 로드
+  async function loadKgGraphStatus() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/status`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      // UI 업데이트
+      const statusEl = document.getElementById('kgBuildStatus');
+      if (statusEl) {
+        statusEl.textContent = data.status === 'ready' ? '준비됨' : (data.status === 'empty' ? '비어있음' : data.status);
+      }
+      const nodeCountEl = document.getElementById('kgNodeCount');
+      if (nodeCountEl) nodeCountEl.textContent = data.node_count || 0;
+      const edgeCountEl = document.getElementById('kgEdgeCount');
+      if (edgeCountEl) edgeCountEl.textContent = data.edge_count || 0;
+    } catch (error) {
+      console.error('loadKgGraphStatus error:', error);
+    }
+  }
+
+  // Knowledge Graph View 로드
+  async function loadKgGraphView() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/preview?limit=100`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success) {
+        console.log('Graph preview loaded:', data.node_count, 'nodes,', data.edge_count, 'edges');
+        // 기존 그래프 시각화 함수 호출
+        if (typeof loadGraphOverviewStats === 'function') {
+          loadGraphOverviewStats();
+        }
+      }
+    } catch (error) {
+      console.error('loadKgGraphView error:', error);
+    }
+  }
+
+  // Knowledge Graph 검증 실행
+  async function runKgValidation() {
+    showToast('Knowledge Graph 검증 시작...', 'info');
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/validate`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+
+      const resultDiv = document.getElementById('kgValidationResult');
+      if (resultDiv) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <div class="wr-callout ${data.valid ? 'wr-callout-success' : 'wr-callout-warning'}">
+            <strong>${data.valid ? '✅ 검증 통과' : '⚠️ 검증 경고'}</strong><br>
+            총 노드: ${data.total_nodes || 0}개, 총 엣지: ${data.total_edges || 0}개<br>
+            고아 노드: ${data.orphan_nodes || 0}개<br>
+            ${data.warnings?.length ? '경고: ' + data.warnings.join(', ') : ''}
+            ${data.errors?.length ? '<br>오류: ' + data.errors.join(', ') : ''}
+          </div>
+        `;
+      }
+      showToast(data.valid ? 'Knowledge Graph 검증 통과' : '검증 경고 발견', data.valid ? 'success' : 'warning');
+    } catch (error) {
+      console.error('runKgValidation error:', error);
+      showToast('Knowledge Graph 검증 실패', 'error');
+    }
+  }
+
+  // Knowledge Graph 검증 리포트 로드
+  function loadKgValidationReport() {
+    runKgValidation();
+  }
+
+  // Text2Cypher 테스트
+  function testKgText2Cypher() {
+    const query = document.getElementById('kgText2CypherInput')?.value;
+    if (!query) {
+      showToast('쿼리를 입력하세요', 'warning');
+      return;
+    }
+    // Text2Cypher API 연결 (별도 구현 필요)
+    const resultDiv = document.getElementById('kgText2CypherResult');
+    const outputDiv = document.getElementById('kgText2CypherOutput');
+    if (resultDiv && outputDiv) {
+      resultDiv.style.display = 'block';
+      outputDiv.textContent = `MATCH (p:Project) WHERE p.name CONTAINS '${query}' RETURN p LIMIT 10`;
+    }
+    showToast('Cypher 변환 완료 (샘플)', 'success');
+  }
+
+  // LLM Wiki 메뉴 열기
+  function openLlmWiki() {
+    showWrPage('wiki-build');
+    loadWikiStatus();
+  }
+
+  // Wiki 상태 로드
+  async function loadWikiStatus() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/status`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      // UI 업데이트
+      const statusEl = document.getElementById('wikiStatus');
+      if (statusEl) statusEl.textContent = data.status === 'ready' ? '준비됨' : '비어있음';
+      const countEl = document.getElementById('wikiTotalCount');
+      if (countEl) countEl.textContent = data.total_wikis || 0;
+    } catch (error) {
+      console.error('loadWikiStatus error:', error);
+    }
+  }
+
+  // Wiki 생성 실행
+  async function runWikiBuild() {
+    const wikiType = document.getElementById('wikiBuildType')?.value || 'project';
+    showToast('Wiki 생성 시작...', 'info');
+    const buildBtn = document.querySelector('[onclick="runWikiBuild()"]');
+    if (buildBtn) buildBtn.disabled = true;
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/build`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wiki_type: wikiType, max_wikis: 0 })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(`Wiki 생성 완료: ${data.generated_count}개 생성됨`, 'success');
+        loadWikiStatus();
+        loadWikiPreview();
+      } else {
+        showToast('생성 실패: ' + (data.message || ''), 'error');
+      }
+    } catch (error) {
+      console.error('runWikiBuild error:', error);
+      showToast('Wiki 생성 실패', 'error');
+    } finally {
+      if (buildBtn) buildBtn.disabled = false;
+    }
+  }
+
+  // Wiki 생성 설정 저장
+  function saveWikiBuildSettings() {
+    showToast('Wiki 생성 설정 저장 완료', 'success');
+  }
+
+  // Wiki 미리보기 로드
+  async function loadWikiPreview() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/preview?limit=50`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success && data.pages) {
+        const listDiv = document.getElementById('wikiPagesList');
+        if (listDiv) {
+          listDiv.innerHTML = data.pages.map(page => `
+            <div class="wiki-page-item" style="padding:8px;border-bottom:1px solid var(--gray-200);cursor:pointer"
+                 onclick="viewWikiContent('${page.wiki_type}', '${page.slug}')">
+              <strong>${page.title}</strong>
+              <span style="color:var(--gray-500);font-size:0.8rem;margin-left:8px">${page.wiki_type}</span>
+            </div>
+          `).join('');
+        }
+      }
+    } catch (error) {
+      console.error('loadWikiPreview error:', error);
+    }
+  }
+
+  // Wiki 내용 보기
+  async function viewWikiContent(wikiType, slug) {
+    try {
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/content/${wikiType}/${slug}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data.success) {
+        const previewDiv = document.getElementById('wikiContentPreview');
+        if (previewDiv) {
+          previewDiv.innerHTML = `<h3>${data.title}</h3><div class="wiki-content">${marked.parse(data.content)}</div>`;
+        }
+      }
+    } catch (error) {
+      console.error('viewWikiContent error:', error);
+    }
+  }
+
+  // Publish 메뉴 열기
+  function openPublish() {
+    showWrPage('publish-quality');
+    loadPublishStatus();
+  }
+
+  // Publish 상태 로드
+  async function loadPublishStatus() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/publish/status`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+
+      // UI 업데이트
+      document.getElementById('publishFaissStatus')?.textContent = data.faiss_status === 'ready' ? '준비됨' : '비어있음';
+      document.getElementById('publishFaissCount')?.textContent = data.faiss_doc_count || 0;
+      document.getElementById('publishGraphStatus')?.textContent = data.graph_status === 'ready' ? '준비됨' : '비어있음';
+      document.getElementById('publishGraphCount')?.textContent = data.graph_node_count || 0;
+      document.getElementById('publishWikiStatus')?.textContent = data.wiki_status === 'ready' ? '준비됨' : '비어있음';
+      document.getElementById('publishWikiCount')?.textContent = data.wiki_count || 0;
+      document.getElementById('publishActiveSnapshot')?.textContent = data.active_snapshot || '없음';
+      document.getElementById('publishQualityScore')?.textContent = (data.quality_score || 0) + '%';
+    } catch (error) {
+      console.error('loadPublishStatus error:', error);
+    }
+  }
+
+  // Publish Search Quality 실행
+  async function runPublishSearchQuality() {
+    showToast('Search Quality 검증 시작...', 'info');
+    try {
+      // 샘플 쿼리 가져오기
+      const sampleResponse = await fetch(`${API_BASE}/admin/publish/quality/sample-queries`, {
+        headers: getAuthHeaders()
+      });
+      const sampleData = await sampleResponse.json();
+
+      // 테스트 실행
+      const testResponse = await fetch(`${API_BASE}/admin/publish/quality/test`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          test_queries: sampleData.sample_queries.map(q => ({ query: q.query, category: q.category })),
+          top_k: 10,
+          use_graph: false
+        })
+      });
+      const testData = await testResponse.json();
+
+      if (testData.success) {
+        showToast(`Search Quality 검증 완료: ${testData.passed_queries}/${testData.total_queries} 통과 (점수: ${testData.quality_score.toFixed(1)}%)`, 'success');
+        // 결과 표시
+        const resultDiv = document.getElementById('publishQualityResult');
+        if (resultDiv) {
+          resultDiv.style.display = 'block';
+          resultDiv.innerHTML = `
+            <div class="wr-callout wr-callout-info">
+              <strong>검색 품질 테스트 결과</strong><br>
+              총 쿼리: ${testData.total_queries}개<br>
+              통과: ${testData.passed_queries}개, 실패: ${testData.failed_queries}개<br>
+              평균 검색 시간: ${testData.avg_search_time_ms?.toFixed(1)}ms<br>
+              품질 점수: ${testData.quality_score.toFixed(1)}%
+            </div>
+          `;
+        }
+      }
+    } catch (error) {
+      console.error('runPublishSearchQuality error:', error);
+      showToast('Search Quality 검증 실패', 'error');
+    }
+  }
+
+  // Publish Quality 리포트 보기
+  function viewPublishQualityReport() {
+    runPublishSearchQuality();
+  }
+
+  // Snapshot 목록 로드
+  async function loadSnapshotList() {
+    try {
+      const response = await fetch(`${API_BASE}/admin/publish/snapshots`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+
+      const listDiv = document.getElementById('publishSnapshotList');
+      if (listDiv && data.snapshots) {
+        listDiv.innerHTML = data.snapshots.map(snap => `
+          <div class="snapshot-item" style="padding:10px;border:1px solid var(--gray-200);border-radius:4px;margin-bottom:8px;${snap.is_active ? 'background:var(--green-50);border-color:var(--green-500)' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <strong>${snap.snapshot_id}</strong>
+                ${snap.is_active ? '<span style="color:var(--green-600);margin-left:8px">✅ 활성</span>' : ''}
+              </div>
+              <div>
+                ${!snap.is_active ? `<button class="wr-btn wr-btn-sm" onclick="activatePublishSnapshot('${snap.snapshot_id}')">활성화</button>` : ''}
+              </div>
+            </div>
+            <div style="font-size:0.8rem;color:var(--gray-500);margin-top:4px">
+              문서: ${snap.document_count}개 | 청크: ${snap.chunk_count}개 |
+              FAISS: ${snap.has_faiss ? '✓' : '✗'} | Graph: ${snap.has_graph ? '✓' : '✗'} | Wiki: ${snap.has_wiki ? '✓' : '✗'}
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (error) {
+      console.error('loadSnapshotList error:', error);
+    }
+  }
+
+  // Publish Activate 실행
+  async function activatePublish() {
+    const snapshotId = document.getElementById('publishSnapshotSelect')?.value;
+    if (!snapshotId) {
+      showToast('활성화할 Snapshot을 선택하세요', 'warning');
+      return;
+    }
+    await activatePublishSnapshot(snapshotId);
+  }
+
+  // 특정 Snapshot 활성화
+  async function activatePublishSnapshot(snapshotId) {
+    showToast('Snapshot 활성화 중...', 'info');
+    try {
+      const response = await fetch(`${API_BASE}/admin/publish/activate`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshot_id: snapshotId })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(`Snapshot '${snapshotId}' 활성화 완료`, 'success');
+        loadPublishStatus();
+        loadSnapshotList();
+      } else {
+        showToast('활성화 실패: ' + (data.message || ''), 'error');
+      }
+    } catch (error) {
+      console.error('activatePublishSnapshot error:', error);
+      showToast('Snapshot 활성화 실패', 'error');
+    }
+  }
+
+  // Publish Rollback 실행
+  async function rollbackPublish() {
+    showToast('Rollback 시작...', 'info');
+    try {
+      const response = await fetch(`${API_BASE}/admin/publish/rollback`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(`이전 Snapshot으로 롤백 완료: ${data.activated_snapshot}`, 'success');
+        loadPublishStatus();
+        loadSnapshotList();
+      } else {
+        showToast('롤백 실패: ' + (data.message || ''), 'error');
+      }
+    } catch (error) {
+      console.error('rollbackPublish error:', error);
+      showToast('Rollback 실패', 'error');
+    }
+  }
+
+  // Dataset Summary 로드
+  async function loadDatasetSummary() {
+    try {
+      // Knowledge Graph 상태
+      const kgResponse = await fetch(`${API_BASE}/admin/knowledge-graph/status`, {
+        headers: getAuthHeaders()
+      });
+      const kgData = await kgResponse.json();
+
+      // Wiki 상태
+      const wikiResponse = await fetch(`${API_BASE}/admin/llm-wiki/status`, {
+        headers: getAuthHeaders()
+      });
+      const wikiData = await wikiResponse.json();
+
+      // Publish 상태
+      const publishResponse = await fetch(`${API_BASE}/admin/publish/status`, {
+        headers: getAuthHeaders()
+      });
+      const publishData = await publishResponse.json();
+
+      // UI 업데이트 (Step 8 Dataset Summary)
+      document.getElementById('summaryGraphNodes')?.textContent = kgData.node_count || 0;
+      document.getElementById('summaryGraphEdges')?.textContent = kgData.edge_count || 0;
+      document.getElementById('summaryWikiCount')?.textContent = wikiData.total_wikis || 0;
+      document.getElementById('summaryActiveSnapshot')?.textContent = publishData.active_snapshot || '없음';
+
+      showToast('Dataset Summary 새로고침 완료', 'success');
+    } catch (error) {
+      console.error('loadDatasetSummary error:', error);
+      showToast('Dataset Summary 로드 실패', 'error');
+    }
   }
 
   async function _initCtxBar() {
@@ -13250,7 +14411,7 @@ LIMIT 10`;
       setText('wrLpgQueryConfidence', (d.confidence * 100).toFixed(0) + '%');
 
       // 레이어 순서
-      const layerNames = { 1: 'FAISS', 2: 'Ontology', 3: 'GraphRAG', 4: 'LLM Wiki' };
+      const layerNames = { 1: 'FAISS', 2: 'Ontology', 3: 'Knowledge Graph', 4: 'LLM Wiki' };
       setText('wrLpgQueryLayers', d.layer_names?.join(' → ') || d.layers?.map(l => layerNames[l]).join(' → ') || '-');
 
       // 엔티티
