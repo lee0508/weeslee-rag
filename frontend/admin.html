@@ -1099,17 +1099,17 @@
       display: block;
     }
 
-    /* 관리자 작업 흐름 안내 박스 */
+    /* 관리자 작업 흐름 안내 박스 (다크 테마) */
     .admin-flow-guide {
-      background: linear-gradient(135deg, #f8f9fc 0%, #e8f4fd 100%);
-      border: 1px solid var(--navy);
+      background: var(--surface2);
+      border: 1px solid var(--border);
       border-left: 4px solid var(--amber);
       border-radius: 8px;
       padding: 1.25rem 1.5rem;
       margin-bottom: 1.5rem;
     }
     .admin-flow-guide h3 {
-      color: var(--navy);
+      color: var(--amber);
       font-size: 1rem;
       font-weight: 600;
       margin-bottom: 0.75rem;
@@ -1121,7 +1121,7 @@
       content: "📋";
     }
     .admin-flow-guide > p {
-      color: var(--gray-700);
+      color: var(--text);
       font-size: 0.875rem;
       line-height: 1.6;
       margin-bottom: 1rem;
@@ -1134,12 +1134,12 @@
       margin: 0;
     }
     .admin-flow-guide li {
-      color: var(--gray-600);
+      color: var(--muted);
       font-size: 0.8125rem;
       line-height: 1.5;
     }
     .admin-flow-guide li strong {
-      color: var(--navy);
+      color: var(--text);
     }
 
     /* 네비게이션 메뉴 설명 */
