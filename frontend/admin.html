@@ -11336,14 +11336,22 @@ LIMIT 10`;
       const data = await response.json();
 
       // UI 업데이트
-      document.getElementById('publishFaissStatus')?.textContent = data.faiss_status === 'ready' ? '준비됨' : '비어있음';
-      document.getElementById('publishFaissCount')?.textContent = data.faiss_doc_count || 0;
-      document.getElementById('publishGraphStatus')?.textContent = data.graph_status === 'ready' ? '준비됨' : '비어있음';
-      document.getElementById('publishGraphCount')?.textContent = data.graph_node_count || 0;
-      document.getElementById('publishWikiStatus')?.textContent = data.wiki_status === 'ready' ? '준비됨' : '비어있음';
-      document.getElementById('publishWikiCount')?.textContent = data.wiki_count || 0;
-      document.getElementById('publishActiveSnapshot')?.textContent = data.active_snapshot || '없음';
-      document.getElementById('publishQualityScore')?.textContent = (data.quality_score || 0) + '%';
+      const faissStatusEl = document.getElementById('publishFaissStatus');
+      if (faissStatusEl) faissStatusEl.textContent = data.faiss_status === 'ready' ? '준비됨' : '비어있음';
+      const faissCountEl = document.getElementById('publishFaissCount');
+      if (faissCountEl) faissCountEl.textContent = data.faiss_doc_count || 0;
+      const graphStatusEl = document.getElementById('publishGraphStatus');
+      if (graphStatusEl) graphStatusEl.textContent = data.graph_status === 'ready' ? '준비됨' : '비어있음';
+      const graphCountEl = document.getElementById('publishGraphCount');
+      if (graphCountEl) graphCountEl.textContent = data.graph_node_count || 0;
+      const wikiStatusEl = document.getElementById('publishWikiStatus');
+      if (wikiStatusEl) wikiStatusEl.textContent = data.wiki_status === 'ready' ? '준비됨' : '비어있음';
+      const wikiCountEl = document.getElementById('publishWikiCount');
+      if (wikiCountEl) wikiCountEl.textContent = data.wiki_count || 0;
+      const activeSnapshotEl = document.getElementById('publishActiveSnapshot');
+      if (activeSnapshotEl) activeSnapshotEl.textContent = data.active_snapshot || '없음';
+      const qualityScoreEl = document.getElementById('publishQualityScore');
+      if (qualityScoreEl) qualityScoreEl.textContent = (data.quality_score || 0) + '%';
     } catch (error) {
       console.error('loadPublishStatus error:', error);
     }
