@@ -159,7 +159,7 @@ def _calculate_precision_recall(
 
 
 def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
-    """현재 활성 Snapshot 정보 조회"""
+    """현재 활성 Snapshot 정보 조회 - active_snapshot.json 또는 active_index.json에서 읽기"""
     project_root = _get_project_root()
 
     if source_id:
@@ -170,6 +170,15 @@ def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
     if active_file.exists():
         with open(active_file, "r", encoding="utf-8") as f:
             return json.load(f)
+
+    # Fallback: active_index.json에서 읽기 (RAG 검색이 사용하는 파일)
+    active_index_file = project_root / "data" / "active_index.json"
+    if active_index_file.exists():
+        with open(active_index_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # snapshot 또는 active_snapshot 키 지원
+        snapshot_id = data.get("snapshot") or data.get("active_snapshot")
+        return {"snapshot_id": snapshot_id, "snapshot": snapshot_id, **data}
 
     return {}
 
