@@ -23,6 +23,7 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 INDEXES_DIR = DATA_DIR / "indexes" / "faiss"
+ACTIVE_INDEX_PATH = DATA_DIR / "active_index.json"
 
 TOKEN_PATTERN = re.compile(r"[0-9A-Za-z가-힣_]+")
 
@@ -145,8 +146,19 @@ class FaissSearchService:
             return INDEXES_DIR / self.source_id
         return INDEXES_DIR
 
+    def _get_active_snapshot(self) -> Optional[str]:
+        """active_index.json에서 현재 활성 스냅샷 이름을 읽는다."""
+        if not ACTIVE_INDEX_PATH.exists():
+            return None
+        try:
+            with open(ACTIVE_INDEX_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("snapshot") or data.get("active_snapshot")
+        except Exception:
+            return None
+
     def _load_index(self) -> bool:
-        """FAISS 인덱스 로드."""
+        """FAISS 인덱스 로드. active_index.json 기준으로 {snapshot}_ollama.index 파일을 찾는다."""
         if self._loaded:
             return self._index is not None
 
@@ -156,8 +168,20 @@ class FaissSearchService:
             return False
 
         index_dir = self._get_index_dir()
-        index_path = index_dir / "chunks.index"
-        metadata_path = index_dir / "chunks_metadata.jsonl"
+        index_path = None
+        metadata_path = None
+
+        # 1. active_index.json에서 snapshot 읽기
+        snapshot = self._get_active_snapshot()
+        if snapshot:
+            # 새 파일명 규칙: {snapshot}_ollama.index
+            index_path = INDEXES_DIR / f"{snapshot}_ollama.index"
+            metadata_path = INDEXES_DIR / f"{snapshot}_ollama_metadata.jsonl"
+
+        # 2. 새 규칙 파일이 없으면 legacy 파일명 시도
+        if not index_path or not index_path.exists():
+            index_path = index_dir / "chunks.index"
+            metadata_path = index_dir / "chunks_metadata.jsonl"
 
         if not index_path.exists() or not metadata_path.exists():
             # 기본 경로 시도
@@ -171,6 +195,7 @@ class FaissSearchService:
         try:
             self._index = faiss.read_index(str(index_path))
 
+            # 메타데이터에서 embedding_provider 감지
             if metadata_path.exists():
                 with open(metadata_path, "r", encoding="utf-8") as f:
                     self._metadata = [
@@ -178,6 +203,9 @@ class FaissSearchService:
                         for line in f
                         if line.strip()
                     ]
+                # ollama 인덱스면 embedding_provider 업데이트
+                if "_ollama" in str(index_path):
+                    self.embedding_provider = "ollama"
 
             # 청크 텍스트 로드 (있으면)
             chunks_path = index_dir / "chunks.jsonl"
@@ -337,6 +365,7 @@ class FaissSearchService:
             "chunks_count": len(self._chunks),
             "embedding_provider": self.embedding_provider,
             "source_id": self.source_id,
+            "active_snapshot": self._get_active_snapshot(),
         }
 
 
