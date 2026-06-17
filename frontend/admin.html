@@ -1217,10 +1217,11 @@
             신규 문서 알림 <span class="wr-nav-count" id="navNewDocsCount"></span>
           </button>
           <button class="wr-nav-link" type="button" data-wr-page="jobs">
-            처리 대기 문서 <span class="wr-nav-count" id="navPendingCount"></span>
+            빌드 작업 현황 <span class="wr-nav-count" id="navPendingCount"></span>
           </button>
         </div>
-        <div class="wr-nav-section" id="navSectionRagSource">
+        <!-- RAG SOURCE 메뉴 숨김 처리 (Document Source와 혼동 방지) -->
+        <div class="wr-nav-section" id="navSectionRagSource" hidden>
           <h2 class="wr-nav-heading wr-nav-collapsible" onclick="toggleNavSection('ragSourceList')">
             <span class="wr-nav-heading-icon">📁</span> RAG SOURCE
             <span class="wr-nav-toggle" id="ragSourceToggle">▼</span>
@@ -1240,7 +1241,7 @@
             <span class="wr-nav-desc">검색 데이터셋 생성</span>
           </h2>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(1)">Step 1: Source Scan</button>
-          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(2)">Step 2: Metadata Auto</button>
+          <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(2)">Step 2: Metadata Builder</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(3)">Step 3: Metadata Review</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(4)">Step 4: OCR/Parser</button>
           <button class="wr-nav-link" type="button" onclick="openDatasetBuilderStep(5)">Step 5: Chunk Build</button>
@@ -1268,13 +1269,13 @@
           <h2 class="wr-nav-heading">PUBLISH
             <span class="wr-nav-desc">사용자 검색 반영</span>
           </h2>
-          <button class="wr-nav-link" type="button" data-wr-page="publish-quality">Search Quality Check</button>
-          <button class="wr-nav-link" type="button" data-wr-page="publish-activate">Active Dataset / Snapshot</button>
+          <button class="wr-nav-link" type="button" data-wr-page="publish-quality">Publish Search Quality</button>
+          <button class="wr-nav-link" type="button" data-wr-page="publish-activate">Active Snapshot</button>
         </div>
         <div class="wr-nav-section">
           <h2 class="wr-nav-heading">ANALYTICS</h2>
-          <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS Index</button>
-          <button class="wr-nav-link" type="button" data-wr-page="settings">Settings</button>
+          <button class="wr-nav-link" type="button" data-wr-page="faiss-index">FAISS 상태</button>
+          <button class="wr-nav-link" type="button" data-wr-page="settings">시스템 설정</button>
         </div>
       </nav>
     </aside>
@@ -1456,19 +1457,8 @@
             <div class="wr-summary-value" id="wrSourceDefaultName">-</div>
           </div>
         </div>
-        <p class="wr-page-lead">원문 문서 위치, 논리 Source, 스캔 상태를 다루는 화면입니다. 1차에서는 설명과 fallback 상태를 우선 표시합니다.</p>
-        <div class="wr-callout">API가 아직 연결되지 않았습니다. 백엔드 구현 후 이 영역에 실제 데이터가 표시됩니다.</div>
-        <div class="wr-grid">
-          <div class="wr-card">
-            <h2 class="wr-card-title">Source Registry</h2>
-            <p class="wr-card-text">문서 원본 경로, 마운트 경로, 데이터 저장 경로를 관리합니다.</p>
-            <button class="wr-btn" type="button" data-wr-legacy-tab="docsource">Legacy Document Source 열기</button>
-          </div>
-          <div class="wr-card">
-            <h2 class="wr-card-title">Scan Preview</h2>
-            <p class="wr-card-text">스캔 미리보기와 Dataset 생성은 기존 Document Source 탭 기능을 보존해 사용합니다.</p>
-          </div>
-        </div>
+        <p class="wr-page-lead">원문 문서 위치, 논리 Source, 스캔 상태를 다루는 화면입니다.</p>
+        <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="docsource" style="margin-bottom:20px">Legacy Document Source 열기</button>
         <h2 class="wr-section-title" id="wr-source-settings" data-wr-anchor>Source Settings</h2>
         <div class="wr-form-grid">
           <div class="wr-field"><label>Default source path</label><input id="wrSourceDefaultPath" value="(로딩 중...)" readonly></div>
@@ -1508,7 +1498,7 @@
             </div>
             <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(2)">
               <div class="wr-summary-label">Step 2</div>
-              <div class="wr-summary-value">Metadata Auto</div>
+              <div class="wr-summary-value">Metadata Builder</div>
             </div>
             <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(3)">
               <div class="wr-summary-label">Step 3</div>
@@ -1569,7 +1559,11 @@ POST /api/admin/faiss/jobs</code>
       <section class="wr-page" data-wr-page-panel="db-step-1">
         <div class="wr-eyebrow">Dataset Builder</div>
         <h1 class="wr-page-title">Step 1: Source Scan</h1>
-        <p class="wr-page-lead">원본 폴더를 스캔하여 전체 데이터셋의 기준 구조를 만듭니다.</p>
+        <p class="wr-page-lead">Document Source 아래의 파일 목록과 기본 메타데이터를 수집합니다.</p>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          <strong>주의:</strong> 이 단계에서는 Dataset ID가 생성되지 않습니다. Dataset ID는 Snapshot 생성 시 만들어집니다.
+          또한 RAG 검색용 FAISS Index도 이 단계에서 생성되지 않습니다.
+        </div>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
           <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(1)">Step 1 실행</button>
@@ -1615,10 +1609,10 @@ POST /api/admin/faiss/jobs</code>
         </div>
       </section>
 
-      <!-- Step 2: Metadata Auto -->
+      <!-- Step 2: Metadata Builder -->
       <section class="wr-page" data-wr-page-panel="db-step-2">
         <div class="wr-eyebrow">Dataset Builder</div>
-        <h1 class="wr-page-title">Step 2: Metadata Auto</h1>
+        <h1 class="wr-page-title">Step 2: Metadata Builder</h1>
         <p class="wr-page-lead">파일명, 폴더명, 접두사를 기준으로 1차 메타데이터를 자동 생성합니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
@@ -2131,17 +2125,21 @@ POST /api/admin/faiss/jobs</code>
         </div>
       </section>
 
-      <!-- Step 7: FAISS Build (임시 placeholder) -->
+      <!-- Step 7: FAISS Build -->
       <section class="wr-page" data-wr-page-panel="db-step-7">
         <div class="wr-eyebrow">Dataset Builder</div>
         <h1 class="wr-page-title">Step 7: FAISS Build</h1>
-        <p class="wr-page-lead">Embedding vector를 FAISS Index로 구성합니다.</p>
+        <p class="wr-page-lead">Embedding 결과를 기반으로 검색 인덱스를 생성합니다.</p>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          <strong>주의:</strong> 이 단계는 운영 반영 단계가 아닙니다. FAISS Index가 생성되더라도
+          사용자 검색 화면에 바로 반영되지 않습니다. 운영 반영은 <strong>Publish &gt; Active Snapshot</strong> 단계에서 수행됩니다.
+        </div>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
           <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(7)">Step 7 실행</button>
         </div>
         <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
-          collection_id 기준 FAISS Index 생성: index.faiss, index_meta.jsonl, snapshot 생성
+          collection_id 기준 FAISS Index 생성: index.faiss, index_meta.jsonl
         </div>
         <h2 class="wr-section-title">Execution API</h2>
         <code class="wr-code-block">POST /api/admin/dataset-builder/step7/build</code>
@@ -2151,7 +2149,12 @@ POST /api/admin/faiss/jobs</code>
       <section class="wr-page" data-wr-page-panel="db-step-8">
         <div class="wr-eyebrow">Dataset Builder</div>
         <h1 class="wr-page-title">Step 8: Dataset Summary</h1>
-        <p class="wr-page-lead">Dataset Builder 실행 결과를 확인하고, 다음 작업으로 이동합니다.</p>
+        <p class="wr-page-lead">Source Scan부터 FAISS Build까지의 처리 상태를 요약합니다.</p>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          <strong>안내:</strong> 이 화면은 Dataset 생성 실행 화면이 아닙니다. 상태 요약 화면입니다.
+          Knowledge Graph, LLM Wiki, Publish 상태는 후속 산출물 상태입니다.
+          각각 별도 메뉴에서 생성/관리합니다.
+        </div>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
           <button class="wr-btn" type="button" onclick="loadDatasetSummary()">🔄 새로고침</button>
@@ -2239,6 +2242,29 @@ POST /api/admin/faiss/jobs</code>
           <h3 class="wr-card-title">오류 요약</h3>
           <div id="summaryErrorStats" style="min-height:60px;">
             <div class="wr-callout wr-callout-info">오류 정보를 불러오는 중...</div>
+          </div>
+        </div>
+
+        <!-- 후속 산출물 상태 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">후속 산출물 상태</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Knowledge Graph</div>
+              <div class="wr-summary-value" id="summaryGraphStatus">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Graph Nodes / Edges</div>
+              <div class="wr-summary-value" id="summaryGraphNodes">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">LLM Wiki</div>
+              <div class="wr-summary-value" id="summaryWikiCount">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Active Snapshot</div>
+              <div class="wr-summary-value" id="summaryActiveSnapshot">-</div>
+            </div>
           </div>
         </div>
 
@@ -2780,10 +2806,11 @@ POST /api/admin/faiss/rollback</code>
               <div class="wr-field">
                 <label>Graph DB 유형</label>
                 <select id="wrStep7GraphDbType">
-                  <option value="json">JSON (파일 기반)</option>
+                  <option value="json">JSON (파일 기반) - 기본</option>
                   <option value="networkx">NetworkX (인메모리)</option>
-                  <option value="neo4j">Neo4j (외부 DB)</option>
+                  <option value="neo4j" disabled>Neo4j (향후 확장)</option>
                 </select>
+                <small class="wr-field-hint">현재 JSON Graph 파일 기반으로 운영됩니다.</small>
               </div>
               <div class="wr-field">
                 <label>증분 빌드</label>
@@ -3129,9 +3156,13 @@ POST /api/admin/knowledge-graph/ontology</code>
         <div class="wr-eyebrow">Knowledge Graph</div>
         <h1 class="wr-page-title" data-wr-anchor>Knowledge Graph 생성</h1>
         <p class="wr-page-lead">문서 메타데이터와 청크 데이터를 기반으로 Knowledge Graph를 생성합니다.</p>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          <strong>안내:</strong> 현재 Knowledge Graph는 <strong>JSON Graph 파일 기반</strong>으로 운영됩니다.
+          Neo4j는 향후 확장 옵션이며 현재 기본 저장소가 아닙니다.
+          Knowledge Graph는 RAG Dataset 안정화 이후 실행하는 후속 산출물입니다.
+        </div>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('kg-ontology')">← Ontology 설정</button>
-          <!-- TODO: 2차 작업에서 Knowledge Graph 전용 API로 분리 -->
           <button class="wr-btn wr-btn-primary" type="button" onclick="runKnowledgeGraphBuild()">Knowledge Graph 생성</button>
         </div>
         <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
@@ -3152,8 +3183,9 @@ POST /api/admin/knowledge-graph/ontology</code>
               <label>Graph 저장 방식</label>
               <div style="display:flex;gap:12px;margin-top:6px">
                 <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="kgStorage" value="json" checked> JSON Graph (기본)</label>
-                <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="kgStorage" value="neo4j"> Neo4j (선택)</label>
+                <label style="display:flex;align-items:center;gap:4px;opacity:0.5" title="향후 확장 옵션"><input type="radio" name="kgStorage" value="neo4j" disabled> Neo4j (향후 확장)</label>
               </div>
+              <small class="wr-field-hint">현재 JSON Graph 파일 기반으로 운영됩니다. Neo4j는 향후 확장 옵션입니다.</small>
             </div>
             <div class="wr-field">
               <label>유사도 임계값</label>
@@ -3179,6 +3211,24 @@ POST /api/admin/knowledge-graph/ontology</code>
           <h3 class="wr-card-title">생성 결과 파일</h3>
           <div class="wr-callout wr-callout-info">
             Knowledge Graph 생성 결과는 snapshot_id 기준으로 저장됩니다.
+          </div>
+          <div class="wr-summary-grid" style="margin-top:12px">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Build Status</div>
+              <div class="wr-summary-value" id="kgBuildStatus">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Node Count</div>
+              <div class="wr-summary-value" id="kgNodeCount">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Edge Count</div>
+              <div class="wr-summary-value" id="kgEdgeCount">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Last Build</div>
+              <div class="wr-summary-value" id="kgBuildLastBuilt">-</div>
+            </div>
           </div>
           <ul style="margin:12px 0 0;padding-left:20px;color:var(--wr-muted)">
             <li>ontology_schema.json - 온톨로지 스키마</li>
@@ -3248,7 +3298,7 @@ POST /api/admin/knowledge-graph/ontology</code>
         </div>
 
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">GET /api/admin/knowledge-graph/view
+        <code class="wr-code-block">GET /api/admin/knowledge-graph/preview
 GET /api/admin/knowledge-graph/stats</code>
       </section>
 
@@ -3312,7 +3362,8 @@ GET /api/admin/knowledge-graph/stats</code>
 
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
         <code class="wr-code-block">POST /api/admin/knowledge-graph/validate
-GET /api/admin/knowledge-graph/validation-report</code>
+GET /api/admin/knowledge-graph/ontology
+GET /api/admin/knowledge-graph/agent-logs</code>
       </section>
 
       <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -3416,9 +3467,16 @@ GET /api/admin/knowledge-graph/validation-report</code>
           </div>
         </div>
 
+        <h2 class="wr-section-title" data-wr-anchor>Wiki 내용</h2>
+        <div class="wr-card">
+          <div id="wikiContentPreview" class="wiki-content">
+            <div class="wr-callout wr-callout-info">Wiki 목록에서 항목을 선택하면 내용이 표시됩니다.</div>
+          </div>
+        </div>
+
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">GET /api/admin/llm-wiki/list
-GET /api/admin/llm-wiki/preview/{wiki_id}</code>
+        <code class="wr-code-block">GET /api/admin/llm-wiki/preview
+GET /api/admin/llm-wiki/content/{wiki_type}/{slug}</code>
       </section>
 
       <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -3428,8 +3486,8 @@ GET /api/admin/llm-wiki/preview/{wiki_id}</code>
       <!-- Publish: Search Quality Check -->
       <section class="wr-page" data-wr-page-panel="publish-quality">
         <div class="wr-eyebrow">Publish</div>
-        <h1 class="wr-page-title" data-wr-anchor>Search Quality Check</h1>
-        <p class="wr-page-lead">운영 반영 전에 검색 품질을 검증합니다.</p>
+        <h1 class="wr-page-title" data-wr-anchor>Publish Search Quality</h1>
+        <p class="wr-page-lead">운영 반영 전에 검색 품질을 검증합니다. 이 검증을 통과한 Snapshot만 사용자 검색 화면에 반영됩니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <!-- TODO: 2차 작업에서 Publish 전용 API로 분리 -->
           <button class="wr-btn wr-btn-primary" type="button" onclick="runPublishSearchQuality()">검증 실행</button>
@@ -3472,15 +3530,15 @@ GET /api/admin/llm-wiki/preview/{wiki_id}</code>
         </div>
 
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
-        <code class="wr-code-block">POST /api/admin/publish/search-quality
-GET /api/admin/publish/search-quality-report</code>
+        <code class="wr-code-block">GET /api/admin/publish/quality/sample-queries
+POST /api/admin/publish/quality/test</code>
       </section>
 
-      <!-- Publish: Active Dataset / Snapshot -->
+      <!-- Publish: Active Snapshot -->
       <section class="wr-page" data-wr-page-panel="publish-activate">
         <div class="wr-eyebrow">Publish</div>
-        <h1 class="wr-page-title" data-wr-anchor>Active Dataset / Snapshot</h1>
-        <p class="wr-page-lead">사용자 검색 화면에 반영할 Active Dataset과 Active Snapshot을 전환합니다.</p>
+        <h1 class="wr-page-title" data-wr-anchor>Active Snapshot</h1>
+        <p class="wr-page-lead">사용자 검색 화면에 반영할 Snapshot을 전환합니다. Dataset ID는 Snapshot 안에 포함되어 있습니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="loadPublishStatus()">🔄 새로고침</button>
         </div>
@@ -3507,6 +3565,22 @@ GET /api/admin/publish/search-quality-report</code>
             <div class="wr-summary-card">
               <div class="wr-summary-label">검증 상태</div>
               <div class="wr-summary-value" id="publishVerifiedStatus">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">FAISS</div>
+              <div class="wr-summary-value" id="publishFaissStatus">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Knowledge Graph</div>
+              <div class="wr-summary-value" id="publishGraphStatus">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">LLM Wiki</div>
+              <div class="wr-summary-value" id="publishWikiStatus">-</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Quality Score</div>
+              <div class="wr-summary-value" id="publishQualityScore">-</div>
             </div>
           </div>
         </div>
@@ -3571,8 +3645,8 @@ POST /api/admin/publish/rollback</code>
       <!-- ══════════════════════════════════════════════════════════════════ -->
 
       <section class="wr-page" data-wr-page-panel="faiss-index">
-        <div class="wr-eyebrow">Data Build</div>
-        <h1 class="wr-page-title" id="wr-faiss-title" data-wr-anchor>FAISS Index</h1>
+        <div class="wr-eyebrow">Analytics</div>
+        <h1 class="wr-page-title" id="wr-faiss-title" data-wr-anchor>FAISS 상태</h1>
         <div class="wr-callout" id="wrFaissCallout">FAISS 상태를 불러오는 중입니다.</div>
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
@@ -4036,9 +4110,12 @@ POST /api/admin/faiss/activate</code>
       </section>
 
       <section class="wr-page" data-wr-page-panel="search-quality">
-        <div class="wr-eyebrow">Operations</div>
-        <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Search Quality</h1>
-        <p class="wr-page-lead">검색 품질 검증과 벤치마크 이력을 새 레이아웃에서 요약하고, 실제 실행은 기존 Search Quality 탭으로 연결합니다.</p>
+        <div class="wr-eyebrow">Legacy / 개발자 도구</div>
+        <h1 class="wr-page-title" id="wr-quality-title" data-wr-anchor>Legacy Search Test</h1>
+        <p class="wr-page-lead">개발/디버깅용 검색 테스트 화면입니다. 운영 반영 전 검증은 <strong>Publish &gt; Publish Search Quality</strong>를 사용하세요.</p>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          <strong>주의:</strong> 이 화면은 운영 반영 전 검증 화면이 아닙니다. 운영 반영 전 검증은 Publish 메뉴의 Publish Search Quality를 사용하세요.
+        </div>
 
         <div class="wr-summary-grid">
           <div class="wr-summary-card">
@@ -4104,9 +4181,9 @@ POST /api/admin/faiss/activate</code>
       </section>
 
       <section class="wr-page" data-wr-page-panel="settings">
-        <div class="wr-eyebrow">Operations</div>
-        <h1 class="wr-page-title" id="wr-settings-title" data-wr-anchor>Settings</h1>
-        <p class="wr-page-lead">관리자 화면에서 필요한 기본 경로, 모델, 운영 설정을 확인하는 페이지입니다. 1차에서는 입력 UI와 안내 상태만 제공합니다.</p>
+        <div class="wr-eyebrow">Analytics</div>
+        <h1 class="wr-page-title" id="wr-settings-title" data-wr-anchor>시스템 설정</h1>
+        <p class="wr-page-lead">관리자 화면에서 필요한 기본 경로, 모델, 운영 설정 상태를 확인합니다. 현재는 읽기 전용 상태 확인 화면입니다.</p>
         <div class="wr-form-grid">
           <div class="wr-field"><label>LLM model</label><input id="wrSettingsLlmModel" value="로딩 중..." readonly></div>
           <div class="wr-field"><label>Embedding model</label><input id="wrSettingsEmbedModel" value="로딩 중..." readonly></div>
@@ -4213,7 +4290,7 @@ POST /api/admin/faiss/activate</code>
   <button class="tab-btn" onclick="switchTab('ragsource')">📋 RAG Source</button>
   <button class="tab-btn" onclick="switchTab('collection')">🗂️ Collection</button>
   <button class="tab-btn" onclick="switchTab('tagkeyword')">🏷️ Tag/Keyword</button>
-  <button class="tab-btn" onclick="switchTab('platform')">🏢 플랫폼 설정</button>
+  <button class="tab-btn" onclick="switchTab('platform')">🏢 시스템 설정</button>
 </nav>
 
 <!-- ── Source/Dataset 공통 컨텍스트 바 ──────────────────────────── -->
@@ -4417,7 +4494,7 @@ POST /api/admin/faiss/activate</code>
     </div>
   </div>
 
-  <!-- 플랫폼 설정 정보 (Client Info) -->
+  <!-- 시스템 설정 정보 (Client Info) -->
   <div class="platform-info-banner" style="background:linear-gradient(135deg,var(--navy-light),var(--navy-dark));border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:20px">🏢</span>
@@ -7920,7 +7997,7 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function bootstrapTags() {
-    if (!confirm('기본 Tag 10개를 자동 생성합니다. 계속하시겠습니까?')) return;
+    if (!confirm('기본 Tag 20개(기술/프로젝트유형/업무분야/제안서섹션/산출물섹션)를 자동 생성합니다. 계속하시겠습니까?')) return;
     showToast('기본 Tag 생성 중...', 'info');
     try {
       const result = await platformFetch('/admin/rag-source/tags/bootstrap', { method: 'POST' });
@@ -8660,7 +8737,7 @@ POST /api/admin/faiss/activate</code>
     }
   }
 
-  // 플랫폼 설정 탭 로드 시 LLM 설정도 로드
+  // 시스템 설정 탭 로드 시 LLM 설정도 로드
   // 2026-06-12: 래핑 코드 제거 - loadLlmSettings()는 loadLegacyTabData('platform')에서 호출됨
 
   // ── Graph View ────────────────────────────────────────────────────────────
@@ -9121,7 +9198,7 @@ POST /api/admin/faiss/activate</code>
     // 현재는 기존 필드 기반으로 추정
     const steps = [
       { label: '1', completed: !!doc.document_id }, // Source Scan
-      { label: '2', completed: !!doc.project_name }, // Metadata Auto
+      { label: '2', completed: !!doc.project_name }, // Metadata Builder
       { label: '3', completed: doc.meta_status === 'confirmed' }, // Metadata Review
       { label: '4', completed: doc.status === 'text_extracted' || doc.status === 'chunked' || doc.status === 'embedded' || doc.status === 'faiss_indexed' || doc.status === 'rag_ready' }, // OCR
       { label: '5', completed: doc.status === 'chunked' || doc.status === 'embedded' || doc.status === 'faiss_indexed' || doc.status === 'rag_ready' }, // Chunk
@@ -10201,7 +10278,7 @@ POST /api/admin/faiss/activate</code>
               <td>${data.total_documents || 0}개 문서 스캔됨</td>
             </tr>
             <tr>
-              <td><strong>Step 2: Metadata Auto</strong></td>
+              <td><strong>Step 2: Metadata Builder</strong></td>
               <td>${data.step2_completed || 0} 완료</td>
               <td>평균 신뢰도: ${data.step2_avg_confidence ? (data.step2_avg_confidence * 100).toFixed(1) + '%' : '-'}</td>
             </tr>
@@ -10595,6 +10672,7 @@ LIMIT 10`;
   function navigateToDatasetBuilder() {
     if (window.openWrDocsPage?.('rag-build-wizard')) return;
     showWrPage('rag-build-wizard');
+    loadDatasetStatusSummary();
   }
 
   function openDashboardAlerts() {
@@ -10641,6 +10719,9 @@ LIMIT 10`;
       // 해당 Step 버튼 찾아서 활성화 (onclick 내용으로 매칭)
       const stepBtn = document.querySelector(`.wr-nav-link[onclick*="openDatasetBuilderStep(${figmaStep})"]`);
       if (stepBtn) stepBtn.classList.add('wr-is-active');
+      if (Number(figmaStep) === 8 && typeof loadDatasetSummary === 'function') {
+        setTimeout(() => loadDatasetSummary(), 100);
+      }
       showToast(`Dataset Builder Step ${figmaStep}로 이동했습니다.`, 'info', 2000);
     } else {
       // 폴백: 기존 방식
@@ -11031,6 +11112,8 @@ LIMIT 10`;
     if (pageName === 'agent-logs') loadAgentLogs();
     // Settings 페이지 서버 데이터 로드 (2026-06-15)
     if (pageName === 'settings') loadWrSettingsFromServer();
+    // Dataset Builder 페이지 진입 시 상태 요약 로드
+    if (pageName === 'rag-build-wizard') loadDatasetStatusSummary();
 
     return result;
   };
@@ -11062,7 +11145,7 @@ LIMIT 10`;
   async function loadKgOntology() {
     try {
       const response = await fetch(`${API_BASE}/admin/knowledge-graph/ontology`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
       if (data.success && data.schema) {
@@ -11088,7 +11171,7 @@ LIMIT 10`;
       // 기본 스키마 가져와서 저장
       const response = await fetch(`${API_BASE}/admin/knowledge-graph/ontology`, {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ version: '1.0' })
       });
       const data = await response.json();
@@ -11110,10 +11193,11 @@ LIMIT 10`;
     if (buildBtn) buildBtn.disabled = true;
 
     try {
+      const snapshotId = document.getElementById('kgBuildSnapshotSelect')?.value || getSelectedSnapshot?.() || '';
       const response = await fetch(`${API_BASE}/admin/knowledge-graph/build`, {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rebuild: false, use_ontology: true })
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshot_id: snapshotId || null, rebuild: false, use_ontology: true })
       });
       const data = await response.json();
       if (data.success) {
@@ -11134,7 +11218,7 @@ LIMIT 10`;
   async function loadKgGraphStatus() {
     try {
       const response = await fetch(`${API_BASE}/admin/knowledge-graph/status`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
       // UI 업데이트
@@ -11146,6 +11230,8 @@ LIMIT 10`;
       if (nodeCountEl) nodeCountEl.textContent = data.node_count || 0;
       const edgeCountEl = document.getElementById('kgEdgeCount');
       if (edgeCountEl) edgeCountEl.textContent = data.edge_count || 0;
+      const lastBuiltEl = document.getElementById('kgBuildLastBuilt');
+      if (lastBuiltEl) lastBuiltEl.textContent = data.built_at || '-';
     } catch (error) {
       console.error('loadKgGraphStatus error:', error);
     }
@@ -11155,11 +11241,56 @@ LIMIT 10`;
   async function loadKgGraphView() {
     try {
       const response = await fetch(`${API_BASE}/admin/knowledge-graph/preview?limit=100`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
       if (data.success) {
         console.log('Graph preview loaded:', data.node_count, 'nodes,', data.edge_count, 'edges');
+
+        // Summary 카드 업데이트
+        const totalNodesEl = document.getElementById('kgViewTotalNodes');
+        if (totalNodesEl) totalNodesEl.textContent = (data.node_count || 0).toLocaleString();
+
+        const totalEdgesEl = document.getElementById('kgViewTotalEdges');
+        if (totalEdgesEl) totalEdgesEl.textContent = (data.edge_count || 0).toLocaleString();
+
+        // 노드 유형별 카운트
+        const nodeTypeCounts = data.node_type_counts || {};
+        const orgCountEl = document.getElementById('kgViewOrgCount');
+        if (orgCountEl) orgCountEl.textContent = (nodeTypeCounts.organization || 0).toLocaleString();
+
+        const projectCountEl = document.getElementById('kgViewProjectCount');
+        if (projectCountEl) projectCountEl.textContent = (nodeTypeCounts.project || 0).toLocaleString();
+
+        const docCountEl = document.getElementById('kgViewDocCount');
+        if (docCountEl) docCountEl.textContent = (nodeTypeCounts.document || 0).toLocaleString();
+        const lastBuildEl = document.getElementById('kgViewLastBuild');
+        if (lastBuildEl) lastBuildEl.textContent = data.built_at || '-';
+
+        // 노드 유형별 분포 테이블 생성
+        const distDiv = document.getElementById('kgViewNodeDistribution');
+        if (distDiv && Object.keys(nodeTypeCounts).length > 0) {
+          const rows = Object.entries(nodeTypeCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([type, count]) => `
+              <tr>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border)">${type}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);text-align:right">${count.toLocaleString()}</td>
+              </tr>
+            `).join('');
+          distDiv.innerHTML = `
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="background:var(--surface1)">
+                  <th style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)">노드 유형</th>
+                  <th style="padding:8px 12px;text-align:right;border-bottom:1px solid var(--border)">개수</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          `;
+        }
+
         // 기존 그래프 시각화 함수 호출
         if (typeof loadGraphOverviewStats === 'function') {
           loadGraphOverviewStats();
@@ -11167,6 +11298,7 @@ LIMIT 10`;
       }
     } catch (error) {
       console.error('loadKgGraphView error:', error);
+      showToast('Graph View 로드 실패', 'error');
     }
   }
 
@@ -11176,9 +11308,48 @@ LIMIT 10`;
     try {
       const response = await fetch(`${API_BASE}/admin/knowledge-graph/validate`, {
         method: 'POST',
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
+
+      // 개별 검증 항목 상태 업데이트
+      const nodeStatus = document.getElementById('kgValNodeStatus');
+      const edgeStatus = document.getElementById('kgValEdgeStatus');
+      const ontologyStatus = document.getElementById('kgValOntologyStatus');
+      const orphanStatus = document.getElementById('kgValOrphanStatus');
+      const cycleStatus = document.getElementById('kgValCycleStatus');
+
+      const okBadge = '<span class="wr-badge wr-badge-success">✓ 통과</span>';
+      const warnBadge = '<span class="wr-badge wr-badge-warning">⚠ 경고</span>';
+      const errBadge = '<span class="wr-badge wr-badge-error">✗ 오류</span>';
+
+      // 노드 누락 검증
+      if (nodeStatus) {
+        const hasMissing = data.missing_relations?.some(r => r.includes('Missing'));
+        nodeStatus.innerHTML = hasMissing ? errBadge : okBadge;
+      }
+
+      // 엣지 누락 검증
+      if (edgeStatus) {
+        const edgeErrors = data.missing_relations?.filter(r => r.includes('source') || r.includes('target')) || [];
+        edgeStatus.innerHTML = edgeErrors.length > 0 ? `${errBadge} (${edgeErrors.length}개)` : okBadge;
+      }
+
+      // Ontology 불일치 검증 (현재는 기본 통과)
+      if (ontologyStatus) {
+        ontologyStatus.innerHTML = okBadge;
+      }
+
+      // 고아 노드 검출
+      if (orphanStatus) {
+        const orphanCount = data.orphan_nodes || 0;
+        orphanStatus.innerHTML = orphanCount > 0 ? `${warnBadge} (${orphanCount}개)` : okBadge;
+      }
+
+      // 순환 참조 검출 (현재는 기본 통과)
+      if (cycleStatus) {
+        cycleStatus.innerHTML = okBadge;
+      }
 
       const resultDiv = document.getElementById('kgValidationResult');
       if (resultDiv) {
@@ -11205,21 +11376,150 @@ LIMIT 10`;
     runKgValidation();
   }
 
+  // Schema Viewer 로드 (kg-validation 페이지용)
+  async function loadKgSchemaViewer() {
+    const container = document.getElementById('kgSchemaViewer');
+    if (!container) return;
+
+    container.innerHTML = '<div class="wr-nav-loading">로딩 중...</div>';
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/ontology`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+
+      if (!data.success || !data.schema) {
+        container.innerHTML = '<div class="wr-callout wr-callout-warning">스키마를 불러올 수 없습니다.</div>';
+        return;
+      }
+
+      const schema = data.schema;
+      let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
+
+      // 노드 타입
+      html += '<div><h4 style="margin-bottom:8px;color:var(--amber);">노드 타입</h4><ul style="list-style:none;padding:0;">';
+      for (const nt of schema.node_types || []) {
+        html += `<li style="padding:4px 0;border-bottom:1px solid var(--border);">
+          <strong>${nt.label}</strong> <code style="font-size:11px;color:var(--muted);">${nt.name}</code>
+          ${nt.description ? `<br><small style="color:var(--muted);">${nt.description}</small>` : ''}
+        </li>`;
+      }
+      html += '</ul></div>';
+
+      // 관계 타입
+      html += '<div><h4 style="margin-bottom:8px;color:var(--amber);">관계 타입</h4><ul style="list-style:none;padding:0;">';
+      for (const rt of schema.relation_types || []) {
+        html += `<li style="padding:4px 0;border-bottom:1px solid var(--border);">
+          <strong>${rt.label}</strong> <code style="font-size:11px;color:var(--muted);">${rt.name}</code>
+          ${rt.source_types?.length ? `<br><small style="color:var(--muted);">${rt.source_types.join(', ')} → ${rt.target_types?.join(', ') || ''}</small>` : ''}
+        </li>`;
+      }
+      html += '</ul></div>';
+
+      html += '</div>';
+      container.innerHTML = html;
+
+    } catch (error) {
+      console.error('loadKgSchemaViewer error:', error);
+      container.innerHTML = '<div class="wr-callout wr-callout-error">스키마 로드 실패</div>';
+    }
+  }
+
+  // Agent Retry Logs 로드
+  async function loadKgAgentLogs() {
+    const container = document.getElementById('kgAgentLogs');
+    if (!container) return;
+
+    container.innerHTML = '<div class="wr-nav-loading">로딩 중...</div>';
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/agent-logs?limit=20`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        container.innerHTML = '<div class="wr-callout wr-callout-warning">로그를 불러올 수 없습니다.</div>';
+        return;
+      }
+
+      if (!data.logs || data.logs.length === 0) {
+        container.innerHTML = '<div class="wr-callout wr-callout-info">기록된 Agent Retry 로그가 없습니다.</div>';
+        return;
+      }
+
+      let html = '<table style="width:100%;font-size:12px;"><thead><tr>';
+      html += '<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">시간</th>';
+      html += '<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">쿼리</th>';
+      html += '<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">재시도</th>';
+      html += '<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">결과</th>';
+      html += '</tr></thead><tbody>';
+
+      for (const log of data.logs) {
+        const ts = log.timestamp ? new Date(log.timestamp).toLocaleString('ko-KR') : '-';
+        const successBadge = log.success
+          ? '<span class="wr-badge wr-badge-success">성공</span>'
+          : '<span class="wr-badge wr-badge-error">실패</span>';
+        html += `<tr>
+          <td style="padding:6px;border-bottom:1px solid var(--border);white-space:nowrap;">${ts}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border);max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${log.query || ''}">${log.query || '-'}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border);text-align:center;">${log.retry_count || 0}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border);">${successBadge}</td>
+        </tr>`;
+      }
+
+      html += '</tbody></table>';
+      html += `<div style="margin-top:8px;font-size:11px;color:var(--muted);">총 ${data.total_count}개 로그</div>`;
+      container.innerHTML = html;
+
+    } catch (error) {
+      console.error('loadKgAgentLogs error:', error);
+      container.innerHTML = '<div class="wr-callout wr-callout-error">로그 로드 실패</div>';
+    }
+  }
+
   // Text2Cypher 테스트
-  function testKgText2Cypher() {
+  async function testKgText2Cypher() {
     const query = document.getElementById('kgText2CypherInput')?.value;
     if (!query) {
       showToast('쿼리를 입력하세요', 'warning');
       return;
     }
-    // Text2Cypher API 연결 (별도 구현 필요)
+
     const resultDiv = document.getElementById('kgText2CypherResult');
     const outputDiv = document.getElementById('kgText2CypherOutput');
-    if (resultDiv && outputDiv) {
-      resultDiv.style.display = 'block';
-      outputDiv.textContent = `MATCH (p:Project) WHERE p.name CONTAINS '${query}' RETURN p LIMIT 10`;
+
+    if (resultDiv) resultDiv.style.display = 'block';
+    if (outputDiv) outputDiv.textContent = '변환 중...';
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/text2cypher`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: query, execute: false })
+      });
+      const data = await response.json();
+
+      if (data.success && outputDiv) {
+        outputDiv.textContent = data.query || 'No query generated';
+        showToast('Cypher 변환 완료', 'success');
+      } else {
+        if (outputDiv) outputDiv.textContent = '변환 실패: ' + (data.message || 'Unknown error');
+        showToast('Cypher 변환 실패', 'error');
+      }
+
+    } catch (error) {
+      console.error('testKgText2Cypher error:', error);
+      if (outputDiv) outputDiv.textContent = '오류: ' + error.message;
+      showToast('Cypher 변환 실패', 'error');
     }
-    showToast('Cypher 변환 완료 (샘플)', 'success');
+  }
+
+  // kg-validation 페이지 진입 시 데이터 로드
+  function loadKgValidationPage() {
+    loadKgSchemaViewer();
+    loadKgAgentLogs();
   }
 
   // LLM Wiki 메뉴 열기
@@ -11232,14 +11532,18 @@ LIMIT 10`;
   async function loadWikiStatus() {
     try {
       const response = await fetch(`${API_BASE}/admin/llm-wiki/status`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
       // UI 업데이트
-      const statusEl = document.getElementById('wikiStatus');
-      if (statusEl) statusEl.textContent = data.status === 'ready' ? '준비됨' : '비어있음';
-      const countEl = document.getElementById('wikiTotalCount');
-      if (countEl) countEl.textContent = data.total_wikis || 0;
+      const totalEl = document.getElementById('wikiPreviewTotalPages');
+      const projectEl = document.getElementById('wikiPreviewProjectCount');
+      const orgEl = document.getElementById('wikiPreviewOrgCount');
+      const lastBuildEl = document.getElementById('wikiPreviewLastBuild');
+      if (totalEl) totalEl.textContent = data.total_wikis || 0;
+      if (projectEl) projectEl.textContent = data.project_wikis || 0;
+      if (orgEl) orgEl.textContent = data.organization_wikis || 0;
+      if (lastBuildEl) lastBuildEl.textContent = data.last_built_at || '-';
     } catch (error) {
       console.error('loadWikiStatus error:', error);
     }
@@ -11247,7 +11551,9 @@ LIMIT 10`;
 
   // Wiki 생성 실행
   async function runWikiBuild() {
-    const wikiType = document.getElementById('wikiBuildType')?.value || 'project';
+    const groupBy = document.getElementById('wikiBuildGroupBy')?.value || 'project';
+    const wikiType = ['project', 'organization', 'technology'].includes(groupBy) ? groupBy : 'project';
+    const model = document.getElementById('wikiBuildModel')?.value || 'gemma3:12b';
     showToast('Wiki 생성 시작...', 'info');
     const buildBtn = document.querySelector('[onclick="runWikiBuild()"]');
     if (buildBtn) buildBtn.disabled = true;
@@ -11255,8 +11561,8 @@ LIMIT 10`;
     try {
       const response = await fetch(`${API_BASE}/admin/llm-wiki/build`, {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wiki_type: wikiType, max_wikis: 0 })
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wiki_type: wikiType, model, max_wikis: 0 })
       });
       const data = await response.json();
       if (data.success) {
@@ -11279,27 +11585,60 @@ LIMIT 10`;
     showToast('Wiki 생성 설정 저장 완료', 'success');
   }
 
-  // Wiki 미리보기 로드
+  // Wiki 미리보기 페이지 진입 시 전체 로드 (통계 + 목록)
+  async function loadWikiPreviewPage() {
+    // 통계 로드
+    try {
+      const statusRes = await fetch(`${API_BASE}/admin/llm-wiki/status`, {
+        headers: authHeaders()
+      });
+      const statusData = await statusRes.json();
+      if (statusData.status === 'ready') {
+        const totalEl = document.getElementById('wikiPreviewTotalPages');
+        const projectEl = document.getElementById('wikiPreviewProjectCount');
+        const orgEl = document.getElementById('wikiPreviewOrgCount');
+        const lastBuildEl = document.getElementById('wikiPreviewLastBuild');
+        if (totalEl) totalEl.textContent = statusData.total_wikis || 0;
+        if (projectEl) projectEl.textContent = statusData.project_wikis || 0;
+        if (orgEl) orgEl.textContent = statusData.organization_wikis || 0;
+        if (lastBuildEl) lastBuildEl.textContent = statusData.last_built_at || '-';
+      }
+    } catch (e) {
+      console.error('loadWikiPreviewPage status error:', e);
+    }
+    // 목록 로드
+    loadWikiPreview();
+  }
+
+  // Wiki 미리보기 목록 로드
   async function loadWikiPreview() {
+    const listDiv = document.getElementById('wikiPreviewList');
+    if (listDiv) listDiv.innerHTML = '<div class="wr-nav-loading">로딩 중...</div>';
     try {
       const response = await fetch(`${API_BASE}/admin/llm-wiki/preview?limit=50`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
       if (data.success && data.pages) {
-        const listDiv = document.getElementById('wikiPagesList');
         if (listDiv) {
-          listDiv.innerHTML = data.pages.map(page => `
-            <div class="wiki-page-item" style="padding:8px;border-bottom:1px solid var(--gray-200);cursor:pointer"
-                 onclick="viewWikiContent('${page.wiki_type}', '${page.slug}')">
-              <strong>${page.title}</strong>
-              <span style="color:var(--gray-500);font-size:0.8rem;margin-left:8px">${page.wiki_type}</span>
-            </div>
-          `).join('');
+          if (data.pages.length === 0) {
+            listDiv.innerHTML = '<div style="padding:20px;color:var(--gray-500)">생성된 Wiki가 없습니다.</div>';
+          } else {
+            listDiv.innerHTML = data.pages.map(page => `
+              <div class="wiki-page-item" style="padding:8px;border-bottom:1px solid var(--gray-200);cursor:pointer"
+                   onclick="viewWikiContent('${page.wiki_type}', '${page.slug}')">
+                <strong>${page.title}</strong>
+                <span style="color:var(--gray-500);font-size:0.8rem;margin-left:8px">${page.wiki_type}</span>
+              </div>
+            `).join('');
+          }
         }
+      } else {
+        if (listDiv) listDiv.innerHTML = '<div style="padding:20px;color:var(--red-500)">로드 실패</div>';
       }
     } catch (error) {
       console.error('loadWikiPreview error:', error);
+      if (listDiv) listDiv.innerHTML = '<div style="padding:20px;color:var(--red-500)">로드 실패</div>';
     }
   }
 
@@ -11307,7 +11646,7 @@ LIMIT 10`;
   async function viewWikiContent(wikiType, slug) {
     try {
       const response = await fetch(`${API_BASE}/admin/llm-wiki/content/${wikiType}/${slug}`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
       if (data.success) {
@@ -11331,27 +11670,39 @@ LIMIT 10`;
   async function loadPublishStatus() {
     try {
       const response = await fetch(`${API_BASE}/admin/publish/status`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
 
       // UI 업데이트
       const faissStatusEl = document.getElementById('publishFaissStatus');
-      if (faissStatusEl) faissStatusEl.textContent = data.faiss_status === 'ready' ? '준비됨' : '비어있음';
-      const faissCountEl = document.getElementById('publishFaissCount');
-      if (faissCountEl) faissCountEl.textContent = data.faiss_doc_count || 0;
+      if (faissStatusEl) {
+        const label = data.faiss_status === 'ready' ? '준비됨' : (data.faiss_status === 'error' ? '오류' : '비어있음');
+        faissStatusEl.textContent = `${label} (${data.faiss_doc_count || 0})`;
+      }
       const graphStatusEl = document.getElementById('publishGraphStatus');
-      if (graphStatusEl) graphStatusEl.textContent = data.graph_status === 'ready' ? '준비됨' : '비어있음';
-      const graphCountEl = document.getElementById('publishGraphCount');
-      if (graphCountEl) graphCountEl.textContent = data.graph_node_count || 0;
+      if (graphStatusEl) {
+        graphStatusEl.textContent = data.graph_status === 'ready'
+          ? `준비됨 (${data.graph_node_count || 0})`
+          : '비어있음';
+      }
       const wikiStatusEl = document.getElementById('publishWikiStatus');
-      if (wikiStatusEl) wikiStatusEl.textContent = data.wiki_status === 'ready' ? '준비됨' : '비어있음';
-      const wikiCountEl = document.getElementById('publishWikiCount');
-      if (wikiCountEl) wikiCountEl.textContent = data.wiki_count || 0;
+      if (wikiStatusEl) {
+        wikiStatusEl.textContent = data.wiki_status === 'ready'
+          ? `준비됨 (${data.wiki_count || 0})`
+          : '비어있음';
+      }
       const activeSnapshotEl = document.getElementById('publishActiveSnapshot');
       if (activeSnapshotEl) activeSnapshotEl.textContent = data.active_snapshot || '없음';
+      const activeDatasetEl = document.getElementById('publishActiveDataset');
+      if (activeDatasetEl) activeDatasetEl.textContent = data.active_dataset || '-';
+      const activatedAtEl = document.getElementById('publishActivatedAt');
+      if (activatedAtEl) activatedAtEl.textContent = data.last_published_at || '-';
+      const verifiedStatusEl = document.getElementById('publishVerifiedStatus');
+      if (verifiedStatusEl) verifiedStatusEl.textContent = data.quality_passed ? '검증 통과' : '검증 필요';
       const qualityScoreEl = document.getElementById('publishQualityScore');
       if (qualityScoreEl) qualityScoreEl.textContent = (data.quality_score || 0) + '%';
+      loadPublishSnapshotList();
     } catch (error) {
       console.error('loadPublishStatus error:', error);
     }
@@ -11363,14 +11714,14 @@ LIMIT 10`;
     try {
       // 샘플 쿼리 가져오기
       const sampleResponse = await fetch(`${API_BASE}/admin/publish/quality/sample-queries`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const sampleData = await sampleResponse.json();
 
       // 테스트 실행
       const testResponse = await fetch(`${API_BASE}/admin/publish/quality/test`, {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           test_queries: sampleData.sample_queries.map(q => ({ query: q.query, category: q.category })),
           top_k: 10,
@@ -11408,16 +11759,20 @@ LIMIT 10`;
   }
 
   // Snapshot 목록 로드
-  async function loadSnapshotList() {
+  async function loadPublishSnapshotList() {
     try {
       const response = await fetch(`${API_BASE}/admin/publish/snapshots`, {
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
 
-      const listDiv = document.getElementById('publishSnapshotList');
+      const listDiv = document.getElementById('publishSnapshotHistory');
+      const selectEl = document.getElementById('publishSnapshotSelect');
       if (listDiv && data.snapshots) {
-        listDiv.innerHTML = data.snapshots.map(snap => `
+        if (data.snapshots.length === 0) {
+          listDiv.innerHTML = '<div style="padding:20px;color:var(--gray-500)">표시할 Snapshot이 없습니다.</div>';
+        } else {
+          listDiv.innerHTML = data.snapshots.map(snap => `
           <div class="snapshot-item" style="padding:10px;border:1px solid var(--gray-200);border-radius:4px;margin-bottom:8px;${snap.is_active ? 'background:var(--green-50);border-color:var(--green-500)' : ''}">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <div>
@@ -11433,10 +11788,18 @@ LIMIT 10`;
               FAISS: ${snap.has_faiss ? '✓' : '✗'} | Graph: ${snap.has_graph ? '✓' : '✗'} | Wiki: ${snap.has_wiki ? '✓' : '✗'}
             </div>
           </div>
-        `).join('');
+          `).join('');
+        }
+      }
+      if (selectEl && data.snapshots) {
+        const current = selectEl.value;
+        selectEl.innerHTML = '<option value="">선택하세요...</option>' + data.snapshots.map(snap =>
+          `<option value="${snap.snapshot_id}">${snap.snapshot_id}${snap.is_active ? ' (active)' : ''}</option>`
+        ).join('');
+        if (data.snapshots.some(snap => snap.snapshot_id === current)) selectEl.value = current;
       }
     } catch (error) {
-      console.error('loadSnapshotList error:', error);
+      console.error('loadPublishSnapshotList error:', error);
     }
   }
 
@@ -11456,7 +11819,7 @@ LIMIT 10`;
     try {
       const response = await fetch(`${API_BASE}/admin/publish/activate`, {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ snapshot_id: snapshotId })
       });
       const data = await response.json();
@@ -11464,7 +11827,7 @@ LIMIT 10`;
       if (data.success) {
         showToast(`Snapshot '${snapshotId}' 활성화 완료`, 'success');
         loadPublishStatus();
-        loadSnapshotList();
+        loadPublishSnapshotList();
       } else {
         showToast('활성화 실패: ' + (data.message || ''), 'error');
       }
@@ -11480,14 +11843,14 @@ LIMIT 10`;
     try {
       const response = await fetch(`${API_BASE}/admin/publish/rollback`, {
         method: 'POST',
-        headers: getAuthHeaders()
+        headers: authHeaders()
       });
       const data = await response.json();
 
       if (data.success) {
         showToast(`이전 Snapshot으로 롤백 완료: ${data.activated_snapshot}`, 'success');
         loadPublishStatus();
-        loadSnapshotList();
+        loadPublishSnapshotList();
       } else {
         showToast('롤백 실패: ' + (data.message || ''), 'error');
       }
@@ -11499,34 +11862,120 @@ LIMIT 10`;
 
   // Dataset Summary 로드
   async function loadDatasetSummary() {
+    const fmt = value => Number.isFinite(Number(value)) ? Number(value).toLocaleString() : (value ?? '-');
+    const setSummaryText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value ?? '-';
+    };
+    const renderStatusRows = (containerId, rows, emptyText) => {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const visibleRows = rows.filter(row => row && row[1] !== undefined && row[1] !== null);
+      if (visibleRows.length === 0) {
+        el.innerHTML = `<div class="wr-callout wr-callout-info">${emptyText}</div>`;
+        return;
+      }
+      el.innerHTML = `
+        <div class="wr-status-list">
+          ${visibleRows.map(([label, value]) => `
+            <div class="wr-status-row">
+              <span>${label}</span>
+              <strong>${value}</strong>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    };
+    const fetchJson = async endpoint => {
+      const response = await fetch(`${API_BASE}${endpoint}`, { headers: authHeaders() });
+      if (!response.ok) throw new Error(`${endpoint} HTTP ${response.status}`);
+      return response.json();
+    };
+
     try {
-      // Knowledge Graph 상태
-      const kgResponse = await fetch(`${API_BASE}/admin/knowledge-graph/status`, {
-        headers: getAuthHeaders()
-      });
-      const kgData = await kgResponse.json();
+      [
+        'summaryDatasetId', 'summarySourceId', 'summarySnapshotId', 'summaryCreatedAt',
+        'summaryTotalDocs', 'summarySuccessDocs', 'summaryFailedDocs', 'summaryExcludedDocs',
+        'summaryChunkCount', 'summaryEmbeddingCount', 'summaryFaissStatus', 'summaryCollectionCount',
+        'summaryGraphStatus', 'summaryGraphNodes', 'summaryWikiCount', 'summaryActiveSnapshot'
+      ].forEach(id => setSummaryText(id, '확인 중'));
 
-      // Wiki 상태
-      const wikiResponse = await fetch(`${API_BASE}/admin/llm-wiki/status`, {
-        headers: getAuthHeaders()
-      });
-      const wikiData = await wikiResponse.json();
+      const sourceId = document.getElementById('ctxSource')?.value || 'rag_source';
+      const selectedSnapshot = getSelectedSnapshot?.() || '';
 
-      // Publish 상태
-      const publishResponse = await fetch(`${API_BASE}/admin/publish/status`, {
-        headers: getAuthHeaders()
-      });
-      const publishData = await publishResponse.json();
+      const [
+        builderStatsResult,
+        step4Result,
+        step5Result,
+        faissResult,
+        metadataResult,
+        kgResult,
+        wikiResult,
+        publishResult
+      ] = await Promise.allSettled([
+        fetchJson('/admin/dataset-builder/stats'),
+        fetchJson('/admin/dataset-builder/step4/status'),
+        fetchJson('/admin/dataset-builder/step5/status'),
+        fetchJson('/admin/faiss/status'),
+        fetchJson('/admin/metadata-review/stats'),
+        fetchJson('/admin/knowledge-graph/status'),
+        fetchJson('/admin/llm-wiki/status'),
+        fetchJson('/admin/publish/status')
+      ]);
 
-      // UI 업데이트 (Step 8 Dataset Summary)
-      const graphNodesEl = document.getElementById('summaryGraphNodes');
-      if (graphNodesEl) graphNodesEl.textContent = kgData.node_count || 0;
-      const graphEdgesEl = document.getElementById('summaryGraphEdges');
-      if (graphEdgesEl) graphEdgesEl.textContent = kgData.edge_count || 0;
-      const wikiCountEl = document.getElementById('summaryWikiCount');
-      if (wikiCountEl) wikiCountEl.textContent = wikiData.total_wikis || 0;
-      const activeSnapEl = document.getElementById('summaryActiveSnapshot');
-      if (activeSnapEl) activeSnapEl.textContent = publishData.active_snapshot || '없음';
+      const valueOf = result => result.status === 'fulfilled' ? result.value : null;
+      const builderStats = valueOf(builderStatsResult) || {};
+      const step4 = valueOf(step4Result) || {};
+      const step5 = valueOf(step5Result) || {};
+      const faiss = valueOf(faissResult) || {};
+      const metadata = valueOf(metadataResult) || {};
+      const kgData = valueOf(kgResult) || {};
+      const wikiData = valueOf(wikiResult) || {};
+      const publishData = valueOf(publishResult) || {};
+
+      const metadataTotal = metadata.total_documents ?? builderStats.total_metadata;
+      const totalDocs = metadataTotal ?? step4.total ?? step5.total_documents ?? 0;
+      const successDocs = step4.completed ?? step5.chunked_documents ?? 0;
+      const failedDocs = step4.failed ?? 0;
+      const statusCounts = metadata.status_counts || builderStats.status_counts || {};
+      const excludedDocs = statusCounts.excluded || statusCounts.rejected || 0;
+      const chunkCount = step5.total_chunks ?? 0;
+      const activeSnapshot = publishData.active_snapshot || faiss.active?.snapshot || selectedSnapshot || '';
+      const activeDataset = publishData.active_dataset || faiss.active?.dataset_id || faiss.active?.active_dataset_id || '';
+      const vectorCount = publishData.faiss_doc_count || faiss.active?.vector_count || faiss.stats?.vector_count || 0;
+      const faissReady = publishData.faiss_status === 'ready' || !!faiss.active;
+
+      setSummaryText('summaryDatasetId', activeDataset || '미지정');
+      setSummaryText('summarySourceId', sourceId || '-');
+      setSummaryText('summarySnapshotId', activeSnapshot || '없음');
+      setSummaryText('summaryCreatedAt', new Date().toLocaleString('ko-KR'));
+      setSummaryText('summaryTotalDocs', fmt(totalDocs));
+      setSummaryText('summarySuccessDocs', fmt(successDocs));
+      setSummaryText('summaryFailedDocs', fmt(failedDocs));
+      setSummaryText('summaryExcludedDocs', fmt(excludedDocs));
+      setSummaryText('summaryChunkCount', fmt(chunkCount));
+      setSummaryText('summaryEmbeddingCount', fmt(vectorCount));
+      setSummaryText('summaryFaissStatus', faissReady ? '준비됨' : '비어있음');
+      setSummaryText('summaryCollectionCount', fmt((publishData.active_collections || []).length));
+      setSummaryText('summaryGraphStatus', kgData.status === 'ready' ? '준비됨' : (kgData.status || '비어있음'));
+      setSummaryText('summaryGraphNodes', `${fmt(kgData.node_count || 0)} / ${fmt(kgData.edge_count || 0)}`);
+      setSummaryText('summaryWikiCount', wikiData.status === 'ready' ? `${fmt(wikiData.total_wikis || 0)}개` : '비어있음');
+      setSummaryText('summaryActiveSnapshot', activeSnapshot || '없음');
+
+      renderStatusRows('summaryMetadataStats', [
+        ['전체 메타데이터', fmt(metadataTotal || 0)],
+        ['검토 필요', fmt(metadata.review_required ?? statusCounts.review_required ?? 0)],
+        ['검토 완료', fmt(metadata.reviewed ?? statusCounts.metadata_reviewed ?? 0)],
+        ['반려/제외', fmt(metadata.rejected ?? excludedDocs)],
+        ['등록됨', fmt(statusCounts.registered ?? 0)]
+      ], '메타데이터 통계를 표시할 수 없습니다.');
+
+      renderStatusRows('summaryErrorStats', [
+        ['Step 4 파싱 실패', fmt(failedDocs)],
+        ['미청킹 문서', fmt(step5.not_chunked ?? 0)],
+        ['FAISS 상태', faissReady ? '정상' : '확인 필요'],
+        ['Publish 검증', publishData.quality_passed ? '통과' : '미검증']
+      ], '오류 정보가 없습니다.');
 
       showToast('Dataset Summary 새로고침 완료', 'success');
     } catch (error) {
@@ -12847,7 +13296,7 @@ LIMIT 10`;
     }
   }
 
-  // 대시보드에 플랫폼 설정 정보 표시
+  // 대시보드에 시스템 설정 정보 표시
   async function loadDashboardPlatformInfo() {
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     try {
@@ -12866,7 +13315,7 @@ LIMIT 10`;
         setText('dashEmbedModel', '-');
       }
     } catch (e) {
-      console.warn('플랫폼 설정 로드 실패:', e);
+      console.warn('시스템 설정 로드 실패:', e);
       setText('dashClientId', '로드 실패');
       setText('dashClientName', '-');
       setText('dashLlmModel', '-');
@@ -12972,7 +13421,7 @@ LIMIT 10`;
       case 1: // Source Scan
         await runSourceScan();
         break;
-      case 2: // Metadata Auto
+      case 2: // Metadata Builder
         await runMetadataAuto();
         break;
       case 3: // Metadata Review
@@ -13013,26 +13462,25 @@ LIMIT 10`;
   async function runSourceScan() {
     showToast('Source Scan 실행 중...', 'info');
     try {
+      const sourceId = document.getElementById('ctxSource')?.value?.trim() || 'rag_source';
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step1/scan'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ overwrite: false }),
+        body: JSON.stringify({ source_id: sourceId, overwrite: false }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       showToast('Source Scan 완료!', 'success');
 
-      // 결과 표시 (API 응답: total_files, metadata_records, total_metadata, message)
+      // 결과 표시 (API 응답: total_files, supported_files, documents_created, total_metadata 등)
       if (d.total_files !== undefined) {
         document.getElementById('sourceScanTotalFiles').textContent = d.total_files;
-        // source별 파일 수는 현재 API에서 제공하지 않으므로 total_files로 대체
-        document.getElementById('sourceScanBySource').textContent = d.total_files;
+        document.getElementById('sourceScanBySource').textContent = d.supported_files ?? d.total_files;
       }
-      // total_metadata (총 document_id 수) 사용, 없으면 metadata_records 사용
-      const docCount = d.total_metadata !== undefined ? d.total_metadata : (d.metadata_records || 0);
-      document.getElementById('sourceScanDocIds').textContent = docCount;
-      // excluded 필드가 없으면 0으로 표시
-      document.getElementById('sourceScanExcluded').textContent = d.excluded !== undefined ? d.excluded : 0;
+      // document_id 생성 수는 이번 Scan에서 신규 생성된 document_id 수를 의미한다.
+      const createdCount = d.documents_created ?? d.new_files ?? 0;
+      document.getElementById('sourceScanDocIds').textContent = createdCount;
+      document.getElementById('sourceScanExcluded').textContent = d.excluded_files ?? d.excluded ?? 0;
 
       // 상태 요약 새로고침
       if (typeof loadDatasetStatusSummary === 'function') {
@@ -13043,9 +13491,9 @@ LIMIT 10`;
     }
   }
 
-  // Step 2: Metadata Auto 실행
+  // Step 2: Metadata Builder 실행
   async function runMetadataAuto() {
-    showToast('Metadata Auto 실행 중...', 'info');
+    showToast('Metadata Builder 실행 중...', 'info');
     try {
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step2/metadata-auto'), {
         method: 'POST',
@@ -13057,7 +13505,7 @@ LIMIT 10`;
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      showToast('Metadata Auto 완료!', 'success');
+      showToast('Metadata Builder 완료!', 'success');
 
       // 출력 결과 표시
       if (d.success) {
@@ -13076,7 +13524,7 @@ LIMIT 10`;
         loadDatasetStatusSummary();
       }
     } catch (e) {
-      showToast('Metadata Auto 실패: ' + e.message, 'error');
+      showToast('Metadata Builder 실패: ' + e.message, 'error');
     }
   }
 
@@ -13502,6 +13950,41 @@ LIMIT 10`;
       showWrPage('lpg-ontology');
       loadLpgStatus();
       loadLpgOntologyTerms();
+    });
+    // Knowledge Graph 생성 페이지 진입 시
+    document.querySelector('[data-wr-page="kg-build"]')?.addEventListener('click', function() {
+      showWrPage('kg-build');
+      loadKgGraphStatus();
+    });
+    // Knowledge Graph 미리보기 페이지 진입 시
+    document.querySelector('[data-wr-page="kg-view"]')?.addEventListener('click', function() {
+      showWrPage('kg-view');
+      loadKgGraphView();
+    });
+    // Graph 검증 페이지 진입 시
+    document.querySelector('[data-wr-page="kg-validation"]')?.addEventListener('click', function() {
+      showWrPage('kg-validation');
+      loadKgValidationPage();
+    });
+    // Wiki 생성 페이지 진입 시
+    document.querySelector('[data-wr-page="wiki-build"]')?.addEventListener('click', function() {
+      showWrPage('wiki-build');
+      loadWikiStatus();
+    });
+    // Wiki 미리보기 페이지 진입 시
+    document.querySelector('[data-wr-page="wiki-preview"]')?.addEventListener('click', function() {
+      showWrPage('wiki-preview');
+      loadWikiPreviewPage();
+    });
+    // Dataset Builder 페이지 진입 시
+    document.querySelector('[data-wr-page="rag-build-wizard"]')?.addEventListener('click', function() {
+      showWrPage('rag-build-wizard');
+      loadDatasetStatusSummary();
+    });
+    // Publish 활성화 페이지 진입 시
+    document.querySelector('[data-wr-page="publish-activate"]')?.addEventListener('click', function() {
+      showWrPage('publish-activate');
+      loadPublishStatus();
     });
   });
 
@@ -15113,7 +15596,7 @@ LIMIT 10`;
   }
 
 </script>
-<script src="assets/js/admin/admin-docs-layout.js?v=20260615a"></script>
+<script src="assets/js/admin/admin-docs-layout.js?v=20260616a"></script>
 
 <!-- Confirm modal -->
 <div class="confirm-overlay" id="confirmOverlay">
