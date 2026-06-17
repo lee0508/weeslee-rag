@@ -92,6 +92,10 @@ class PublishStatusResponse(BaseModel):
     quality_passed: bool = False
     quality_score: float = 0.0
     last_published_at: Optional[str] = None
+    # 명시적 ID 필드 추가 (표준화)
+    source_id: Optional[str] = None
+    dataset_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
 
 
 class SnapshotInfo(BaseModel):
@@ -381,6 +385,20 @@ async def get_publish_status(source_id: Optional[str] = None):
         active_snapshot = active_info.get("snapshot") or active_info.get("snapshot_id")
         active_collections = active_info.get("collections", [])
 
+        # snapshot_id에서 source_id, dataset_id 추출 (표준화)
+        resolved_source_id = source_id or "rag_source"
+        resolved_dataset_id = None
+        if active_snapshot:
+            # snapshot_20260616_rag_source_v1 형식 파싱
+            parts = active_snapshot.replace("snapshot_", "").split("_")
+            if len(parts) >= 2:
+                date_part = parts[0]  # YYYYMMDD
+                # source_id 추출 (v로 시작하는 버전 부분 제외)
+                source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
+                if source_parts:
+                    resolved_source_id = "_".join(source_parts)
+                resolved_dataset_id = f"dataset_{resolved_source_id}_{date_part}"
+
         return PublishStatusResponse(
             faiss_status=faiss_status,
             faiss_doc_count=faiss_doc_count,
@@ -391,7 +409,11 @@ async def get_publish_status(source_id: Optional[str] = None):
             active_snapshot=active_snapshot,
             active_collections=active_collections,
             quality_passed=faiss_status == "ready",
-            quality_score=100.0 if faiss_status == "ready" else 0.0
+            quality_score=100.0 if faiss_status == "ready" else 0.0,
+            # 명시적 ID 필드 (표준화)
+            source_id=resolved_source_id,
+            dataset_id=resolved_dataset_id,
+            snapshot_id=active_snapshot
         )
 
     except Exception as e:

@@ -96,7 +96,22 @@ async def faiss_status():
     from app.core.config import settings
 
     active = runner.read_active_index()
-    snapshot = (active or {}).get("snapshot", "")
+    snapshot = (active or {}).get("snapshot", "") or (active or {}).get("active_snapshot", "")
+
+    # snapshot_id에서 source_id, dataset_id 추출
+    # 형식: snapshot_YYYYMMDD_source_id_vN 또는 snapshot_YYYYMMDD_VN
+    source_id = "rag_source"  # 기본값
+    dataset_id = None
+    if snapshot:
+        # snapshot_20260616_rag_source_v1 형식 파싱
+        parts = snapshot.replace("snapshot_", "").split("_")
+        if len(parts) >= 2:
+            date_part = parts[0]  # YYYYMMDD
+            # source_id 추출 (v로 시작하는 버전 부분 제외)
+            source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
+            if source_parts:
+                source_id = "_".join(source_parts)
+            dataset_id = f"dataset_{source_id}_{date_part}"
 
     # 서버 실제 설정값 (운영 .env 기준)
     server_config = {
@@ -111,12 +126,23 @@ async def faiss_status():
     }
 
     if not active:
-        return {"active": None, "stats": None, "server_config": server_config}
+        return {
+            "active": None,
+            "stats": None,
+            "server_config": server_config,
+            "source_id": None,
+            "dataset_id": None,
+            "snapshot_id": None,
+        }
 
     return {
         "active": active,
         "stats":  _index_stats(snapshot) if snapshot else None,
         "server_config": server_config,
+        # 명시적 ID 필드 추가 (표준화)
+        "source_id": source_id,
+        "dataset_id": dataset_id,
+        "snapshot_id": snapshot,
     }
 
 

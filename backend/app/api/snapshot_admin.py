@@ -56,13 +56,38 @@ def _save_snapshot(snapshot: SnapshotManifest):
         json.dump(snapshot.dict(), f, ensure_ascii=False, indent=2, default=str)
 
 
+def _parse_snapshot_ids(snapshot_id: str) -> tuple[str, str]:
+    """snapshot_id에서 source_id, dataset_id 추출 (표준화)"""
+    source_id = "rag_source"  # 기본값
+    dataset_id = None
+    if snapshot_id:
+        # snapshot_20260616_rag_source_v1 또는 snapshot_20260616_V1 형식 파싱
+        parts = snapshot_id.replace("snapshot_", "").split("_")
+        if len(parts) >= 2:
+            date_part = parts[0]  # YYYYMMDD
+            # source_id 추출 (v로 시작하는 버전 부분 제외)
+            source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
+            if source_parts:
+                source_id = "_".join(source_parts)
+            dataset_id = f"dataset_{source_id}_{date_part}"
+    return source_id, dataset_id
+
+
 def _load_active_config() -> Optional[ActiveSnapshotConfig]:
     """활성 Snapshot 설정 로드 - data/active_index.json에서 읽기"""
     # 1. 새 active_snapshot.json 파일이 있으면 우선 사용
     if ACTIVE_SNAPSHOT_FILE.exists():
         with open(ACTIVE_SNAPSHOT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return ActiveSnapshotConfig(**data)
+        config = ActiveSnapshotConfig(**data)
+        # source_id, dataset_id가 없으면 snapshot_id에서 추출
+        if not config.source_id or not config.dataset_id:
+            src_id, ds_id = _parse_snapshot_ids(config.active_snapshot_id)
+            if not config.source_id:
+                config.source_id = src_id
+            if not config.dataset_id:
+                config.dataset_id = ds_id
+        return config
 
     # 2. 기존 active_index.json에서 읽기 (RAG 검색이 사용하는 파일)
     if ACTIVE_INDEX_FILE.exists():
@@ -70,6 +95,8 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
             old_data = json.load(f)
         # active_snapshot 또는 snapshot 키 지원 (하위 호환성)
         snap_id = old_data.get("active_snapshot") or old_data.get("snapshot", "")
+        # snapshot_id에서 source_id, dataset_id 추출 (표준화)
+        src_id, ds_id = _parse_snapshot_ids(snap_id)
         return ActiveSnapshotConfig(
             active_snapshot_id=snap_id,
             faiss_index_id=snap_id,
@@ -79,6 +106,8 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
             vector_count=old_data.get("vector_count", 0),
             document_count=old_data.get("document_count", 0),
             activated_at=datetime.fromisoformat(old_data["activated_at"]) if old_data.get("activated_at") else None,
+            source_id=src_id,
+            dataset_id=ds_id,
         )
 
     return None
