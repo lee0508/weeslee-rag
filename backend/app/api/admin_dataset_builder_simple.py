@@ -24,9 +24,9 @@ from app.core.database import SessionLocal, get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
 from app.services.document_source_paths import resolve_scan_root
 from app.services.document_uid import make_document_uid, detect_file_change, calculate_file_checksum
-from app.services.platform_store import get_record
+from app.services.platform_store import get_record, list_records
 from app.services.tag_keyword_generator import TagKeywordGenerator
-from app.services.dataset_context import get_source_dataset_context
+from app.services.dataset_context import get_source_dataset_context, ensure_source_dataset_context
 
 router = APIRouter(
     prefix="/admin/dataset-builder",
@@ -1165,3 +1165,65 @@ async def get_cleanup_status(db: Session = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"상태 조회 실패: {str(e)}")
+
+
+# ── Ensure Dataset Context ──────────────────────────────────────────────────
+
+
+class EnsureDatasetRequest(BaseModel):
+    source_ids: Optional[List[str]] = None  # None이면 platform_config 전체 source 대상
+    force_new: bool = False  # True면 기존 dataset_id를 교체
+
+
+@router.post("/ensure-dataset")
+async def ensure_dataset_context(
+    request: EnsureDatasetRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    등록된 Document Source에 dataset_id를 부여한다.
+
+    - source_ids 미지정: platform_config의 모든 source 대상
+    - force_new=True: 기존 dataset_id가 있어도 새로 생성
+    - 생성 후 해당 source의 document_metadata.dataset_id도 backfill
+    """
+    all_sources = list_records("document_sources")
+    if request.source_ids:
+        target_sources = [s for s in all_sources if s.get("source_id") in request.source_ids]
+    else:
+        target_sources = all_sources
+
+    results = []
+    for src in target_sources:
+        sid = src.get("source_id")
+        if not sid:
+            continue
+        ctx, generated = ensure_source_dataset_context(sid, force_new=request.force_new)
+        if not ctx:
+            results.append({"source_id": sid, "status": "not_found", "dataset_id": None})
+            continue
+
+        dataset_id = ctx.get("dataset_id")
+        # document_metadata backfill (dataset_id 없는 레코드만)
+        if dataset_id:
+            updated = db.query(DocumentMetadata).filter(
+                DocumentMetadata.source_id == sid,
+                DocumentMetadata.dataset_id.is_(None),
+            ).update({"dataset_id": dataset_id}, synchronize_session=False)
+            db.commit()
+        else:
+            updated = 0
+
+        results.append({
+            "source_id": sid,
+            "status": "generated" if generated else "existing",
+            "dataset_id": dataset_id,
+            "metadata_updated": updated,
+        })
+
+    return {
+        "success": True,
+        "total_sources": len(target_sources),
+        "results": results,
+        "message": f"{len(target_sources)}개 source dataset context 처리 완료",
+    }
