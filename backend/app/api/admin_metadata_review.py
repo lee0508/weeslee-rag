@@ -132,11 +132,10 @@ async def get_documents_for_review(
         # Response 생성
         documents = []
         for meta in metadata_list:
-            doc = db.query(Document).filter(Document.id == meta.document_id).first()
             doc_data = DocumentMetadataResponse(
                 document_id=meta.document_id,
                 file_path=meta.file_path,
-                file_name=doc.filename if doc else "Unknown",
+                file_name=meta.file_name or meta.file_path or "Unknown",
                 source_id=meta.source_id,
                 category_id=meta.category_id,
                 project_name=meta.project_name,
@@ -181,12 +180,10 @@ async def get_document_metadata(document_id: int, db: Session = Depends(get_db))
         if not metadata:
             raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
 
-        doc = db.query(Document).filter(Document.id == metadata.document_id).first()
-
         return DocumentMetadataResponse(
             document_id=metadata.document_id,
             file_path=metadata.file_path,
-            file_name=doc.filename if doc else "Unknown",
+            file_name=metadata.file_name or metadata.file_path or "Unknown",
             source_id=metadata.source_id,
             category_id=metadata.category_id,
             project_name=metadata.project_name,
