@@ -498,12 +498,27 @@ class RuleBasedMetadataExtractor:
 
         return None, 0.0
 
-    # 조직명이 아닌 흔한 false positive 단어 목록
+    # 발주기관이 아닌 흔한 false positive 단어 목록
     _ORG_BLOCKLIST = frozenset({
-        '제안요청', '업무부', '대응지원', '지원사업', '처리결과',
-        '업무처리', '담당부서', '신청처리', '접수처리', '추진부서',
-        '지원부서', '수행부서', '관련부처', '요청처리', '처리부서',
+        # 제안/요청 관련 업무 용어
+        '제안요청', '승인요청', '변경요청', '처리요청', '요청처리',
+        '민원신청', '신청처리', '접수처리',
+        # 부서/조직 일반 표현 (특정 기관명 아님)
+        '업무부', '유관부처', '관련부처', '업무관련부', '담당부서',
+        '추진부서', '지원부서', '수행부서', '처리부서',
+        # 날짜/기간 표현 (로부터, 이후 등)
+        '계약일로부', '계약체결일로부', '착수일로부', '추진과제로부',
+        '세부추진과제로부', '사고로부', '이행여부',
+        # 업무 상태 표현
+        '처리결과', '업무처리', '대응지원', '지원사업', '비상대처',
+        # IT 용어 (접미사 오탐)
+        '아키텍처',
+        # 정치/행정 일반 표현 (발주기관 아님)
+        '윤석열정부',
     })
+
+    # *로부 패턴 - 날짜/기간 표현 차단
+    _ORG_SUFFIX_BLOCKLIST = re.compile(r'로부$|요청$|신청$|처리$|여부$|결과$')
 
     def extract_organization(self, text: str) -> tuple[Optional[str], float]:
         """레이블 기반 → 기관명 패턴 순으로 발주기관을 추출한다."""
@@ -516,7 +531,7 @@ class RuleBasedMetadataExtractor:
         )
         if label_match:
             org = label_match.group(1).strip()
-            if org and org not in self._ORG_BLOCKLIST:
+            if org and org not in self._ORG_BLOCKLIST and not self._ORG_SUFFIX_BLOCKLIST.search(org):
                 return org[:200], 0.85
 
         # 패턴 기반 추출
@@ -527,7 +542,11 @@ class RuleBasedMetadataExtractor:
         )
         if org_match:
             org = org_match.group(1).strip()
-            if len(org) >= 4 and org not in self._ORG_BLOCKLIST:
+            if (
+                len(org) >= 4
+                and org not in self._ORG_BLOCKLIST
+                and not self._ORG_SUFFIX_BLOCKLIST.search(org)
+            ):
                 return org[:200], 0.55
 
         return None, 0.0
