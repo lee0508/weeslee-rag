@@ -214,7 +214,7 @@ def _save_ocr_metadata(db: Session, doc: DocumentMetadata, document_id: int) -> 
             db.flush()
             return
 
-        full_text = report.get("full_text") or ""
+        full_text = processed_text_store.get_text(str(document_id)) or ""
         if not full_text.strip():
             doc.ocr_metadata_status = "skipped"
             db.flush()
