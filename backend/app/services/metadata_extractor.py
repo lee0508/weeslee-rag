@@ -498,26 +498,36 @@ class RuleBasedMetadataExtractor:
 
         return None, 0.0
 
+    # 조직명이 아닌 흔한 false positive 단어 목록
+    _ORG_BLOCKLIST = frozenset({
+        '제안요청', '업무부', '대응지원', '지원사업', '처리결과',
+        '업무처리', '담당부서', '신청처리', '접수처리', '추진부서',
+        '지원부서', '수행부서', '관련부처', '요청처리', '처리부서',
+    })
+
     def extract_organization(self, text: str) -> tuple[Optional[str], float]:
         """레이블 기반 → 기관명 패턴 순으로 발주기관을 추출한다."""
         head = text[:_ANALYSIS_LIMIT]
 
+        # 레이블 기반 추출 (수신은 제거 — 제안요청서 등 비기관명 혼입 방지)
         label_match = re.search(
-            r'(?:발주기관|주관기관|수신|제출처|발주처)\s*[:：]\s*([^\n\r]{3,60})',
+            r'(?:발주기관|주관기관|제출처|발주처)\s*[:：]\s*([^\n\r]{3,60})',
             head
         )
         if label_match:
             org = label_match.group(1).strip()
-            if org:
+            if org and org not in self._ORG_BLOCKLIST:
                 return org[:200], 0.85
 
+        # 패턴 기반 추출
+        # 단일 '원'은 제거 (지원, 대응원 등 오탐 많음); 복합 접미사만 허용
         org_match = re.search(
-            r'([가-힣]{2,15}(?:부|청|처|원|공사|공단|센터|연구원|연구소|재단|위원회))',
+            r'([가-힣]{2,15}(?:부|청|처|공사|공단|연구원|연구소|재단|위원회|센터))',
             head
         )
         if org_match:
             org = org_match.group(1).strip()
-            if len(org) >= 3:
+            if len(org) >= 4 and org not in self._ORG_BLOCKLIST:
                 return org[:200], 0.55
 
         return None, 0.0
