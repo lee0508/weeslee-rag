@@ -4,7 +4,7 @@ Document metadata for Dataset Builder workflow.
 MySQL을 primary로 사용하고, SQLite는 비동기 캐시/백업으로 동기화.
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, Boolean, Float, JSON, UniqueConstraint
+from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, Boolean, Float, JSON, UniqueConstraint, Numeric
 import enum
 
 from app.core.database import Base
@@ -70,6 +70,34 @@ class DocumentMetadata(Base):
     document_type_confidence = Column(Float, nullable=True, comment="Document type confidence 0.0-1.0")
     year = Column(Integer, nullable=True, comment="Project year")
     summary = Column(Text, nullable=True, comment="Document summary")
+
+    # 빌드 실행 컨텍스트 키
+    dataset_id = Column(String(128), nullable=True, index=True, comment="빌드 실행 컨텍스트 키")
+
+    # Step 1 파생: 폴더 구조 기반 (scan_*)
+    scan_project_name = Column(String(255), nullable=True, comment="Step 1: 파일명/폴더 기반 사업명")
+    scan_organization = Column(String(255), nullable=True, comment="Step 1: 파일명/폴더 기반 발주기관")
+    scan_year = Column(String(20), nullable=True, comment="Step 1: 파일명/폴더 기반 사업연도")
+    scan_document_category = Column(String(100), nullable=True, comment="Step 1: 폴더 구조 기반 문서분류")
+
+    # Step 4 파생: OCR 텍스트 기반 (ocr_*)
+    ocr_project_name = Column(String(255), nullable=True, comment="Step 4: OCR 텍스트 기반 사업명")
+    ocr_organization = Column(String(255), nullable=True, comment="Step 4: OCR 텍스트 기반 발주기관")
+    ocr_year = Column(String(20), nullable=True, comment="Step 4: OCR 텍스트 기반 사업연도")
+    ocr_document_category = Column(String(100), nullable=True, comment="Step 4: OCR 텍스트 기반 문서분류")
+    ocr_confidence = Column(Float, nullable=True, comment="Step 4: OCR 메타데이터 추출 평균 신뢰도 (0.0-1.0)")
+    ocr_quality_score = Column(Numeric(5, 4), nullable=True, comment="Step 4: OCR 텍스트 품질 점수 (0.0000-1.0000)")
+    ocr_parser_type = Column(String(50), nullable=True, comment="Step 4: 사용된 Parser 종류")
+    ocr_page_count = Column(Integer, nullable=True, comment="Step 4: OCR 처리 페이지 수")
+    ocr_metadata_status = Column(String(20), nullable=True, default="pending", comment="Step 4: OCR metadata 반영 상태")
+
+    # Step 3 확정: 관리자 검수 기반 (final_*)
+    final_project_name = Column(String(255), nullable=True, comment="Step 3: 관리자 확정 사업명")
+    final_organization = Column(String(255), nullable=True, comment="Step 3: 관리자 확정 발주기관")
+    final_year = Column(String(20), nullable=True, comment="Step 3: 관리자 확정 사업연도")
+    final_document_category = Column(String(100), nullable=True, comment="Step 3: 관리자 확정 문서분류")
+    final_confirmed_by = Column(String(100), nullable=True, comment="Step 3: 검수 승인자")
+    final_confirmed_at = Column(DateTime, nullable=True, comment="Step 3: 검수 승인 일시")
 
     # Processing status (pipeline tracking)
     status = Column(String(50), default=ProcessingStatus.REGISTERED.value, index=True,
@@ -140,6 +168,26 @@ class DocumentMetadata(Base):
             "document_type_confidence": self.document_type_confidence,
             "year": self.year,
             "summary": self.summary,
+            "dataset_id": self.dataset_id,
+            "scan_project_name": self.scan_project_name,
+            "scan_organization": self.scan_organization,
+            "scan_year": self.scan_year,
+            "scan_document_category": self.scan_document_category,
+            "ocr_project_name": self.ocr_project_name,
+            "ocr_organization": self.ocr_organization,
+            "ocr_year": self.ocr_year,
+            "ocr_document_category": self.ocr_document_category,
+            "ocr_confidence": self.ocr_confidence,
+            "ocr_quality_score": self.ocr_quality_score,
+            "ocr_parser_type": self.ocr_parser_type,
+            "ocr_page_count": self.ocr_page_count,
+            "ocr_metadata_status": self.ocr_metadata_status,
+            "final_project_name": self.final_project_name,
+            "final_organization": self.final_organization,
+            "final_year": self.final_year,
+            "final_document_category": self.final_document_category,
+            "final_confirmed_by": self.final_confirmed_by,
+            "final_confirmed_at": self.final_confirmed_at.isoformat() if self.final_confirmed_at else None,
             "status": self.status,
             "meta_status": self.meta_status,
             "reviewed_by": self.reviewed_by,

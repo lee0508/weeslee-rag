@@ -9,6 +9,7 @@ from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.services.document_metadata_service import document_metadata_service
 from app.models.document import Document
+from app.models.document_metadata import DocumentMetadata
 
 router = APIRouter(
     prefix="/admin/metadata-review",
@@ -321,6 +322,111 @@ async def reject_metadata(request: RejectMetadataRequest, db: Session = Depends(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"반려 처리 실패: {str(e)}")
+
+
+@router.get("/documents/{document_id}/triple")
+async def get_document_triple_metadata(document_id: int, db: Session = Depends(get_db)):
+    """
+    Step 3: 문서의 scan/ocr/final 삼중 메타데이터 비교 조회
+
+    scan_* / ocr_* / final_* 필드를 구조화하여 반환한다.
+    관리자 검수 화면에서 세 출처를 비교하여 final_* 값을 확정할 때 사용한다.
+    """
+    doc = db.query(DocumentMetadata).filter(
+        DocumentMetadata.document_id == document_id
+    ).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
+
+    return {
+        "document_id": doc.document_id,
+        "source_id": doc.source_id,
+        "dataset_id": doc.dataset_id,
+        "file_name": doc.file_name,
+        "meta_status": doc.meta_status,
+        "metadata": {
+            "scan": {
+                "project_name": doc.scan_project_name,
+                "organization": doc.scan_organization,
+                "year": doc.scan_year,
+                "document_category": doc.scan_document_category,
+            },
+            "ocr": {
+                "project_name": doc.ocr_project_name,
+                "organization": doc.ocr_organization,
+                "year": doc.ocr_year,
+                "document_category": doc.ocr_document_category,
+                "quality_score": float(doc.ocr_quality_score) if doc.ocr_quality_score is not None else None,
+                "parser_type": doc.ocr_parser_type,
+                "page_count": doc.ocr_page_count,
+                "metadata_status": doc.ocr_metadata_status,
+            },
+            "final": {
+                "project_name": doc.final_project_name,
+                "organization": doc.final_organization,
+                "year": doc.final_year,
+                "document_category": doc.final_document_category,
+                "confirmed_by": doc.final_confirmed_by,
+                "confirmed_at": doc.final_confirmed_at.isoformat() if doc.final_confirmed_at else None,
+            },
+        },
+    }
+
+
+@router.patch("/documents/{document_id}/final")
+async def update_final_metadata(
+    document_id: int,
+    project_name: Optional[str] = None,
+    organization: Optional[str] = None,
+    year: Optional[str] = None,
+    document_category: Optional[str] = None,
+    confirmed_by: str = "admin",
+    db: Session = Depends(get_db),
+):
+    """
+    Step 3: 관리자가 final_* 메타데이터를 직접 확정한다.
+
+    scan/ocr 중 하나를 선택하거나 직접 입력하여 final_* 필드를 저장한다.
+    """
+    doc = db.query(DocumentMetadata).filter(
+        DocumentMetadata.document_id == document_id
+    ).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
+
+    updated_fields = []
+    if project_name is not None:
+        doc.final_project_name = project_name
+        updated_fields.append("final_project_name")
+    if organization is not None:
+        doc.final_organization = organization
+        updated_fields.append("final_organization")
+    if year is not None:
+        doc.final_year = year
+        updated_fields.append("final_year")
+    if document_category is not None:
+        doc.final_document_category = document_category
+        updated_fields.append("final_document_category")
+
+    doc.final_confirmed_by = confirmed_by
+    doc.final_confirmed_at = datetime.utcnow()
+    doc.updated_at = datetime.utcnow()
+    updated_fields.extend(["final_confirmed_by", "final_confirmed_at"])
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"final 메타데이터 저장 실패: {str(e)}")
+
+    return {
+        "success": True,
+        "document_id": document_id,
+        "updated_fields": updated_fields,
+        "message": "final 메타데이터가 확정되었습니다.",
+    }
 
 
 @router.get("/stats")

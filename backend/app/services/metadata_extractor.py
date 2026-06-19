@@ -458,3 +458,123 @@ metadata_extractor_service = MetadataExtractorService()
 def get_metadata_extractor() -> MetadataExtractorService:
     """Dependency to get metadata extractor service"""
     return metadata_extractor_service
+
+
+# ── Rule-Based Extractor (ocr_* 필드 전용) ─────────────────────────────────
+
+# 분석 대상 텍스트 길이 제한 (성능 최적화: 앞 5000자)
+_ANALYSIS_LIMIT = 5000
+
+
+class RuleBasedMetadataExtractor:
+    """
+    OCR 추출 텍스트에서 정규식 패턴으로 메타데이터를 추출한다.
+    LLM 없이 동작하며 Step 4 파싱 완료 직후 ocr_* 필드를 채운다.
+    신뢰도가 낮은 항목은 이후 LLM 보완 대상이 된다.
+    """
+
+    def extract_project_name(self, text: str) -> tuple[Optional[str], float]:
+        """레이블 기반 → 키워드 패턴 순으로 사업명을 추출한다."""
+        head = text[:_ANALYSIS_LIMIT]
+
+        label_match = re.search(
+            r'(?:사업명|과업명|프로젝트명|과업|사업)\s*[:：]\s*([^\n\r]{5,80})',
+            head
+        )
+        if label_match:
+            name = label_match.group(1).strip()
+            if name:
+                return name[:200], 0.85
+
+        keyword_match = re.search(
+            r'([가-힣A-Za-z0-9\s]{5,60}(?:정보화|시스템|플랫폼|인프라|데이터|서비스)?'
+            r'(?:사업|구축|고도화|개발|운영|도입|혁신|전환))',
+            head
+        )
+        if keyword_match:
+            name = keyword_match.group(1).strip()
+            if name:
+                return name[:200], 0.60
+
+        return None, 0.0
+
+    def extract_organization(self, text: str) -> tuple[Optional[str], float]:
+        """레이블 기반 → 기관명 패턴 순으로 발주기관을 추출한다."""
+        head = text[:_ANALYSIS_LIMIT]
+
+        label_match = re.search(
+            r'(?:발주기관|주관기관|수신|제출처|발주처)\s*[:：]\s*([^\n\r]{3,60})',
+            head
+        )
+        if label_match:
+            org = label_match.group(1).strip()
+            if org:
+                return org[:200], 0.85
+
+        org_match = re.search(
+            r'([가-힣]{2,15}(?:부|청|처|원|공사|공단|센터|연구원|연구소|재단|위원회))',
+            head
+        )
+        if org_match:
+            org = org_match.group(1).strip()
+            if len(org) >= 3:
+                return org[:200], 0.55
+
+        return None, 0.0
+
+    def extract_year(self, text: str) -> tuple[Optional[int], float]:
+        """문서 앞부분의 최빈 20XX 연도를 추출한다."""
+        head = text[:_ANALYSIS_LIMIT]
+        years = re.findall(r'\b(20[012]\d)\b', head)
+        if not years:
+            return None, 0.0
+
+        year_counts: dict[int, int] = {}
+        for y in years:
+            y_int = int(y)
+            year_counts[y_int] = year_counts.get(y_int, 0) + 1
+
+        best_year = max(year_counts, key=lambda y: year_counts[y])
+        confidence = min(0.5 + year_counts[best_year] * 0.1, 0.90)
+        return best_year, confidence
+
+    def extract_document_type(self, text: str) -> tuple[Optional[str], float]:
+        """RFP / 제안서 / 산출물 3가지로 문서 유형을 분류한다."""
+        head = text[:_ANALYSIS_LIMIT]
+
+        patterns = [
+            (r'제안요청서|제안\s*요청\s*서|RFP\b|입찰공고', 'RFP', 0.90),
+            (r'기술제안서|제안서\b|사업제안서|수행제안서', '제안서', 0.88),
+            (r'최종보고서|완료보고서|결과보고서|중간보고서|ISP\b|ISMP\b|정보화전략계획', '산출물', 0.85),
+        ]
+
+        for pattern, doc_type, confidence in patterns:
+            if re.search(pattern, head):
+                return doc_type, confidence
+
+        return None, 0.0
+
+    def extract_all(self, text: str) -> dict:
+        """
+        모든 필드를 추출하여 ocr_* 형식의 dict로 반환한다.
+        ocr_confidence는 추출된 필드의 신뢰도 평균.
+        """
+        project_name, pn_conf = self.extract_project_name(text)
+        organization, org_conf = self.extract_organization(text)
+        year, yr_conf = self.extract_year(text)
+        document_type, dt_conf = self.extract_document_type(text)
+
+        confs = [c for c in [pn_conf, org_conf, yr_conf, dt_conf] if c > 0]
+        avg_confidence = round(sum(confs) / len(confs), 3) if confs else None
+
+        return {
+            "ocr_project_name": project_name,
+            "ocr_organization": organization,
+            "ocr_year": year,
+            "ocr_document_category": document_type,
+            "ocr_confidence": avg_confidence,
+        }
+
+
+# Singleton
+rule_based_extractor = RuleBasedMetadataExtractor()

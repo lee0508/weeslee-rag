@@ -14,16 +14,18 @@ from typing import Optional, List, Dict, Any
 from pathlib import Path
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.auth import require_admin_token
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
+from app.services.document_source_paths import resolve_scan_root
 from app.services.document_uid import make_document_uid, detect_file_change, calculate_file_checksum
-from app.services.platform_store import list_records, get_record
+from app.services.platform_store import get_record
+from app.services.tag_keyword_generator import TagKeywordGenerator
 
 router = APIRouter(
     prefix="/admin/dataset-builder",
@@ -35,6 +37,7 @@ router = APIRouter(
 SUPPORTED_EXTENSIONS = {".hwp", ".hwpx", ".pdf", ".pptx", ".ppt", ".docx", ".doc", ".xlsx", ".xls"}
 
 # category_id 매핑 (폴더명 기반)
+# 제안서/산출물 하위 폴더 → category_id
 CATEGORY_ID_MAP = {
     "01. 전략및방법론": "cat_strategy_method",
     "02. 기술및기능": "cat_tech_function",
@@ -47,8 +50,140 @@ CATEGORY_ID_MAP = {
     "01. 환경분석": "cat_env_analysis",
     "02. 현황분석": "cat_status_analysis",
     "03. 목표모델": "cat_target_model",
-    "04. 이행계획": "cat_impl_plan"
+    "04. 이행계획": "cat_impl_plan",
 }
+
+# document_group 매핑 (최상위 폴더 → 문서 그룹)
+DOCUMENT_GROUP_MAP = {
+    "01. RFP": "RFP",
+    "02. 제안서": "제안서",
+    "03. 산출물": "산출물",
+}
+
+
+def normalize_numbered_name(name: str) -> str:
+    """
+    '01. 전략및방법론' -> '전략및방법론'
+    '02. 현황분석' -> '현황분석'
+    """
+    import re
+    if not name:
+        return ""
+    return re.sub(r"^\d+\.\s*", "", name).strip()
+
+
+def normalize_slug(value: str) -> str:
+    """
+    category_id fallback 생성용.
+    한글/공백/특수문자가 섞인 폴더명을 안전한 문자열로 변환.
+    """
+    import re
+    value = normalize_numbered_name(value)
+    value = value.strip().lower()
+    value = re.sub(r"\s+", "_", value)
+    value = re.sub(r"[^\w가-힣_]+", "_", value)
+    value = value.strip("_")
+    return value or "unknown"
+
+
+def split_path_parts(value: str) -> List[str]:
+    return [part for part in str(value or "").replace("\\", "/").split("/") if part and part != "."]
+
+
+def looks_like_file(name: str) -> bool:
+    if not name:
+        return False
+    suffix = Path(name).suffix.lower()
+    return suffix in SUPPORTED_EXTENSIONS
+
+
+def extract_source_context_parts(source: Optional[Dict[str, Any]]) -> List[str]:
+    if not source:
+        return []
+
+    scan_root = str(resolve_scan_root(source)).replace("\\", "/")
+    parts = split_path_parts(scan_root)
+    if not parts:
+        return []
+
+    try:
+        root_idx = parts.index("00. RAG 소스")
+        return parts[root_idx + 1:]
+    except ValueError:
+        pass
+
+    for idx, part in enumerate(parts):
+        if part in DOCUMENT_GROUP_MAP:
+            return parts[idx:]
+
+    return []
+
+
+def fit_text(value: str, max_len: int) -> str:
+    value = str(value or "").strip()
+    return value[:max_len] if len(value) > max_len else value
+
+
+def classify_relative_path(relative_path: str, source: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    """
+    00. RAG 소스 기준 relative_path를 분석하여
+    document_group, category_folder, category_id, section_type을 반환.
+
+    폴더 구조 예시:
+    - 01. RFP/RFP_축산유통 데이터랩 고도화.hwp
+    - 02. 제안서/01. 전략및방법론/전략및방법론_사업명.pptx
+    - 03. 산출물/02. 현황분석/현황분석_사업명.pptx
+    """
+    path_parts = extract_source_context_parts(source) + split_path_parts(relative_path)
+
+    top_folder = path_parts[0] if len(path_parts) >= 1 else ""
+    second_folder = path_parts[1] if len(path_parts) >= 2 else ""
+
+    document_group = DOCUMENT_GROUP_MAP.get(top_folder, normalize_numbered_name(top_folder))
+
+    if looks_like_file(top_folder):
+        source_name = normalize_numbered_name((source or {}).get("source_name", ""))
+        document_group = source_name or ""
+        category_folder = source_name or ""
+        category_id = f"cat_{normalize_slug(category_folder)}" if category_folder else "cat_unknown"
+        section_type = source_name or ""
+        return {
+            "document_group": fit_text(document_group, 50),
+            "category_folder": fit_text(category_folder, 100),
+            "category_id": fit_text(category_id, 100),
+            "section_type": fit_text(section_type, 100),
+        }
+
+    # RFP는 하위 섹션 폴더가 없으므로 cat_rfp로 처리
+    if top_folder == "01. RFP":
+        category_folder = top_folder
+        category_id = "cat_rfp"
+        section_type = "RFP"
+
+    # 제안서/산출물은 두 번째 폴더가 실제 섹션
+    elif top_folder in ("02. 제안서", "03. 산출물"):
+        category_folder = second_folder
+        category_id = CATEGORY_ID_MAP.get(
+            second_folder,
+            f"cat_{normalize_slug(second_folder)}" if second_folder else "cat_unknown"
+        )
+        section_type = normalize_numbered_name(second_folder) if second_folder else ""
+
+    else:
+        # 기타 폴더 구조
+        category_folder = second_folder or top_folder
+        category_id = CATEGORY_ID_MAP.get(
+            category_folder,
+            f"cat_{normalize_slug(category_folder)}"
+        )
+        section_type = normalize_numbered_name(category_folder)
+
+    return {
+        "document_group": fit_text(document_group, 50),
+        "category_folder": fit_text(category_folder, 100),
+        "category_id": fit_text(category_id, 100),
+        "section_type": fit_text(section_type, 100),
+    }
 
 
 def get_document_source(source_id: str) -> Optional[Dict[str, Any]]:
@@ -57,16 +192,12 @@ def get_document_source(source_id: str) -> Optional[Dict[str, Any]]:
 
 
 def get_scan_root(source: Dict[str, Any]) -> Path:
-    """Document Source에서 스캔 루트 경로 계산 (mount_path + root_subpath)"""
-    mount_path = source.get("mount_path", "")
-    root_subpath = source.get("root_subpath", "")
-    if root_subpath:
-        return Path(mount_path) / root_subpath
-    return Path(mount_path)
+    """Document Source에서 실제 스캔 루트 경로를 계산한다."""
+    return resolve_scan_root(source)
 
 
 class ScanRequest(BaseModel):
-    source_id: Optional[str] = "rag_source"
+    source_id: Optional[str] = None
     overwrite: bool = False
     compute_checksum: bool = False  # 전체 파일 checksum 계산 여부
 
@@ -105,6 +236,12 @@ class MetadataAutoResponse(BaseModel):
     updated: int
     skipped: int
     message: str
+
+
+class TagKeywordGenerateRequest(BaseModel):
+    source_id: str
+    snapshot_id: Optional[str] = None
+    overwrite: bool = False
 
 
 def scan_folder(folder_path: str, extensions: set) -> List[dict]:
@@ -152,6 +289,47 @@ def extract_project_name(filename: str) -> str:
     return name.strip()
 
 
+def extract_scan_metadata(filename: str, relative_path: str) -> Dict[str, Any]:
+    """파일명과 상대 경로에서 scan_* 메타데이터를 추출한다."""
+    import re
+
+    project_name = extract_project_name(filename) or None
+
+    # 연도 추출: 파일명 또는 경로에서 20XX 패턴 (2000-2029)
+    year = None
+    year_match = re.search(r'\b(20[012]\d)\b', filename + "/" + relative_path)
+    if year_match:
+        year = int(year_match.group(1))
+
+    return {
+        "scan_project_name": project_name,
+        "scan_year": str(year) if year is not None else None,
+    }
+
+
+def generate_tag_keyword_for_source(body: TagKeywordGenerateRequest) -> dict:
+    db = SessionLocal()
+    try:
+        generator = TagKeywordGenerator(
+            db=db,
+            source_id=body.source_id,
+            snapshot_id=body.snapshot_id,
+            overwrite=body.overwrite,
+        )
+        return generator.run()
+    except Exception as exc:
+        import traceback
+        return {
+            "success": False,
+            "message": f"Tag/Keyword 생성 중 오류 발생: {str(exc)}",
+            "source_id": body.source_id,
+            "snapshot_id": body.snapshot_id,
+            "error_detail": traceback.format_exc(),
+        }
+    finally:
+        db.close()
+
+
 @router.post("/step1/scan", response_model=ScanResponse)
 async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db)):
     """
@@ -164,11 +342,25 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
     - 변경 감지: file_size + modified_at 기준, 변경 의심 시 checksum 계산
     - removed 상태 파일이 다시 나타나면 기존 레코드 복원
     """
-    source_id = request.source_id or "rag_source"
+    source_id = (request.source_id or "").strip()
     warnings: List[str] = []
     errors: List[str] = []
     by_extension: Dict[str, int] = {}
     samples: Dict[str, List[str]] = {"new": [], "changed": [], "removed": [], "excluded": [], "restored": []}
+
+    if not source_id:
+        return ScanResponse(
+            success=False,
+            source_id="",
+            scan_root="",
+            total_files=0, supported_files=0, excluded_files=0,
+            new_files=0, changed_files=0, removed_files=0, unchanged_files=0, restored_files=0,
+            documents_created=0, documents_updated=0, total_metadata=0,
+            by_extension={}, samples={},
+            warnings=[], errors=["source_id가 지정되지 않았습니다."],
+            next_action="Document Source를 먼저 선택하세요.",
+            message="source_id가 지정되지 않았습니다."
+        )
 
     # 1. Document Source 설정 조회
     source = get_document_source(source_id)
@@ -226,7 +418,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
                 try:
                     stat = filepath.stat()
-                    file_modified_at = datetime.fromtimestamp(stat.st_mtime)
+                    file_modified_at = datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0)
                 except Exception as e:
                     warnings.append(f"파일 정보 읽기 실패: {relative_path} - {e}")
                     continue
@@ -235,10 +427,8 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                 ext_key = ext.lstrip(".")
                 by_extension[ext_key] = by_extension.get(ext_key, 0) + 1
 
-                # category_id 추출 (첫 번째 폴더명 기준)
-                path_parts = relative_path.split("/")
-                category_folder = path_parts[0] if path_parts else ""
-                category_id = CATEGORY_ID_MAP.get(category_folder, f"cat_{category_folder}")
+                # classify_relative_path()로 분류 정보 추출
+                classification = classify_relative_path(relative_path, source)
 
                 current_files[relative_path] = {
                     "filename": filename,
@@ -247,7 +437,9 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     "extension": ext_key,
                     "size": stat.st_size,
                     "modified_at": file_modified_at,
-                    "category_id": category_id,
+                    "category_id": classification["category_id"],
+                    "document_group": classification["document_group"],
+                    "section_type": classification["section_type"],
                 }
 
         # 4. 기존 document_metadata 레코드 조회 (같은 source_id)
@@ -319,10 +511,39 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         unchanged_count += 1
 
                 # document_uid, relative_path 보정 (없으면 추가)
+                metadata_backfilled = False
                 if not existing.document_uid:
                     existing.document_uid = doc_uid
+                    metadata_backfilled = True
                 if not existing.relative_path:
                     existing.relative_path = rel_path
+                    metadata_backfilled = True
+                if existing.category_id != file_info.get("category_id"):
+                    existing.category_id = file_info.get("category_id")
+                    metadata_backfilled = True
+                if existing.document_group != file_info.get("document_group"):
+                    existing.document_group = file_info.get("document_group")
+                    metadata_backfilled = True
+                if existing.section_type != file_info.get("section_type"):
+                    existing.section_type = file_info.get("section_type")
+                    metadata_backfilled = True
+
+                # scan_* 필드 보정 (없으면 추가)
+                if not existing.scan_project_name or not existing.scan_year:
+                    scan_meta = extract_scan_metadata(file_info["filename"], rel_path)
+                    if not existing.scan_project_name and scan_meta["scan_project_name"]:
+                        existing.scan_project_name = scan_meta["scan_project_name"]
+                        metadata_backfilled = True
+                    if not existing.scan_year and scan_meta["scan_year"]:
+                        existing.scan_year = scan_meta["scan_year"]
+                        metadata_backfilled = True
+                if not existing.scan_document_category and file_info.get("document_group"):
+                    existing.scan_document_category = file_info.get("document_group")
+                    metadata_backfilled = True
+
+                if metadata_backfilled:
+                    existing.updated_at = datetime.utcnow()
+                    documents_updated += 1
 
             else:
                 # 5b. 신규 파일
@@ -332,6 +553,9 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                         checksum = calculate_file_checksum(Path(file_info["filepath"]))
                     except Exception:
                         pass
+
+                scan_meta = extract_scan_metadata(file_info["filename"], rel_path)
+                document_group = file_info.get("document_group", "") or ""
 
                 new_meta = DocumentMetadata(
                     document_id=next_doc_id,
@@ -345,6 +569,11 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     file_checksum=checksum,
                     file_modified_at=file_info["modified_at"],
                     category_id=file_info["category_id"],
+                    document_group=document_group,
+                    section_type=file_info.get("section_type", ""),
+                    scan_project_name=scan_meta["scan_project_name"],
+                    scan_year=scan_meta["scan_year"],
+                    scan_document_category=document_group or None,
                     status=ProcessingStatus.REGISTERED.value,
                     meta_status=MetaStatus.REGISTERED.value,
                     include_in_rag=True,
@@ -483,6 +712,12 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
         )
 
 
+@router.post("/tag-keyword/generate")
+async def dataset_builder_tag_keyword_generate(body: TagKeywordGenerateRequest):
+    """현재 Document Source 기준 Tag/Keyword 생성 alias."""
+    return generate_tag_keyword_for_source(body)
+
+
 @router.get("/stats")
 async def get_dataset_builder_stats(db: Session = Depends(get_db)):
     """Dataset Builder 통계 조회"""
@@ -516,6 +751,148 @@ async def get_dataset_builder_stats(db: Session = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"통계 조회 실패: {str(e)}")
+
+
+@router.get("/step1/records")
+async def get_step1_records(
+    source_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    meta_status: Optional[str] = Query(None),
+    include_removed: bool = Query(True),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Step 1 Source Scan으로 등록된 document_metadata 레코드 조회"""
+    try:
+        query = db.query(DocumentMetadata)
+
+        if source_id:
+            query = query.filter(DocumentMetadata.source_id == source_id)
+        if status:
+            query = query.filter(DocumentMetadata.status == status)
+        if meta_status:
+            query = query.filter(DocumentMetadata.meta_status == meta_status)
+        if not include_removed:
+            query = query.filter(DocumentMetadata.removed_at.is_(None))
+
+        total = query.count()
+
+        rows = (
+            query
+            .order_by(DocumentMetadata.updated_at.desc(), DocumentMetadata.document_id.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        items = []
+        for row in rows:
+            item = row.to_dict()
+            items.append({
+                "id": item.get("id"),
+                "document_id": item.get("document_id"),
+                "source_id": item.get("source_id"),
+                "document_uid": item.get("document_uid"),
+                "relative_path": item.get("relative_path"),
+                "file_name": item.get("file_name"),
+                "file_type": item.get("file_type"),
+                "file_size": item.get("file_size"),
+                "file_modified_at": item.get("file_modified_at"),
+                "category_id": item.get("category_id"),
+                "document_group": item.get("document_group"),
+                "section_type": item.get("section_type"),
+                "status": item.get("status"),
+                "meta_status": item.get("meta_status"),
+                "is_excluded": item.get("is_excluded"),
+                "removed_at": item.get("removed_at"),
+                "created_at": item.get("created_at"),
+                "updated_at": item.get("updated_at"),
+            })
+
+        return {
+            "success": True,
+            "source_id": source_id,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "count": len(items),
+            "items": items,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Step 1 레코드 조회 실패: {str(e)}")
+
+
+@router.get("/step2/records")
+async def get_step2_records(
+    source_id: Optional[str] = Query(None),
+    meta_status: Optional[str] = Query(MetaStatus.METADATA_SUGGESTED.value),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Step 2 Metadata Builder 결과 레코드 조회"""
+    try:
+        query = db.query(DocumentMetadata)
+
+        if source_id:
+            query = query.filter(DocumentMetadata.source_id == source_id)
+        if meta_status:
+            query = query.filter(DocumentMetadata.meta_status == meta_status)
+
+        total = query.count()
+
+        rows = (
+            query
+            .order_by(DocumentMetadata.updated_at.desc(), DocumentMetadata.document_id.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        items = []
+        for row in rows:
+            item = row.to_dict()
+            items.append({
+                "id": item.get("id"),
+                "document_id": item.get("document_id"),
+                "source_id": item.get("source_id"),
+                "document_uid": item.get("document_uid"),
+                "relative_path": item.get("relative_path"),
+                "file_name": item.get("file_name"),
+                "file_type": item.get("file_type"),
+                "category_id": item.get("category_id"),
+                "document_group": item.get("document_group"),
+                "section_type": item.get("section_type"),
+                "project_name": item.get("project_name"),
+                "project_name_confidence": item.get("project_name_confidence"),
+                "organization": item.get("organization"),
+                "organization_confidence": item.get("organization_confidence"),
+                "document_type": item.get("document_type"),
+                "document_type_confidence": item.get("document_type_confidence"),
+                "year": item.get("year"),
+                "collection_candidates": item.get("collection_candidates") or [],
+                "final_collections": item.get("final_collections") or [],
+                "status": item.get("status"),
+                "meta_status": item.get("meta_status"),
+                "created_at": item.get("created_at"),
+                "updated_at": item.get("updated_at"),
+            })
+
+        return {
+            "success": True,
+            "source_id": source_id,
+            "meta_status": meta_status,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "count": len(items),
+            "items": items,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Step 2 레코드 조회 실패: {str(e)}")
 
 
 # ============================================================
