@@ -26,6 +26,7 @@ from app.services.document_source_paths import resolve_scan_root
 from app.services.document_uid import make_document_uid, detect_file_change, calculate_file_checksum
 from app.services.platform_store import get_record
 from app.services.tag_keyword_generator import TagKeywordGenerator
+from app.services.dataset_context import get_source_dataset_context
 
 router = APIRouter(
     prefix="/admin/dataset-builder",
@@ -467,6 +468,9 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
         documents_created = 0
         documents_updated = 0
 
+        # source dataset_id 조회 (없으면 None)
+        _source_dataset_id = get_source_dataset_context(source_id).get("dataset_id")
+
         next_doc_id = (db.query(func.max(DocumentMetadata.document_id)).scalar() or 0) + 1
 
         for rel_path, file_info in current_files.items():
@@ -540,6 +544,9 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                 if not existing.scan_document_category and file_info.get("document_group"):
                     existing.scan_document_category = file_info.get("document_group")
                     metadata_backfilled = True
+                if not existing.dataset_id and _source_dataset_id:
+                    existing.dataset_id = _source_dataset_id
+                    metadata_backfilled = True
 
                 if metadata_backfilled:
                     existing.updated_at = datetime.utcnow()
@@ -571,6 +578,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     category_id=file_info["category_id"],
                     document_group=document_group,
                     section_type=file_info.get("section_type", ""),
+                    dataset_id=_source_dataset_id,
                     scan_project_name=scan_meta["scan_project_name"],
                     scan_year=scan_meta["scan_year"],
                     scan_document_category=document_group or None,
