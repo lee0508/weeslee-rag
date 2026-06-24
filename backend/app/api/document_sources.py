@@ -11,6 +11,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
+from app.services.document_source_paths import resolve_scan_path
+from app.services.dataset_context import (
+    ensure_source_dataset_context,
+    generate_dataset_id,
+)
 from app.services.platform_store import (
     list_records, get_record, create_record, update_record,
     delete_record, seed_if_empty,
@@ -23,6 +28,9 @@ INVENTORY_DIR = PROJECT_ROOT / "platform_config" / "document_source_inventories"
 
 _WEESLEE_DEFAULT = {
     "source_id": "rag_source",
+    "dataset_id": "",
+    "dataset_status": "pending",
+    "dataset_created_at": None,
     "client_id": "weeslee",
     "source_name": "00. RAG 소스",
     "source_type": "smb",
@@ -51,6 +59,8 @@ router = APIRouter(
 
 class DocumentSourceCreate(BaseModel):
     source_id: Optional[str] = ""
+    dataset_id: Optional[str] = ""
+    dataset_status: Optional[str] = None
     client_id: str
     source_name: str
     source_type: str = "smb"
@@ -62,6 +72,8 @@ class DocumentSourceCreate(BaseModel):
 
 
 class DocumentSourceUpdate(BaseModel):
+    dataset_id: Optional[str] = None
+    dataset_status: Optional[str] = None
     client_id: Optional[str] = None
     source_name: Optional[str] = None
     source_type: Optional[str] = None
@@ -74,6 +86,10 @@ class DocumentSourceUpdate(BaseModel):
 
 class PathTestRequest(BaseModel):
     path: Optional[str] = None
+
+
+class EnsureDatasetRequest(BaseModel):
+    force_new: bool = False
 
 
 def _seed():
@@ -173,10 +189,35 @@ def _generate_source_id() -> str:
     raise HTTPException(status_code=500, detail="source_id 생성에 실패했습니다.")
 
 
+def _ensure_dataset_fields(record: dict) -> dict:
+    if not record:
+        return record
+
+    updates = {}
+    source_id = record.get("source_id") or record.get(ID_FIELD)
+    dataset_id = (record.get("dataset_id") or "").strip()
+
+    dataset_status = (record.get("dataset_status") or "").strip()
+    if dataset_id:
+        if not dataset_status or dataset_status == "pending":
+            updates["dataset_status"] = "draft"
+    elif not dataset_status:
+        updates["dataset_status"] = "pending"
+    if dataset_id and not record.get("dataset_created_at"):
+        updates["dataset_created_at"] = record.get("created_at") or datetime.now(timezone.utc).isoformat()
+
+    if updates and source_id:
+        updated = update_record(STORE, ID_FIELD, source_id, updates)
+        if updated:
+            return updated
+        record.update(updates)
+    return record
+
+
 @router.get("")
 async def list_sources(client_id: Optional[str] = None):
     _seed()
-    records = list_records(STORE)
+    records = [_ensure_dataset_fields(r) for r in list_records(STORE)]
     if client_id:
         records = [r for r in records if r.get("client_id") == client_id]
     return records
@@ -189,7 +230,12 @@ async def create_source(body: DocumentSourceCreate):
     if get_record(STORE, ID_FIELD, source_id):
         raise HTTPException(status_code=409, detail=f"source_id '{source_id}' already exists")
     data = body.model_dump()
+    dataset_id = (body.dataset_id or "").strip() or generate_dataset_id(source_id)
+    requested_status = (body.dataset_status or "").strip()
     data["source_id"] = source_id
+    data["dataset_id"] = dataset_id
+    data["dataset_status"] = requested_status if requested_status and requested_status != "pending" else "draft"
+    data["dataset_created_at"] = datetime.now(timezone.utc).isoformat()
     data["status"] = "unknown"
     data["last_checked_at"] = None
     data["last_scanned_at"] = None
@@ -198,7 +244,7 @@ async def create_source(body: DocumentSourceCreate):
     data["changed_file_count"] = 0
     data["removed_file_count"] = 0
     data["needs_rag_build"] = False
-    data["next_action"] = "Source Document 기준 스캔을 먼저 실행하세요."
+    data["next_action"] = "dataset_id가 생성되었습니다. Source Document 기준 스캔부터 순서대로 실행하세요."
     return create_record(STORE, data, id_field=ID_FIELD)
 
 
@@ -208,22 +254,52 @@ async def get_source(source_id: str):
     rec = get_record(STORE, ID_FIELD, source_id)
     if not rec:
         raise HTTPException(status_code=404, detail="Document source not found")
-    return rec
+    return _ensure_dataset_fields(rec)
 
 
 @router.put("/{source_id}")
 async def update_source(source_id: str, body: DocumentSourceUpdate):
     updates = body.model_dump(exclude_unset=True)
+    if "dataset_id" in updates:
+        updates["dataset_id"] = (updates.get("dataset_id") or "").strip()
+        if updates["dataset_id"] and "dataset_created_at" not in updates:
+            updates["dataset_created_at"] = datetime.now(timezone.utc).isoformat()
+    if "dataset_status" in updates and updates["dataset_status"] is not None:
+        updates["dataset_status"] = (updates["dataset_status"] or "").strip() or None
     rec = update_record(STORE, ID_FIELD, source_id, updates)
     if not rec:
         raise HTTPException(status_code=404, detail="Document source not found")
-    return rec
+    return _ensure_dataset_fields(rec)
 
 
 @router.delete("/{source_id}", status_code=204)
 async def delete_source(source_id: str):
     if not delete_record(STORE, ID_FIELD, source_id):
         raise HTTPException(status_code=404, detail="Document source not found")
+
+
+@router.post("/{source_id}/ensure-dataset")
+async def ensure_dataset(source_id: str, body: Optional[EnsureDatasetRequest] = None):
+    _seed()
+    if not get_record(STORE, ID_FIELD, source_id):
+        raise HTTPException(status_code=404, detail="Document source not found")
+
+    context, generated = ensure_source_dataset_context(
+        source_id,
+        force_new=bool(body.force_new) if body else False,
+    )
+    if not context:
+        raise HTTPException(status_code=404, detail="Document source not found")
+
+    return {
+        "success": True,
+        "source_id": source_id,
+        "dataset_id": context.get("dataset_id"),
+        "dataset_status": context.get("dataset_status"),
+        "dataset_created_at": context.get("dataset_created_at"),
+        "generated": generated,
+        "message": "Dataset Builder 시작 기준 dataset_id가 준비되었습니다." if generated else "기존 dataset_id를 그대로 사용합니다.",
+    }
 
 
 @router.post("/{source_id}/test")
@@ -265,7 +341,11 @@ async def scan_source(source_id: str):
     if not rec:
         raise HTTPException(status_code=404, detail="Document source not found")
 
-    scan_path = rec.get("mount_path") or rec.get("source_uri", "")
+    scan_path = resolve_scan_path(
+        rec.get("mount_path", ""),
+        rec.get("root_subpath", ""),
+        rec.get("source_uri", ""),
+    )
     now = datetime.now(timezone.utc).isoformat()
 
     if not _is_safe_path(scan_path or ""):

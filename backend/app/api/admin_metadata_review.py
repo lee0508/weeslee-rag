@@ -28,6 +28,7 @@ class DocumentMetadataResponse(BaseModel):
     file_name: str
     source_id: Optional[str] = None
     category_id: Optional[str] = None
+    dataset_id: Optional[str] = None
 
     # Auto-generated metadata (Step 2)
     project_name: Optional[str] = None
@@ -36,6 +37,29 @@ class DocumentMetadataResponse(BaseModel):
     organization_confidence: Optional[float] = None
     document_type: Optional[str] = None
     year: Optional[int] = None
+
+    # Step 1 / Step 4 / Step 3 triple metadata
+    scan_project_name: Optional[str] = None
+    scan_organization: Optional[str] = None
+    scan_year: Optional[str] = None
+    scan_document_category: Optional[str] = None
+
+    ocr_project_name: Optional[str] = None
+    ocr_organization: Optional[str] = None
+    ocr_year: Optional[str] = None
+    ocr_document_category: Optional[str] = None
+    ocr_confidence: Optional[float] = None
+    ocr_quality_score: Optional[float] = None
+    ocr_parser_type: Optional[str] = None
+    ocr_page_count: Optional[int] = None
+    ocr_metadata_status: Optional[str] = None
+
+    final_project_name: Optional[str] = None
+    final_organization: Optional[str] = None
+    final_year: Optional[str] = None
+    final_document_category: Optional[str] = None
+    final_confirmed_by: Optional[str] = None
+    final_confirmed_at: Optional[datetime] = None
 
     # Review status
     meta_status: str  # registered, metadata_suggested, review_required, metadata_reviewed
@@ -96,6 +120,55 @@ class RejectMetadataRequest(BaseModel):
     reviewer: str = "admin"
 
 
+def _build_document_metadata_response(meta: DocumentMetadata) -> DocumentMetadataResponse:
+    """Step 3 화면에서 사용하는 단일/삼중 메타데이터를 함께 직렬화한다."""
+    return DocumentMetadataResponse(
+        document_id=meta.document_id,
+        file_path=meta.file_path,
+        file_name=meta.file_name or meta.file_path or "Unknown",
+        source_id=meta.source_id,
+        category_id=meta.category_id,
+        dataset_id=meta.dataset_id,
+        project_name=meta.project_name,
+        project_name_confidence=meta.project_name_confidence,
+        organization=meta.organization,
+        organization_confidence=meta.organization_confidence,
+        document_type=meta.document_type,
+        year=meta.year,
+        scan_project_name=meta.scan_project_name,
+        scan_organization=meta.scan_organization,
+        scan_year=meta.scan_year,
+        scan_document_category=meta.scan_document_category,
+        ocr_project_name=meta.ocr_project_name,
+        ocr_organization=meta.ocr_organization,
+        ocr_year=meta.ocr_year,
+        ocr_document_category=meta.ocr_document_category,
+        ocr_confidence=meta.ocr_confidence,
+        ocr_quality_score=float(meta.ocr_quality_score) if meta.ocr_quality_score is not None else None,
+        ocr_parser_type=meta.ocr_parser_type,
+        ocr_page_count=meta.ocr_page_count,
+        ocr_metadata_status=meta.ocr_metadata_status,
+        final_project_name=meta.final_project_name,
+        final_organization=meta.final_organization,
+        final_year=meta.final_year,
+        final_document_category=meta.final_document_category,
+        final_confirmed_by=meta.final_confirmed_by,
+        final_confirmed_at=meta.final_confirmed_at,
+        meta_status=meta.meta_status,
+        reviewed_by=meta.reviewed_by,
+        reviewed_at=meta.reviewed_at,
+        collection_candidates=meta.collection_candidates or [],
+        final_collections=meta.final_collections or [],
+        tags=[t for t in (meta.tags or []) if isinstance(t, str)],
+        keywords=[k for k in (meta.keywords or []) if isinstance(k, str)],
+        include_in_rag=meta.include_in_rag,
+        include_in_graph=meta.include_in_graph,
+        include_in_wiki=meta.include_in_wiki,
+        created_at=meta.created_at,
+        updated_at=meta.updated_at,
+    )
+
+
 # ── API Endpoints ───────────────────────────────────────────────────────────
 
 
@@ -130,34 +203,7 @@ async def get_documents_for_review(
         total = document_metadata_service.count_documents(db, status=status, source_id=source_id)
 
         # Response 생성
-        documents = []
-        for meta in metadata_list:
-            doc_data = DocumentMetadataResponse(
-                document_id=meta.document_id,
-                file_path=meta.file_path,
-                file_name=meta.file_name or meta.file_path or "Unknown",
-                source_id=meta.source_id,
-                category_id=meta.category_id,
-                project_name=meta.project_name,
-                project_name_confidence=meta.project_name_confidence,
-                organization=meta.organization,
-                organization_confidence=meta.organization_confidence,
-                document_type=meta.document_type,
-                year=meta.year,
-                meta_status=meta.meta_status,
-                reviewed_by=meta.reviewed_by,
-                reviewed_at=meta.reviewed_at,
-                collection_candidates=meta.collection_candidates or [],
-                final_collections=meta.final_collections or [],
-                tags=[t for t in (meta.tags or []) if isinstance(t, str)],
-                keywords=[k for k in (meta.keywords or []) if isinstance(k, str)],
-                include_in_rag=meta.include_in_rag,
-                include_in_graph=meta.include_in_graph,
-                include_in_wiki=meta.include_in_wiki,
-                created_at=meta.created_at,
-                updated_at=meta.updated_at,
-            )
-            documents.append(doc_data)
+        documents = [_build_document_metadata_response(meta) for meta in metadata_list]
 
         return MetadataReviewListResponse(
             total=total,
@@ -180,31 +226,7 @@ async def get_document_metadata(document_id: int, db: Session = Depends(get_db))
         if not metadata:
             raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
 
-        return DocumentMetadataResponse(
-            document_id=metadata.document_id,
-            file_path=metadata.file_path,
-            file_name=metadata.file_name or metadata.file_path or "Unknown",
-            source_id=metadata.source_id,
-            category_id=metadata.category_id,
-            project_name=metadata.project_name,
-            project_name_confidence=metadata.project_name_confidence,
-            organization=metadata.organization,
-            organization_confidence=metadata.organization_confidence,
-            document_type=metadata.document_type,
-            year=metadata.year,
-            meta_status=metadata.meta_status,
-            reviewed_by=metadata.reviewed_by,
-            reviewed_at=metadata.reviewed_at,
-            collection_candidates=metadata.collection_candidates or [],
-            final_collections=metadata.final_collections or [],
-            tags=metadata.tags or [],
-            keywords=metadata.keywords or [],
-            include_in_rag=metadata.include_in_rag,
-            include_in_graph=metadata.include_in_graph,
-            include_in_wiki=metadata.include_in_wiki,
-            created_at=metadata.created_at,
-            updated_at=metadata.updated_at,
-        )
+        return _build_document_metadata_response(metadata)
 
     except HTTPException:
         raise

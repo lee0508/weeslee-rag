@@ -6,10 +6,8 @@ OCR/파싱 결과 조회 및 품질 점검 API.
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -83,6 +81,42 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _extract_document_id(report_or_id: Any) -> str:
+    if isinstance(report_or_id, str):
+        return report_or_id
+    if isinstance(report_or_id, dict):
+        return str(report_or_id.get("document_id") or report_or_id.get("id") or "")
+    return str(report_or_id or "")
+
+
+def _extraction_method_from_result(result) -> str:
+    return (
+        getattr(result, "extraction_method", "")
+        or getattr(result, "parser_type", "")
+        or getattr(result, "ocr_engine", "")
+        or "unknown"
+    )
+
+
+def _processed_at_from_result(result) -> str:
+    return (
+        getattr(result, "processed_at", "")
+        or getattr(result, "updated_at", "")
+        or getattr(result, "created_at", "")
+        or ""
+    )
+
+
+def _quality_bucket(score: float) -> str:
+    if score >= 0.8:
+        return "high"
+    if score >= 0.6:
+        return "good"
+    if score >= 0.4:
+        return "low"
+    return "bad"
+
+
 @router.post("/quality-check", response_model=QualityCheckResponse)
 async def check_text_quality(body: QualityCheckRequest):
     """
@@ -119,17 +153,23 @@ async def list_ocr_results(
 
     processed_text_store에 저장된 결과를 페이지네이션하여 반환합니다.
     """
-    all_docs = processed_text_store.list_documents()
+    all_docs = processed_text_store.list_documents(limit=100000)
 
     # 필터링
     filtered = []
-    for doc_id in all_docs:
+    for item in all_docs:
+        doc_id = _extract_document_id(item)
+        if not doc_id:
+            continue
+
         result = processed_text_store.get_result(doc_id)
         if not result:
             continue
 
+        extraction_method = _extraction_method_from_result(result)
+
         # method 필터
-        if method and result.extraction_method != method:
+        if method and extraction_method != method:
             continue
 
         # quality 필터
@@ -142,12 +182,13 @@ async def list_ocr_results(
         filtered.append({
             "document_id": result.document_id,
             "file_name": result.file_name,
-            "extraction_method": result.extraction_method,
+            "extraction_method": extraction_method,
             "quality_score": quality.get("quality_score", 0),
-            "text_length": len(result.full_text) if result.full_text else 0,
-            "page_count": len(result.pages) if result.pages else 0,
+            "text_length": result.text_length or (len(result.full_text) if result.full_text else 0),
+            "page_count": result.page_count or (len(result.pages) if result.pages else 0),
             "ocr_required": result.ocr_required,
-            "processed_at": result.processed_at,
+            "processed_at": _processed_at_from_result(result),
+            "status": result.status,
         })
 
     # 정렬 (최신순)
@@ -183,15 +224,23 @@ async def get_ocr_result_detail(
         "document_id": result.document_id,
         "file_name": result.file_name,
         "source_path": result.source_path,
-        "extraction_method": result.extraction_method,
+        "extraction_method": _extraction_method_from_result(result),
         "quality": result.quality or {},
         "ocr_required": result.ocr_required,
-        "ocr_pages": result.ocr_pages,
-        "processed_at": result.processed_at,
+        "ocr_pages": result.failed_pages,
+        "failed_pages": result.failed_pages,
+        "processed_at": _processed_at_from_result(result),
+        "status": result.status,
+        "error_message": result.error_message,
         "metadata": {
             "source_path": result.source_path,
-            "page_count": len(result.pages) if result.pages else 0,
+            "file_extension": result.file_extension,
+            "parser_type": result.parser_type,
+            "ocr_engine": result.ocr_engine,
+            "pdf_converted": result.pdf_converted,
+            "page_count": result.page_count or (len(result.pages) if result.pages else 0),
             "table_count": len(result.tables) if result.tables else 0,
+            "processing_time_ms": result.processing_time_ms,
         },
     }
 
@@ -205,8 +254,9 @@ async def get_ocr_result_detail(
     if include_tables and result.tables:
         response["tables"] = result.tables
 
-    if result.ocr_report:
-        response["ocr_report"] = result.ocr_report
+    report = processed_text_store.get_report(document_id)
+    if report:
+        response["ocr_report"] = report
 
     return response
 
@@ -217,8 +267,45 @@ async def get_store_statistics():
     OCR/파싱 결과 저장소 통계.
     """
     stats = processed_text_store.get_statistics()
+
+    total_size_bytes = 0
+    base_dir = processed_text_store.base_dir
+    if base_dir.exists():
+        total_size_bytes = sum(
+            path.stat().st_size
+            for path in base_dir.rglob("*")
+            if path.is_file()
+        )
+
+    by_method: dict[str, int] = {}
+    by_quality: dict[str, int] = {"high": 0, "good": 0, "low": 0, "bad": 0}
+    for report in processed_text_store.list_documents(limit=100000):
+        doc_id = _extract_document_id(report)
+        if not doc_id:
+            continue
+        method_name = (
+            report.get("extraction_method")
+            or report.get("parser_type")
+            or report.get("ocr_engine")
+            or "unknown"
+        )
+        by_method[method_name] = by_method.get(method_name, 0) + 1
+
+        quality = report.get("quality") or {}
+        score = quality.get("quality_score", 0)
+        try:
+            score = float(score)
+        except (TypeError, ValueError):
+            score = 0
+        bucket = _quality_bucket(score)
+        by_quality[bucket] = by_quality.get(bucket, 0) + 1
+
     return {
         "checked_at": _now(),
+        "total_documents": stats.get("total", 0),
+        "total_size_bytes": total_size_bytes,
+        "by_method": by_method,
+        "by_quality": by_quality,
         **stats,
     }
 
@@ -234,7 +321,7 @@ async def delete_ocr_result(document_id: str):
 
     # 저장 디렉토리 삭제
     import shutil
-    doc_dir = processed_text_store.storage_root / document_id
+    doc_dir = processed_text_store.base_dir / document_id
     if doc_dir.exists():
         shutil.rmtree(doc_dir)
 

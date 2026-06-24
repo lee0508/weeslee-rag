@@ -48,13 +48,13 @@ def _now() -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ScanRequest(BaseModel):
-    source_id: str = "rag_source"
+    source_id: str
     overwrite: bool = False
 
 
 class MetadataBuildRequest(BaseModel):
-    client_id: str = "weeslee"
-    source_id: str = "rag_source"
+    client_id: str
+    source_id: str
     inventory_ids: List[int] = []
     collection: Optional[str] = None
     overwrite: bool = False
@@ -63,8 +63,8 @@ class MetadataBuildRequest(BaseModel):
 
 
 class CollectionsBootstrapRequest(BaseModel):
-    client_id: str = "weeslee"
-    source_id: str = "rag_source"
+    client_id: str
+    source_id: str
     overwrite: bool = False
 
 
@@ -459,158 +459,20 @@ async def build_metadata(body: MetadataBuildRequest):
 
 @router.post("/collections/bootstrap")
 async def bootstrap_collections(body: CollectionsBootstrapRequest):
-    from app.services.platform_store import create_record as ps_create, get_record as ps_get, update_record as ps_update
-
-    mount_path = _get_source_mount_path(body.source_id)
-    coll_key = MAIN_COLLECTION_NAME
-    record = {
-        "collection_key": coll_key,
-        "collection_name": MAIN_COLLECTION_NAME,
-        "client_id": body.client_id,
-        "name": MAIN_COLLECTION_NAME,
-        "description": "00. RAG 소스 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
-        "source_root": "00. RAG 소스",
-        "mount_path": mount_path or "",
-        "enabled": True,
-    }
-    existing = ps_get("collections_active", "collection_key", coll_key)
-    created = skipped = 0
-    if existing:
-        if body.overwrite:
-            ps_update("collections_active", "collection_key", coll_key, record)
-            created = 1
-        else:
-            skipped = 1
-    else:
-        ps_create("collections_active", record, id_field="collection_key")
-        created = 1
-
-    return {
-        "success": True,
-        "client_id": body.client_id,
-        "source_id": body.source_id,
-        "created": created,
-        "skipped": skipped,
-        "items": [{"collection_key": coll_key, "name": MAIN_COLLECTION_NAME}],
-    }
+    from app.api.collections import bootstrap_collection_config
+    return bootstrap_collection_config(body.client_id, body.source_id, body.overwrite)
 
 
 @router.post("/tags/bootstrap")
 async def bootstrap_tags(overwrite: bool = False):
-    """기본 Tag 목록을 seed한다. 이미 존재하는 태그는 overwrite=True 일 때만 덮어씀."""
-    from app.services.platform_store import list_records, create_record, update_record
-
-    _DEFAULT_TAGS = [
-        {"tag_id": "tag_ai",          "tag_type": "technology",       "tag_name": "AI",       "keywords": ["AI", "인공지능", "생성형", "LLM"],    "enabled": True},
-        {"tag_id": "tag_isp",         "tag_type": "project_type",     "tag_name": "ISP",      "keywords": ["ISP", "정보화전략계획"],               "enabled": True},
-        {"tag_id": "tag_ismp",        "tag_type": "project_type",     "tag_name": "ISMP",     "keywords": ["ISMP"],                               "enabled": True},
-        {"tag_id": "tag_bprisp",      "tag_type": "project_type",     "tag_name": "BPR/ISP",  "keywords": ["BPRISP", "BPR/ISP"],                  "enabled": True},
-        {"tag_id": "tag_bigdata",     "tag_type": "technology",       "tag_name": "빅데이터", "keywords": ["빅데이터", "데이터 플랫폼", "데이터허브"], "enabled": True},
-        {"tag_id": "tag_cloud",       "tag_type": "technology",       "tag_name": "클라우드", "keywords": ["클라우드", "Cloud", "SaaS"],            "enabled": True},
-        {"tag_id": "tag_gis",         "tag_type": "technology",       "tag_name": "공간정보", "keywords": ["공간정보", "GIS", "지리정보"],           "enabled": True},
-        {"tag_id": "tag_health",      "tag_type": "business_domain",  "tag_name": "보건의료", "keywords": ["보건의료", "의료", "병원"],              "enabled": True},
-        {"tag_id": "tag_education",   "tag_type": "business_domain",  "tag_name": "교육",     "keywords": ["교육", "학교", "대학"],                 "enabled": True},
-        {"tag_id": "tag_public_safety","tag_type": "business_domain", "tag_name": "소방/치안","keywords": ["소방", "119", "경찰청"],                "enabled": True},
-    ]
-
-    STORE = "tags"
-    ID_FIELD = "tag_id"
-    existing_ids = {r.get(ID_FIELD) for r in list_records(STORE)}
-
-    created = skipped = updated = 0
-    for tag in _DEFAULT_TAGS:
-        tid = tag[ID_FIELD]
-        if tid in existing_ids:
-            if overwrite:
-                update_record(STORE, ID_FIELD, tid, tag)
-                updated += 1
-            else:
-                skipped += 1
-        else:
-            create_record(STORE, tag, id_field=ID_FIELD)
-            created += 1
-
-    return {
-        "success": True,
-        "total": len(_DEFAULT_TAGS),
-        "created": created,
-        "updated": updated,
-        "skipped": skipped,
-    }
+    from app.api.tags import bootstrap_default_tags
+    return bootstrap_default_tags(overwrite=overwrite)
 
 
 @router.post("/keywords/extract")
 async def extract_keywords(body: KeywordsExtractRequest = KeywordsExtractRequest()):
-    """문서 메타데이터를 기준으로 Keyword 저장소를 자동 보강한다."""
-    from app.services.platform_store import list_records, create_record, update_record
-
-    docs = metadata_db_service.list_documents(limit=max(1, min(body.limit, 10000)))
-    existing = list_records("keywords")
-    existing_by_keyword = {
-        _normalize_keyword_value(item.get("keyword", "")).lower(): item
-        for item in existing
-        if _normalize_keyword_value(item.get("keyword", ""))
-    }
-
-    candidates: dict[str, dict] = {}
-
-    def add_candidate(keyword: str, category: str, weight: float) -> None:
-        normalized = _normalize_keyword_value(keyword)
-        if len(normalized) < 2:
-            return
-        key = normalized.lower()
-        current = candidates.get(key)
-        if current and current["weight"] >= weight:
-            return
-        candidates[key] = {
-            "keyword": normalized,
-            "category": category,
-            "weight": weight,
-            "enabled": True,
-        }
-
-    for doc in docs:
-        if not doc:
-            continue
-        project_name = doc.get("project_name") or ""
-        organization = doc.get("organization") or ""
-        document_type = doc.get("document_type") or ""
-
-        if project_name:
-            add_candidate(project_name, "project_name", 2.0)
-        if organization:
-            add_candidate(organization, "organization", 1.5)
-        if document_type and document_type != "unknown":
-            add_candidate(document_type, "document_type", 0.8)
-
-    created = updated = skipped = 0
-    items = []
-
-    for key, candidate in candidates.items():
-        existing_item = existing_by_keyword.get(key)
-        if existing_item:
-            if body.overwrite:
-                update_record("keywords", "keyword_id", existing_item["keyword_id"], candidate)
-                updated += 1
-                items.append({"keyword": candidate["keyword"], "action": "updated"})
-            else:
-                skipped += 1
-            continue
-
-        create_record("keywords", candidate, id_field="keyword_id")
-        created += 1
-        items.append({"keyword": candidate["keyword"], "action": "created"})
-
-    return {
-        "success": True,
-        "source": "metadata_documents",
-        "total_documents": len(docs),
-        "candidate_count": len(candidates),
-        "created": created,
-        "updated": updated,
-        "skipped": skipped,
-        "items": items[:50],
-    }
+    from app.api.keywords import extract_keywords_from_metadata
+    return extract_keywords_from_metadata(body)
 
 
 class ScanV2Request(BaseModel):
@@ -778,53 +640,16 @@ class TagKeywordGenerateRequest(BaseModel):
     """
     Tag/Keyword 생성 요청 모델.
 
-    source_id: 현재 선택된 Document Source ID (예: rag_source)
-    snapshot_id: 현재 작업 또는 활성 Snapshot ID (예: snapshot_2026-05-20_rag_source_v1)
+    source_id: 현재 선택된 Document Source ID
+    snapshot_id: 현재 작업 또는 활성 Snapshot ID
     overwrite: 기존 자동 생성 태그/키워드를 덮어쓸지 여부 (manual 태그는 보존)
     """
-    source_id: str = "rag_source"
+    source_id: str
     snapshot_id: Optional[str] = None
     overwrite: bool = False
 
 
 @router.post("/tag-keyword/generate")
 async def generate_tag_keyword(body: TagKeywordGenerateRequest):
-    """
-    현재 선택된 Document Source 기준으로 Tag/Keyword/문서별 매핑을 생성합니다.
-
-    이 API는 문서 본문을 파싱하지 않습니다.
-    document_metadata의 file_name, relative_path, project_name, document_group, section_type을 기준으로
-    빠르게 1차 태그/키워드를 생성합니다.
-
-    처리 기준:
-    - document_metadata 테이블의 source_id 기준 문서 조회
-    - removed_at이 NULL인 문서만 대상
-    - document_group, section_type, project_name에서 태그 추출
-    - 파일명에서 기술/프로젝트 유형/키워드 추출
-    """
-    from app.core.database import SessionLocal
-    from app.services.tag_keyword_generator import TagKeywordGenerator
-
-    db = SessionLocal()
-    try:
-        generator = TagKeywordGenerator(
-            db=db,
-            source_id=body.source_id,
-            snapshot_id=body.snapshot_id,
-            overwrite=body.overwrite,
-        )
-
-        result = generator.run()
-        return result
-
-    except Exception as e:
-        import traceback
-        return {
-            "success": False,
-            "message": f"Tag/Keyword 생성 중 오류 발생: {str(e)}",
-            "source_id": body.source_id,
-            "snapshot_id": body.snapshot_id,
-            "error_detail": traceback.format_exc(),
-        }
-    finally:
-        db.close()
+    from app.api.admin_dataset_builder_simple import generate_tag_keyword_for_source
+    return generate_tag_keyword_for_source(body)

@@ -308,7 +308,7 @@ def _snapshot_source_id(snapshot: str) -> str:
     match = re.match(r"^snapshot_\d{8}_(.+?)(?:_v\d+)?$", snapshot or "")
     if match:
         return match.group(1)
-    return "rag_source"
+    return ""
 
 
 def _safe_score(value: Any, default: float = 0.0) -> float:
@@ -496,7 +496,7 @@ def _standardize_rag_document(doc: dict, rank: int, source_id: str, max_chunks_p
     document_group = _document_group(doc)
     normalized = dict(doc)
     normalized["rank"] = doc.get("rank") or rank
-    normalized["source_id"] = str(doc.get("source_id") or source_id or "rag_source")
+    normalized["source_id"] = str(doc.get("source_id") or source_id or "")
     normalized["document_id"] = document_id
     normalized["file_name"] = file_name
     normalized["original_path"] = str(original_path)
@@ -582,7 +582,7 @@ def _to_similar_file_doc(doc: dict, rank: int, max_chunks_per_doc: int) -> dict:
     standard_doc = _standardize_rag_document(
         doc,
         rank,
-        str(doc.get("source_id") or "rag_source"),
+        str(doc.get("source_id") or ""),
         max_chunks_per_doc,
     )
     standard_doc.update({

@@ -30,8 +30,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
+from app.core.config import settings
 from app.services import faiss_job_runner as runner
+from app.services.dataset_context import generate_dataset_id, get_source_dataset_context
 from app.services.incremental_rag_service import add_documents_to_active_snapshot
+from app.models.snapshot_manifest import SnapshotManifest
+from app.services.rag_runtime import run_rag_query, get_active_snapshot
 
 router = APIRouter(
     prefix="/admin/faiss",
@@ -39,13 +43,13 @@ router = APIRouter(
     dependencies=[Depends(require_admin_token)],
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DATA_DIR     = PROJECT_ROOT / "data"
-FAISS_DIR    = DATA_DIR / "indexes" / "faiss"
-MANIFEST_DIR = DATA_DIR / "staged" / "manifest"
-TEXT_DIR     = DATA_DIR / "staged" / "text"
-META_DIR     = DATA_DIR / "staged" / "metadata"
-CHUNKS_DIR   = DATA_DIR / "staged" / "chunks"
+DATA_DIR = Path(settings.data_dir).expanduser().resolve()
+FAISS_DIR = Path(settings.faiss_index_dir).expanduser().resolve()
+MANIFEST_DIR = Path(settings.staged_manifest_dir).expanduser().resolve()
+TEXT_DIR = Path(settings.staged_text_dir).expanduser().resolve()
+META_DIR = Path(settings.staged_metadata_dir).expanduser().resolve()
+CHUNKS_DIR = Path(settings.staged_chunks_dir).expanduser().resolve()
+SNAPSHOT_DIR = DATA_DIR / "snapshots"
 
 _TIMESTAMP_RE = re.compile(r"_\d{8}_\d{6}$")
 
@@ -88,21 +92,62 @@ def _list_snapshots() -> list[str]:
     return sorted(names, reverse=True)
 
 
+def _normalize_embedding_model(model: Optional[str]) -> Optional[str]:
+    value = str(model or "").strip()
+    if not value:
+        return None
+    return value.split("/")[-1]
+
+
+def _load_snapshot_manifest(snapshot_id: str) -> Optional[SnapshotManifest]:
+    if not snapshot_id:
+        return None
+    snapshot_path = SNAPSHOT_DIR / f"{snapshot_id}.json"
+    if not snapshot_path.exists():
+        return None
+    try:
+        return SnapshotManifest(**json.loads(snapshot_path.read_text(encoding="utf-8")))
+    except Exception:
+        return None
+
+
+def _load_faiss_manifest(snapshot_id: str) -> Optional[dict]:
+    if not snapshot_id:
+        return None
+    manifest_path = FAISS_DIR / f"{snapshot_id}_ollama.manifest.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/status")
 async def faiss_status():
     """현재 활성 인덱스 상태 및 서버 설정."""
-    from app.core.config import settings
-
     active = runner.read_active_index()
     snapshot = (active or {}).get("snapshot", "") or (active or {}).get("active_snapshot", "")
+    snapshot_manifest = _load_snapshot_manifest(snapshot)
+    faiss_manifest = _load_faiss_manifest(snapshot)
 
     # snapshot_id에서 source_id, dataset_id 추출
     # 형식: snapshot_YYYYMMDD_source_id_vN 또는 snapshot_YYYYMMDD_VN
-    source_id = "rag_source"  # 기본값
+    source_id = None
     dataset_id = None
-    if snapshot:
+    if snapshot_manifest:
+        source_id = (snapshot_manifest.dataset.source_id or "").strip() or None
+        dataset_id = (snapshot_manifest.dataset.dataset_id or "").strip() or None
+    elif faiss_manifest:
+        counts_by_source = faiss_manifest.get("counts_by_source") or {}
+        if isinstance(counts_by_source, dict) and len(counts_by_source) == 1:
+            source_id = next(iter(counts_by_source.keys()), "").strip() or None
+            if source_id:
+                source_context = get_source_dataset_context(source_id)
+                dataset_id = source_context.get("dataset_id") or None
+    elif snapshot:
         # snapshot_20260616_rag_source_v1 형식 파싱
         parts = snapshot.replace("snapshot_", "").split("_")
         if len(parts) >= 2:
@@ -111,18 +156,47 @@ async def faiss_status():
             source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
             if source_parts:
                 source_id = "_".join(source_parts)
-            dataset_id = f"dataset_{source_id}_{date_part}"
+            if source_id:
+                source_context = get_source_dataset_context(source_id)
+                dataset_id = source_context.get("dataset_id") or generate_dataset_id(
+                    source_id,
+                    f"{date_part}T00:00:00+00:00",
+                )
+
+    active_payload = dict(active or {})
+    if snapshot:
+        active_payload["snapshot"] = snapshot
+    if source_id:
+        active_payload["source_id"] = source_id
+    if dataset_id:
+        active_payload["dataset_id"] = dataset_id
+    if snapshot_manifest:
+        active_payload["vector_count"] = snapshot_manifest.rag_build.vector_count or active_payload.get("vector_count", 0)
+        active_payload["document_count"] = snapshot_manifest.dataset.document_count or active_payload.get("document_count", 0)
+        active_payload["chunk_count"] = snapshot_manifest.rag_build.chunk_count or active_payload.get("chunk_count", 0)
+        active_payload["embedding_model"] = _normalize_embedding_model(snapshot_manifest.rag_build.embedding_model)
+    elif faiss_manifest:
+        active_payload["vector_count"] = int(faiss_manifest.get("vector_count") or active_payload.get("vector_count", 0) or 0)
+        active_payload["document_count"] = int(faiss_manifest.get("document_count") or active_payload.get("document_count", 0) or 0)
+        active_payload["chunk_count"] = int(faiss_manifest.get("vector_count") or active_payload.get("chunk_count", 0) or 0)
+
+    active_embedding_model = (
+        _normalize_embedding_model(snapshot_manifest.rag_build.embedding_model) if snapshot_manifest else None
+    ) or _normalize_embedding_model(active_payload.get("embedding_model")) or settings.ollama_embed_model
 
     # 서버 실제 설정값 (운영 .env 기준)
     server_config = {
-        "embedding_provider": "ollama",
-        "embedding_model": settings.ollama_embed_model,
-        "embedding_dim": 768,  # nomic-embed-text 기준
-        "max_embed_chars": 8000,
+        "embedding_provider": settings.embedding_provider,
+        "embedding_model": active_embedding_model,
+        "embedding_dim": settings.embedding_dim,
+        "max_embed_chars": settings.max_embed_chars,
         "ollama_host": settings.ollama_host,
         "answer_provider": settings.answer_provider,
         "answer_model": settings.answer_model,
         "active_snapshot": snapshot,  # active_index.json에서 읽은 값 사용
+        "active_source_id": source_id,
+        "active_dataset_id": dataset_id,
+        "active_embedding_model": active_embedding_model,
     }
 
     if not active:
@@ -136,7 +210,7 @@ async def faiss_status():
         }
 
     return {
-        "active": active,
+        "active": active_payload,
         "stats":  _index_stats(snapshot) if snapshot else None,
         "server_config": server_config,
         # 명시적 ID 필드 추가 (표준화)
@@ -227,7 +301,7 @@ async def delete_snapshot(snapshot: str):
 
 class StartJobRequest(BaseModel):
     snapshot: str
-    source_id: str = "rag_source"
+    source_id: Optional[str] = None
     start_from_stage: int = 1  # 시작 단계 (1-6)
     end_stage: int = 6  # 종료 단계 (1-6)
 
@@ -252,10 +326,12 @@ async def start_job(req: StartJobRequest):
         raise HTTPException(status_code=400, detail="end_stage는 1-6 사이여야 합니다.")
     if req.start_from_stage > req.end_stage:
         raise HTTPException(status_code=400, detail="start_from_stage는 end_stage보다 클 수 없습니다.")
+    if not (req.source_id or "").strip():
+        raise HTTPException(status_code=400, detail="source_id는 필수입니다.")
 
     job_id = runner.create_job(
         req.snapshot,
-        source_id=req.source_id,
+        source_id=req.source_id.strip(),
         start_from_stage=req.start_from_stage,
         end_stage=req.end_stage,
     )
@@ -310,6 +386,8 @@ async def add_documents(req: AddDocumentsRequest):
 
 class ActivateRequest(BaseModel):
     snapshot: str
+    source_id: Optional[str] = None
+    dataset_id: Optional[str] = None
 
 
 @router.post("/activate")
@@ -321,8 +399,14 @@ async def activate_index(req: ActivateRequest):
             status_code=404,
             detail=f"Index file not found for snapshot: {req.snapshot}",
         )
-    result = runner.activate_snapshot(req.snapshot)
-    return {"activated": result, "stats": stats}
+    result = runner.activate_snapshot(req.snapshot, req.source_id, req.dataset_id)
+    return {
+        "activated": result,
+        "stats": stats,
+        "source_id": req.source_id,
+        "dataset_id": req.dataset_id,
+        "snapshot": req.snapshot,
+    }
 
 
 # ── Category status ───────────────────────────────────────────────────────────
@@ -356,7 +440,7 @@ async def category_status():
 
 # ── Benchmark ─────────────────────────────────────────────────────────────────
 
-_BENCHMARK_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "run_benchmark.py"
+_BENCHMARK_SCRIPT = Path(settings.rag_scripts_dir).expanduser().resolve() / "run_benchmark.py"
 
 
 @router.post("/benchmark")
@@ -520,6 +604,70 @@ async def list_pipeline_stages():
             for i, info in runner.PIPELINE_STAGES.items()
         ]
     }
+
+
+# ── 검색 테스트 API ─────────────────────────────────────────────────────────────
+
+
+class SearchTestRequest(BaseModel):
+    query: str
+    top_k: int = 5
+    top_docs: int = 3
+    category: Optional[str] = None
+    organization: Optional[str] = None
+    year: Optional[str] = None
+    max_chunks_per_doc: int = 3
+    mode: str = "hybrid"
+    answer_provider: str = "search_only"  # 기본값: 검색만 (LLM 답변 생성 안 함)
+    answer_model: str = ""
+
+
+@router.post("/test-search")
+async def test_search(req: SearchTestRequest):
+    """활성 인덱스로 검색 테스트를 수행한다.
+
+    LLM 답변 생성 없이 검색 결과만 반환하려면 answer_provider='search_only' 사용.
+    """
+    import time
+    start_time = time.time()
+
+    try:
+        snapshot = get_active_snapshot()
+        if not snapshot:
+            raise HTTPException(status_code=404, detail="활성 인덱스가 설정되지 않았습니다.")
+
+        result = run_rag_query(
+            query=req.query,
+            top_k=req.top_k,
+            top_docs=req.top_docs,
+            answer_provider=req.answer_provider,
+            answer_model=req.answer_model,
+            category=req.category,
+            organization=req.organization,
+            year=req.year,
+            max_chunks_per_doc=req.max_chunks_per_doc,
+            mode=req.mode,
+        )
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        return {
+            "success": True,
+            "snapshot": snapshot,
+            "query": req.query,
+            "elapsed_ms": elapsed_ms,
+            "document_count": len(result.get("documents", [])),
+            "documents": result.get("documents", []),
+            "results": result.get("results", []),
+            "answer": result.get("answer", ""),
+            "embedding_provider": result.get("embedding_provider", settings.embedding_provider),
+            "mode": result.get("mode", req.mode),
+        }
+
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"검색 오류: {str(exc)}")
 
 
 # ── SSE 전용 라우터 (auth 없음 — query param 토큰으로 자체 검증) ──────────────────

@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import datetime
 import json
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.services.processed_text_store import ProcessedTextStore
 # 확장 메서드 로드
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/admin/dataset-builder/step7")
 
 class FAISSBuildRequest(BaseModel):
     """FAISS 인덱스 생성 요청"""
-    collection_name: str = Field(..., description="컬렉션 이름")
+    collection_name: str = Field("weeslee_rag_main", description="컬렉션 이름")
     document_ids: Optional[List[int]] = Field(None, description="처리할 문서 ID 목록 (비어있으면 전체)")
     index_type: str = Field("flat", description="인덱스 타입 (flat, ivf, hnsw)")
     metric: str = Field("l2", description="거리 메트릭 (l2, ip)")
@@ -71,9 +72,7 @@ def get_text_store() -> ProcessedTextStore:
 
 def get_faiss_dir() -> Path:
     """FAISS 저장 디렉토리"""
-    # ProcessedTextStore와 동일한 경로 구조 사용
-    project_root = Path(__file__).resolve().parents[3]
-    faiss_dir = project_root / "data" / "faiss"
+    faiss_dir = Path(settings.faiss_index_dir).expanduser().resolve()
     faiss_dir.mkdir(parents=True, exist_ok=True)
     return faiss_dir
 

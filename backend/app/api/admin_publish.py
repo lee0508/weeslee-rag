@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import require_admin_token
 from app.core.database import get_db
+from app.services.dataset_context import get_source_dataset_context, generate_dataset_id
 
 
 router = APIRouter(
@@ -181,6 +182,27 @@ def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
         return {"snapshot_id": snapshot_id, "snapshot": snapshot_id, **data}
 
     return {}
+
+
+def _resolve_ids_from_snapshot(snapshot_id: Optional[str], requested_source_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    source_id = requested_source_id or None
+    dataset_id = None
+
+    if snapshot_id:
+        parts = snapshot_id.replace("snapshot_", "").split("_")
+        if len(parts) >= 2:
+            date_part = parts[0]
+            source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
+            if source_parts:
+                source_id = "_".join(source_parts)
+            if source_id:
+                source_context = get_source_dataset_context(source_id)
+                dataset_id = source_context.get("dataset_id") or generate_dataset_id(source_id, f"{date_part}T00:00:00+00:00")
+
+    if source_id and not dataset_id:
+        dataset_id = get_source_dataset_context(source_id).get("dataset_id")
+
+    return source_id, dataset_id
 
 
 # ── API Endpoints ───────────────────────────────────────────────────────────
@@ -394,19 +416,12 @@ async def get_publish_status(source_id: Optional[str] = None):
         active_snapshot = active_info.get("snapshot") or active_info.get("snapshot_id")
         active_collections = active_info.get("collections", [])
 
-        # snapshot_id에서 source_id, dataset_id 추출 (표준화)
-        resolved_source_id = source_id or "rag_source"
-        resolved_dataset_id = None
-        if active_snapshot:
-            # snapshot_20260616_rag_source_v1 형식 파싱
-            parts = active_snapshot.replace("snapshot_", "").split("_")
-            if len(parts) >= 2:
-                date_part = parts[0]  # YYYYMMDD
-                # source_id 추출 (v로 시작하는 버전 부분 제외)
-                source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
-                if source_parts:
-                    resolved_source_id = "_".join(source_parts)
-                resolved_dataset_id = f"dataset_{resolved_source_id}_{date_part}"
+        resolved_source_id = active_info.get("source_id") or source_id or None
+        resolved_dataset_id = active_info.get("dataset_id") or None
+        if active_snapshot and (not resolved_source_id or not resolved_dataset_id):
+            parsed_source_id, parsed_dataset_id = _resolve_ids_from_snapshot(active_snapshot, resolved_source_id)
+            resolved_source_id = resolved_source_id or parsed_source_id
+            resolved_dataset_id = resolved_dataset_id or parsed_dataset_id
 
         return PublishStatusResponse(
             faiss_status=faiss_status,

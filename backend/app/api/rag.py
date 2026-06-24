@@ -27,6 +27,10 @@ from app.api.rag_with_similar_files import (
     _standardize_rag_payload,
 )
 from app.services.query_log_service import query_log_service
+from app.services.search_scope_service import (
+    get_search_scope_catalog,
+    resolve_search_scope,
+)
 
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
@@ -223,6 +227,8 @@ class RagQueryRequest(BaseModel):
     mode: str = "auto"
     # 확장 필드 — 기존 클라이언트 하위 호환성 유지 (모두 Optional 또는 기본값)
     collection: Optional[str] = None
+    search_scope: Optional[str] = None
+    snapshot_ids: list[str] = Field(default_factory=list)
     temperature: float = Field(0.2, ge=0.0, le=2.0)
     prompt_template: Optional[str] = None
     system_prompt: Optional[str] = None
@@ -384,26 +390,78 @@ def _resolve_query_request(request: RagQueryRequest) -> tuple[str, str, Optional
 
 
 def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str) -> tuple[dict, str, Optional[dict]]:
-    snapshot = _active_snapshot()
-    default_index, default_meta = _index_paths(snapshot, request.category)
     effective_mode, effective_query, mode_detection = _resolve_query_request(request)
+    resolved_scope = resolve_search_scope(request.search_scope, request.snapshot_ids)
 
-    payload = _rag_runtime().run_rag_query(
-        query=effective_query,
-        original_query=request.query,
-        top_k=request.top_k,
-        top_docs=request.top_docs,
-        answer_provider=answer_provider,
-        answer_model=answer_model,
-        category=request.category,
-        organization=request.organization,
-        year=request.year,
-        max_chunks_per_doc=request.max_chunks_per_doc,
-        mode=effective_mode,
-        index_path=request.index_path or str(default_index),
-        metadata_path=request.metadata_path or str(default_meta),
-        chunks_jsonl=request.chunks_jsonl or str(_default_chunks_path()),
-    )
+    if request.index_path or request.metadata_path or request.chunks_jsonl:
+        snapshot = _active_snapshot()
+        default_index, default_meta = _index_paths(snapshot, request.category)
+        payload = _rag_runtime().run_rag_query(
+            query=effective_query,
+            original_query=request.query,
+            top_k=request.top_k,
+            top_docs=request.top_docs,
+            answer_provider=answer_provider,
+            answer_model=answer_model,
+            category=request.category,
+            organization=request.organization,
+            year=request.year,
+            max_chunks_per_doc=request.max_chunks_per_doc,
+            mode=effective_mode,
+            snapshot=snapshot,
+            index_path=request.index_path or str(default_index),
+            metadata_path=request.metadata_path or str(default_meta),
+            chunks_jsonl=request.chunks_jsonl or str(_default_chunks_path()),
+        )
+        resolved_snapshots = payload.get("resolved_snapshots") or [snapshot]
+    else:
+        resolved_snapshots = [
+            str(value).strip()
+            for value in (resolved_scope.get("snapshot_ids") or [])
+            if str(value).strip()
+        ]
+        if not resolved_snapshots:
+            fallback_snapshot = _active_snapshot()
+            if fallback_snapshot:
+                resolved_snapshots = [fallback_snapshot]
+
+        if len(resolved_snapshots) > 1:
+            payload = _rag_runtime().run_multi_rag_query(
+                query=effective_query,
+                original_query=request.query,
+                top_k=request.top_k,
+                top_docs=request.top_docs,
+                answer_provider=answer_provider,
+                answer_model=answer_model,
+                category=request.category,
+                organization=request.organization,
+                year=request.year,
+                max_chunks_per_doc=request.max_chunks_per_doc,
+                mode=effective_mode,
+                snapshots=resolved_snapshots,
+            )
+            snapshot = resolved_snapshots[0]
+        else:
+            snapshot = resolved_snapshots[0] if resolved_snapshots else _active_snapshot()
+            default_index, default_meta = _index_paths(snapshot, request.category)
+            payload = _rag_runtime().run_rag_query(
+                query=effective_query,
+                original_query=request.query,
+                top_k=request.top_k,
+                top_docs=request.top_docs,
+                answer_provider=answer_provider,
+                answer_model=answer_model,
+                category=request.category,
+                organization=request.organization,
+                year=request.year,
+                max_chunks_per_doc=request.max_chunks_per_doc,
+                mode=effective_mode,
+                snapshot=snapshot,
+                index_path=str(default_index),
+                metadata_path=str(default_meta),
+                chunks_jsonl=str(_rag_runtime().default_chunks_path(snapshot)),
+            )
+
     payload["documents"] = _filter_documents_by_selected_ids(
         payload.get("documents", []) or [],
         request.selected_document_ids,
@@ -429,11 +487,26 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
     if effective_mode == "graph_rag":
         payload = _enrich_with_graph_context(payload, request.query)
 
+    scope_source_ids = [
+        str(value).strip()
+        for value in (resolved_scope.get("source_ids") or [])
+        if str(value).strip()
+    ]
+    if len(scope_source_ids) > 1:
+        payload["source_id"] = "multi_source"
+    elif scope_source_ids and not payload.get("source_id"):
+        payload["source_id"] = scope_source_ids[0]
+
     payload = _standardize_rag_payload(
         payload,
         snapshot=snapshot,
         max_chunks_per_doc=request.max_chunks_per_doc,
     )
+    payload["search_scope"] = resolved_scope.get("scope_id")
+    payload["search_scope_label"] = resolved_scope.get("label")
+    payload["search_scope_description"] = resolved_scope.get("description")
+    payload["resolved_snapshots"] = resolved_snapshots
+    payload["resolved_source_ids"] = scope_source_ids
     payload["evidence_documents"] = _answer_evidence_documents(payload.get("documents", []) or [])
     payload["retrieval_summary"] = {
         "found_documents": bool(payload.get("documents")),
@@ -550,6 +623,30 @@ class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1)
     mode: str = "general"
     top_k: int = 10
+    search_scope: Optional[str] = None
+    snapshot_ids: list[str] = Field(default_factory=list)
+
+
+def _parse_snapshot_ids_form(raw_value: Optional[str]) -> list[str]:
+    value = str(raw_value or "").strip()
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    except Exception:
+        pass
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+@router.get("/search-scopes")
+async def get_search_scopes():
+    catalog = get_search_scope_catalog()
+    return {
+        "success": True,
+        **catalog,
+    }
 
 
 @router.post("/search")
@@ -585,11 +682,16 @@ async def search_documents(request: SearchRequest, http_request: Request):
         )
         return result
 
-    snapshot = _active_snapshot()
-    default_index, default_meta = _index_paths(snapshot, None)
-    index_path = str(default_index)
-    metadata_path = str(default_meta)
-    chunks_jsonl = str(_default_chunks_path())
+    resolved_scope = resolve_search_scope(request.search_scope, request.snapshot_ids)
+    resolved_snapshots = [
+        str(value).strip()
+        for value in (resolved_scope.get("snapshot_ids") or [])
+        if str(value).strip()
+    ]
+    if not resolved_snapshots:
+        fallback_snapshot = _active_snapshot()
+        if fallback_snapshot:
+            resolved_snapshots = [fallback_snapshot]
 
     if request.mode == "bid":
         effective_query = expand_bid_query(request.query)
@@ -605,22 +707,41 @@ async def search_documents(request: SearchRequest, http_request: Request):
         rag_mode = "general"
 
     try:
-        payload = _rag_runtime().run_rag_query(
-            query=effective_query,
-            original_query=request.query,
-            top_k=request.top_k,
-            top_docs=5,
-            answer_provider="none",
-            answer_model="",
-            category=None,
-            organization=None,
-            year=None,
-            max_chunks_per_doc=3,
-            mode=rag_mode,
-            index_path=index_path,
-            metadata_path=metadata_path,
-            chunks_jsonl=chunks_jsonl,
-        )
+        if len(resolved_snapshots) > 1:
+            payload = _rag_runtime().run_multi_rag_query(
+                query=effective_query,
+                original_query=request.query,
+                top_k=request.top_k,
+                top_docs=5,
+                answer_provider="none",
+                answer_model="",
+                category=None,
+                organization=None,
+                year=None,
+                max_chunks_per_doc=3,
+                mode=rag_mode,
+                snapshots=resolved_snapshots,
+            )
+        else:
+            snapshot = resolved_snapshots[0] if resolved_snapshots else _active_snapshot()
+            default_index, default_meta = _index_paths(snapshot, None)
+            payload = _rag_runtime().run_rag_query(
+                query=effective_query,
+                original_query=request.query,
+                top_k=request.top_k,
+                top_docs=5,
+                answer_provider="none",
+                answer_model="",
+                category=None,
+                organization=None,
+                year=None,
+                max_chunks_per_doc=3,
+                mode=rag_mode,
+                snapshot=snapshot,
+                index_path=str(default_index),
+                metadata_path=str(default_meta),
+                chunks_jsonl=str(_rag_runtime().default_chunks_path(snapshot)),
+            )
     except Exception as exc:
         duration_ms = int((time.perf_counter() - started) * 1000)
         query_log_service.log_query(
@@ -739,7 +860,7 @@ def _to_similar_file_doc(doc: dict, rank: int, max_chunks_per_doc: int) -> dict:
     standard_doc = _standardize_rag_document(
         doc,
         rank,
-        str(doc.get("source_id") or "rag_source"),
+        str(doc.get("source_id") or ""),
         max_chunks_per_doc,
     )
     standard_doc.update({
@@ -865,6 +986,8 @@ async def query_with_rfp(
     file: UploadFile = File(...),
     top_k: int = Form(20),
     top_docs: int = Form(5),
+    search_scope: Optional[str] = Form(None),
+    snapshot_ids: Optional[str] = Form(None),
     category: Optional[str] = Form(None),
     answer_provider: str = Form("ollama"),
     answer_model: str = Form("gemma4:latest"),
@@ -913,6 +1036,8 @@ async def query_with_rfp(
             top_docs=top_docs,
             answer_provider=answer_provider,
             answer_model=answer_model,
+            search_scope=search_scope,
+            snapshot_ids=_parse_snapshot_ids_form(snapshot_ids),
             category=category,
             max_chunks_per_doc=max_chunks_per_doc,
             mode=mode,

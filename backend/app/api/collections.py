@@ -6,11 +6,14 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
+from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.models.collection import Collection
+from app.services.platform_store import create_record, get_record, update_record
 from app.services.vectordb import get_vectordb, VectorDBService
 
 router = APIRouter()
+MAIN_COLLECTION_NAME = "weeslee_rag_main"
 
 
 # Pydantic schemas
@@ -43,6 +46,52 @@ class CollectionStats(BaseModel):
     vector_count: int
     storage_size: int
     vectordb_count: int
+
+
+class CollectionsBootstrapRequest(BaseModel):
+    client_id: str
+    source_id: str
+    overwrite: bool = False
+
+
+def _get_source_mount_path(source_id: str) -> str:
+    rec = get_record("document_sources", "source_id", source_id) or {}
+    return rec.get("mount_path") or rec.get("source_uri") or ""
+
+
+def bootstrap_collection_config(client_id: str, source_id: str, overwrite: bool = False) -> dict:
+    mount_path = _get_source_mount_path(source_id)
+    coll_key = MAIN_COLLECTION_NAME
+    record = {
+        "collection_key": coll_key,
+        "collection_name": MAIN_COLLECTION_NAME,
+        "client_id": client_id,
+        "name": MAIN_COLLECTION_NAME,
+        "description": "00. RAG 소스 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
+        "source_root": "00. RAG 소스",
+        "mount_path": mount_path,
+        "enabled": True,
+    }
+    existing = get_record("collections_active", "collection_key", coll_key)
+    created = skipped = 0
+    if existing:
+        if overwrite:
+            update_record("collections_active", "collection_key", coll_key, record)
+            created = 1
+        else:
+            skipped = 1
+    else:
+        create_record("collections_active", record, id_field="collection_key")
+        created = 1
+
+    return {
+        "success": True,
+        "client_id": client_id,
+        "source_id": source_id,
+        "created": created,
+        "skipped": skipped,
+        "items": [{"collection_key": coll_key, "name": MAIN_COLLECTION_NAME}],
+    }
 
 
 @router.get("/collections", response_model=List[CollectionResponse])
@@ -197,3 +246,13 @@ async def reindex_collection(
         "message": f"Reindexing started for collection '{collection.name}'",
         "collection_id": collection.id
     }
+
+
+@router.post("/admin/collections/bootstrap", dependencies=[Depends(require_admin_token)])
+async def bootstrap_collections_admin(body: CollectionsBootstrapRequest):
+    """Document Source / Client 컨텍스트 기준 Collection bootstrap alias."""
+    return bootstrap_collection_config(
+        client_id=body.client_id,
+        source_id=body.source_id,
+        overwrite=body.overwrite,
+    )

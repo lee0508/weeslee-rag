@@ -77,7 +77,7 @@ CATEGORY_ID_MAP = {
 
 class ScanRequest(BaseModel):
     """Step 1: Source Scan 요청"""
-    source_id: Optional[str] = "rag_source"
+    source_id: str
     overwrite: bool = False
 
 

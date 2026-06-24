@@ -7,6 +7,11 @@ import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.services.dataset_context import (
+    ensure_source_dataset_context,
+    get_source_dataset_context,
+    generate_dataset_id,
+)
 from app.models.snapshot_manifest import (
     SnapshotManifest,
     SnapshotStatus,
@@ -25,6 +30,7 @@ router = APIRouter(prefix="/snapshot", tags=["Snapshot Admin"])
 # 데이터 경로 - RAG 검색과 동일한 경로 사용
 DATA_DIR = Path("/data/weeslee/weeslee-rag/data")
 SNAPSHOT_DIR = DATA_DIR / "snapshots"
+FAISS_DIR = DATA_DIR / "indexes" / "faiss"
 
 # 메인 active_index.json - RAG 검색이 사용하는 파일 (data/active_index.json)
 ACTIVE_INDEX_FILE = DATA_DIR / "active_index.json"
@@ -56,9 +62,9 @@ def _save_snapshot(snapshot: SnapshotManifest):
         json.dump(snapshot.dict(), f, ensure_ascii=False, indent=2, default=str)
 
 
-def _parse_snapshot_ids(snapshot_id: str) -> tuple[str, str]:
+def _parse_snapshot_ids(snapshot_id: str) -> tuple[Optional[str], Optional[str]]:
     """snapshot_id에서 source_id, dataset_id 추출 (표준화)"""
-    source_id = "rag_source"  # 기본값
+    source_id = None
     dataset_id = None
     if snapshot_id:
         # snapshot_20260616_rag_source_v1 또는 snapshot_20260616_V1 형식 파싱
@@ -69,8 +75,46 @@ def _parse_snapshot_ids(snapshot_id: str) -> tuple[str, str]:
             source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
             if source_parts:
                 source_id = "_".join(source_parts)
-            dataset_id = f"dataset_{source_id}_{date_part}"
+            if source_id:
+                source_context = get_source_dataset_context(source_id)
+                dataset_id = source_context.get("dataset_id") or generate_dataset_id(
+                    source_id,
+                    f"{date_part}T00:00:00+00:00",
+                )
     return source_id, dataset_id
+
+
+def _load_faiss_manifest(snapshot_id: str) -> Optional[dict]:
+    if not snapshot_id:
+        return None
+    manifest_file = FAISS_DIR / f"{snapshot_id}_ollama.manifest.json"
+    if not manifest_file.exists():
+        return None
+    try:
+        with open(manifest_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _resolve_snapshot_ids(snapshot_id: str) -> tuple[Optional[str], Optional[str]]:
+    """Snapshot manifest를 우선 사용해 source_id / dataset_id를 해석한다."""
+    snapshot = _load_snapshot(snapshot_id) if snapshot_id else None
+    if snapshot:
+        source_id = (snapshot.dataset.source_id or "").strip() or None
+        dataset_id = (snapshot.dataset.dataset_id or "").strip() or None
+        if source_id or dataset_id:
+            return source_id, dataset_id
+    faiss_manifest = _load_faiss_manifest(snapshot_id)
+    if faiss_manifest:
+        counts_by_source = faiss_manifest.get("counts_by_source") or {}
+        if isinstance(counts_by_source, dict) and len(counts_by_source) == 1:
+            source_id = next(iter(counts_by_source.keys()), "").strip() or None
+            if source_id:
+                source_context = get_source_dataset_context(source_id)
+                dataset_id = source_context.get("dataset_id") or None
+                return source_id, dataset_id
+    return _parse_snapshot_ids(snapshot_id)
 
 
 def _load_active_config() -> Optional[ActiveSnapshotConfig]:
@@ -80,13 +124,27 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
         with open(ACTIVE_SNAPSHOT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         config = ActiveSnapshotConfig(**data)
-        # source_id, dataset_id가 없으면 snapshot_id에서 추출
-        if not config.source_id or not config.dataset_id:
-            src_id, ds_id = _parse_snapshot_ids(config.active_snapshot_id)
-            if not config.source_id:
-                config.source_id = src_id
-            if not config.dataset_id:
-                config.dataset_id = ds_id
+        snapshot = _load_snapshot(config.active_snapshot_id) if config.active_snapshot_id else None
+        faiss_manifest = _load_faiss_manifest(config.active_snapshot_id)
+        src_id, ds_id = _resolve_snapshot_ids(config.active_snapshot_id)
+        if src_id:
+            config.source_id = src_id
+        if ds_id:
+            config.dataset_id = ds_id
+        if snapshot:
+            config.faiss_index_id = snapshot.rag_build.faiss_index_id or config.faiss_index_id or snapshot.snapshot_id
+            config.index_file = snapshot.rag_build.index_file or config.index_file
+            config.metadata_file = snapshot.rag_build.metadata_file or config.metadata_file
+            config.vector_count = snapshot.rag_build.vector_count or config.vector_count
+            config.document_count = snapshot.dataset.document_count or config.document_count
+            config.chunk_count = snapshot.rag_build.chunk_count or config.chunk_count
+            if snapshot.rag_build.embedding_model:
+                config.embedding_provider = snapshot.rag_build.embedding_model.split("/")[-1]
+        if faiss_manifest:
+            config.vector_count = int(faiss_manifest.get("vector_count") or config.vector_count or 0)
+            config.document_count = int(faiss_manifest.get("document_count") or config.document_count or 0)
+            config.chunk_count = int(faiss_manifest.get("vector_count") or config.chunk_count or 0)
+            config.faiss_index_id = config.faiss_index_id or config.active_snapshot_id
         return config
 
     # 2. 기존 active_index.json에서 읽기 (RAG 검색이 사용하는 파일)
@@ -95,16 +153,18 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
             old_data = json.load(f)
         # active_snapshot 또는 snapshot 키 지원 (하위 호환성)
         snap_id = old_data.get("active_snapshot") or old_data.get("snapshot", "")
-        # snapshot_id에서 source_id, dataset_id 추출 (표준화)
-        src_id, ds_id = _parse_snapshot_ids(snap_id)
+        snapshot = _load_snapshot(snap_id) if snap_id else None
+        faiss_manifest = _load_faiss_manifest(snap_id)
+        src_id, ds_id = _resolve_snapshot_ids(snap_id)
         return ActiveSnapshotConfig(
             active_snapshot_id=snap_id,
-            faiss_index_id=snap_id,
-            index_file=old_data.get("index_file"),
-            metadata_file=old_data.get("metadata_file"),
-            embedding_provider=old_data.get("embedding_provider", "ollama"),
-            vector_count=old_data.get("vector_count", 0),
-            document_count=old_data.get("document_count", 0),
+            faiss_index_id=(snapshot.rag_build.faiss_index_id if snapshot else None) or snap_id,
+            index_file=(snapshot.rag_build.index_file if snapshot else None) or old_data.get("index_file"),
+            metadata_file=(snapshot.rag_build.metadata_file if snapshot else None) or old_data.get("metadata_file"),
+            embedding_provider=((snapshot.rag_build.embedding_model.split("/")[-1]) if snapshot and snapshot.rag_build.embedding_model else old_data.get("embedding_provider", "ollama")),
+            vector_count=(snapshot.rag_build.vector_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or old_data.get("vector_count", 0),
+            document_count=(snapshot.dataset.document_count if snapshot else 0) or int((faiss_manifest or {}).get("document_count") or 0) or old_data.get("document_count", 0),
+            chunk_count=(snapshot.rag_build.chunk_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or old_data.get("chunk_count", 0),
             activated_at=datetime.fromisoformat(old_data["activated_at"]) if old_data.get("activated_at") else None,
             source_id=src_id,
             dataset_id=ds_id,
@@ -143,7 +203,7 @@ def _save_active_config(config: ActiveSnapshotConfig):
 
 class CreateSnapshotRequest(BaseModel):
     """Snapshot 생성 요청"""
-    source_id: str = "rag_source"
+    source_id: Optional[str] = None
     snapshot_name: Optional[str] = None
     description: Optional[str] = None
     parent_snapshot_id: Optional[str] = None
@@ -232,12 +292,16 @@ async def create_snapshot(body: CreateSnapshotRequest):
     from app.core.database import SessionLocal
     from app.models.document_metadata import DocumentMetadata
 
+    source_id = (body.source_id or "").strip()
+    if not source_id:
+        raise HTTPException(status_code=400, detail="source_id는 필수입니다.")
+
     # Snapshot ID 생성
     date_str = datetime.now().strftime("%Y%m%d")
     version = 1
 
     # 기존 Snapshot 확인하여 버전 증가
-    existing = list(SNAPSHOT_DIR.glob(f"snapshot_{date_str}_{body.source_id}_v*.json"))
+    existing = list(SNAPSHOT_DIR.glob(f"snapshot_{date_str}_{source_id}_v*.json"))
     if existing:
         versions = []
         for f in existing:
@@ -249,14 +313,19 @@ async def create_snapshot(body: CreateSnapshotRequest):
         if versions:
             version = max(versions) + 1
 
-    snapshot_id = f"snapshot_{date_str}_{body.source_id}_v{version}"
-    dataset_id = f"dataset_{body.source_id}_{date_str}"
+    snapshot_id = f"snapshot_{date_str}_{source_id}_v{version}"
+    source_context, _ = ensure_source_dataset_context(source_id)
+    dataset_id = (
+        source_context.get("dataset_id")
+        if source_context
+        else generate_dataset_id(source_id)
+    )
 
     # 문서 수 조회
     db = SessionLocal()
     try:
         doc_count = db.query(DocumentMetadata).filter(
-            DocumentMetadata.source_id == body.source_id
+            DocumentMetadata.source_id == source_id
         ).count()
     finally:
         db.close()
@@ -264,11 +333,11 @@ async def create_snapshot(body: CreateSnapshotRequest):
     # Snapshot 생성
     snapshot = SnapshotManifest(
         snapshot_id=snapshot_id,
-        snapshot_name=body.snapshot_name or f"{body.source_id} - {date_str} v{version}",
+        snapshot_name=body.snapshot_name or f"{source_id} - {date_str} v{version}",
         description=body.description,
         dataset=DatasetInfo(
             dataset_id=dataset_id,
-            source_id=body.source_id,
+            source_id=source_id,
             document_count=doc_count,
             scan_completed_at=datetime.utcnow(),
         ),

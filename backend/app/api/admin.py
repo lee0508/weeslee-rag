@@ -3,7 +3,8 @@
 Admin API endpoints for document management and RAG pipeline
 """
 import os
-from typing import Optional, List
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -11,6 +12,11 @@ import asyncio
 import json
 
 from app.core.auth import require_admin_token
+
+# ── 메모리 캐시 (dataset/status-summary API 성능 최적화) ─────────────────────
+# TTL: 60초, 반복 요청 시 캐시된 결과 반환
+_status_summary_cache: Dict[str, Tuple[Any, datetime]] = {}
+_STATUS_CACHE_TTL_SECONDS = 60
 from app.core.database import SessionLocal
 from app.services.document_pipeline import (
     document_pipeline_service,
@@ -1230,10 +1236,13 @@ def apply_typo_correction(query: str, typo_dict_str: str) -> str:
 # ────────────────────────────────────────────────────────────────────────────
 
 @public_router.get("/dataset/status-summary", response_model=DatasetStatusSummary)
-async def get_dataset_status_summary():
+async def get_dataset_status_summary(source_id: Optional[str] = None):
     """
     Dataset Builder 전체 데이터셋 상태 요약 반환
     (읽기 전용 공개 엔드포인트 - 인증 불필요)
+
+    Args:
+        source_id: Document Source ID. 지정 시 해당 source의 문서만 집계.
 
     10단계 파이프라인 각 단계별 처리 현황을 집계하여 반환:
     - Step 1: Source Scan
@@ -1246,11 +1255,23 @@ async def get_dataset_status_summary():
     - Step 8: Graph Build
     - Step 9: Wiki Build
     - Step 10: Search Quality/Activate
+
+    성능 최적화 (2026-06-24):
+    - 메모리 캐시 적용 (TTL 60초)
+    - DB 쿼리 통합 (7개 → 1개)
+    - manifest 파일 활용 (JSONL 전체 파싱 제거)
     """
     from pathlib import Path
-    from datetime import datetime
+    from datetime import datetime as dt
     from sqlalchemy import func
     from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
+
+    # ── 캐시 확인 ─────────────────────────────────────────────────────────────
+    cache_key = f"status_summary:{source_id or 'all'}"
+    if cache_key in _status_summary_cache:
+        cached_result, cached_at = _status_summary_cache[cache_key]
+        if dt.now() - cached_at < timedelta(seconds=_STATUS_CACHE_TTL_SECONDS):
+            return cached_result
 
     project_root = Path(__file__).resolve().parents[3]
 
@@ -1258,47 +1279,58 @@ async def get_dataset_status_summary():
     summary = DatasetStatusSummary()
 
     # ── MySQL document_metadata 기준 통계 (Step 1~3) ────────────────────────
+    # 성능 최적화: 7개 쿼리를 1개 통합 쿼리로 변경 (2026-06-24)
+    from sqlalchemy import case
     db = SessionLocal()
     try:
-        # Step 1: Source Scan - 전체 문서 수 (MySQL document_metadata 기준)
-        summary.total_documents = db.query(func.count(DocumentMetadata.id)).scalar() or 0
-        summary.step1_completed = summary.total_documents  # 등록된 문서는 모두 Step 1 완료
-
-        # Step 2: Metadata Auto - metadata_suggested 이상 상태인 문서
+        # Step 2 상태값 정의
         step2_statuses = [
             MetaStatus.METADATA_SUGGESTED.value,
             MetaStatus.REVIEW_REQUIRED.value,
             MetaStatus.METADATA_REVIEWED.value,
             MetaStatus.REJECTED.value,
         ]
-        summary.step2_completed = db.query(func.count(DocumentMetadata.id)).filter(
-            DocumentMetadata.meta_status.in_(step2_statuses)
-        ).scalar() or 0
-        summary.step2_pending = summary.total_documents - summary.step2_completed
+        review_pending_statuses = [
+            MetaStatus.METADATA_SUGGESTED.value,
+            MetaStatus.REVIEW_REQUIRED.value,
+        ]
 
-        # Step 2 평균 신뢰도
-        avg_conf = db.query(func.avg(DocumentMetadata.project_name_confidence)).filter(
-            DocumentMetadata.project_name_confidence.isnot(None)
-        ).scalar()
-        if avg_conf:
-            summary.step2_avg_confidence = round(float(avg_conf), 3)
+        # 단일 통합 쿼리로 모든 통계 집계
+        q = db.query(
+            func.count(DocumentMetadata.id).label('total'),
+            func.count(case(
+                (DocumentMetadata.meta_status.in_(step2_statuses), 1)
+            )).label('step2_completed'),
+            func.avg(case(
+                (DocumentMetadata.project_name_confidence.isnot(None),
+                 DocumentMetadata.project_name_confidence)
+            )).label('avg_confidence'),
+            func.count(case(
+                (DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value, 1)
+            )).label('step3_reviewed'),
+            func.count(case(
+                (DocumentMetadata.meta_status.in_(review_pending_statuses), 1)
+            )).label('step3_review_required'),
+            func.count(case(
+                (DocumentMetadata.meta_status == MetaStatus.REJECTED.value, 1)
+            )).label('step3_rejected'),
+        )
 
-        # Step 3: Metadata Review
-        summary.step3_reviewed = db.query(func.count(DocumentMetadata.id)).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value
-        ).scalar() or 0
+        if source_id:
+            q = q.filter(DocumentMetadata.source_id == source_id)
 
-        # 검수 대기 = metadata_suggested + review_required
-        summary.step3_review_required = db.query(func.count(DocumentMetadata.id)).filter(
-            DocumentMetadata.meta_status.in_([
-                MetaStatus.METADATA_SUGGESTED.value,
-                MetaStatus.REVIEW_REQUIRED.value
-            ])
-        ).scalar() or 0
+        result = q.first()
 
-        summary.step3_rejected = db.query(func.count(DocumentMetadata.id)).filter(
-            DocumentMetadata.meta_status == MetaStatus.REJECTED.value
-        ).scalar() or 0
+        if result:
+            summary.total_documents = result.total or 0
+            summary.step1_completed = summary.total_documents
+            summary.step2_completed = result.step2_completed or 0
+            summary.step2_pending = summary.total_documents - summary.step2_completed
+            if result.avg_confidence:
+                summary.step2_avg_confidence = round(float(result.avg_confidence), 3)
+            summary.step3_reviewed = result.step3_reviewed or 0
+            summary.step3_review_required = result.step3_review_required or 0
+            summary.step3_rejected = result.step3_rejected or 0
 
     except Exception:
         pass
@@ -1321,8 +1353,8 @@ async def get_dataset_status_summary():
     if quality_count > 0:
         summary.step4_avg_quality = round(quality_sum / quality_count, 3)
 
-    # ── Step 5: Chunk Build ────────────────────────────────────────────────
-    # FAISS metadata에서 chunk 수 집계
+    # ── Step 5, 6, 7: Chunk/Embedding/FAISS Build ────────────────────────────
+    # 성능 최적화: manifest 파일에서 통계 읽기 (JSONL 전체 파싱 제거) (2026-06-24)
     faiss_dir = project_root / "data" / "indexes" / "faiss"
     active_index_path = project_root / "data" / "active_index.json"
 
@@ -1334,71 +1366,74 @@ async def get_dataset_status_summary():
             pass
 
     if snapshot and faiss_dir.exists():
-        meta_path = faiss_dir / f"{snapshot}_ollama_metadata.jsonl"
-        if meta_path.exists():
+        # manifest 파일에서 통계 읽기 (빠름)
+        manifest_path = faiss_dir / f"{snapshot}_ollama.manifest.json"
+        if manifest_path.exists():
             try:
-                chunk_lines = [line for line in meta_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-                summary.step5_total_chunks = len(chunk_lines)
-
-                # 문서별 chunk 수 집계
-                doc_chunks = {}
-                for line in chunk_lines:
-                    try:
-                        chunk = json.loads(line)
-                        doc_id = chunk.get("document_id", "")
-                        if doc_id:
-                            doc_chunks[doc_id] = doc_chunks.get(doc_id, 0) + 1
-                    except Exception:
-                        pass
-
-                summary.step5_completed = len(doc_chunks)
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                summary.step5_total_chunks = manifest.get("vector_count", 0)
+                summary.step5_completed = manifest.get("document_count", 0)
                 if summary.step5_completed > 0:
                     summary.step5_avg_chunks_per_doc = round(summary.step5_total_chunks / summary.step5_completed, 1)
+
+                # Step 6: Embedding (manifest에서 읽기)
+                summary.step6_total_embeddings = summary.step5_total_chunks
+                summary.step6_completed = summary.step5_completed
+                summary.step6_embedding_model = settings.ollama_embed_model
+
+                # Step 7: FAISS
+                summary.step7_snapshot_id = snapshot
+                summary.step7_total_vectors = summary.step5_total_chunks
             except Exception:
                 pass
 
-    # ── Step 6: Embedding Build ────────────────────────────────────────────
-    # FAISS index가 있으면 embedding이 완료된 것으로 간주
-    if snapshot and faiss_dir.exists():
-        index_path = faiss_dir / f"{snapshot}_ollama.index"
-        if index_path.exists():
-            summary.step6_total_embeddings = summary.step5_total_chunks
-            summary.step6_completed = summary.step5_completed
-            summary.step6_embedding_model = "nomic-embed-text"  # 기본 모델
+        # manifest가 없는 경우 index 파일 존재 여부만 확인
+        elif (faiss_dir / f"{snapshot}_ollama.index").exists():
+            summary.step6_embedding_model = settings.ollama_embed_model
+            summary.step7_snapshot_id = snapshot
 
-    # ── Step 7: FAISS Build ────────────────────────────────────────────────
-    if snapshot:
-        summary.step7_snapshot_id = snapshot
-
+    # collection 수 집계 (glob은 빠름)
     if faiss_dir.exists():
-        # collection별 index 파일 개수 집계
         collection_indexes = list(faiss_dir.glob("*_ollama.index"))
         summary.step7_collections_built = len(collection_indexes)
-        summary.step7_total_vectors = summary.step6_total_embeddings
 
     # ── Step 8: Graph Build ────────────────────────────────────────────────
+    # 성능 최적화: graph_manifest.json에서 통계 읽기 (JSONL 전체 파싱 제거) (2026-06-24)
     graph_dir = project_root / "data" / "indexes" / "graph"
 
     if graph_dir.exists():
-        graph_nodes_path = graph_dir / "graph_nodes.jsonl"
-        graph_edges_path = graph_dir / "graph_edges.jsonl"
-
-        if graph_nodes_path.exists():
+        # manifest 파일에서 통계 읽기 (빠름)
+        graph_manifest_path = graph_dir / "graph_manifest.json"
+        if graph_manifest_path.exists():
             try:
-                node_lines = [line for line in graph_nodes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-                summary.step8_nodes_created = len(node_lines)
+                graph_manifest = json.loads(graph_manifest_path.read_text(encoding="utf-8"))
+                summary.step8_nodes_created = graph_manifest.get("node_count", 0)
+                summary.step8_edges_created = graph_manifest.get("edge_count", 0)
+                if summary.step8_nodes_created > 0 or summary.step8_edges_created > 0:
+                    summary.step8_graph_storage = "json"
             except Exception:
                 pass
+        else:
+            # manifest가 없는 경우 파일 라인 수 집계 (fallback)
+            graph_nodes_path = graph_dir / "graph_nodes.jsonl"
+            graph_edges_path = graph_dir / "graph_edges.jsonl"
 
-        if graph_edges_path.exists():
-            try:
-                edge_lines = [line for line in graph_edges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-                summary.step8_edges_created = len(edge_lines)
-            except Exception:
-                pass
+            if graph_nodes_path.exists():
+                try:
+                    node_lines = [line for line in graph_nodes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                    summary.step8_nodes_created = len(node_lines)
+                except Exception:
+                    pass
 
-        if summary.step8_nodes_created > 0 or summary.step8_edges_created > 0:
-            summary.step8_graph_storage = "json"
+            if graph_edges_path.exists():
+                try:
+                    edge_lines = [line for line in graph_edges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                    summary.step8_edges_created = len(edge_lines)
+                except Exception:
+                    pass
+
+            if summary.step8_nodes_created > 0 or summary.step8_edges_created > 0:
+                summary.step8_graph_storage = "json"
 
     # ── Step 9: Wiki Build ─────────────────────────────────────────────────
     wiki_dir = project_root / "data" / "wiki"
@@ -1440,5 +1475,8 @@ async def get_dataset_status_summary():
 
     # ── 마지막 업데이트 시간 설정 ───────────────────────────────────────────
     summary.last_updated = datetime.utcnow()
+
+    # ── 캐시 저장 (Phase 3-1: 메모리 캐시) ─────────────────────────────────────
+    _status_summary_cache[cache_key] = (summary, dt.now())
 
     return summary
