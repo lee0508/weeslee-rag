@@ -9,6 +9,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
+def _default_path(*parts: str) -> str:
+    return str(PROJECT_ROOT.joinpath(*parts))
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
 
@@ -44,9 +48,12 @@ class Settings(BaseSettings):
         return f"mysql+pymysql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
 
     # Ollama
+    embedding_provider: str = "ollama"
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "llama3:8b"
     ollama_embed_model: str = "nomic-embed-text"
+    embedding_dim: int = 768
+    max_embed_chars: int = 8000
     ollama_api_key: Optional[str] = None
 
     # OpenAI API
@@ -69,6 +76,14 @@ class Settings(BaseSettings):
 
     # FAISS index (active snapshot name — set in .env to override)
     faiss_snapshot: str = "snapshot_2026-04-27_batch-001-top5-v2"
+    data_dir: str = _default_path("data")
+    active_index_path: str = _default_path("data", "active_index.json")
+    faiss_index_dir: str = _default_path("data", "indexes", "faiss")
+    staged_manifest_dir: str = _default_path("data", "staged", "manifest")
+    staged_text_dir: str = _default_path("data", "staged", "text")
+    staged_metadata_dir: str = _default_path("data", "staged", "metadata")
+    staged_chunks_dir: str = _default_path("data", "staged", "chunks")
+    rag_scripts_dir: str = _default_path("backend", "scripts")
 
     # File Upload
     upload_dir: str = "./uploads"
@@ -95,6 +110,14 @@ class Settings(BaseSettings):
         "http://218.148.21.12:9284",
         "null",
     ]
+
+    @property
+    def ollama_embed_url(self) -> str:
+        return f"{self.ollama_host.rstrip('/')}/api/embeddings"
+
+    @property
+    def ollama_generate_url(self) -> str:
+        return f"{self.ollama_host.rstrip('/')}/api/generate"
 
 
 @lru_cache()

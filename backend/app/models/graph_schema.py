@@ -39,11 +39,17 @@ from pydantic import BaseModel, Field
 class NodeType(str, Enum):
     """Graph 노드 유형."""
     ORGANIZATION = "Organization"
+    ORGANIZATION_TYPE = "OrganizationType"  # 공공기관, 공기업, 연구기관 등
     PROJECT = "Project"
+    PROJECT_TYPE = "ProjectType"  # ISP수립, 시스템구축, 플랫폼고도화 등
     DOCUMENT = "Document"
+    DOCUMENT_SECTION = "DocumentSection"  # 전략및방법론, 기술및기능 등
+    DOCUMENT_KEYWORD = "DocumentKeyword"  # 보안, 의사소통관리 등
     KEYWORD = "Keyword"
     CATEGORY = "Category"
     TECHNOLOGY = "Technology"
+    METHODOLOGY = "Methodology"  # ISP, ISMP, EA 등
+    DOMAIN = "Domain"  # 수자원, 스마트시티 등
     PERSON = "Person"
 
 
@@ -57,6 +63,14 @@ class RelationType(str, Enum):
     SAME_PROJECT = "SAME_PROJECT"
     SAME_ORGANIZATION = "SAME_ORGANIZATION"
     BELONGS_TO = "BELONGS_TO"
+    # 확장 관계 유형
+    BELONGS_TO_TYPE = "BELONGS_TO_TYPE"  # 기관 → 기관유형
+    HAS_PROJECT_TYPE = "HAS_PROJECT_TYPE"  # 프로젝트 → 사업유형
+    HAS_SECTION = "HAS_SECTION"  # 문서 → 문서섹션
+    HAS_DOC_KEYWORD = "HAS_DOC_KEYWORD"  # 문서 → 문서키워드
+    USES_METHODOLOGY = "USES_METHODOLOGY"  # 프로젝트 → 방법론
+    RELATED_DOMAIN = "RELATED_DOMAIN"  # 프로젝트 → 도메인
+    SIMILAR_PROJECT = "SIMILAR_PROJECT"  # 프로젝트 ↔ 프로젝트 유사
 
 
 # ── 노드 모델 ─────────────────────────────────────────────────────────────────
@@ -251,12 +265,18 @@ def generate_schema_text(
     # 노드 정의
     lines.append("## Node Types")
     node_descriptions = {
-        NodeType.ORGANIZATION: "발주기관. 속성: name(이름), abbreviation(약어), sector(분야)",
+        NodeType.ORGANIZATION: "발주기관. 속성: name(이름), abbreviation(약어), sector(분야), synonyms(동의어)",
+        NodeType.ORGANIZATION_TYPE: "기관유형. 속성: name(이름 - 공공기관/공기업/연구기관/건강보험/민간기업), member_count(소속기관수)",
         NodeType.PROJECT: "프로젝트/사업. 속성: name(이름), year(연도), status(상태), budget(예산), domain(도메인)",
+        NodeType.PROJECT_TYPE: "사업유형. 속성: name(이름 - ISP수립/ISMP수립/시스템구축/시스템개선/플랫폼고도화/로드맵수립/연구용역/운영유지보수)",
         NodeType.DOCUMENT: "문서. 속성: name(이름), file_name(파일명), source_path(경로), category(카테고리)",
+        NodeType.DOCUMENT_SECTION: "문서섹션. 속성: name(이름 - 전략및방법론/기술및기능/프로젝트관리/환경분석/현황분석/목표모델/이행계획), section_type(proposal/deliverable)",
+        NodeType.DOCUMENT_KEYWORD: "문서키워드. 속성: name(이름 - 보안/의사소통관리/품질관리/위험관리/선진사례/데이터관리)",
         NodeType.KEYWORD: "키워드. 속성: name(이름), frequency(빈도), is_technical(기술용어여부)",
-        NodeType.CATEGORY: "문서 카테고리. 속성: name(이름), description(설명)",
-        NodeType.TECHNOLOGY: "기술. 속성: name(이름), parent_tech(상위기술)",
+        NodeType.CATEGORY: "문서 카테고리. 속성: name(이름 - rfp/proposal/deliverable), description(설명)",
+        NodeType.TECHNOLOGY: "기술. 속성: name(이름 - AI/빅데이터/클라우드/IoT/디지털트윈 등), parent_tech(상위기술), synonyms(동의어)",
+        NodeType.METHODOLOGY: "방법론. 속성: name(이름 - ISP/ISMP/EA/BPR/PI/DX/애자일 등), synonyms(동의어)",
+        NodeType.DOMAIN: "도메인. 속성: name(이름 - 수자원/스마트시티/교통/보건의료 등), synonyms(동의어)",
         NodeType.PERSON: "담당자. 속성: name(이름), role(역할)",
     }
     for nt in node_types:
@@ -276,6 +296,14 @@ def generate_schema_text(
         RelationType.SAME_PROJECT: "(Document)-[:SAME_PROJECT {project_id}]->(Document) - 동일 사업 문서",
         RelationType.SAME_ORGANIZATION: "(Project)-[:SAME_ORGANIZATION {organization_id}]->(Project) - 동일 기관 프로젝트",
         RelationType.BELONGS_TO: "(Document)-[:BELONGS_TO]->(Category) - 카테고리에 속함",
+        # 확장 관계
+        RelationType.BELONGS_TO_TYPE: "(Organization)-[:BELONGS_TO_TYPE]->(OrganizationType) - 기관이 기관유형에 속함",
+        RelationType.HAS_PROJECT_TYPE: "(Project)-[:HAS_PROJECT_TYPE]->(ProjectType) - 프로젝트의 사업유형",
+        RelationType.HAS_SECTION: "(Document)-[:HAS_SECTION]->(DocumentSection) - 문서가 특정 섹션에 해당함",
+        RelationType.HAS_DOC_KEYWORD: "(Document)-[:HAS_DOC_KEYWORD]->(DocumentKeyword) - 문서가 특정 키워드 관련됨",
+        RelationType.USES_METHODOLOGY: "(Project)-[:USES_METHODOLOGY]->(Methodology) - 프로젝트가 방법론을 사용함",
+        RelationType.RELATED_DOMAIN: "(Project)-[:RELATED_DOMAIN]->(Domain) - 프로젝트가 도메인과 관련됨",
+        RelationType.SIMILAR_PROJECT: "(Project)-[:SIMILAR_PROJECT {reason, weight}]->(Project) - 유사 프로젝트",
     }
     for rt in relation_types:
         desc = relation_descriptions.get(rt, "")
@@ -285,12 +313,22 @@ def generate_schema_text(
 
     # 예시 쿼리
     lines.append("## Example Queries")
+    lines.append("### 기본 검색")
     lines.append("- 특정 기관이 발주한 프로젝트: MATCH (o:Organization {name: '기관명'})-[:ORDERED]->(p:Project) RETURN p")
     lines.append("- 특정 연도 프로젝트: MATCH (p:Project {year: 2024}) RETURN p")
     lines.append("- 프로젝트의 모든 문서: MATCH (p:Project {name: '프로젝트명'})-[:HAS_DOCUMENT]->(d:Document) RETURN d")
     lines.append("- 유사 문서 검색: MATCH (d1:Document {name: '문서명'})-[:SIMILAR_TO]->(d2:Document) RETURN d2")
     lines.append("- 동일 사업 문서: MATCH (d1:Document)-[:SAME_PROJECT]->(d2:Document) WHERE d1.name = '문서명' RETURN d2")
     lines.append("- 키워드로 문서 검색: MATCH (d:Document)-[:HAS_KEYWORD]->(k:Keyword {name: '키워드'}) RETURN d")
+    lines.append("")
+    lines.append("### 확장 검색 (질문 리스트 Q1~Q7 지원)")
+    lines.append("- Q1 보안 관련 제안서: MATCH (d:Document {category: 'proposal'})-[:HAS_DOC_KEYWORD]->(dk:DocumentKeyword {name: '보안'}) RETURN d")
+    lines.append("- Q2 프로젝트관리 의사소통 문서: MATCH (d:Document)-[:HAS_SECTION]->(s:DocumentSection {name: '프로젝트관리'}), (d)-[:HAS_DOC_KEYWORD]->(dk:DocumentKeyword {name: '의사소통관리'}) RETURN d")
+    lines.append("- Q3 업무시스템 개선 사업 제안서: MATCH (p:Project)-[:HAS_PROJECT_TYPE]->(pt:ProjectType {name: '시스템개선'}), (p)-[:HAS_DOCUMENT]->(d:Document {category: 'proposal'}) RETURN d")
+    lines.append("- Q4 시스템개선 사업 현황분석 산출물: MATCH (p:Project)-[:HAS_PROJECT_TYPE]->(pt:ProjectType {name: '시스템개선'}), (p)-[:HAS_DOCUMENT]->(d:Document {category: 'deliverable'})-[:HAS_SECTION]->(s:DocumentSection {name: '현황분석'}) RETURN d")
+    lines.append("- Q5 연구기관 고객 프로젝트: MATCH (o:Organization)-[:BELONGS_TO_TYPE]->(ot:OrganizationType {name: '연구기관'}), (o)-[:ORDERED]->(p:Project) RETURN p")
+    lines.append("- Q6 플랫폼 고도화 사업 제안서: MATCH (p:Project)-[:HAS_PROJECT_TYPE]->(pt:ProjectType {name: '플랫폼고도화'}), (p)-[:HAS_DOCUMENT]->(d:Document {category: 'proposal'}) RETURN d")
+    lines.append("- Q7 공공기관 AI 선진사례: MATCH (o:Organization)-[:BELONGS_TO_TYPE]->(ot:OrganizationType {name: '공공기관'}), (o)-[:ORDERED]->(p:Project)-[:USES_TECH]->(t:Technology {name: 'AI'}), (p)-[:HAS_DOCUMENT]->(d:Document)-[:HAS_DOC_KEYWORD]->(dk:DocumentKeyword {name: '선진사례'}) RETURN d")
 
     return "\n".join(lines)
 
