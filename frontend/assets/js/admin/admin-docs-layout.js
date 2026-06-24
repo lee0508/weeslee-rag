@@ -49,8 +49,14 @@
       page.classList.toggle('wr-is-active', page.dataset.wrPagePanel === targetName);
     });
 
+    navControls.forEach(link => {
+      link.classList.remove('wr-is-active');
+    });
+
     navLinks.forEach(link => {
-      link.classList.toggle('wr-is-active', link.dataset.wrPage === targetName);
+      if (link.dataset.wrPage === targetName) {
+        link.classList.add('wr-is-active');
+      }
     });
 
     renderOnThisPage(targetName);
@@ -66,6 +72,20 @@
 
     setActivePage(pageName);
     app.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 페이지별 데이터 로드
+    if (pageName === 'graph-overview' && typeof loadGraphOverviewStats === 'function') loadGraphOverviewStats();
+    if (pageName === 'schema-viewer' && typeof loadGraphSchema === 'function') loadGraphSchema();
+    if (pageName === 'agent-logs' && typeof loadAgentLogs === 'function') loadAgentLogs();
+    if (pageName === 'settings' && typeof loadWrSettingsFromServer === 'function') loadWrSettingsFromServer();
+    if (pageName === 'rag-build-wizard') {
+      if (typeof window.scheduleDatasetStatusSummaryLoad === 'function') {
+        window.scheduleDatasetStatusSummaryLoad(400);
+      } else if (typeof loadDatasetStatusSummary === 'function') {
+        loadDatasetStatusSummary();
+      }
+    }
+
     return true;
   };
 
@@ -624,6 +644,37 @@
     if (pageName === 'json-graph') refreshGraphSummary();
     if (pageName === 'logs') refreshLogSummary();
     if (pageName === 'search-quality') refreshBenchmarkSummary();
+    if (pageName === 'settings' && typeof window.loadWrSettingsFromServer === 'function') {
+      window.loadWrSettingsFromServer();
+    }
+    // Knowledge Graph 메뉴
+    if (pageName === 'kg-ontology' && typeof window.loadKgOntology === 'function') {
+      window.loadKgOntology();
+    }
+    if (pageName === 'kg-build' && typeof window.loadKgGraphStatus === 'function') {
+      window.loadKgGraphStatus();
+    }
+    if (pageName === 'kg-view' && typeof window.loadKgGraphView === 'function') {
+      window.loadKgGraphView();
+    }
+    if (pageName === 'kg-validation' && typeof window.loadKgValidationPage === 'function') {
+      window.loadKgValidationPage();
+    }
+    // Wiki 메뉴
+    if (pageName === 'wiki-build' && typeof window.loadWikiStatus === 'function') {
+      window.loadWikiStatus();
+    }
+    if (pageName === 'wiki-preview' && typeof window.loadWikiPreviewPage === 'function') {
+      window.loadWikiPreviewPage();
+    }
+    // Publish 메뉴
+    if (pageName === 'publish-activate' && typeof window.loadPublishStatus === 'function') {
+      window.loadPublishStatus();
+    }
+    // Jobs 메뉴
+    if (pageName === 'jobs' && typeof window.wrRefreshJobs === 'function') {
+      window.wrRefreshJobs();
+    }
   }
 
   function escapeHtml(value) {

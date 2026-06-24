@@ -1,5 +1,219 @@
 /* Laravel Docs 스타일 관리자 레이아웃을 정의하는 스타일 */
 /* Figma 기준 다크 테마 */
+
+/* legacy admin context bar */
+#sourceContextBar {
+  background: var(--navy-dark);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 24px 12px;
+  font-size: 11px;
+  color: var(--muted);
+  overflow-x: auto;
+}
+
+#sourceContextBar .ctx-bar-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+  border: 2px solid var(--border);
+}
+
+#sourceContextBar .ctx-col-title {
+  width: 240px;
+}
+
+#sourceContextBar .ctx-col-current {
+  width: 1%;
+}
+
+#sourceContextBar .ctx-col-active {
+  width: auto;
+}
+
+#sourceContextBar .ctx-col-action {
+  width: 1%;
+}
+
+#sourceContextBar .ctx-bar-title-cell,
+#sourceContextBar .ctx-bar-cell {
+  padding: 9px 14px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+#sourceContextBar .ctx-bar-table tr > *:last-child {
+  border-right: 0;
+}
+
+#sourceContextBar .ctx-bar-title-cell {
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+
+#sourceContextBar tr:last-child .ctx-bar-cell,
+#sourceContextBar tr:last-child .ctx-bar-title-cell {
+  border-bottom: 0;
+}
+
+#sourceContextBar .ctx-bar-field {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 10px;
+}
+
+#sourceContextBar .ctx-bar-field-snapshot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+#sourceContextBar .ctx-bar-field-source {
+  grid-template-columns: 120px minmax(0, 1fr);
+}
+
+#sourceContextBar .ctx-bar-label {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+#sourceContextBar .ctx-bar-select {
+  width: 100%;
+  min-width: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+#sourceContextBar .ctx-bar-select-source {
+  min-width: 0;
+}
+
+#sourceContextBar .ctx-bar-select-snapshot {
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 260px;
+}
+
+#sourceContextBar .ctx-bar-hint {
+  grid-column: 2 / -1;
+  min-width: 0;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: monospace;
+  text-align: left;
+  line-height: 1.35;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+#sourceContextBar .ctx-bar-stage {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 180px;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: left;
+  line-height: 1.35;
+  word-break: keep-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sourceContextBar .ctx-bar-detail-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+#sourceContextBar .ctx-bar-active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+#sourceContextBar .ctx-bar-active-label {
+  color: var(--green);
+  white-space: nowrap;
+}
+
+#sourceContextBar .ctx-bar-active-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: monospace;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sourceContextBar .ctx-bar-active-badge {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 10px;
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--green);
+  font-weight: 700;
+}
+
+#sourceContextBar .ctx-bar-new-source-btn {
+  width: auto;
+  font-size: 10px;
+  min-height: 34px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+#sourceContextBar .ctx-bar-cell-client {
+  width: auto;
+}
+
+#sourceContextBar .ctx-bar-cell-source {
+  width: auto;
+}
+
+#sourceContextBar .ctx-bar-cell-dataset,
+#sourceContextBar .ctx-bar-cell-snapshot {
+  width: 1%;
+  min-width: 440px;
+}
+
+#sourceContextBar .ctx-bar-cell-active {
+  width: auto;
+  min-width: 300px;
+}
+
+#sourceContextBar .ctx-bar-cell-action {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
 #wrAdminDocsApp {
   --wr-primary: #e8971f;
   --wr-primary-soft: rgba(232, 151, 31, 0.15);
@@ -19,11 +233,15 @@
   min-height: 100vh;
   background: var(--wr-bg);
   color: var(--wr-text);
-  font-family: Inter, "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 #wrAdminDocsApp * {
   box-sizing: border-box;
+}
+
+#wrAdminDocsApp [hidden] {
+  display: none !important;
 }
 
 #wrAdminDocsApp .wr-docs-header {
@@ -46,6 +264,31 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+#wrAdminDocsApp .wr-brand-link {
+  width: fit-content;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+#wrAdminDocsApp .wr-brand-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--wr-border-strong);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+#wrAdminDocsApp .wr-brand-link:focus-visible {
+  outline: none;
+  border-color: var(--wr-primary);
+  box-shadow: 0 0 0 3px rgba(232, 151, 31, 0.18);
 }
 
 #wrAdminDocsApp .wr-brand-mark {
@@ -184,6 +427,19 @@
 
 #wrAdminDocsApp .wr-nav-section {
   margin-bottom: 22px;
+}
+
+#wrAdminDocsApp .wr-nav-sections,
+#wrAdminDocsApp .wr-nav-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#wrAdminDocsApp .wr-nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 #wrAdminDocsApp .wr-nav-heading {
@@ -690,6 +946,14 @@
     padding: 28px 20px 56px;
   }
 
+  #sourceContextBar {
+    padding: 8px 18px 12px;
+  }
+
+  #sourceContextBar .ctx-bar-table {
+    min-width: 1040px;
+  }
+
   #wrAdminDocsApp .wr-page-title {
     font-size: 28px;
   }
@@ -765,6 +1029,9 @@
 
 /* 네비게이션 리스트 (접기/펼치기 대상) */
 #wrAdminDocsApp .wr-nav-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.2s ease;
   max-height: 500px;
@@ -774,6 +1041,18 @@
 #wrAdminDocsApp .wr-nav-list.collapsed {
   max-height: 0;
   opacity: 0;
+}
+
+#wrAdminDocsApp .wr-nav-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#wrAdminDocsApp .wr-nav-tree-node {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /* 로딩 표시 */
@@ -794,11 +1073,15 @@
 #wrAdminDocsApp .wr-nav-tree-item {
   display: flex;
   align-items: center;
+  width: 100%;
   padding: 6px 12px;
   font-size: 13px;
   color: var(--wr-text, #e8edf4);
+  background: transparent;
+  border: 0;
   border-radius: 6px;
   cursor: pointer;
+  text-align: left;
   transition: background 0.15s ease;
 }
 

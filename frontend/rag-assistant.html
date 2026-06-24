@@ -2048,6 +2048,28 @@
             </div>
             <button onclick="generateProposalDraft()" style="width:100%;padding:8px;background:linear-gradient(135deg,var(--navy) 0%,#2a4a7a 100%);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;" data-i18n="proposal_generate">제안서 초안 생성</button>
           </div>
+          <div>
+            <label for="searchScope">검색 범위</label>
+            <select id="searchScope" onchange="updateSearchScopeHint()">
+              <option value="active_snapshot">현재 Active Snapshot</option>
+            </select>
+            <div id="searchScopeHint" style="margin-top:4px;font-size:11px;color:var(--gray-400);line-height:1.5;">
+              검색 범위를 불러오는 중입니다.
+            </div>
+          </div>
+          <div>
+            <label for="searchSnapshotMulti">Snapshot 직접 선택</label>
+            <select id="searchSnapshotMulti" multiple size="7" onchange="updateSnapshotSelectionHint(); updateSearchScopeHint()">
+            </select>
+            <div id="searchSnapshotHint" style="margin-top:4px;font-size:11px;color:var(--gray-400);line-height:1.5;">
+              선택 없으면 검색 범위를 사용합니다.
+            </div>
+            <div style="margin-top:6px;display:flex;justify-content:flex-end;">
+              <button type="button" onclick="clearSelectedSnapshots()" style="padding:4px 8px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:transparent;color:var(--gray-400);font-size:11px;">
+                Snapshot 선택 해제
+              </button>
+            </div>
+          </div>
           <!-- 기본 설정: 항상 표시 -->
           <div>
             <label for="category" data-i18n="category">Category</label>
@@ -2420,7 +2442,7 @@
 
   <div id="toastContainer" class="toast-container"></div>
   <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
-  <script src="config.js"></script>
+  <script src="config.js?v=20260624a"></script>
   <script>
     // ── i18n ──────────────────────────────────────────────────────────────
     /* const I18N_KO = {
@@ -3040,17 +3062,174 @@
 
     // ── API base ──────────────────────────────────────────────────────────
     function detectApiBase() {
+      if (typeof window.detectWeesleeApiBase === 'function') return window.detectWeesleeApiBase();
       if (window.__API_BASE__) return window.__API_BASE__;
+      if (/^\/weeslee-rag(?:\/|$)/.test(window.location.pathname || '')) return '/weeslee-rag/api';
       return `${window.location.origin}/api`;
     }
 
-    const API_BASE = detectApiBase();
+    function getApiBaseDisplayValue(apiBase) {
+      const value = String(apiBase || '').replace(/\/+$/, '');
+      const origin = String(window.location.origin || '').replace(/\/+$/, '');
+      if (origin && value.startsWith(origin)) {
+        return value.slice(origin.length) || '/';
+      }
+      return value || '/api';
+    }
+
+    const API_BASE = String(detectApiBase()).replace(/\/+$/, '');
     document.addEventListener('DOMContentLoaded', () => {
       const el = document.getElementById('sidebarApiBase');
-      if (el) el.textContent = API_BASE;
+      if (el) el.textContent = getApiBaseDisplayValue(API_BASE);
+      const badge = document.getElementById('apiBadge');
+      if (badge) badge.textContent = getApiBaseDisplayValue(API_BASE);
     });
 
     let _activeSnapshot = '';
+    let _searchScopes = [];
+
+    function getSelectedSearchScope() {
+      return document.getElementById('searchScope')?.value || 'active_snapshot';
+    }
+
+    function getSelectedSnapshotIds() {
+      return Array.from(document.getElementById('searchSnapshotMulti')?.selectedOptions || [])
+        .map(option => option.value)
+        .filter(Boolean);
+    }
+
+    function clearSelectedSnapshots() {
+      const selectEl = document.getElementById('searchSnapshotMulti');
+      if (!selectEl) return;
+      Array.from(selectEl.options).forEach(option => {
+        option.selected = false;
+      });
+      updateSnapshotSelectionHint();
+      updateSearchScopeHint();
+    }
+
+    function updateSnapshotSelectionHint() {
+      const selectEl = document.getElementById('searchSnapshotMulti');
+      const hintEl = document.getElementById('searchSnapshotHint');
+      if (!selectEl || !hintEl) return;
+      const selectedOptions = Array.from(selectEl.selectedOptions || []);
+      if (!selectedOptions.length) {
+        hintEl.textContent = '선택 없으면 위 검색 범위를 사용합니다.';
+        return;
+      }
+      const labels = selectedOptions.slice(0, 3).map(option => option.textContent || option.value);
+      const moreCount = selectedOptions.length - labels.length;
+      hintEl.textContent = `선택 Snapshot ${selectedOptions.length}개: ${labels.join(', ')}${moreCount > 0 ? ` 외 ${moreCount}개` : ''}`;
+    }
+
+    function renderSnapshotMultiSelect(sources) {
+      const selectEl = document.getElementById('searchSnapshotMulti');
+      if (!selectEl) return;
+      const selectedIds = new Set(getSelectedSnapshotIds());
+      selectEl.innerHTML = '';
+
+      const sourceList = Array.isArray(sources) ? sources : [];
+      if (!sourceList.length) {
+        selectEl.disabled = true;
+        updateSnapshotSelectionHint();
+        return;
+      }
+
+      sourceList.forEach(source => {
+        const snapshots = Array.isArray(source?.snapshots)
+          ? source.snapshots.filter(item => item?.queryable)
+          : [];
+        if (!snapshots.length) return;
+        const group = document.createElement('optgroup');
+        group.label = source.source_name || source.source_id || 'Source';
+        snapshots.forEach(snapshot => {
+          const option = document.createElement('option');
+          option.value = snapshot.snapshot_id;
+          option.textContent = `${snapshot.snapshot_id}${snapshot.is_active ? ' [active]' : ''}`;
+          option.selected = selectedIds.has(snapshot.snapshot_id);
+          group.appendChild(option);
+        });
+        selectEl.appendChild(group);
+      });
+
+      selectEl.disabled = !selectEl.options.length;
+      updateSnapshotSelectionHint();
+    }
+
+    function updateSearchScopeHint() {
+      const hintEl = document.getElementById('searchScopeHint');
+      if (!hintEl) return;
+      const selected = getSelectedSearchScope();
+      const scope = (_searchScopes || []).find(item => item.scope_id === selected);
+      if (!scope) {
+        hintEl.textContent = '현재 선택된 검색 범위 정보를 찾을 수 없습니다.';
+        return;
+      }
+      const parts = [];
+      const selectedSnapshotIds = getSelectedSnapshotIds();
+      if (selectedSnapshotIds.length) {
+        parts.push(`직접 선택 Snapshot ${selectedSnapshotIds.length}개가 우선 적용됩니다.`);
+      }
+      if (scope.description) parts.push(scope.description);
+      if (scope.snapshot_count) parts.push(`Snapshot ${scope.snapshot_count}개`);
+      if (scope.source_count) parts.push(`Source ${scope.source_count}개`);
+      hintEl.textContent = parts.join(' · ') || scope.label || '';
+    }
+
+    async function loadSearchScopes() {
+      const selectEl = document.getElementById('searchScope');
+      const hintEl = document.getElementById('searchScopeHint');
+      if (!selectEl) return;
+      if (hintEl) hintEl.textContent = '검색 범위를 불러오는 중입니다.';
+      try {
+        const response = await fetch(`${API_BASE}/rag/search-scopes`);
+        if (!response.ok) throw new Error(await readApiError(response));
+        const data = await response.json();
+        _searchScopes = Array.isArray(data.scopes) ? data.scopes : [];
+        renderSnapshotMultiSelect(data.sources || []);
+
+        const currentValue = selectEl.value;
+        selectEl.innerHTML = '';
+        if (!_searchScopes.length) {
+          const option = document.createElement('option');
+          option.value = 'active_snapshot';
+          option.textContent = '현재 Active Snapshot';
+          selectEl.appendChild(option);
+          _searchScopes = [{
+            scope_id: 'active_snapshot',
+            label: '현재 Active Snapshot',
+            description: '현재 활성 스냅샷 1개만 검색합니다.',
+            snapshot_count: 1,
+            source_count: 1,
+          }];
+        } else {
+          _searchScopes.forEach(scope => {
+            const option = document.createElement('option');
+            option.value = scope.scope_id;
+            option.textContent = scope.is_default ? `${scope.label} (기본)` : scope.label;
+            selectEl.appendChild(option);
+          });
+        }
+
+        const nextValue = _searchScopes.some(scope => scope.scope_id === currentValue)
+          ? currentValue
+          : (data.default_scope_id || _searchScopes[0]?.scope_id || 'active_snapshot');
+        selectEl.value = nextValue;
+        updateSearchScopeHint();
+      } catch (error) {
+        console.error('loadSearchScopes error:', error);
+        _searchScopes = [{
+          scope_id: 'active_snapshot',
+          label: '현재 Active Snapshot',
+          description: '기본 검색 범위를 사용합니다.',
+          snapshot_count: 1,
+          source_count: 1,
+        }];
+        selectEl.innerHTML = '<option value="active_snapshot">현재 Active Snapshot</option>';
+        renderSnapshotMultiSelect([]);
+        if (hintEl) hintEl.textContent = '검색 범위 목록을 가져오지 못해 기본 Active Snapshot으로 고정합니다.';
+      }
+    }
 
     function syncAnswerModeLabel() {
       const provider = document.getElementById('answerProvider').value;
@@ -3715,6 +3894,8 @@
       const topDocs = parseInt(document.getElementById('topDocs').value || '5', 10);
       const maxChunks = parseInt(document.getElementById('maxChunks').value || '3', 10);
       const category = document.getElementById('category').value;
+      const searchScope = getSelectedSearchScope();
+      const selectedSnapshotIds = getSelectedSnapshotIds();
       const filterOrg = document.getElementById('filterOrg').value.trim();
       const filterYear = document.getElementById('filterYear').value.trim();
       const answerProvider = document.getElementById('answerProvider').value;
@@ -3748,6 +3929,7 @@
 
       const effectiveQuery = query;
       const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
+      const searchScopeMeta = (_searchScopes || []).find(item => item.scope_id === searchScope) || null;
       if (_rfpSelectedFile && status) status.textContent = t('rfp_active_notice');
       const queryStart = performance.now();
       let searchMs = 0;
@@ -3761,6 +3943,8 @@
         vector_weight: vw / wTotal,
         graph_weight: gw / wTotal,
         wiki_weight: ww / wTotal,
+        ...(searchScope   ? { search_scope: searchScope }         : {}),
+        ...(selectedSnapshotIds.length ? { snapshot_ids: selectedSnapshotIds } : {}),
         ...(category      ? { category }                         : {}),
         ...(collection    ? { collection }                       : {}),
         ...(documentGroup ? { document_group: documentGroup }    : {}),
@@ -3778,6 +3962,8 @@
           formData.append('file', _rfpSelectedFile);
           formData.append('top_k', String(topK));
           formData.append('top_docs', String(topDocs));
+          if (searchScope) formData.append('search_scope', searchScope);
+          if (selectedSnapshotIds.length) formData.append('snapshot_ids', JSON.stringify(selectedSnapshotIds));
           formData.append('mode', effectiveMode);
           formData.append('max_chunks_per_doc', String(maxChunks));
           formData.append('answer_provider', answerProvider);
@@ -3798,6 +3984,7 @@
             max_results: topDocs,
             merge_strategy: 'score_based',
             generate_answer: answerProvider !== 'none',
+            ...(!selectedSnapshotIds.length && searchScopeMeta?.source_ids?.length === 1 ? { source_id: searchScopeMeta.source_ids[0] } : {}),
             ...(collection ? { collection } : {}),
             ...(category ? { category } : {}),
             ...(filterOrg ? { organization: filterOrg } : {}),
@@ -3836,7 +4023,8 @@
 
         const expandedNote = data.expanded_query
           ? ` (${_lang === 'ko' ? '확장' : 'expanded'}: ${data.expanded_query.slice(0, 60)}...)` : '';
-        if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote;
+        const scopeNote = data.search_scope_label ? ` [${data.search_scope_label}]` : '';
+        if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote + scopeNote;
         _hasAnswer = answerProvider === 'none';
         renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
         renderResultPanel(data);
@@ -4864,6 +5052,8 @@
         body: JSON.stringify({
           query, mode, answer: data.draft_answer || '',
           documents: data.documents || [], snapshot: _activeSnapshot,
+          search_scope: getSelectedSearchScope(),
+          snapshot_ids: getSelectedSnapshotIds(),
         }),
       }).catch(() => {});
     }
@@ -5003,6 +5193,7 @@
     loadOllamaModels();
     loadCategories();
     loadCollections();
+    loadSearchScopes();
 
     // ── File Preview Modal ────────────────────────────────────────────
     function _fileExt(sourcePath) {
