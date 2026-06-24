@@ -20,6 +20,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from app.core.config import settings
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 INDEXES_DIR = DATA_DIR / "indexes" / "faiss"
@@ -42,6 +44,10 @@ class FaissSearchResult:
     organization: Optional[str] = None
     file_name: Optional[str] = None
     text_preview: Optional[str] = None
+    # Phase 2: 페이지/슬라이드 정보
+    page_no: Optional[int] = None
+    slide_no: Optional[int] = None
+    total_pages: Optional[int] = None
     metadata: dict = field(default_factory=dict)
 
 
@@ -118,27 +124,39 @@ class FaissSearchService:
         self,
         source_id: Optional[str] = None,
         embedding_provider: str = "hashing",
-        embedding_dim: int = 768,
-        ollama_url: str = "http://127.0.0.1:11434/api/embeddings",
-        ollama_model: str = "nomic-embed-text",
+        embedding_dim: Optional[int] = None,
+        ollama_url: Optional[str] = None,
+        ollama_model: Optional[str] = None,
     ):
         """
         Args:
             source_id: 데이터 소스 ID
             embedding_provider: 임베딩 제공자 (hashing/ollama)
-            embedding_dim: 임베딩 차원
-            ollama_url: Ollama API URL
-            ollama_model: Ollama 모델명
+            embedding_dim: 임베딩 차원 (None이면 manifest에서 읽음)
+            ollama_url: Ollama API URL (None이면 settings에서 읽음)
+            ollama_model: Ollama 모델명 (None이면 settings에서 읽음)
         """
         self.source_id = source_id
         self.embedding_provider = embedding_provider
-        self.embedding_dim = embedding_dim
-        self.ollama_url = ollama_url
-        self.ollama_model = ollama_model
+        # settings에서 기본값 읽기
+        self.ollama_url = ollama_url or f"{settings.ollama_host}/api/embeddings"
+        self.ollama_model = ollama_model or settings.ollama_embed_model
+        # embedding_dim은 manifest에서 동적으로 읽도록 초기값 None 허용
+        self._manifest_dim: Optional[int] = None
+        self._init_embedding_dim = embedding_dim
         self._index = None
         self._metadata: list[dict] = []
         self._chunks: dict[str, dict] = {}  # chunk_id -> chunk data
         self._loaded = False
+
+    @property
+    def embedding_dim(self) -> int:
+        """임베딩 차원. manifest에서 읽은 값 우선, 없으면 초기값 또는 기본값."""
+        if self._manifest_dim is not None:
+            return self._manifest_dim
+        if self._init_embedding_dim is not None:
+            return self._init_embedding_dim
+        return 768  # fallback default
 
     def _get_index_dir(self) -> Path:
         """source_id별 인덱스 디렉토리 반환."""
@@ -170,6 +188,7 @@ class FaissSearchService:
         index_dir = self._get_index_dir()
         index_path = None
         metadata_path = None
+        manifest_path = None
 
         # 1. active_index.json에서 snapshot 읽기
         snapshot = self._get_active_snapshot()
@@ -177,16 +196,19 @@ class FaissSearchService:
             # 새 파일명 규칙: {snapshot}_ollama.index
             index_path = INDEXES_DIR / f"{snapshot}_ollama.index"
             metadata_path = INDEXES_DIR / f"{snapshot}_ollama_metadata.jsonl"
+            manifest_path = INDEXES_DIR / f"{snapshot}_ollama.manifest.json"
 
         # 2. 새 규칙 파일이 없으면 legacy 파일명 시도
         if not index_path or not index_path.exists():
             index_path = index_dir / "chunks.index"
             metadata_path = index_dir / "chunks_metadata.jsonl"
+            manifest_path = None
 
         if not index_path.exists() or not metadata_path.exists():
             # 기본 경로 시도
             index_path = INDEXES_DIR / "chunks.index"
             metadata_path = INDEXES_DIR / "chunks_metadata.jsonl"
+            manifest_path = None
 
         if not index_path.exists():
             self._loaded = True
@@ -194,6 +216,15 @@ class FaissSearchService:
 
         try:
             self._index = faiss.read_index(str(index_path))
+
+            # manifest에서 embedding_dim 및 모델 정보 읽기
+            if manifest_path and manifest_path.exists():
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+                self._manifest_dim = manifest.get("embedding_dim")
+                # manifest에 모델 정보가 있으면 사용
+                if manifest.get("embedding_model"):
+                    self.ollama_model = manifest["embedding_model"]
 
             # 메타데이터에서 embedding_provider 감지
             if metadata_path.exists():
@@ -326,6 +357,10 @@ class FaissSearchService:
                     organization=row.get("organization"),
                     file_name=row.get("file_name"),
                     text_preview=text_preview,
+                    # Phase 2: 페이지/슬라이드 정보
+                    page_no=row.get("page_no"),
+                    slide_no=row.get("slide_no"),
+                    total_pages=row.get("total_pages"),
                     metadata=row.get("metadata", {}),
                 ))
 

@@ -1,15 +1,17 @@
-# Hybrid RAG 서비스 - FAISS + Graph + Wiki 결합 검색
+# Hybrid RAG 서비스 - FAISS + Graph + Wiki 결합 검색 (Query Router 통합)
 # -*- coding: utf-8 -*-
 """
 Hybrid RAG Service - 여러 검색 소스를 결합하는 통합 RAG 서비스.
 
 Phase 7에서 구현된 핵심 서비스로 다음을 수행한다.
-1. FAISS 벡터 검색
-2. GraphRAG Agent 실행
-3. LLM-Wiki 검색 (향후 연동)
-4. 결과 병합 및 중복 제거
-5. Re-ranking
-6. 최종 답변 생성
+1. Query Router로 질문 분석 (의도, 필터, 복잡도)
+2. 질문 유형별 검색 소스 및 순서 결정
+3. FAISS 벡터 검색
+4. GraphRAG Agent 실행
+5. LLM-Wiki 검색
+6. 결과 병합 및 중복 제거
+7. Re-ranking
+8. 최종 답변 생성
 """
 from __future__ import annotations
 
@@ -31,6 +33,19 @@ from app.services.faiss_search_service import (
     FaissSearchResponse,
     FaissSearchResult,
     get_faiss_search_service,
+)
+from app.services.query_router import (
+    QueryRouter,
+    QueryAnalysis,
+    QueryIntent,
+    QueryComplexity,
+    SearchSource as RouterSearchSource,
+    get_query_router,
+)
+from app.services.wiki_search_service import (
+    WikiSearchService,
+    WikiSearchResponse,
+    get_wiki_search_service,
 )
 
 
@@ -73,6 +88,9 @@ class HybridRAGResponse:
     question: str
     answer: Optional[str] = None
 
+    # Query Router 분석 결과
+    query_analysis: Optional[dict] = None
+
     # 개별 검색 결과
     faiss_results: list[dict] = field(default_factory=list)
     graph_results: list[dict] = field(default_factory=list)
@@ -96,11 +114,16 @@ class HybridRAGResponse:
     merged_count: int = 0
 
     # 타이밍
+    query_analysis_time_ms: int = 0
     faiss_time_ms: int = 0
     graph_time_ms: int = 0
     wiki_time_ms: int = 0
     merge_time_ms: int = 0
     total_time_ms: int = 0
+
+    # 검색 전략 정보
+    search_order: Optional[str] = None
+    sources_used: list[str] = field(default_factory=list)
 
     error: Optional[str] = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -113,23 +136,28 @@ class HybridRAGService:
         self,
         source_id: Optional[str] = None,
         enable_graph: bool = True,
-        enable_wiki: bool = False,  # 향후 구현
+        enable_wiki: bool = True,
         merge_strategy: MergeStrategy = MergeStrategy.SCORE_BASED,
+        use_query_router: bool = True,
     ):
         """
         Args:
             source_id: 데이터 소스 ID
             enable_graph: GraphRAG 활성화
-            enable_wiki: Wiki 검색 활성화 (향후)
+            enable_wiki: Wiki 검색 활성화
             merge_strategy: 결과 병합 전략
+            use_query_router: Query Router 사용 여부
         """
         self.source_id = source_id
         self.enable_graph = enable_graph
         self.enable_wiki = enable_wiki
         self.merge_strategy = merge_strategy
+        self.use_query_router = use_query_router
 
         self.faiss_service = get_faiss_search_service(source_id)
         self.graph_agent = get_graphrag_agent(source_id) if enable_graph else None
+        self.wiki_service = get_wiki_search_service() if enable_wiki else None
+        self.query_router = get_query_router() if use_query_router else None
 
     async def _search_faiss(
         self,
@@ -222,10 +250,43 @@ class HybridRAGService:
         self,
         query: str,
         top_k: int = 5,
+        category: Optional[str] = None,
+        organization: Optional[str] = None,
     ) -> tuple[list[dict], int]:
-        """LLM-Wiki 검색 (향후 구현)."""
-        # TODO: Phase 10에서 구현
-        return [], 0
+        """LLM-Wiki 검색."""
+        if not self.wiki_service:
+            return [], 0
+
+        start_time = time.time()
+
+        response = self.wiki_service.search(
+            query=query,
+            top_k=top_k,
+            category=category,
+            organization=organization,
+        )
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        if not response.success:
+            return [], elapsed_ms
+
+        results = []
+        for r in response.results:
+            results.append({
+                "document_id": r.id,
+                "title": r.title,
+                "category": r.category,
+                "organization": r.organization,
+                "project_type": r.project_type,
+                "technologies": r.technologies,
+                "score": r.score,
+                "rank": r.rank,
+                "text_preview": r.text_preview,
+                "source": SearchSource.WIKI.value,
+            })
+
+        return results, elapsed_ms
 
     def _merge_results(
         self,
@@ -387,53 +448,92 @@ class HybridRAGService:
         total_start = time.time()
 
         try:
-            # 병렬 검색 실행
-            tasks = [
-                self._search_faiss(question, top_k),
-            ]
+            # 1. Query Router로 질문 분석
+            query_analysis: Optional[QueryAnalysis] = None
+            query_analysis_time = 0
+            search_order = "parallel"
+            sources_to_use = []
 
-            if self.enable_graph:
-                tasks.append(self._search_graph(question))
+            if self.query_router:
+                analysis_start = time.time()
+                query_analysis = self.query_router.analyze(question)
+                query_analysis_time = int((time.time() - analysis_start) * 1000)
+                search_order = query_analysis.search_order
+                sources_to_use = [s.value for s in query_analysis.search_sources]
 
-            if self.enable_wiki:
-                tasks.append(self._search_wiki(question, top_k))
-
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            # 결과 파싱
+            # 2. 질문 유형별 검색 전략 결정
             faiss_results, faiss_time = [], 0
             graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = [], [], 0, 0, ""
             wiki_results, wiki_time = [], 0
 
-            result_idx = 0
+            # 필터 추출 (Query Router에서)
+            filters = query_analysis.filters if query_analysis else {}
+            organization_filter = filters.get("organization_type") if isinstance(filters.get("organization_type"), str) else None
 
-            # FAISS 결과
-            if not isinstance(results[result_idx], Exception):
-                faiss_results, faiss_time = results[result_idx]
-            result_idx += 1
+            if search_order == "faiss_only":
+                # 단순 키워드 검색: FAISS만
+                faiss_results, faiss_time = await self._search_faiss(question, top_k)
 
-            # Graph 결과
-            if self.enable_graph and result_idx < len(results):
+            elif search_order == "graph_first":
+                # Graph 우선: Graph → FAISS 순차
+                if self.enable_graph:
+                    graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = await self._search_graph(question)
+
+                # Graph 결과로 FAISS 검색 범위 좁히기 (향후 구현)
+                faiss_results, faiss_time = await self._search_faiss(question, top_k)
+
+                # Wiki 검색 (필요시)
+                if self.enable_wiki and RouterSearchSource.WIKI.value in sources_to_use:
+                    wiki_results, wiki_time = await self._search_wiki(
+                        question, top_k // 2, organization=organization_filter
+                    )
+
+            elif search_order == "wiki_first":
+                # Wiki 우선: 요약 요청
+                if self.enable_wiki:
+                    wiki_results, wiki_time = await self._search_wiki(
+                        question, top_k, organization=organization_filter
+                    )
+                faiss_results, faiss_time = await self._search_faiss(question, top_k // 2)
+
+            else:
+                # 기본: 병렬 검색
+                tasks = [self._search_faiss(question, top_k)]
+
+                if self.enable_graph:
+                    tasks.append(self._search_graph(question))
+
+                if self.enable_wiki:
+                    tasks.append(self._search_wiki(question, top_k // 2, organization=organization_filter))
+
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                result_idx = 0
+
                 if not isinstance(results[result_idx], Exception):
-                    graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = results[result_idx]
+                    faiss_results, faiss_time = results[result_idx]
                 result_idx += 1
 
-            # Wiki 결과
-            if self.enable_wiki and result_idx < len(results):
-                if not isinstance(results[result_idx], Exception):
-                    wiki_results, wiki_time = results[result_idx]
+                if self.enable_graph and result_idx < len(results):
+                    if not isinstance(results[result_idx], Exception):
+                        graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = results[result_idx]
+                    result_idx += 1
 
-            # 결과 병합
+                if self.enable_wiki and result_idx < len(results):
+                    if not isinstance(results[result_idx], Exception):
+                        wiki_results, wiki_time = results[result_idx]
+
+            # 3. 결과 병합
             merge_start = time.time()
             merged_docs = self._merge_results(
                 faiss_results, graph_results, wiki_results, max_results
             )
             merge_time = int((time.time() - merge_start) * 1000)
 
-            # 근거 생성
+            # 4. 근거 생성
             evidence = self._build_evidence(merged_docs, graph_cypher)
 
-            # 답변 생성 (옵션)
+            # 5. 답변 생성 (옵션)
             answer = None
             if generate_answer and merged_docs:
                 # TODO: LLM 답변 생성 구현
@@ -445,6 +545,7 @@ class HybridRAGService:
                 success=True,
                 question=question,
                 answer=answer,
+                query_analysis=query_analysis.to_dict() if query_analysis else None,
                 faiss_results=faiss_results,
                 graph_results=graph_results,
                 wiki_results=wiki_results,
@@ -473,11 +574,14 @@ class HybridRAGService:
                 graph_count=len(graph_results),
                 wiki_count=len(wiki_results),
                 merged_count=len(merged_docs),
+                query_analysis_time_ms=query_analysis_time,
                 faiss_time_ms=faiss_time,
                 graph_time_ms=graph_time,
                 wiki_time_ms=wiki_time,
                 merge_time_ms=merge_time,
                 total_time_ms=total_time,
+                search_order=search_order,
+                sources_used=sources_to_use,
             )
 
         except Exception as e:

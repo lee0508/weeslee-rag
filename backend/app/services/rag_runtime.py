@@ -18,10 +18,6 @@ from app.core.config import settings
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
-ACTIVE_INDEX_PATH = PROJECT_ROOT / "data" / "active_index.json"
-FAISS_DIR = PROJECT_ROOT / "data" / "indexes" / "faiss"
-CHUNKS_DIR = PROJECT_ROOT / "data" / "staged" / "chunks"
 
 _cache_lock = threading.Lock()
 _active_snapshot_cache: dict[str, Any] = {"path": None, "mtime": None, "snapshot": None}
@@ -29,18 +25,40 @@ _bundle_cache: dict[tuple[str, str], dict[str, Any]] = {}
 _chunk_cache: dict[str, dict[str, Any]] = {}
 
 
+def _resolve_setting_path(path_value: str) -> Path:
+    return Path(path_value).expanduser().resolve()
+
+
+def _scripts_dir() -> Path:
+    return _resolve_setting_path(settings.rag_scripts_dir)
+
+
+def _active_index_path() -> Path:
+    return _resolve_setting_path(settings.active_index_path)
+
+
+def _faiss_dir() -> Path:
+    return _resolve_setting_path(settings.faiss_index_dir)
+
+
+def _chunks_dir() -> Path:
+    return _resolve_setting_path(settings.staged_chunks_dir)
+
+
 def _assembler():
-    if str(SCRIPTS_DIR) not in sys.path:
-        sys.path.insert(0, str(SCRIPTS_DIR))
+    scripts_dir = _scripts_dir()
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
     return importlib.import_module("assemble_rag_response")
 
 
 def get_active_snapshot() -> str:
-    if not ACTIVE_INDEX_PATH.exists():
+    active_index_path = _active_index_path()
+    if not active_index_path.exists():
         return settings.faiss_snapshot
 
-    resolved = str(ACTIVE_INDEX_PATH.resolve())
-    mtime = ACTIVE_INDEX_PATH.stat().st_mtime
+    resolved = str(active_index_path.resolve())
+    mtime = active_index_path.stat().st_mtime
     with _cache_lock:
         if (
             _active_snapshot_cache.get("path") == resolved
@@ -50,7 +68,7 @@ def get_active_snapshot() -> str:
 
         snapshot = settings.faiss_snapshot
         try:
-            data = json.loads(ACTIVE_INDEX_PATH.read_text(encoding="utf-8"))
+            data = json.loads(active_index_path.read_text(encoding="utf-8"))
             snapshot = data.get("snapshot") or snapshot
         except Exception:
             pass
@@ -62,19 +80,20 @@ def get_active_snapshot() -> str:
 
 
 def default_index_paths(snapshot: str, category: Optional[str] = None) -> tuple[Path, Path]:
+    faiss_dir = _faiss_dir()
     if category:
-        cat_index = FAISS_DIR / f"{snapshot}_{category}_ollama.index"
-        cat_meta = FAISS_DIR / f"{snapshot}_{category}_ollama_metadata.jsonl"
+        cat_index = faiss_dir / f"{snapshot}_{category}_ollama.index"
+        cat_meta = faiss_dir / f"{snapshot}_{category}_ollama_metadata.jsonl"
         if cat_index.exists() and cat_meta.exists():
             return cat_index, cat_meta
     return (
-        FAISS_DIR / f"{snapshot}_ollama.index",
-        FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl",
+        faiss_dir / f"{snapshot}_ollama.index",
+        faiss_dir / f"{snapshot}_ollama_metadata.jsonl",
     )
 
 
 def default_chunks_path(snapshot: str) -> Path:
-    return CHUNKS_DIR / f"{snapshot}_chunks.jsonl"
+    return _chunks_dir() / f"{snapshot}_chunks.jsonl"
 
 
 def _load_jsonl(path: Path) -> list[dict]:
@@ -145,13 +164,13 @@ def _build_args(
         query=query,
         top_k=top_k,
         top_docs=top_docs,
-        embedding_provider="ollama",
-        embedding_dim=768,
-        ollama_embed_url="http://127.0.0.1:11434/api/embeddings",
-        ollama_embed_model="",
-        answer_provider=answer_provider,
-        answer_model=answer_model,
-        ollama_generate_url="http://127.0.0.1:11434/api/generate",
+        embedding_provider=settings.embedding_provider,
+        embedding_dim=settings.embedding_dim,
+        ollama_embed_url=settings.ollama_embed_url,
+        ollama_embed_model=settings.ollama_embed_model,
+        answer_provider=answer_provider or settings.answer_provider,
+        answer_model=answer_model or settings.answer_model,
+        ollama_generate_url=settings.ollama_generate_url,
         openai_url="https://api.openai.com/v1/chat/completions",
         gemini_url="https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         openrouter_url="https://openrouter.ai/api/v1/chat/completions",
@@ -192,6 +211,8 @@ def _build_hits(bundle: dict[str, Any], chunk_map: dict[str, dict], args: Simple
                 score=float(score),
                 chunk_id=row.get("chunk_id", ""),
                 document_id=row.get("document_id", ""),
+                source_id=row.get("source_id", "") or meta.get("source_id", ""),
+                snapshot=row.get("snapshot", "") or meta.get("snapshot", ""),
                 category=row.get("category", ""),
                 section_heading=row.get("section_heading", ""),
                 source_path=row.get("source_path", ""),
@@ -214,6 +235,26 @@ def _build_hits(bundle: dict[str, Any], chunk_map: dict[str, dict], args: Simple
     return hits
 
 
+def _build_hits_for_snapshot(
+    snapshot: str,
+    bundle: dict[str, Any],
+    chunk_map: dict[str, dict],
+    args: SimpleNamespace,
+) -> list[Any]:
+    hits = _build_hits(bundle, chunk_map, args)
+    source_id = ""
+    if snapshot.startswith("snapshot_"):
+        parts = snapshot.replace("snapshot_", "", 1).split("_")
+        if len(parts) > 2:
+            source_id = "_".join(part for part in parts[1:] if not part.lower().startswith("v"))
+    for hit in hits:
+        if not getattr(hit, "snapshot", ""):
+            hit.snapshot = snapshot
+        if not getattr(hit, "source_id", ""):
+            hit.source_id = source_id
+    return hits
+
+
 def _build_payload(
     display_query: str,
     expanded_query: str,
@@ -221,10 +262,15 @@ def _build_payload(
     args: SimpleNamespace,
     documents: list[dict],
     answer: str,
+    *,
+    snapshot: str,
+    snapshots: list[str] | None = None,
 ) -> dict:
     return {
         "query": display_query,
         "expanded_query": expanded_query if expanded_query != display_query else None,
+        "snapshot": snapshot,
+        "resolved_snapshots": list(snapshots or [snapshot]),
         "mode": mode,
         "top_k": args.top_k,
         "top_docs": args.top_docs,
@@ -244,6 +290,8 @@ def _build_payload(
                 "category": doc.get("category", ""),
                 "snippet": (doc.get("evidence_snippets") or [""])[0],
                 "reason": "; ".join(doc.get("reasons", [])),
+                "source_id": doc.get("source_id", ""),
+                "snapshot": doc.get("snapshot", snapshot),
                 "source_path": doc.get("source_path", ""),
                 "original_source_path": doc.get("original_source_path", ""),
                 "relative_path": doc.get("relative_path", ""),
@@ -270,17 +318,18 @@ def run_rag_query(
     max_chunks_per_doc: int,
     mode: str,
     original_query: Optional[str] = None,
+    snapshot: Optional[str] = None,
     index_path: Optional[str] = None,
     metadata_path: Optional[str] = None,
     chunks_jsonl: Optional[str] = None,
 ) -> dict:
     assembler = _assembler()
-    snapshot = get_active_snapshot()
-    default_index, default_meta = default_index_paths(snapshot, category)
+    resolved_snapshot = snapshot or get_active_snapshot()
+    default_index, default_meta = default_index_paths(resolved_snapshot, category)
     resolved_index = Path(index_path).resolve() if index_path else default_index.resolve()
     resolved_meta = Path(metadata_path).resolve() if metadata_path else default_meta.resolve()
     resolved_chunks = (
-        Path(chunks_jsonl).resolve() if chunks_jsonl else default_chunks_path(snapshot).resolve()
+        Path(chunks_jsonl).resolve() if chunks_jsonl else default_chunks_path(resolved_snapshot).resolve()
     )
 
     args = _build_args(
@@ -298,7 +347,7 @@ def run_rag_query(
 
     bundle = _get_bundle(resolved_index, resolved_meta)
     chunk_map = _get_chunk_map(resolved_chunks)
-    hits = _build_hits(bundle, chunk_map, args)
+    hits = _build_hits_for_snapshot(resolved_snapshot, bundle, chunk_map, args)
     hits = assembler.filter_by_category(hits, args.category)
     hits = assembler.filter_by_metadata(hits, args.organization, args.year)
     hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
@@ -306,4 +355,98 @@ def run_rag_query(
     documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)
     prompt = assembler.build_prompt(display_query, documents)
     answer = assembler.generate_answer(prompt, args)
-    return _build_payload(display_query, query, mode, args, documents, answer)
+    return _build_payload(
+        display_query,
+        query,
+        mode,
+        args,
+        documents,
+        answer,
+        snapshot=resolved_snapshot,
+        snapshots=[resolved_snapshot],
+    )
+
+
+def run_multi_rag_query(
+    *,
+    query: str,
+    top_k: int,
+    top_docs: int,
+    answer_provider: str,
+    answer_model: str,
+    category: Optional[str],
+    organization: Optional[str],
+    year: Optional[str],
+    max_chunks_per_doc: int,
+    mode: str,
+    snapshots: list[str],
+    original_query: Optional[str] = None,
+) -> dict:
+    assembler = _assembler()
+    resolved_snapshots = [str(value).strip() for value in snapshots if str(value).strip()]
+    if not resolved_snapshots:
+        raise RuntimeError("검색 가능한 Snapshot이 없습니다.")
+
+    args = _build_args(
+        query=query,
+        answer_provider=answer_provider,
+        answer_model=answer_model,
+        category=category or "",
+        organization=organization or "",
+        year=year or "",
+        top_k=top_k,
+        top_docs=top_docs,
+        max_chunks_per_doc=max_chunks_per_doc,
+        mode=mode,
+    )
+
+    all_hits: list[Any] = []
+    skipped_snapshots: list[dict[str, str]] = []
+    for snapshot_id in resolved_snapshots:
+        try:
+            index_path, meta_path = default_index_paths(snapshot_id, category)
+            chunks_path = default_chunks_path(snapshot_id)
+            if not (index_path.exists() and meta_path.exists() and chunks_path.exists()):
+                skipped_snapshots.append(
+                    {"snapshot": snapshot_id, "error": "required files missing"}
+                )
+                continue
+            bundle = _get_bundle(index_path.resolve(), meta_path.resolve())
+            chunk_map = _get_chunk_map(chunks_path.resolve())
+            all_hits.extend(_build_hits_for_snapshot(snapshot_id, bundle, chunk_map, args))
+        except Exception as exc:
+            skipped_snapshots.append(
+                {"snapshot": snapshot_id, "error": str(exc) or exc.__class__.__name__}
+            )
+            continue
+
+    if not all_hits:
+        detail = ", ".join(
+            f"{item['snapshot']}: {item['error']}" for item in skipped_snapshots[:3]
+        )
+        if detail:
+            raise RuntimeError(
+                f"선택한 검색 범위에서 사용할 Snapshot 로드에 실패했습니다. {detail}"
+            )
+        raise RuntimeError("선택한 검색 범위에 사용할 FAISS Snapshot 파일이 없습니다.")
+
+    all_hits.sort(key=lambda hit: float(getattr(hit, "score", 0.0)), reverse=True)
+    hits = assembler.filter_by_category(all_hits, args.category)
+    hits = assembler.filter_by_metadata(hits, args.organization, args.year)
+    hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
+    display_query = original_query or query
+    documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)
+    prompt = assembler.build_prompt(display_query, documents)
+    answer = assembler.generate_answer(prompt, args)
+    payload = _build_payload(
+        display_query,
+        query,
+        mode,
+        args,
+        documents,
+        answer,
+        snapshot=resolved_snapshots[0],
+        snapshots=resolved_snapshots,
+    )
+    payload["skipped_snapshots"] = skipped_snapshots
+    return payload

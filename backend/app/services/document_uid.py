@@ -88,8 +88,11 @@ def detect_file_change(
             new_checksum = calculate_file_checksum(file_path)
         return "changed", new_checksum
 
+    normalized_old_modified_at = old_modified_at.replace(microsecond=0) if old_modified_at else None
+    normalized_current_modified_at = current_modified_at.replace(microsecond=0)
+
     # 2차: 수정 시간 변경
-    if old_modified_at != current_modified_at:
+    if normalized_old_modified_at != normalized_current_modified_at:
         # 정밀 확인 필요
         if file_path and file_path.exists() and old_checksum:
             new_checksum = calculate_file_checksum(file_path)

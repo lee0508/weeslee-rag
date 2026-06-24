@@ -23,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from app.core.config import settings
 from app.services.rag_source_pipeline import build_manifest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -47,7 +48,7 @@ PIPELINE_STAGES = {
 
 def create_job(
     snapshot: str,
-    source_id: str = "rag_source",
+    source_id: str,
     start_from_stage: int = 1,
     end_stage: int = 6,
 ) -> str:
@@ -251,7 +252,7 @@ async def run_pipeline(job_id: str) -> None:
     job = _jobs[job_id]
     q: asyncio.Queue = job["queue"]
     snapshot = job["snapshot"]
-    source_id = job.get("source_id", "rag_source")
+    source_id = job.get("source_id") or ""
     start_from = job.get("start_from_stage", 1)
     end_stage = job.get("end_stage", 6)
     p = _paths(snapshot)
@@ -342,6 +343,7 @@ async def run_pipeline(job_id: str) -> None:
                     "--output-index", str(p["index_path"]),
                     "--output-metadata", str(p["meta_path"]),
                     "--embedding-provider", "ollama",
+                    "--ollama-model", settings.ollama_embed_model,
                 ],
                 emit, 70, 88,
             )
@@ -361,6 +363,7 @@ async def run_pipeline(job_id: str) -> None:
                     "--output-dir", str(p["faiss_dir"]),
                     "--snapshot", snapshot,
                     "--embedding-provider", "ollama",
+                    "--ollama-model", settings.ollama_embed_model,
                 ],
                 emit, 90, 93,
             )
@@ -448,10 +451,16 @@ async def _run_script(
     return proc.returncode
 
 
-def activate_snapshot(snapshot: str) -> dict:
+def activate_snapshot(
+    snapshot: str,
+    source_id: Optional[str] = None,
+    dataset_id: Optional[str] = None,
+) -> dict:
     """Write active_index.json and return the new content."""
     content = {
         "snapshot": snapshot,
+        "source_id": source_id or "",
+        "dataset_id": dataset_id or "",
         "activated_at": datetime.now().isoformat(),
     }
     ACTIVE_INDEX_PATH.write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8")

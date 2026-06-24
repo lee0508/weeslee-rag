@@ -59,7 +59,7 @@ def _rules():
     return build_rag_source_metadata
 
 
-def resolve_source_path(source_id: str = "rag_source") -> Path:
+def resolve_source_path(source_id: str) -> Path:
     record = get_record("document_sources", "source_id", source_id)
     candidate = None
     if record:
@@ -196,7 +196,7 @@ def build_manifest_row(
 
 def build_manifest(
     snapshot_name: str,
-    source_id: str = "rag_source",
+    source_id: str,
     limit: int = 0,
     overwrite: bool = True,
 ) -> dict[str, Any]:
