@@ -197,3 +197,51 @@ frontend/__*.txt
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# === Added: Data folders (runtime generated) ===
+data/faiss/
+data/graph/
+data/metadata/
+data/snapshots/
+data/reviews/
+data/tag_keyword/
+data/config/
+data/extracted_text/
+data/processed_text/
+data/rag_source_metadata.jsonl
+data/active_index.json.backup
+
+# === Added: Wiki content (not versioned) ===
+data/wiki/**/*.md
+data/wiki/**/*.txt
+data/wiki/organizations/
+data/wiki/technologies/
+data/wiki/rag_source/
+data/wiki/src_*/
+data/wiki/01_*/
+data/wiki/02_*/
+
+# === Added: Backup files ===
+*.bak
+*.bak_*
+backups/
+
+# === Added: Temp/sample files ===
+sample_*.json
+sample_*.sh
+mnt_fileList.txt
+rag-marker-test.txt
+restart_services.sh
+
+# === Added: Platform config (runtime) ===
+platform_config/clients.json
+platform_config/collection_templates.json
+platform_config/collections_active.json
+platform_config/keywords.json
+platform_config/metadata_templates.json
+platform_config/tags.json
+platform_config/document_source_inventories/
+
+# === Added: Root level copies ===
+/rag-assistant.html
+/rag.py
