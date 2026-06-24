@@ -7,8 +7,17 @@ Output:
   data/indexes/graph/graph_edges.jsonl
   data/indexes/graph/graph_manifest.json
 
-Node types:  project | document | category | organization | technology | methodology | domain
-Edge types:  has_document | has_category | related_sequence | 발주 | 적용기술 | 사용방법론 | 관련도메인 | 동의어 | 유사기술
+Node types:  project | document | category | organization | technology | methodology | domain | chunk_section
+Edge types:  has_document | has_category | related_sequence | 발주 | 적용기술 | 사용방법론 | 관련도메인 | 동의어 | 유사기술 | APPEARS_IN | MENTIONS
+
+Phase 2 enhancements:
+- chunk_section 노드: FAISS 청크의 section_heading 기반 섹션 노드 생성
+- APPEARS_IN 엣지: Chunk → Section 연결
+- page_no 메타데이터 포함
+
+Phase 3 enhancements:
+- MENTIONS 엣지: Document → Keyword 연결 (청크 텍스트 기반)
+- 문서별 키워드 집계 및 빈도 정보 포함
 """
 from __future__ import annotations
 
@@ -40,10 +49,21 @@ from app.services.knowledge_graph import (  # noqa: E402
     extract_technologies,
     extract_methodologies,
     extract_domains,
+    get_technology_color,
     ORGANIZATION_SYNONYMS,
     TECHNOLOGY_HIERARCHY,
     METHODOLOGY_SYNONYMS,
     DOMAIN_SYNONYMS,
+    # 확장된 분류 함수들
+    get_organization_type,
+    get_all_organization_types,
+    get_organizations_by_type,
+    classify_project_type,
+    get_all_project_types,
+    classify_document_section,
+    get_all_document_sections,
+    extract_document_keywords,
+    get_all_document_keywords,
 )
 
 # ── Category config ───────────────────────────────────────────────────────────
@@ -163,6 +183,90 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
                 "project_confidence":       meta.get("project_confidence", 0.0),
             })
     return docs
+
+
+def _chunks_from_faiss_meta(path: Path) -> list[dict]:
+    """Extract all chunks with section_heading info from FAISS metadata JSONL."""
+    chunks: list[dict] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            chunk_id = row.get("chunk_id", "")
+            if not chunk_id:
+                continue
+            meta = row.get("metadata") or {}
+            chunks.append({
+                "chunk_id": chunk_id,
+                "document_id": row.get("document_id", ""),
+                "section_heading": row.get("section_heading", ""),
+                "page_no": row.get("page_no") or meta.get("page_no", 0),
+                "slide_no": row.get("slide_no") or meta.get("slide_no"),
+                "char_count": row.get("char_count", 0),
+            })
+    return chunks
+
+
+def _load_document_texts_by_source_path() -> dict[str, str]:
+    """Load combined document texts from processed_text/{doc_id}/ files.
+
+    source_path를 키로 사용하여 FAISS document_id와 매핑 가능하게 함.
+
+    Returns:
+        dict: source_path (normalized) -> combined text of all chunks
+    """
+    source_path_texts: dict[str, str] = {}
+
+    # 청크 텍스트는 data/processed_text/{doc_id}/chunks.json 에 저장됨
+    processed_text_dir = DATA_DIR / "processed_text"
+
+    if not processed_text_dir.exists():
+        return source_path_texts
+
+    try:
+        for doc_dir in processed_text_dir.iterdir():
+            if not doc_dir.is_dir():
+                continue
+
+            # ocr_report.json에서 source_path 추출
+            ocr_report_file = doc_dir / "ocr_report.json"
+            chunks_file = doc_dir / "chunks.json"
+
+            if not ocr_report_file.exists() or not chunks_file.exists():
+                continue
+
+            try:
+                # source_path 추출
+                with ocr_report_file.open("r", encoding="utf-8") as f:
+                    ocr_data = json.load(f)
+                source_path = ocr_data.get("source_path", "")
+                if not source_path:
+                    continue
+
+                # 경로 정규화 (역슬래시 → 슬래시)
+                source_path_key = source_path.replace("\\", "/")
+
+                # chunks.json에서 텍스트 추출
+                with chunks_file.open("r", encoding="utf-8") as f:
+                    chunks_data = json.load(f)
+
+                combined_text = ""
+                for chunk in chunks_data.get("chunks", []):
+                    content = chunk.get("content", "")
+                    if content:
+                        combined_text += " " + content
+
+                if combined_text.strip():
+                    source_path_texts[source_path_key] = combined_text.strip()
+
+            except Exception:
+                continue  # 개별 파일 오류는 무시
+
+    except Exception as e:
+        print(json.dumps({"warning": f"Failed to load document texts: {e}"}))
+
+    return source_path_texts
 
 
 def _docs_from_manifests() -> list[dict]:
@@ -303,6 +407,7 @@ def _add_knowledge_graph_nodes(
 ) -> None:
     """
     Knowledge Graph 확장: organization, technology, methodology, domain 노드 생성.
+    추가로 organization_type, project_type, document_section, document_keyword 노드 생성.
 
     각 프로젝트에서 엔티티를 추출하고 노드/엣지로 연결.
     """
@@ -335,6 +440,30 @@ def _add_knowledge_graph_nodes(
         }):
             org_nodes_created.add(canonical)
 
+    # 1-1. Organization Type 노드 생성 (공공기관, 공기업, 연구기관 등)
+    org_type_colors = {
+        "공공기관": "#1d4ed8",
+        "공기업": "#0891b2",
+        "연구기관": "#7c3aed",
+        "건강보험": "#059669",
+        "민간기업": "#dc2626",
+    }
+    for org_type in get_all_organization_types():
+        org_type_id = f"org_type:{org_type}"
+        members = get_organizations_by_type(org_type)
+        add_node({
+            "id": org_type_id,
+            "type": "organization_type",
+            "label": org_type,
+            "member_count": len(members),
+            "color": org_type_colors.get(org_type, "#64748b"),
+        })
+        # 기관 → 기관유형 엣지
+        for member in members:
+            member_org_id = f"org:{member}"
+            if member_org_id in node_ids:
+                add_edge(member_org_id, org_type_id, "소속유형")
+
     # 2. Technology 노드 생성 및 계층 엣지
     for tech_name, info in TECHNOLOGY_HIERARCHY.items():
         tech_id = f"tech:{tech_name}"
@@ -343,7 +472,7 @@ def _add_knowledge_graph_nodes(
             "type": "technology",
             "label": tech_name,
             "synonyms": info.get("synonyms", []),
-            "color": "#8b5cf6",
+            "color": info.get("color", get_technology_color(tech_name)),
         })
 
         # 부모-자식 관계
@@ -353,6 +482,14 @@ def _add_knowledge_graph_nodes(
 
         for child in info.get("children", []):
             child_id = f"tech:{child}"
+            # 자식 노드가 없으면 먼저 생성
+            add_node({
+                "id": child_id,
+                "type": "technology",
+                "label": child,
+                "synonyms": [],
+                "color": get_technology_color(child),
+            })
             add_edge(tech_id, child_id, "유사기술", label="하위기술")
 
     # 3. Methodology 노드 생성
@@ -377,7 +514,71 @@ def _add_knowledge_graph_nodes(
             "color": "#22c55e",
         })
 
-    # 5. 프로젝트에서 엔티티 추출 및 엣지 연결
+    # 5. Project Type 노드 생성 (ISP수립, 시스템구축, 플랫폼고도화 등)
+    project_type_colors = {
+        "ISP수립": "#7c3aed",
+        "ISMP수립": "#8b5cf6",
+        "시스템구축": "#3b82f6",
+        "시스템개선": "#0ea5e9",
+        "플랫폼고도화": "#06b6d4",
+        "로드맵수립": "#14b8a6",
+        "연구용역": "#f59e0b",
+        "운영유지보수": "#64748b",
+    }
+    for proj_type in get_all_project_types():
+        proj_type_id = f"proj_type:{proj_type}"
+        add_node({
+            "id": proj_type_id,
+            "type": "project_type",
+            "label": proj_type,
+            "color": project_type_colors.get(proj_type, "#64748b"),
+        })
+
+    # 6. Document Section 노드 생성 (제안서 섹션, 산출물 섹션)
+    section_colors = {
+        # 제안서 섹션
+        "전략및방법론": "#6366f1",
+        "기술및기능": "#8b5cf6",
+        "프로젝트관리": "#a855f7",
+        "프로젝트지원": "#c026d3",
+        "연구과제": "#db2777",
+        # 산출물 섹션
+        "환경분석": "#059669",
+        "현황분석": "#0d9488",
+        "목표모델": "#0891b2",
+        "이행계획": "#0284c7",
+    }
+    all_sections = get_all_document_sections()
+    for section_type, sections in all_sections.items():
+        for section_name in sections:
+            section_id = f"section:{section_name}"
+            add_node({
+                "id": section_id,
+                "type": "document_section",
+                "label": section_name,
+                "section_type": section_type.replace("_sections", ""),
+                "color": section_colors.get(section_name, "#64748b"),
+            })
+
+    # 7. Document Keyword 노드 생성 (보안, 의사소통관리, 품질관리 등)
+    keyword_colors = {
+        "보안": "#dc2626",
+        "의사소통관리": "#2563eb",
+        "품질관리": "#16a34a",
+        "위험관리": "#ea580c",
+        "선진사례": "#7c3aed",
+        "데이터관리": "#0891b2",
+    }
+    for keyword in get_all_document_keywords():
+        keyword_id = f"keyword:{keyword}"
+        add_node({
+            "id": keyword_id,
+            "type": "document_keyword",
+            "label": keyword,
+            "color": keyword_colors.get(keyword, "#64748b"),
+        })
+
+    # 8. 프로젝트에서 엔티티 추출 및 엣지 연결
     for project_name, proj_docs in by_project.items():
         if project_name == "미분류":
             continue
@@ -397,6 +598,12 @@ def _add_knowledge_graph_nodes(
             if org_id.replace("org:", "") in org_nodes_created or canonical_org in ORGANIZATION_SYNONYMS:
                 add_edge(org_id, proj_id, "발주")
 
+            # 기관유형 연결
+            org_type = get_organization_type(canonical_org)
+            if org_type:
+                org_type_id = f"org_type:{org_type}"
+                add_edge(proj_id, org_type_id, "발주기관유형")
+
         # Technology 추출 및 연결
         techs = extract_technologies(text_for_extraction)
         for tech in techs:
@@ -414,6 +621,210 @@ def _add_knowledge_graph_nodes(
         for domain in domains:
             domain_id = f"domain:{domain}"
             add_edge(proj_id, domain_id, "관련도메인")
+
+        # Project Type 추출 및 연결
+        proj_types = classify_project_type(text_for_extraction)
+        for proj_type in proj_types:
+            proj_type_id = f"proj_type:{proj_type}"
+            add_edge(proj_id, proj_type_id, "사업유형")
+
+    # 9. 문서별 섹션/키워드 연결 (source_path 기반)
+    for project_name, proj_docs in by_project.items():
+        for doc in proj_docs:
+            doc_id = f"doc:{doc['document_id']}"
+            if doc_id not in node_ids:
+                continue
+
+            source_path = doc.get("source_path", "")
+            doc_category = doc.get("category", "")
+
+            # 문서 섹션 추출 및 연결
+            sections = classify_document_section(source_path, doc_category)
+            for section in sections:
+                section_id = f"section:{section}"
+                add_edge(doc_id, section_id, "문서섹션")
+
+            # 문서 키워드 추출 및 연결
+            keywords = extract_document_keywords(source_path)
+            for keyword in keywords:
+                keyword_id = f"keyword:{keyword}"
+                add_edge(doc_id, keyword_id, "관련키워드")
+
+
+# ── Phase 2: Chunk Section 노드 및 APPEARS_IN 엣지 ──────────────────────────────
+
+
+def _add_chunk_section_nodes_and_edges(
+    nodes: list[dict],
+    edges: list[dict],
+    chunks: list[dict],
+    node_ids: set[str],
+    edge_counter: list[int],
+) -> None:
+    """
+    FAISS 청크의 section_heading 기반으로 chunk_section 노드를 생성하고,
+    Document → ChunkSection APPEARS_IN 엣지를 추가한다.
+
+    Q2 결정: B (핵심 섹션만 Graph 노드화) - entity_mappings 기반 핵심 섹션만 노드로 생성
+    """
+    from app.services.knowledge_graph import classify_document_section
+
+    def add_node(n: dict) -> bool:
+        if n["id"] not in node_ids:
+            nodes.append(n)
+            node_ids.add(n["id"])
+            return True
+        return False
+
+    def add_edge(src: str, tgt: str, relation: str, **extra) -> None:
+        edge_id = f"{src}->{tgt}:{relation}"
+        if any(e["id"] == edge_id for e in edges):
+            return
+        edge_counter[0] += 1
+        edges.append({"id": edge_id, "source": src, "target": tgt,
+                      "relation": relation, **extra})
+
+    # 1. 문서별로 청크 그룹화
+    doc_chunks: dict[str, list[dict]] = defaultdict(list)
+    for chunk in chunks:
+        doc_id = chunk.get("document_id", "")
+        if doc_id:
+            doc_chunks[doc_id].append(chunk)
+
+    # 2. 각 문서의 섹션 헤딩 추출 및 노드 생성
+    section_colors = {
+        "기술및기능": "#8b5cf6",
+        "프로젝트관리": "#a855f7",
+        "프로젝트지원": "#c026d3",
+        "전략및방법론": "#6366f1",
+        "연구과제": "#db2777",
+        "현황분석": "#0d9488",
+        "환경분석": "#059669",
+        "목표모델": "#0891b2",
+        "이행계획": "#0284c7",
+    }
+
+    for doc_id, chunks_list in doc_chunks.items():
+        doc_node_id = f"doc:{doc_id}"
+
+        # 문서 노드가 그래프에 없으면 스킵
+        if doc_node_id not in node_ids:
+            continue
+
+        # 유니크한 섹션 헤딩 추출
+        section_headings: dict[str, list[dict]] = defaultdict(list)
+        for chunk in chunks_list:
+            heading = chunk.get("section_heading", "").strip()
+            if heading:
+                section_headings[heading].append(chunk)
+
+        for heading, heading_chunks in section_headings.items():
+            # 섹션 헤딩에서 번호 제거 (예: "1. 기술및기능" → "기술및기능")
+            clean_heading = re.sub(r"^\d+\.\s*", "", heading).strip()
+
+            # 핵심 섹션인지 확인 (entity_mappings 기반)
+            matched_sections = classify_document_section(clean_heading, "")
+            is_key_section = len(matched_sections) > 0
+
+            # chunk_section 노드 ID: doc_id + heading (중복 방지)
+            section_node_id = f"chunk_section:{doc_id}:{clean_heading}"
+
+            # 페이지 범위 계산
+            page_nos = [c["page_no"] for c in heading_chunks if c.get("page_no")]
+            start_page = min(page_nos) if page_nos else None
+            end_page = max(page_nos) if page_nos else None
+
+            # 노드 생성 (핵심 섹션만 또는 청크가 2개 이상인 경우)
+            if is_key_section or len(heading_chunks) >= 2:
+                add_node({
+                    "id": section_node_id,
+                    "type": "chunk_section",
+                    "label": clean_heading,
+                    "document_id": doc_id,
+                    "chunk_count": len(heading_chunks),
+                    "is_key_section": is_key_section,
+                    "start_page": start_page,
+                    "end_page": end_page,
+                    "matched_entity_sections": list(matched_sections),
+                    "color": section_colors.get(clean_heading, "#64748b"),
+                })
+
+                # Document → ChunkSection APPEARS_IN 엣지
+                add_edge(doc_node_id, section_node_id, "APPEARS_IN",
+                         chunk_count=len(heading_chunks),
+                         start_page=start_page,
+                         end_page=end_page)
+
+                # 핵심 섹션이면 기존 section 노드와도 연결
+                for matched in matched_sections:
+                    entity_section_id = f"section:{matched}"
+                    if entity_section_id in node_ids:
+                        add_edge(section_node_id, entity_section_id, "MAPS_TO")
+
+
+# ── Phase 3: MENTIONS 엣지 (Document → Keyword) ──────────────────────────────
+
+
+def _add_document_keyword_mentions(
+    nodes: list[dict],
+    edges: list[dict],
+    source_path_texts: dict[str, str],
+    node_ids: set[str],
+    edge_counter: list[int],
+) -> int:
+    """
+    문서 텍스트에서 키워드를 추출하고 Document → Keyword MENTIONS 엣지를 생성한다.
+
+    Args:
+        nodes: 노드 리스트
+        edges: 엣지 리스트
+        source_path_texts: source_path -> combined text 매핑
+        node_ids: 노드 ID 집합
+        edge_counter: 엣지 카운터
+
+    Returns:
+        생성된 MENTIONS 엣지 수
+    """
+
+    def add_edge(src: str, tgt: str, relation: str, **extra) -> bool:
+        edge_id = f"{src}->{tgt}:{relation}"
+        if any(e["id"] == edge_id for e in edges):
+            return False
+        edge_counter[0] += 1
+        edges.append({"id": edge_id, "source": src, "target": tgt,
+                      "relation": relation, **extra})
+        return True
+
+    # 문서 노드의 source_path → doc_node_id 매핑 구축
+    source_path_to_doc_node: dict[str, str] = {}
+    for node in nodes:
+        if node.get("type") == "document":
+            source_path = node.get("source_path", "").replace("\\", "/")
+            if source_path:
+                source_path_to_doc_node[source_path] = node["id"]
+
+    mentions_count = 0
+
+    for source_path, text in source_path_texts.items():
+        # source_path로 문서 노드 찾기
+        doc_node_id = source_path_to_doc_node.get(source_path)
+        if not doc_node_id:
+            continue
+
+        if not text.strip():
+            continue
+
+        # 키워드 추출 (knowledge_graph.py의 extract_document_keywords 사용)
+        found_keywords = extract_document_keywords(text)
+
+        # 키워드별 MENTIONS 엣지 생성
+        for keyword in found_keywords:
+            keyword_node_id = f"keyword:{keyword}"
+            if keyword_node_id in node_ids:
+                if add_edge(doc_node_id, keyword_node_id, "MENTIONS"):
+                    mentions_count += 1
+
+    return mentions_count
 
 
 # ── 유사 프로젝트 연결 (개선방안 5) ────────────────────────────────────────────────
@@ -557,10 +968,10 @@ def main() -> int:
 
     # Resolve source
     faiss_meta_path: Path | None = None
+    snapshot = args.snapshot or _read_active_snapshot()  # Phase 3용으로 미리 추출
     if args.faiss_meta:
         faiss_meta_path = Path(args.faiss_meta)
     else:
-        snapshot = args.snapshot or _read_active_snapshot()
         if snapshot:
             candidate = FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl"
             if candidate.exists():
@@ -569,12 +980,16 @@ def main() -> int:
     # 진행률 출력: 데이터 로드 시작
     print(json.dumps({"progress": 10, "current": 1, "total": 5, "stage": "그래프 데이터 로드"}), flush=True)
 
+    # Phase 2: 청크 데이터도 로드 (section_heading, page_no 추출용)
+    chunks: list[dict] = []
+
     if faiss_meta_path and faiss_meta_path.exists():
         docs = _docs_from_faiss_meta(faiss_meta_path)
+        chunks = _chunks_from_faiss_meta(faiss_meta_path)  # Phase 2
         source_type = "faiss_metadata"
         source_path = str(faiss_meta_path)
         print(json.dumps({"source": "faiss_metadata", "path": str(faiss_meta_path),
-                          "doc_count": len(docs)}, ensure_ascii=False))
+                          "doc_count": len(docs), "chunk_count": len(chunks)}, ensure_ascii=False))
     else:
         docs = _docs_from_manifests()
         source_type = "manifest_csv"
@@ -598,8 +1013,27 @@ def main() -> int:
             return 1
 
     # 진행률 출력: 노드/엣지 생성
-    print(json.dumps({"progress": 45, "current": 3, "total": 5, "stage": "그래프 노드/엣지 생성"}), flush=True)
+    print(json.dumps({"progress": 45, "current": 3, "total": 6, "stage": "그래프 노드/엣지 생성"}), flush=True)
     nodes, edges = _build_nodes_edges(docs)
+
+    # Phase 2: Chunk Section 노드 및 APPEARS_IN 엣지 추가
+    mentions_count = 0
+    if chunks:
+        print(json.dumps({"progress": 55, "current": 4, "total": 7, "stage": "Chunk Section 노드/APPEARS_IN 엣지 생성"}), flush=True)
+        node_ids = {n["id"] for n in nodes}
+        edge_counter = [max(int(e["id"].lstrip("e")) for e in edges if e["id"].startswith("e")) if edges else 0]
+        _add_chunk_section_nodes_and_edges(nodes, edges, chunks, node_ids, edge_counter)
+
+        # Phase 3: MENTIONS 엣지 추가 (문서 텍스트 기반 키워드 추출)
+        print(json.dumps({"progress": 70, "current": 5, "total": 7, "stage": "문서 텍스트 로드 및 MENTIONS 엣지 생성"}), flush=True)
+        source_path_texts = _load_document_texts_by_source_path()
+        if source_path_texts:
+            node_ids = {n["id"] for n in nodes}  # 새 노드 추가 후 갱신
+            mentions_count = _add_document_keyword_mentions(nodes, edges, source_path_texts, node_ids, edge_counter)
+            print(json.dumps({"phase3": "mentions", "documents_with_text": len(source_path_texts),
+                              "mentions_edges_created": mentions_count}, ensure_ascii=False))
+        else:
+            print(json.dumps({"warning": "No document texts loaded, skipping MENTIONS edges"}))
 
     nodes_path = out_dir / "graph_nodes.jsonl"
     edges_path = out_dir / "graph_edges.jsonl"
@@ -612,9 +1046,12 @@ def main() -> int:
 
     project_count  = sum(1 for n in nodes if n["type"] == "project")
     document_count = sum(1 for n in nodes if n["type"] == "document")
+    chunk_section_count = sum(1 for n in nodes if n["type"] == "chunk_section")
+    appears_in_count = sum(1 for e in edges if e["relation"] == "APPEARS_IN")
+    mentions_edge_count = sum(1 for e in edges if e["relation"] == "MENTIONS")
 
     # 진행률 출력: 완료
-    print(json.dumps({"progress": 100, "current": 5, "total": 5, "stage": "그래프 빌드 완료"}), flush=True)
+    print(json.dumps({"progress": 100, "current": 7, "total": 7, "stage": "그래프 빌드 완료"}), flush=True)
 
     manifest = {
         "built_at":       datetime.now().isoformat(timespec="seconds"),
@@ -623,11 +1060,17 @@ def main() -> int:
         "source_path":    source_path,
         "output_dir":     str(out_dir),
         "doc_count":      len(docs),
+        "chunk_count":    len(chunks),
         "original_count": original_count if source_id else len(docs),
         "node_count":     len(nodes),
         "edge_count":     len(edges),
         "project_count":  project_count,
         "document_count": document_count,
+        # Phase 2: Chunk Section 통계
+        "chunk_section_count": chunk_section_count,
+        "appears_in_edge_count": appears_in_count,
+        # Phase 3: MENTIONS 통계
+        "mentions_edge_count": mentions_edge_count,
     }
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 

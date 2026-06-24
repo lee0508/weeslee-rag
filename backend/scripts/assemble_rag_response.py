@@ -44,6 +44,8 @@ class SearchHit:
     score: float
     chunk_id: str
     document_id: str
+    source_id: str
+    snapshot: str
     category: str
     section_heading: str
     source_path: str
@@ -377,6 +379,8 @@ def build_hits(index_path: Path, metadata_path: Path, chunks_path: Path, args: a
                 score=float(score),
                 chunk_id=row.get("chunk_id", ""),
                 document_id=row.get("document_id", ""),
+                source_id=row.get("source_id", "") or meta.get("source_id", ""),
+                snapshot=row.get("snapshot", "") or meta.get("snapshot", ""),
                 category=row.get("category", ""),
                 section_heading=row.get("section_heading", ""),
                 source_path=row.get("source_path", ""),
@@ -437,10 +441,13 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
     is_bid = (mode == "bid_project")
 
     for hit in hits:
+        group_key = f"{hit.source_id or '-'}::{hit.document_id or '-'}::{hit.snapshot or '-'}"
         group = grouped.setdefault(
-            hit.document_id,
+            group_key,
             {
                 "document_id": hit.document_id,
+                "source_id": hit.source_id,
+                "snapshot": hit.snapshot,
                 "category": hit.category,
                 "source_path": hit.source_path,
                 "input_path": hit.input_path,

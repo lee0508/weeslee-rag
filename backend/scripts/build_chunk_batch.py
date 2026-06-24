@@ -6,6 +6,11 @@ Phase 1 purpose:
 - Load extracted text and metadata for successful rows
 - Split each document into section-aware chunks
 - Save a unified JSONL chunk file for embedding and FAISS indexing
+
+Phase 2 enhancements:
+- Extract page/slide structure from OCR text
+- Map chunks to page numbers
+- Support section-level metadata extraction
 """
 
 from __future__ import annotations
@@ -14,9 +19,19 @@ import argparse
 import csv
 import json
 import re
+import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
+
+# 프로젝트 모듈 임포트를 위한 경로 설정
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.services.document_structure_extractor import (
+    DocumentStructureExtractor,
+    DocumentStructure,
+    ExtractedPage,
+)
 
 
 HEADING_PATTERNS = [
@@ -43,6 +58,22 @@ class ChunkRow:
     section_heading: str
     text: str
     metadata: dict
+    # Phase 2: 페이지/슬라이드 정보
+    page_no: Optional[int] = None
+    slide_no: Optional[int] = None
+    start_char: int = 0
+
+
+# 싱글톤 DocumentStructureExtractor
+_structure_extractor: Optional[DocumentStructureExtractor] = None
+
+
+def get_structure_extractor() -> DocumentStructureExtractor:
+    """DocumentStructureExtractor 싱글톤 반환."""
+    global _structure_extractor
+    if _structure_extractor is None:
+        _structure_extractor = DocumentStructureExtractor()
+    return _structure_extractor
 
 
 def parse_args() -> argparse.Namespace:
@@ -160,11 +191,50 @@ def build_chunks_for_document(
     text = normalize_text(text)
     sections = split_sections(text)
     document_id = metadata["document_id"]
+    extension = metadata.get("extension", "").lower().lstrip(".")
+    folder_path = metadata.get("relative_path", metadata.get("source_path", ""))
+
+    # Phase 2: 문서 구조 추출 (페이지/섹션)
+    extractor = get_structure_extractor()
+    try:
+        doc_id_int = int(document_id) if str(document_id).isdigit() else hash(document_id) % 1000000
+    except (ValueError, TypeError):
+        doc_id_int = hash(str(document_id)) % 1000000
+
+    doc_structure = extractor.extract_structure(
+        text=text,
+        document_id=doc_id_int,
+        folder_path=folder_path,
+        document_category=metadata.get("document_category"),
+        file_type=extension,
+    )
+
     rows: list[ChunkRow] = []
     chunk_index = 0
+    current_char_pos = 0  # 현재 문자 위치 추적
 
     for heading, section_text in sections:
+        section_start = current_char_pos
+
         for chunk_text in chunk_section(section_text, max_chars, overlap_chars, min_chars):
+            chunk_len = len(chunk_text)
+            chunk_start = current_char_pos
+            chunk_end = chunk_start + chunk_len
+
+            # Phase 2: 청크가 속하는 페이지 찾기
+            page_no = None
+            slide_no = None
+            for page in doc_structure.pages:
+                if page.start_char <= chunk_start < page.end_char:
+                    page_no = page.page_no
+                    slide_no = page.slide_no
+                    break
+
+            # 못 찾으면 마지막 페이지
+            if page_no is None and doc_structure.pages:
+                page_no = doc_structure.pages[-1].page_no
+                slide_no = doc_structure.pages[-1].slide_no
+
             rows.append(
                 ChunkRow(
                     chunk_id=f"{document_id}-chunk-{chunk_index:04d}",
@@ -174,9 +244,12 @@ def build_chunks_for_document(
                     input_path=metadata.get("input_path", metadata.get("source_path", "")),
                     extension=metadata.get("extension", ""),
                     chunk_index=chunk_index,
-                    char_count=len(chunk_text),
+                    char_count=chunk_len,
                     section_heading=heading,
                     text=chunk_text,
+                    page_no=page_no,
+                    slide_no=slide_no,
+                    start_char=chunk_start,
                     metadata={
                         "document_id": document_id,
                         "source_id": metadata.get("source_id", ""),
@@ -212,16 +285,21 @@ def build_chunks_for_document(
                         "extraction_method": metadata.get("extraction_method", ""),
                         "is_scanned": metadata.get("is_scanned", False),
                         "content_length": metadata.get("content_length", 0),
-                        "page_count": metadata.get("page_count", 0),
+                        "page_count": metadata.get("page_count", doc_structure.total_pages),
                         "metadata_confidence": metadata.get("metadata_confidence", {}),
                         # 관리·보고용 보강 필드
                         "file_name": metadata.get("file_name", Path(metadata.get("source_path", "")).name),
                         "created_at": metadata.get("extracted_at", ""),
-                        "page_no": metadata.get("page_no", 0),
+                        # Phase 2: 페이지/슬라이드 정보
+                        "page_no": page_no or 0,
+                        "slide_no": slide_no,
+                        "start_char": chunk_start,
+                        "total_pages": doc_structure.total_pages,
                     },
                 )
             )
             chunk_index += 1
+            current_char_pos = chunk_end
 
     return rows
 
@@ -289,6 +367,10 @@ def main() -> int:
                 "section_heading",
                 "source_path",
                 "input_path",
+                # Phase 2: 페이지/슬라이드 정보
+                "page_no",
+                "slide_no",
+                "start_char",
             ],
         )
         writer.writeheader()
@@ -304,6 +386,10 @@ def main() -> int:
                     "section_heading": row.section_heading,
                     "source_path": row.source_path,
                     "input_path": row.input_path,
+                    # Phase 2: 페이지/슬라이드 정보
+                    "page_no": row.page_no or "",
+                    "slide_no": row.slide_no or "",
+                    "start_char": row.start_char,
                 }
             )
 

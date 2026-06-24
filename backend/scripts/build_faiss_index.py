@@ -131,6 +131,7 @@ def main() -> int:
 
     total = len(rows)
     fallback_count = 0
+    detected_dim: int | None = None  # 첫 번째 성공한 임베딩에서 차원 감지
     for i, row in enumerate(rows, start=1):
         # 진행률 출력 (JSON 형식)
         progress_pct = int((i / max(total, 1)) * 100)
@@ -141,9 +142,14 @@ def main() -> int:
         if args.embedding_provider == "ollama":
             try:
                 vector = ollama_embedding(embedding_text, args.ollama_model, args.ollama_url)
+                # 첫 성공 시 차원 감지
+                if detected_dim is None:
+                    detected_dim = vector.size
             except RuntimeError as exc:
                 print(f"  WARN [{i}/{total}] embedding failed, using hashing fallback: {exc}", flush=True)
-                vector = hashing_embedding(embedding_text, args.embedding_dim)
+                # fallback 시 감지된 차원 사용 (없으면 기본값)
+                fallback_dim = detected_dim or args.embedding_dim
+                vector = hashing_embedding(embedding_text, fallback_dim)
                 fallback_count += 1
         else:
             vector = hashing_embedding(embedding_text, args.embedding_dim)
@@ -174,6 +180,11 @@ def main() -> int:
                 "project_name": meta.get("project_name", ""),
                 "embedding_text_length": len(embedding_text),
                 "original_text_length": len(text),
+                # Phase 2: 페이지/슬라이드 정보
+                "page_no": row.get("page_no") or meta.get("page_no", 0),
+                "slide_no": row.get("slide_no") or meta.get("slide_no"),
+                "start_char": row.get("start_char", 0),
+                "total_pages": meta.get("total_pages", 0),
                 "metadata": meta,
             }
         )
