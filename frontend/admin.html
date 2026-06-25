@@ -13865,7 +13865,7 @@ LIMIT 10`;
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
 
-      const sources = Array.isArray(d) ? d : [];
+      let sources = Array.isArray(d) ? d : [];
       if (!sources.length) {
         el.innerHTML = `<div class="empty-state">
           <div class="empty-icon">📂</div>
@@ -13876,15 +13876,35 @@ LIMIT 10`;
         return;
       }
 
+      // Root Source를 먼저, 하위 Dataset은 root_subpath 기준 정렬
+      sources.sort((a, b) => {
+        const aRoot = (a.root_subpath || '').trim();
+        const bRoot = (b.root_subpath || '').trim();
+        // Root Source (root_subpath 없음) 우선
+        if (!aRoot && bRoot) return -1;
+        if (aRoot && !bRoot) return 1;
+        // 둘 다 Root이거나 둘 다 Dataset이면 이름 순
+        return (a.source_id || '').localeCompare(b.source_id || '');
+      });
+
+      // Root Source Map 생성 (source_id -> name)
+      const rootSourceMap = {};
+      sources.forEach(s => {
+        if (!(s.root_subpath || '').trim()) {
+          rootSourceMap[s.source_id] = s.name || s.source_name || s.source_id;
+        }
+      });
+
       // 테이블 상단에 Document Source 개념 안내 추가
-      const sourceCount = sources.length;
+      const rootSourceCount = Object.keys(rootSourceMap).length;
+      const datasetCount = sources.length - rootSourceCount;
       el.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:6px;margin-bottom:12px">
         <div>
-          <span style="font-size:13px;font-weight:600;color:var(--text)">📁 데이터셋 루트 폴더</span>
-          <span style="font-size:12px;color:var(--muted);margin-left:8px">(등록된 Source: ${sourceCount}개)</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text)">📁 데이터셋 구조</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px">(Root Source: ${rootSourceCount}개 · Dataset: ${datasetCount}개)</span>
         </div>
-        <div style="font-size:11px;color:var(--muted)">Document Source = RAG 파이프라인의 원본 문서 저장소 루트 경로</div>
+        <div style="font-size:11px;color:var(--muted)">Document Source = 루트 폴더 / Dataset = 하위 폴더</div>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="border-bottom:1px solid var(--border)">
@@ -13909,7 +13929,16 @@ LIMIT 10`;
           const datasetStatus = s.dataset_status || 'draft';
           const rootSubpath = (s.root_subpath || '').trim();
           const isRootSource = !rootSubpath;
-          const rootSourceName = isRootSource ? (s.name || s.source_name || '-') : '00. RAG 소스';
+
+          // Root Source 이름 추출: root_subpath 첫 번째 경로 또는 source_name
+          let rootSourceName = '-';
+          if (isRootSource) {
+            rootSourceName = s.name || s.source_name || '-';
+          } else {
+            // root_subpath에서 첫 번째 폴더 추출 (예: "00. RAG 소스/02. 제안서" -> "00. RAG 소스")
+            const firstFolder = rootSubpath.split('/')[0];
+            rootSourceName = firstFolder || 'RAG 소스';
+          }
           const datasetName = isRootSource ? '-' : (s.name || s.source_name || '-');
           return `<tr style="border-bottom:1px solid var(--border)">
           <td style="padding:6px 8px;font-weight:600">${esc(rootSourceName)}</td>
