@@ -12953,6 +12953,23 @@ LIMIT 10`;
       badgeEl.style.color = 'var(--green)';
       badgeEl.textContent = '● ACTIVE';
     }
+
+    // Active Snapshot의 source_id로 ctxSource 자동 선택
+    const activeSourceId = config.source_id || '';
+    if (activeSourceId) {
+      const ctxSource = document.getElementById('ctxSource');
+      if (ctxSource && ctxSource.value !== activeSourceId) {
+        // 옵션 목록에 해당 source_id가 있는지 확인
+        const hasOption = Array.from(ctxSource.options).some(opt => opt.value === activeSourceId);
+        if (hasOption) {
+          ctxSource.value = activeSourceId;
+          syncWrCurrentSourceSelect();
+          updateCtxDatasetFromSource();
+          updateCtxSourceHint();
+          console.log('[Active Snapshot] source_id 자동 선택:', activeSourceId);
+        }
+      }
+    }
   }
 
   // ── Snapshot 상세 정보 모달 ──────────────────────────────────────
