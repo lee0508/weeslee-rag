@@ -457,3 +457,47 @@ async def get_dataset_builder_stats(db: Session = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"통계 조회 실패: {str(e)}")
+
+
+@router.get("/inventory/list")
+async def get_inventory_list(source_id: Optional[str] = None):
+    """
+    OCR Inventory 목록을 반환합니다.
+    Wiki 생성 메뉴에서 프로젝트 목록을 표시할 때 사용합니다.
+    
+    Args:
+        source_id: 특정 source_id의 inventory만 조회 (선택)
+    
+    Returns:
+        inventory: 프로젝트별 문서 목록
+        total_folders: 전체 폴더 수
+    """
+    try:
+        # 기본 경로: data/staged/project_inventory.json
+        inventory_path = STAGED_DIR / "project_inventory.json"
+        
+        # source_id가 지정된 경우 해당 inventory 파일 사용
+        if source_id:
+            source_inventory = STAGED_DIR / f"{source_id}_inventory.json"
+            if source_inventory.exists():
+                inventory_path = source_inventory
+        
+        if not inventory_path.exists():
+            return {
+                "success": False,
+                "inventory": {},
+                "total_folders": 0,
+                "message": "Inventory 파일이 존재하지 않습니다."
+            }
+        
+        inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+        
+        return {
+            "success": True,
+            "inventory": inventory,
+            "total_folders": len(inventory),
+            "source": inventory_path.name
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Inventory 조회 실패: {str(e)}")
