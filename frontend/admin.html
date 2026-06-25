@@ -445,7 +445,7 @@ POST /api/admin/wiki/build</code>
         <div class="wr-eyebrow">Dataset Builder</div>
         <h1 class="wr-page-title">Step 1: Document Scan</h1>
         <p class="wr-page-lead">Document Source 아래의 파일 목록과 기본 메타데이터를 수집합니다.</p>
-        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px; color: #f2f2f2;">
           <strong>주의:</strong> Dataset ID는 Dataset Builder를 시작할 때 생성 또는 확인됩니다. 이 단계는 현재 Source/Dataset 기준으로 파일 기본 메타데이터를 생성/보정합니다.
           또한 RAG 검색용 FAISS Index도 이 단계에서 생성되지 않습니다.
         </div>
@@ -487,7 +487,7 @@ POST /api/admin/wiki/build</code>
         <div class="wr-card">
           <h3 class="wr-card-title">Source / 문서 분류 기준</h3>
           <div class="wr-callout wr-callout-info">
-            <ul style="margin:0;padding-left:20px">
+            <ul style="margin:0;padding-left:20px; color: #f2f2f2;">
               <li><strong>Source ID</strong>: 원본 문서 저장소 ID, 예: <code>rag_source</code></li>
               <li><strong>문서 대분류(document_group)</strong>: Source 아래의 1차 분류, 예: <code>RFP</code>, <code>제안서</code>, <code>산출물</code></li>
               <li><strong>문서 세부분류(section_type)</strong>: 대분류 아래의 세부 분류, 예: <code>전략및방법론</code>, <code>프로젝트관리</code>, <code>연구과제</code>, <code>이행계획</code></li>
@@ -913,7 +913,7 @@ POST /api/admin/wiki/build</code>
       <!-- Step 4: OCR/Parser -->
       <section class="wr-page" data-wr-page-panel="db-step-4">
         <div class="wr-eyebrow">Dataset Builder</div>
-        <h1 class="wr-page-title">Step 3: Text Extraction</h1>
+        <h1 class="wr-page-title">Step 4: Text Extraction</h1>
         <p class="wr-page-lead">PDF, HWP, HWPX, DOCX, PPTX, XLSX 파일에서 텍스트를 추출합니다.</p>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
@@ -1245,10 +1245,10 @@ POST /api/admin/wiki/build</code>
       <!-- Step 5: Chunk Build -->
       <section class="wr-page" data-wr-page-panel="db-step-5">
         <div class="wr-eyebrow">Dataset Builder</div>
-        <h1 class="wr-page-title">Step 4: Chunk & Embed</h1>
+        <h1 class="wr-page-title">Step 5: Chunk & Embed</h1>
         <p class="wr-page-lead">문서를 검색 가능한 의미 단위로 분할하고 임베딩 벡터를 생성합니다.</p>
-        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
-          <strong>안내:</strong> 현재 화면은 사용자에게는 Step 4로 보이지만, 실제 실행은 <strong>Chunk Build</strong>와 <strong>Embedding Build</strong>로 분리됩니다.
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px; color: #f2f2f2;">
+          <strong>안내:</strong> Step 5는 <strong>Chunk Build</strong>와 <strong>Embedding Build</strong>로 분리 실행됩니다.
           실패 원인과 재실행 기준도 별도로 유지됩니다.
         </div>
         <div class="wr-inline-actions" style="margin-bottom:20px">
@@ -1257,7 +1257,7 @@ POST /api/admin/wiki/build</code>
         </div>
         <div class="wr-card">
           <h3 class="wr-card-title">Chunk Build 설정</h3>
-              <div class="wr-callout wr-callout-info">제목 단위, 목차 단위, 슬라이드 단위, 표 단위, 의미 문단 단위로 청킹합니다.</div>
+              <div class="wr-callout wr-callout-info; color: #f2f2f2;">제목 단위, 목차 단위, 슬라이드 단위, 표 단위, 의미 문단 단위로 청킹합니다.</div>
               <div class="wr-form-grid">
                 <div class="wr-field">
                   <label>Chunk 크기 <span class="wr-required">*</span></label>
@@ -1295,7 +1295,7 @@ POST /api/admin/wiki/build</code>
         </div>
         <div class="wr-card" style="margin-top:20px">
           <h3 class="wr-card-title">주의사항</h3>
-          <div class="wr-callout wr-callout-warning">
+          <div class="wr-callout wr-callout-warning" style="color: #f2f2f2;">
             Graph에는 Chunk 노드를 만들지 않습니다. 하지만 FAISS 검색을 위해 chunk_id는 반드시 유지합니다.
           </div>
         </div>
@@ -1481,9 +1481,9 @@ POST /api/admin/wiki/build</code>
       <!-- Step 7: FAISS Build -->
       <section class="wr-page" data-wr-page-panel="db-step-7">
         <div class="wr-eyebrow">Dataset Builder</div>
-        <h1 class="wr-page-title">Step 5: Index Build</h1>
+        <h1 class="wr-page-title">Step 7: Index Build</h1>
         <p class="wr-page-lead">Embedding 결과를 기반으로 검색 인덱스를 생성합니다.</p>
-        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px; color: #f2f2f2;">
           <strong>주의:</strong> 이 단계는 운영 반영 단계가 아닙니다. FAISS Index가 생성되더라도
           사용자 검색 화면에 바로 반영되지 않습니다. 운영 반영은 <strong>Publish &gt; Active Snapshot</strong> 단계에서 수행됩니다.
         </div>
@@ -1491,7 +1491,7 @@ POST /api/admin/wiki/build</code>
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
           <button class="wr-btn wr-btn-primary" type="button" onclick="runDatasetBuilderStep(7)">Step 7 실행</button>
         </div>
-        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px; color: #f2f2f2;">
           collection_id 기준 FAISS Index 생성: index.faiss, index_meta.jsonl
         </div>
         <div class="wr-card" style="margin-bottom:20px">
@@ -1530,9 +1530,9 @@ POST /api/admin/wiki/build</code>
       <!-- Step 8: Dataset Summary -->
       <section class="wr-page" data-wr-page-panel="db-step-8">
         <div class="wr-eyebrow">Dataset Builder</div>
-        <h1 class="wr-page-title">Step 6: Dataset Summary</h1>
+        <h1 class="wr-page-title">Step 8: Dataset Summary</h1>
         <p class="wr-page-lead">Source Scan부터 FAISS Build까지의 처리 상태를 요약합니다.</p>
-        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px;  color: #f2f2f2;">
           <strong>안내:</strong> 이 화면은 Dataset 생성 실행 화면이 아닙니다. 상태 요약 화면입니다.
           Knowledge Graph, LLM Wiki, Publish 상태는 후속 산출물 상태입니다.
           각각 별도 메뉴에서 생성/관리합니다.
