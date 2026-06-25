@@ -13650,9 +13650,19 @@ LIMIT 10`;
         return;
       }
 
-      el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      // 테이블 상단에 Document Source 개념 안내 추가
+      const sourceCount = sources.length;
+      el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:6px;margin-bottom:12px">
+        <div>
+          <span style="font-size:13px;font-weight:600;color:var(--text)">📁 데이터셋 루트 폴더</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px">(등록된 Source: ${sourceCount}개)</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">Document Source = RAG 파이프라인의 원본 문서 저장소 루트 경로</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="border-bottom:1px solid var(--border)">
-          <th style="padding:6px 8px;text-align:left;color:var(--muted)">Source 이름</th>
+          <th style="padding:6px 8px;text-align:left;color:var(--muted)">Source 이름 (루트 폴더)</th>
           <th style="padding:6px 8px;text-align:left;color:var(--muted)">Dataset ID</th>
           <th style="padding:6px 8px;text-align:left;color:var(--muted)">원본 경로</th>
           <th style="padding:6px 8px;text-align:left;color:var(--muted)">상태</th>
