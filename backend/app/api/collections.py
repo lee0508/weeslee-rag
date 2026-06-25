@@ -7,6 +7,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.collection import Collection
 from app.services.platform_store import create_record, get_record, update_record
@@ -67,8 +68,8 @@ def bootstrap_collection_config(client_id: str, source_id: str, overwrite: bool 
         "collection_name": MAIN_COLLECTION_NAME,
         "client_id": client_id,
         "name": MAIN_COLLECTION_NAME,
-        "description": "00. RAG 소스 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
-        "source_root": "00. RAG 소스",
+        "description": f"{settings.rag_source_folder} 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
+        "source_root": settings.rag_source_folder,
         "mount_path": mount_path,
         "enabled": True,
     }

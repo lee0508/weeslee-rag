@@ -1,4 +1,4 @@
-# 00. RAG 소스 manifest와 배치 파이프라인 입력을 준비하는 서비스
+# RAG 소스 manifest와 배치 파이프라인 입력을 준비하는 서비스
 from __future__ import annotations
 
 import csv
@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from app.core.config import settings
+from app.core.mappings import mappings
 from app.services.knowledge_source import knowledge_source_service
 from app.services.metadata_db import get_db_connection
 from app.services.platform_store import get_record
@@ -16,7 +18,8 @@ DATA_DIR = PROJECT_ROOT / "data"
 MANIFEST_DIR = DATA_DIR / "staged" / "manifest"
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 
-SUPPORTED_EXTENSIONS = {".pdf", ".hwp", ".hwpx", ".docx", ".pptx", ".xlsx"}
+# 매핑 (entity_mappings.json에서 로드)
+SUPPORTED_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
 MAIN_COLLECTION_NAME = "weeslee_rag_main"
 MANIFEST_FIELDS = [
     "document_id",

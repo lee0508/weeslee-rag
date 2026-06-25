@@ -33,11 +33,11 @@ from build_chunk_batch import build_chunks_for_document  # noqa: E402
 from build_faiss_index import hashing_embedding, ollama_embedding, truncate_for_embedding  # noqa: E402
 import build_rag_source_metadata as rag_meta_rules  # noqa: E402
 
-COLLECTION_TO_CATEGORY = {
-    "rag_source_rfp": "rfp",
-    "rag_source_proposal": "proposal",
-    "rag_source_deliverable": "deliverable",
-}
+from app.core.config import settings
+from app.core.mappings import mappings
+
+# 매핑 (entity_mappings.json에서 로드)
+COLLECTION_TO_CATEGORY = mappings.COLLECTION_CATEGORY_MAP
 CATEGORY_TO_COLLECTION = {value: key for key, value in COLLECTION_TO_CATEGORY.items()}
 
 
@@ -168,8 +168,9 @@ async def _extract_document(doc: dict[str, Any], collection_key: str) -> tuple[s
     project_name = doc.get("project_name") or rag_meta_rules.extract_project_name(Path(file_path).stem)
     organization = doc.get("organization") or rag_meta_rules.detect_organization(project_name) or ""
     relative_path = ""
-    if "/00. RAG 소스/" in rag_meta_rules.normalize_path(file_path):
-        relative_path = rag_meta_rules.normalize_path(file_path).split("/00. RAG 소스/", 1)[1]
+    rag_folder_marker = f"/{settings.rag_source_folder}/"
+    if rag_folder_marker in rag_meta_rules.normalize_path(file_path):
+        relative_path = rag_meta_rules.normalize_path(file_path).split(rag_folder_marker, 1)[1]
     search_keywords = rag_meta_rules.build_search_keywords(
         root_group=derived["root_group"],
         sub_group=derived["sub_group"],
@@ -194,7 +195,7 @@ async def _extract_document(doc: dict[str, Any], collection_key: str) -> tuple[s
         "deliverable_section": derived["deliverable_section"],
         "section_label": derived["section_label"],
         "collection_key": derived["collection_key"],
-        "source_root": "00. RAG 소스" if derived["root_group"] else "",
+        "source_root": settings.rag_source_folder if derived["root_group"] else "",
         "source_path": file_path,
         "original_source_path": file_path,
         "input_path": file_path,

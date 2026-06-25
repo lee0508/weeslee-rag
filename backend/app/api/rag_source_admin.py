@@ -14,6 +14,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
+from app.core.config import settings
+from app.core.mappings import mappings
 from app.services.metadata_db import get_db_connection, metadata_db_service
 from app.services.platform_store import list_records, get_record
 
@@ -28,8 +30,8 @@ SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 RAG_META_OUTPUT = PROJECT_ROOT / "data" / "rag_source_metadata.jsonl"
 MAIN_COLLECTION_NAME = "weeslee_rag_main"
 
-# 지원 파일 확장자
-_INDEXABLE_EXTENSIONS = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".hwpx", ".hwp", ".xlsx", ".txt"}
+# 지원 파일 확장자 (entity_mappings.json에서 로드)
+_INDEXABLE_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
 
 
 def _rules():
@@ -157,12 +159,12 @@ def _apply_rules_to_path(rules_mod, source_path: str) -> dict:
     document_category = rules_mod.section_label(doc_meta) or doc_meta.get("document_type", "unknown")
 
     windows_path = normalized.replace(
-        "/mnt/w2_project",
-        "\\\\diskstation\\W2_프로젝트폴더"
+        settings.knowledge_source_mount,
+        settings.knowledge_source_unc
     ).replace("/", "\\")
 
     return {
-        "source_root": "00. RAG 소스",
+        "source_root": settings.rag_source_folder,
         "collection": collection_name,
         "collection_name": collection_name,
         "collection_key": document_group,

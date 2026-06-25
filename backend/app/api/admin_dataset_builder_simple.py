@@ -27,6 +27,8 @@ from app.services.document_uid import make_document_uid, detect_file_change, cal
 from app.services.platform_store import get_record, list_records
 from app.services.tag_keyword_generator import TagKeywordGenerator
 from app.services.dataset_context import get_source_dataset_context, ensure_source_dataset_context
+from app.core.config import settings
+from app.core.mappings import mappings
 
 router = APIRouter(
     prefix="/admin/dataset-builder",
@@ -34,32 +36,10 @@ router = APIRouter(
     dependencies=[Depends(require_admin_token)],
 )
 
-# 지원 파일 확장자
-SUPPORTED_EXTENSIONS = {".hwp", ".hwpx", ".pdf", ".pptx", ".ppt", ".docx", ".doc", ".xlsx", ".xls"}
-
-# category_id 매핑 (폴더명 기반)
-# 제안서/산출물 하위 폴더 → category_id
-CATEGORY_ID_MAP = {
-    "01. 전략및방법론": "cat_strategy_method",
-    "02. 기술및기능": "cat_tech_function",
-    "03. 프로젝트관리": "cat_project_manage",
-    "04. 프로젝트지원": "cat_project_support",
-    "05. 연구과제": "cat_research",
-    "06. 감리": "cat_audit",
-    "07. PMO": "cat_pmo",
-    "08. PoC": "cat_poc",
-    "01. 환경분석": "cat_env_analysis",
-    "02. 현황분석": "cat_status_analysis",
-    "03. 목표모델": "cat_target_model",
-    "04. 이행계획": "cat_impl_plan",
-}
-
-# document_group 매핑 (최상위 폴더 → 문서 그룹)
-DOCUMENT_GROUP_MAP = {
-    "01. RFP": "RFP",
-    "02. 제안서": "제안서",
-    "03. 산출물": "산출물",
-}
+# 설정 파일에서 매핑 로드 (entity_mappings.json)
+SUPPORTED_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
+CATEGORY_ID_MAP = mappings.CATEGORY_ID_MAP
+DOCUMENT_GROUP_MAP = mappings.DOCUMENT_GROUP_MAP
 
 
 def normalize_numbered_name(name: str) -> str:
@@ -108,7 +88,7 @@ def extract_source_context_parts(source: Optional[Dict[str, Any]]) -> List[str]:
         return []
 
     try:
-        root_idx = parts.index("00. RAG 소스")
+        root_idx = parts.index(settings.rag_source_folder)
         return parts[root_idx + 1:]
     except ValueError:
         pass

@@ -94,6 +94,17 @@ class Settings(BaseSettings):
     knowledge_source_root: str = "W:\\"
     knowledge_source_unc: str = "\\\\diskstation\\W2_프로젝트폴더"
     knowledge_source_mount: str = "/mnt/w2_project"
+    rag_source_folder: str = "00. RAG 소스"
+
+    @property
+    def rag_source_root(self) -> str:
+        """RAG 소스 전체 경로 (Linux mount 기준)"""
+        return f"{self.knowledge_source_mount}/{self.rag_source_folder}"
+
+    @property
+    def rag_source_unc(self) -> str:
+        """RAG 소스 UNC 경로 (Windows 기준)"""
+        return f"{self.knowledge_source_unc}\\{self.rag_source_folder}"
 
     # CORS
     cors_origins: list[str] = [

@@ -32,7 +32,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.auth import require_admin_token
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.mappings import mappings
 from app.models.document import Document
 from app.models.document_metadata import DocumentMetadata, MetaStatus
 
@@ -42,34 +44,11 @@ router = APIRouter(
     dependencies=[Depends(require_admin_token)],
 )
 
-# 지원 파일 확장자
-SUPPORTED_EXTENSIONS = {".hwp", ".hwpx", ".pdf", ".pptx", ".ppt", ".docx", ".doc", ".xlsx", ".xls"}
-
-# RAG 소스 루트 경로 (네트워크 마운트 경로)
-RAG_SOURCE_ROOT = "/mnt/w2_project/00. RAG 소스"
-
-# source_id 매핑
-SOURCE_ID_MAP = {
-    "01. RFP": "src_rfp",
-    "02. 제안서": "src_proposal",
-    "03. 산출물": "src_output"
-}
-
-# category_id 매핑
-CATEGORY_ID_MAP = {
-    "01. 전략및방법론": "cat_strategy_method",
-    "02. 기술및기능": "cat_tech_function",
-    "03. 프로젝트관리": "cat_project_manage",
-    "04. 프로젝트지원": "cat_project_support",
-    "05. 연구과제": "cat_research",
-    "06. 감리": "cat_audit",
-    "07. PMO": "cat_pmo",
-    "08. PoC": "cat_poc",
-    "01. 환경분석": "cat_env_analysis",
-    "02. 현황분석": "cat_status_analysis",
-    "03. 목표모델": "cat_target_model",
-    "04. 이행계획": "cat_impl_plan"
-}
+# 설정 및 매핑 (config.py, entity_mappings.json에서 로드)
+SUPPORTED_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
+RAG_SOURCE_ROOT = settings.rag_source_root
+SOURCE_ID_MAP = mappings.SOURCE_ID_MAP
+CATEGORY_ID_MAP = mappings.CATEGORY_ID_MAP
 
 
 # ── Request/Response Models ─────────────────────────────────────────────────

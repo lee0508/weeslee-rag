@@ -22,47 +22,26 @@ from contextlib import contextmanager
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
-# 설정
-RAG_SOURCE_ROOT = "/mnt/w2_project/00. RAG 소스"
+# app.core 모듈에서 설정 및 매핑 로드
+from app.core.config import settings
+from app.core.mappings import mappings
+
+# 설정 (config.py에서 로드)
+RAG_SOURCE_ROOT = settings.rag_source_root
 OUTPUT_DIR = PROJECT_ROOT / "data" / "metadata"
 DB_PATH = PROJECT_ROOT / "data" / "metadata.db"
 
-# source_id 매핑
-SOURCE_ID_MAP = {
-    "01. RFP": "src_rfp",
-    "02. 제안서": "src_proposal",
-    "03. 산출물": "src_output"
-}
-
-# category_id 매핑 (제안서/산출물 하위 폴더)
-CATEGORY_ID_MAP = {
-    "01. 전략및방법론": "cat_strategy_method",
-    "02. 기술및기능": "cat_tech_function",
-    "03. 프로젝트관리": "cat_project_manage",
-    "04. 프로젝트지원": "cat_project_support",
-    "05. 연구과제": "cat_research",
-    "06. 감리": "cat_audit",
-    "07. PMO": "cat_pmo",
-    "08. PoC": "cat_poc",
-    "01. 환경분석": "cat_env_analysis",
-    "02. 현황분석": "cat_status_analysis",
-    "03. 목표모델": "cat_target_model",
-    "04. 이행계획": "cat_impl_plan"
-}
-
-# 지원 파일 확장자
-SUPPORTED_EXTENSIONS = {".hwp", ".hwpx", ".pdf", ".pptx", ".ppt", ".docx", ".doc", ".xlsx", ".xls"}
+# 매핑 (entity_mappings.json에서 로드)
+SOURCE_ID_MAP = mappings.SOURCE_ID_MAP
+CATEGORY_ID_MAP = mappings.CATEGORY_ID_MAP
+SUPPORTED_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
 
 # ────────────────────────────────────────────────────────────────────────────
 # 2순위: 파일명 접두사 분석 - 메타데이터 자동 추출 함수
 # ────────────────────────────────────────────────────────────────────────────
 
-# 문서 그룹 매핑
-DOCUMENT_GROUP_MAP = {
-    "01. RFP": "rfp",
-    "02. 제안서": "proposal",
-    "03. 산출물": "deliverable"
-}
+# 문서 그룹 매핑 (entity_mappings.json에서 로드)
+DOCUMENT_GROUP_MAP = mappings.DOCUMENT_GROUP_MAP
 
 # 제안서 섹션 매핑
 PROPOSAL_SECTION_MAP = {

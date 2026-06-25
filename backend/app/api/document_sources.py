@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
+from app.core.config import settings
 from app.services.document_source_paths import resolve_scan_path
 from app.services.dataset_context import (
     ensure_source_dataset_context,
@@ -32,10 +33,10 @@ _WEESLEE_DEFAULT = {
     "dataset_status": "pending",
     "dataset_created_at": None,
     "client_id": "weeslee",
-    "source_name": "00. RAG 소스",
+    "source_name": settings.rag_source_folder,
     "source_type": "smb",
-    "source_uri": "\\\\diskstation\\W2_프로젝트폴더\\00. RAG 소스",
-    "mount_path": "/mnt/w2_project/00. RAG 소스",
+    "source_uri": settings.rag_source_unc,
+    "mount_path": settings.rag_source_root,
     "root_subpath": "",
     "readonly": True,
     "enabled": True,

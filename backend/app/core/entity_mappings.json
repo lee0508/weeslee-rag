@@ -1,0 +1,60 @@
+{
+  "_comment": "비즈니스 로직에 사용되는 매핑 설정. 코드 변경 없이 설정만으로 수정 가능.",
+  "_updated": "2026-06-25",
+
+  "source_id_map": {
+    "_description": "최상위 폴더명 → source_id 매핑",
+    "01. RFP": "src_rfp",
+    "02. 제안서": "src_proposal",
+    "03. 산출물": "src_output"
+  },
+
+  "document_group_map": {
+    "_description": "최상위 폴더명 → 문서 그룹명 매핑",
+    "01. RFP": "RFP",
+    "02. 제안서": "제안서",
+    "03. 산출물": "산출물"
+  },
+
+  "category_id_map": {
+    "_description": "하위 폴더명 → category_id 매핑 (제안서/산출물 공통)",
+    "01. 전략및방법론": "cat_strategy_method",
+    "02. 기술및기능": "cat_tech_function",
+    "03. 프로젝트관리": "cat_project_manage",
+    "04. 프로젝트지원": "cat_project_support",
+    "05. 연구과제": "cat_research",
+    "06. 감리": "cat_audit",
+    "07. PMO": "cat_pmo",
+    "08. PoC": "cat_poc",
+    "01. 환경분석": "cat_env_analysis",
+    "02. 현황분석": "cat_status_analysis",
+    "03. 목표모델": "cat_target_model",
+    "04. 이행계획": "cat_impl_plan"
+  },
+
+  "document_category_order": {
+    "_description": "문서 체인에서 문서 카테고리 정렬 순서",
+    "rfp": 0,
+    "proposal": 1,
+    "kickoff": 2,
+    "presentation": 3,
+    "final_report": 4
+  },
+
+  "supported_extensions": {
+    "_description": "지원하는 문서 파일 확장자",
+    "indexable": [".pdf", ".hwp", ".hwpx", ".docx", ".pptx", ".doc", ".ppt", ".xlsx", ".xls"],
+    "ocr_supported": [".pdf", ".hwp", ".hwpx", ".docx", ".pptx"],
+    "rfp_supported": [".pdf", ".docx", ".txt"],
+    "rfp_planned": [".hwpx", ".hwp"]
+  },
+
+  "collection_category_map": {
+    "_description": "FAISS 컬렉션 키 ↔ 카테고리 매핑",
+    "rag_source_rfp": "rfp",
+    "rag_source_proposal": "proposal",
+    "rag_source_deliverable": "deliverable"
+  },
+
+  "category_suffixes": ["rfp", "proposal", "deliverable"]
+}
