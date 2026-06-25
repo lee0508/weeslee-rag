@@ -395,18 +395,26 @@
             </div>
             <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(3)">
               <div class="wr-summary-label">Step 3</div>
-              <div class="wr-summary-value">Text Extraction</div>
+              <div class="wr-summary-value">Metadata Review</div>
             </div>
             <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(4)">
               <div class="wr-summary-label">Step 4</div>
-              <div class="wr-summary-value">Chunk & Embed</div>
+              <div class="wr-summary-value">Text Extraction</div>
             </div>
             <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(5)">
               <div class="wr-summary-label">Step 5</div>
-              <div class="wr-summary-value">Index Build</div>
+              <div class="wr-summary-value">Chunk & Embed</div>
             </div>
             <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(6)">
               <div class="wr-summary-label">Step 6</div>
+              <div class="wr-summary-value">Embedding Build</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(7)">
+              <div class="wr-summary-label">Step 7</div>
+              <div class="wr-summary-value">Index Build</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openDatasetBuilderStep(8)">
+              <div class="wr-summary-label">Step 8</div>
               <div class="wr-summary-value">Dataset Summary</div>
             </div>
           </div>
@@ -427,6 +435,21 @@
             <div class="wr-summary-card" style="cursor:pointer" onclick="openPublish()">
               <div class="wr-summary-label">🚀</div>
               <div class="wr-summary-value">Publish</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 분석 도구 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">분석 도구</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openWrDocsPage('embedding-pca-viewer')">
+              <div class="wr-summary-label">📊</div>
+              <div class="wr-summary-value">Embedding PCA 3D</div>
+            </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openFaissStatusPage()">
+              <div class="wr-summary-label">🔍</div>
+              <div class="wr-summary-value">FAISS 상태</div>
             </div>
           </div>
         </div>
@@ -1674,6 +1697,55 @@ POST /api/admin/wiki/build</code>
             <button class="wr-btn" type="button" onclick="openLlmWiki()">📖 LLM Wiki 생성</button>
             <button class="wr-btn" type="button" onclick="openPublish()">🚀 Publish</button>
           </div>
+        </div>
+      </section>
+
+      <!-- Embedding PCA 3D Viewer (독립 페이지) -->
+      <section class="wr-page" data-wr-page-panel="embedding-pca-viewer">
+        <div class="wr-eyebrow">분석 도구</div>
+        <h1 class="wr-page-title">Embedding PCA 3D 시각화</h1>
+        <p class="wr-page-lead">임베딩 벡터를 PCA 3차원으로 축소하여 데이터 분포를 시각적으로 확인합니다.</p>
+        <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
+          현재 source_id 기준 임베딩 샘플을 PCA 3차원으로 축소해 표시합니다. 원본 벡터 전체가 아니라 샘플링된 좌표만 시각화합니다.
+        </div>
+        <div class="wr-inline-actions" style="margin-bottom:20px">
+          <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="loadEmbeddingPca3d()">PCA 3D 새로고침</button>
+        </div>
+        <div class="wr-card">
+          <h3 class="wr-card-title">PCA 시각화 설정</h3>
+          <div class="wr-form-grid">
+            <div class="wr-field">
+              <label>현재 source_id</label>
+              <input id="pcaViewerSourceId" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+            </div>
+            <div class="wr-field">
+              <label>샘플 수</label>
+              <input id="pcaViewerSampleLimit" type="number" value="600" min="50" max="2000" step="50">
+              <small class="wr-field-hint">권장: 300~1000. BGE-M3 1024차원 벡터를 샘플링해서 시각화합니다.</small>
+            </div>
+            <div class="wr-field">
+              <label>색상 그룹</label>
+              <select id="pcaViewerGroupBy">
+                <option value="category">카테고리</option>
+                <option value="organization">기관</option>
+                <option value="project">프로젝트</option>
+                <option value="document">문서</option>
+              </select>
+            </div>
+            <div class="wr-field">
+              <label>실행</label>
+              <div class="wr-inline-actions" style="margin-top:0">
+                <button class="wr-btn wr-btn-primary" type="button" onclick="loadEmbeddingPca3dFromViewer()">PCA 3D 실행</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="wr-callout wr-callout-warning" id="pcaViewerSummary" style="margin-top:16px">
+          source_id를 선택한 뒤 PCA 3D 시각화를 실행하세요.
+        </div>
+        <div id="pcaViewerPlot" style="margin-top:16px;height:520px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">
+          PCA 3D 시각화 대기 중
         </div>
       </section>
 
@@ -10082,6 +10154,158 @@ POST /api/admin/faiss/activate</code>
     }
   }
 
+  // 독립 PCA Viewer용 함수들
+  function setPcaViewerSource() {
+    const sourceId = getCurrentSourceId() || document.getElementById('ctxSource')?.value || '';
+    const sourceEl = document.getElementById('pcaViewerSourceId');
+    if (sourceEl) sourceEl.value = sourceId || '-';
+    return sourceId;
+  }
+
+  function setPcaViewerSummary(message, tone = 'warning') {
+    const el = document.getElementById('pcaViewerSummary');
+    if (!el) return;
+    el.className = `wr-callout wr-callout-${tone === 'success' ? 'info' : tone}`;
+    el.textContent = message;
+  }
+
+  function clearPcaViewerPlot(message = 'PCA 3D 시각화 대기 중') {
+    const el = document.getElementById('pcaViewerPlot');
+    if (!el) return;
+    if (window.Plotly) {
+      try { Plotly.purge(el); } catch (e) {}
+    }
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px">${message}</div>`;
+  }
+
+  function renderPcaViewerPlot(data) {
+    const plotEl = document.getElementById('pcaViewerPlot');
+    if (!plotEl) return;
+    if (!window.Plotly) {
+      clearPcaViewerPlot('Plotly가 로드되지 않아 PCA 3D를 렌더링할 수 없습니다.');
+      return;
+    }
+
+    const groups = new Map();
+    (data.points || []).forEach((point) => {
+      const key = point.group_key || 'default';
+      if (!groups.has(key)) {
+        groups.set(key, {
+          type: 'scatter3d',
+          mode: 'markers',
+          name: point.group_label || key,
+          x: [],
+          y: [],
+          z: [],
+          text: [],
+          hovertemplate: '%{text}<extra>%{fullData.name}</extra>',
+          marker: { size: 4, opacity: 0.82 }
+        });
+      }
+      const trace = groups.get(key);
+      trace.x.push(point.x);
+      trace.y.push(point.y);
+      trace.z.push(point.z);
+      trace.text.push(
+        [
+          `문서: ${point.file_name || '-'}`,
+          `document_id: ${point.document_id || '-'}`,
+          `chunk_index: ${point.chunk_index ?? '-'}`,
+          `category: ${point.category_id || '-'}`,
+          `organization: ${point.organization || '-'}`,
+          `preview: ${point.preview_text || '-'}`
+        ].join('<br>')
+      );
+    });
+
+    const traces = Array.from(groups.values());
+    const showLegend = traces.length <= 20;
+    const variance = data.explained_variance_ratio || [0, 0, 0];
+    const axisTitle = (idx) => `PC${idx + 1} (${((variance[idx] || 0) * 100).toFixed(1)}%)`;
+
+    Plotly.react(plotEl, traces, {
+      paper_bgcolor: '#1e2d42',
+      plot_bgcolor: '#1e2d42',
+      font: { color: '#e8edf4', family: 'Segoe UI, sans-serif' },
+      margin: { l: 0, r: 0, t: 36, b: 0 },
+      legend: { orientation: 'h', y: -0.08 },
+      showlegend: showLegend,
+      scene: {
+        bgcolor: '#1e2d42',
+        xaxis: { title: axisTitle(0), gridcolor: 'rgba(255,255,255,.08)', zerolinecolor: 'rgba(255,255,255,.12)' },
+        yaxis: { title: axisTitle(1), gridcolor: 'rgba(255,255,255,.08)', zerolinecolor: 'rgba(255,255,255,.12)' },
+        zaxis: { title: axisTitle(2), gridcolor: 'rgba(255,255,255,.08)', zerolinecolor: 'rgba(255,255,255,.12)' },
+        camera: { eye: { x: 1.45, y: 1.35, z: 1.1 } }
+      }
+    }, {
+      responsive: true,
+      displaylogo: false
+    });
+  }
+
+  async function loadEmbeddingPca3dFromViewer() {
+    const sourceId = setPcaViewerSource();
+    const sampleLimit = parseInt(document.getElementById('pcaViewerSampleLimit')?.value || '600', 10) || 600;
+    const groupBy = document.getElementById('pcaViewerGroupBy')?.value || 'category';
+
+    if (!sourceId) {
+      clearPcaViewerPlot('source_id를 먼저 선택하세요.');
+      setPcaViewerSummary('PCA 3D 시각화 전에 Document Source를 먼저 선택하세요.', 'warning');
+      return;
+    }
+
+    setPcaViewerSummary(`PCA 3D 계산 중... source_id=${sourceId}, sample_limit=${sampleLimit}, group_by=${groupBy}`, 'info');
+    clearPcaViewerPlot('PCA 3D 좌표를 계산하는 중입니다...');
+
+    try {
+      const params = new URLSearchParams({
+        source_id: sourceId,
+        sample_limit: String(sampleLimit),
+        group_by: groupBy
+      });
+      const response = await fetch(apiUrl(`/api/admin/dataset-builder/step6/pca-3d?${params.toString()}`), {
+        headers: authHeaders()
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
+      if (!data.points || !data.points.length) {
+        clearPcaViewerPlot('표시할 임베딩 샘플이 없습니다.');
+        setPcaViewerSummary(`임베딩 샘플이 없습니다. source_id=${sourceId}`, 'warning');
+        return;
+      }
+
+      renderPcaViewerPlot(data);
+      const ratios = (data.explained_variance_ratio || []).map(v => `${(Number(v || 0) * 100).toFixed(1)}%`);
+      setPcaViewerSummary(
+        `source_id=${data.source_id || sourceId} | 모델=${data.model || '-'} | 차원=${Number(data.embedding_dim || 0).toLocaleString('ko-KR')} | 전체 벡터=${Number(data.total_embeddings || 0).toLocaleString('ko-KR')}개 | 샘플=${Number(data.sampled_points || 0).toLocaleString('ko-KR')}개 | 분산설명력=${ratios.join(' / ')}`,
+        'success'
+      );
+    } catch (e) {
+      clearPcaViewerPlot('PCA 3D 시각화 로드에 실패했습니다.');
+      setPcaViewerSummary(`PCA 3D 로드 실패: ${e.message}`, 'warning');
+      showToast(`Embedding PCA 3D 로드 실패: ${e.message}`, 'error');
+    }
+  }
+
+  // PCA Viewer 페이지 진입 시 자동 초기화
+  function initPcaViewerPage() {
+    // Source ID 설정
+    const sourceId = setPcaViewerSource();
+
+    // Source가 선택되어 있으면 자동으로 PCA 로드 시도
+    if (sourceId) {
+      // 약간의 딜레이 후 자동 로드 (UI 렌더링 대기)
+      setTimeout(() => {
+        loadEmbeddingPca3dFromViewer();
+      }, 300);
+    } else {
+      // Source가 없으면 안내 메시지 표시
+      clearPcaViewerPlot('Document Source를 선택한 후 "PCA 3D 실행" 버튼을 클릭하세요.');
+      setPcaViewerSummary('PCA 3D 시각화를 위해 Document Source를 먼저 선택하세요.', 'warning');
+    }
+  }
+
   function decorateDatasetBuilderPreviewNotes() {
     document.querySelectorAll('.wr-request-preview').forEach((preview) => {
       const builderContext = preview.closest('.wr-step-detail, [data-wr-page-panel^="db-step-"]');
@@ -11201,6 +11425,8 @@ LIMIT 10`;
     // Dataset Builder 페이지 진입 시 상태 요약 로드
     if (pageName === 'rag-build-wizard') scheduleDatasetStatusSummaryLoad(400);
     if (pageName === 'search-quality') wrLoadBenchmarkHistory();
+    // PCA Viewer 페이지 진입 시 자동 초기화
+    if (pageName === 'embedding-pca-viewer') initPcaViewerPage();
 
     return result;
   };
