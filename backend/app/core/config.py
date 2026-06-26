@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     chroma_port: int = 8000
     chroma_persist_dir: str = "./chroma_data"
 
+    # Qdrant (QA2 통합)
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_collection: str = "documents"
+    qdrant_location: str = "url"  # "url" | "memory"
+
     # FAISS index (active snapshot name — set in .env to override)
     faiss_snapshot: str = "snapshot_2026-04-27_batch-001-top5-v2"
     data_dir: str = _default_path("data")
@@ -138,3 +143,12 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def reload_runtime_settings() -> Settings:
+    """Reload `.env` values into the shared runtime settings object."""
+    get_settings.cache_clear()
+    fresh = Settings()
+    for key, value in fresh.model_dump().items():
+        setattr(settings, key, value)
+    return settings
