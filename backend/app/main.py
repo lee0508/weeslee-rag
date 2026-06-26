@@ -48,6 +48,7 @@ from app.api.admin_knowledge_graph import router as admin_knowledge_graph_router
 from app.api.admin_llm_wiki import router as admin_llm_wiki_router
 from app.api.admin_publish import router as admin_publish_router
 from app.api.install import router as install_router
+from app.api.qa_services import router as qa_services_router
 try:
     from app.api.vectorization import router as vectorization_router
     _vectorization_available = True
@@ -152,6 +153,7 @@ app.include_router(admin_knowledge_graph_router, prefix="/api", tags=["Admin - K
 app.include_router(admin_llm_wiki_router, prefix="/api", tags=["Admin - LLM Wiki"])
 app.include_router(admin_publish_router, prefix="/api", tags=["Admin - Publish"])
 app.include_router(install_router, prefix="/api", tags=["Install"])
+app.include_router(qa_services_router, prefix="/api", tags=["QA Services"])
 if _ocr_results_available and ocr_results_router is not None:
     app.include_router(ocr_results_router, prefix="/api", tags=["OCR Results"])
 if _collections_available and collections_router is not None:
