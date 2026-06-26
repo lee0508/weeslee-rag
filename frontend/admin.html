@@ -4371,7 +4371,11 @@ POST /api/admin/faiss/activate</code>
   <!-- ?꾩껜 ?쒖감 ?ㅽ뻾 -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
     <button class="btn btn-primary btn-sm" onclick="wizardRunAll()">???꾩껜 ?쒖감 ?ㅽ뻾</button>
-    <button class="btn btn-outline btn-sm" id="wizardStopBtn" onclick="wizardStop()" style="display:none">??以묐떒</button>
+    <button class="btn btn-outline btn-sm" id="wizardStopBtn" onclick="wizardStop()" style="display:none">⏹️중단</button>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);cursor:pointer;margin-left:8px">
+      <input type="checkbox" id="wizardForceRebuild" style="cursor:pointer">
+      <span>Force 재처리 (기존 데이터 무시)</span>
+    </label>
     <span id="wizardAutoStatus" style="font-size:12px;color:var(--muted)"></span>
   </div>
   <!-- ?ъ슜 以?Snapshot ID ?쒖떆 -->
@@ -16398,6 +16402,7 @@ LIMIT 10`;
   let _wizardDatasetId     = null;  // ?꾩옱 ?묒뾽 以묒씤 dataset_id
   let _wizardAutoRunning   = false;
   let _wizardAutoStop      = false;
+  let _wizardForceRebuild  = false;  // Force 재처리 옵션 (기존 데이터 무시)
 
   // ?? Wizard ?곹깭 珥덇린???⑥닔 ?????????????????????????????????????????????????
   function resetWizardState() {
@@ -17011,7 +17016,8 @@ LIMIT 10`;
 
         // ???ㅻ깄?룹씠硫?Stage 1遺???쒖옉, 湲곗〈 ?ㅻ깄?룹씠硫?recommended stage ?ъ슜
         let startFromStage = 1;
-        if (!isNewSnapshot && dropdownSnapshot) {
+        // Force 재처리 모드이면 기존 데이터 스킵하지 않음
+        if (!isNewSnapshot && dropdownSnapshot && !_wizardForceRebuild) {
           const recommendedStage = getRecommendedStartStage();
           if (recommendedStage > 3) {
             _wizardAppendLog(step, `湲곗〈 ?ㅻ깄?룹? OCR/泥?궧 ?④퀎媛 ?대? ?꾨즺???곹깭?낅땲?? recommended_start=${recommendedStage}`);
@@ -17025,8 +17031,12 @@ LIMIT 10`;
           _wizardAppendLog(step, `Document Source: ${sourceId}`);
           _wizardAppendLog(step, `Stage ${startFromStage}遺???쒖옉`);
         } else {
-          // ???ㅻ깄???앹꽦 ?먮뒗 ?대? ?앹꽦?????ㅻ깄???ъ슜
-          if (!_wizardFaissSnapshot) {
+          // 새 스냅샷 생성 또는 Force 재처리 모드
+          if (_wizardForceRebuild) {
+            // Force 재처리: 새 스냅샷 강제 생성
+            _wizardFaissSnapshot = createNewSnapshotId();
+            _wizardAppendLog(step, `[Force 재처리] 새 스냅샷 강제 생성: ${_wizardFaissSnapshot}`);
+          } else if (!_wizardFaissSnapshot) {
             _wizardFaissSnapshot = createNewSnapshotId();
           }
           _wizardAppendLog(step, `Document Source: ${sourceId}`);
@@ -17283,9 +17293,13 @@ LIMIT 10`;
 
     _wizardAutoRunning = true;
     _wizardAutoStop    = false;
+    _wizardForceRebuild = document.getElementById('wizardForceRebuild')?.checked || false;
     const statusEl = document.getElementById('wizardAutoStatus');
     const stopBtn  = document.getElementById('wizardStopBtn');
     if (stopBtn) stopBtn.style.display = '';
+    if (_wizardForceRebuild) {
+      console.log('[wizardRunAll] Force 재처리 모드 활성화 - 기존 데이터 무시');
+    }
 
     // ?? ?꾩껜 ?ㅽ뻾 ??snapshot_id 寃곗젙 ??????????????????????????????????????
     // ?곗꽑?쒖쐞: 1) ?대? ?ㅼ젙??_wizardFaissSnapshot, 2) ?쒕∼?ㅼ슫 ?좏깮媛? 3) ?덈줈 ?앹꽦
