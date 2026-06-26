@@ -298,7 +298,7 @@ async def build_knowledge_graph(
         if request.source_id:
             cmd += ["--source-id", request.source_id]
         if request.snapshot_id:
-            cmd += ["--snapshot-id", request.snapshot_id]
+            cmd += ["--snapshot", request.snapshot_id]
         if request.rebuild:
             cmd += ["--rebuild"]
 
