@@ -1046,11 +1046,12 @@ POST /api/admin/wiki/build</code>
         <!-- OCR 결과 조회 섹션 -->
         <div class="wr-card">
           <h3 class="wr-card-title">OCR/파싱 결과 조회</h3>
-          <div class="wr-inline-actions" style="margin-bottom:16px">
-            <button class="wr-btn wr-btn-primary" type="button" onclick="loadStep4ParseResults()">청킹 대상 조회</button>
-            <button class="wr-btn" type="button" onclick="loadOcrResults()">OCR 저장소 조회</button>
-            <button class="wr-btn" type="button" onclick="loadOcrStatistics()">통계 조회</button>
-            <select id="ocrResultMethodFilter" style="margin-left:12px">
+          <div class="wr-inline-actions" style="margin-bottom:16px;flex-wrap:wrap;gap:8px">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="loadOcrResults()">OCR 결과 조회</button>
+            <button class="wr-btn" type="button" onclick="loadOcrResults(0, 'failed')">실패만</button>
+            <button class="wr-btn" type="button" onclick="loadOcrResults(0, 'low_quality')">저품질만</button>
+            <button class="wr-btn" type="button" onclick="loadOcrStatistics()">통계</button>
+            <select id="ocrResultMethodFilter" onchange="loadOcrResults(0)">
               <option value="">모든 방법</option>
               <option value="pdfplumber">PDF 직접 추출</option>
               <option value="olmocr">olmOCR</option>
@@ -1060,7 +1061,7 @@ POST /api/admin/wiki/build</code>
               <option value="python-pptx">PPTX 직접</option>
               <option value="pptx_merged">PPTX 병합</option>
             </select>
-            <input type="number" id="ocrResultMinQuality" placeholder="최소 품질 (0~1)" min="0" max="1" step="0.1" style="width:120px;margin-left:8px">
+            <input type="number" id="ocrResultMinQuality" placeholder="최소 품질" min="0" max="1" step="0.1" style="width:100px" onchange="loadOcrResults(0)">
           </div>
 
           <!-- 통계 표시 영역 -->
@@ -8253,6 +8254,32 @@ POST /api/admin/faiss/activate</code>
     return `<div style="display:flex;flex-wrap:wrap;gap:2px">${stepHtml}</div>`;
   }
 
+  function renderDocumentOcrSummary(doc) {
+    const hasOcrSummary = doc.ocr_page_count != null || doc.ocr_parser_type || doc.ocr_quality_score != null;
+    if (!hasOcrSummary) {
+      return '<div style="font-size:11px;color:var(--muted)">OCR 결과 없음</div>';
+    }
+
+    const summary = [];
+    if (doc.ocr_page_count != null) summary.push(`${Number(doc.ocr_page_count)}p`);
+    if (doc.ocr_parser_type) summary.push(esc(doc.ocr_parser_type));
+    if (doc.ocr_quality_score != null && doc.ocr_quality_score !== '') {
+      const score = Number(doc.ocr_quality_score);
+      if (!Number.isNaN(score)) summary.push(`품질 ${(score * 100).toFixed(0)}%`);
+    }
+
+    return `<div style="font-size:11px;color:var(--muted)">${summary.join(' · ') || 'OCR 결과 있음'}</div>`;
+  }
+
+  function openDocumentOcrDetail(documentId) {
+    const normalizedId = Number(documentId || 0);
+    if (!normalizedId) {
+      showToast('document_id가 없어 OCR 결과를 조회할 수 없습니다.', 'error', 3000);
+      return;
+    }
+    viewOcrDetail(normalizedId);
+  }
+
   function renderDocuments(documents) {
     const tbody = document.getElementById('documentTableBody');
     if (!documents.length) {
@@ -8271,6 +8298,7 @@ POST /api/admin/faiss/activate</code>
       const metaColor = META_STATUS_COLORS[doc.meta_status] || '#6b7280';
       const metaLabel = META_STATUS_LABELS[doc.meta_status] || doc.meta_status || '-';
       const pipelineStatus = renderPipelineStatus(doc);
+      const ocrSummary = renderDocumentOcrSummary(doc);
       return `
         <tr>
           <td><input type="checkbox" class="doc-check" value="${doc.id}" onchange="toggleDocSelect(${doc.id})"></td>
@@ -9529,8 +9557,9 @@ POST /api/admin/faiss/activate</code>
       .join(' · ');
   }
 
-  async function loadOcrResults(page = 0) {
+  async function loadOcrResults(page = 0, statusFilter = '') {
     ocrResultsPage = page;
+    window._ocrStatusFilter = statusFilter; // 페이지 이동 시 필터 유지용
     const h = { 'Authorization': 'Bearer ' + getToken() };
     const method = document.getElementById('ocrResultMethodFilter')?.value || '';
     const minQuality = document.getElementById('ocrResultMinQuality')?.value || '';
@@ -9538,6 +9567,7 @@ POST /api/admin/faiss/activate</code>
     let url = apiUrl(`/api/admin/ocr-results/list?limit=${ocrResultsLimit}&offset=${page * ocrResultsLimit}`);
     if (method) url += `&method=${encodeURIComponent(method)}`;
     if (minQuality) url += `&min_quality=${minQuality}`;
+    if (statusFilter) url += `&status=${encodeURIComponent(statusFilter)}`;
 
     try {
       const r = await fetch(url, { headers: h });
@@ -9559,9 +9589,12 @@ POST /api/admin/faiss/activate</code>
         const qualityClass = item.quality_score >= 0.6 ? 'ql-good' : (item.quality_score >= 0.4 ? '' : 'ql-bad');
         const ocrBadge = item.ocr_required ? '<span class="pill amber">OCR</span>' : '<span class="pill green">직접</span>';
         const processedAt = item.processed_at ? new Date(item.processed_at).toLocaleString('ko-KR') : '-';
-        return `<tr>
-          <td><code style="font-size:10px">${escapeHtml(item.document_id?.substring(0, 12) || '-')}...</code></td>
-          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(item.file_name)}">${escapeHtml(item.file_name || '-')}</td>
+        const isFailed = item.status === 'failed' || item.status === 'error';
+        const isLowQuality = typeof item.quality_score === 'number' && item.quality_score < 0.6;
+        const showReprocess = isFailed || isLowQuality;
+        return `<tr class="${isFailed ? 'row-failed' : ''}">
+          <td><code style="font-size:10px">${escapeHtml(item.document_id || '-')}</code></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(item.file_name)}">${escapeHtml(item.file_name || '-')}</td>
           <td>${formatOcrStatusBadge(item.status)}</td>
           <td>${escapeHtml(item.extraction_method || '-')}</td>
           <td class="${qualityClass}">${typeof item.quality_score === 'number' ? item.quality_score.toFixed(2) : '-'}</td>
@@ -9569,18 +9602,22 @@ POST /api/admin/faiss/activate</code>
           <td>${item.page_count || '-'}</td>
           <td>${ocrBadge}</td>
           <td style="font-size:11px">${processedAt}</td>
-          <td><button class="btn btn-sm btn-outline" onclick="viewOcrDetail('${escapeHtml(item.document_id)}')">상세</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-sm btn-outline" onclick="viewOcrDetail('${escapeHtml(item.document_id)}')" title="상세 보기">상세</button>
+            ${showReprocess ? `<button class="btn btn-sm" style="margin-left:4px;background:#e89700;color:#fff" onclick="reprocessOcrDocument('${escapeHtml(item.document_id)}')" title="재처리">재처리</button>` : ''}
+          </td>
         </tr>`;
       }).join('');
 
-      // 페이지네이션
+      // 페이지네이션 (필터 유지)
       const pagination = document.getElementById('ocrResultsPagination');
       if (pagination) {
         const totalPages = Math.ceil(data.total / ocrResultsLimit);
+        const sf = statusFilter ? `'${statusFilter}'` : "''";
         let pagHtml = '';
-        if (page > 0) pagHtml += `<button class="btn btn-sm btn-outline" onclick="loadOcrResults(${page - 1})">이전</button> `;
+        if (page > 0) pagHtml += `<button class="btn btn-sm btn-outline" onclick="loadOcrResults(${page - 1}, ${sf})">이전</button> `;
         pagHtml += `${page + 1} / ${totalPages || 1}`;
-        if (page < totalPages - 1) pagHtml += ` <button class="btn btn-sm btn-outline" onclick="loadOcrResults(${page + 1})">다음</button>`;
+        if (page < totalPages - 1) pagHtml += ` <button class="btn btn-sm btn-outline" onclick="loadOcrResults(${page + 1}, ${sf})">다음</button>`;
         pagination.innerHTML = pagHtml;
       }
     } catch (e) {
@@ -9624,6 +9661,43 @@ POST /api/admin/faiss/activate</code>
     } catch (e) {
       console.error('OCR 통계 조회 실패:', e);
       showToast('OCR 통계 조회 실패: ' + e.message, 'error', 3000);
+    }
+  }
+
+  // OCR 문서 재처리
+  async function reprocessOcrDocument(documentId) {
+    if (!confirm(`문서 "${documentId}"를 재처리하시겠습니까?\n\n기존 OCR 결과가 삭제되고 다시 추출됩니다.`)) {
+      return;
+    }
+
+    const h = {
+      'Authorization': 'Bearer ' + getToken(),
+      'Content-Type': 'application/json'
+    };
+
+    showToast(`문서 ${documentId} 재처리 중...`, 'info', 5000);
+
+    try {
+      const r = await fetch(apiUrl(`/api/admin/ocr-results/reprocess/${encodeURIComponent(documentId)}`), {
+        method: 'POST',
+        headers: h
+      });
+      if (!r.ok) {
+        const errData = await r.json().catch(() => ({}));
+        throw new Error(errData.detail || `HTTP ${r.status}`);
+      }
+      const data = await r.json();
+
+      if (data.success) {
+        showToast(`재처리 완료: ${data.text_length?.toLocaleString() || 0}자 추출됨`, 'success', 3000);
+        // 목록 새로고침
+        loadOcrResults(ocrResultsPage);
+      } else {
+        showToast(`재처리 실패: ${data.error || data.message}`, 'error', 5000);
+      }
+    } catch (e) {
+      console.error('OCR 재처리 실패:', e);
+      showToast('OCR 재처리 실패: ' + e.message, 'error', 5000);
     }
   }
 

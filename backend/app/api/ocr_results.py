@@ -11,8 +11,10 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.core.auth import require_admin_token
+from app.core.database import get_db
 from app.services.text_quality_checker import text_quality_checker
 from app.services.processed_text_store import processed_text_store
 
@@ -147,6 +149,7 @@ async def list_ocr_results(
     offset: int = Query(0, ge=0),
     method: Optional[str] = Query(None, description="추출 방법 필터 (ocr, direct, merged 등)"),
     min_quality: Optional[float] = Query(None, ge=0, le=1, description="최소 품질 점수"),
+    status: Optional[str] = Query(None, description="상태 필터 (failed, low_quality)"),
 ):
     """
     저장된 OCR/파싱 결과 목록 조회.
@@ -178,7 +181,16 @@ async def list_ocr_results(
             if quality.get("quality_score", 0) < min_quality:
                 continue
 
+        # status 필터
         quality = result.quality or {}
+        quality_score = quality.get("quality_score", 0)
+        if status == "failed":
+            if result.status not in ("failed", "error"):
+                continue
+        elif status == "low_quality":
+            if quality_score >= 0.6 or result.status in ("failed", "error"):
+                continue
+
         filtered.append({
             "document_id": result.document_id,
             "file_name": result.file_name,
@@ -333,18 +345,55 @@ async def delete_ocr_result(document_id: str):
 
 
 @router.post("/reprocess/{document_id}")
-async def reprocess_document(document_id: str):
+async def reprocess_document(document_id: str, db: Session = Depends(get_db)):
     """
     특정 문서 재처리 요청.
 
-    TODO: 실제 재처리 로직 연동 필요
+    기존 OCR 결과를 삭제하고 Step 4 파싱을 다시 실행합니다.
     """
-    return {
-        "success": True,
-        "message": f"문서 {document_id} 재처리가 요청되었습니다.",
-        "document_id": document_id,
-        "status": "queued",
-    }
+    from app.models.document_metadata import DocumentMetadata
+    from app.api.admin_dataset_builder_step4 import parse_document
+    import shutil
+
+    # 1. 문서 메타데이터 조회
+    doc = db.query(DocumentMetadata).filter(
+        DocumentMetadata.document_id == int(document_id)
+    ).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
+
+    if not doc.file_path:
+        raise HTTPException(status_code=400, detail=f"파일 경로가 없습니다: {document_id}")
+
+    # 2. 기존 OCR 결과 삭제
+    doc_dir = processed_text_store.base_dir / document_id
+    if doc_dir.exists():
+        shutil.rmtree(doc_dir)
+
+    # 3. 재파싱 실행
+    result = await parse_document(
+        document_id=int(document_id),
+        file_path=doc.file_path,
+        force=True  # 강제 재처리
+    )
+
+    if result["success"]:
+        return {
+            "success": True,
+            "message": f"문서 {document_id} 재처리가 완료되었습니다.",
+            "document_id": document_id,
+            "text_length": result.get("text_length", 0),
+            "status": "completed",
+        }
+    else:
+        return {
+            "success": False,
+            "message": f"문서 {document_id} 재처리 실패: {result.get('error')}",
+            "document_id": document_id,
+            "error": result.get("error"),
+            "status": "failed",
+        }
 
 
 @router.get("/methods")
