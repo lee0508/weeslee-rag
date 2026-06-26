@@ -79,7 +79,13 @@ def _normalize_path(value: str) -> str:
 
 
 def _is_installed() -> bool:
-    return INSTALL_STATE_PATH.exists()
+    # 1차: install_state.json 존재 확인
+    if INSTALL_STATE_PATH.exists():
+        return True
+    # 2차: .env 파일이 존재하면 설치된 것으로 간주 (수동 설정 또는 파일 손실 대비)
+    if ENV_PATH.exists():
+        return True
+    return False
 
 
 def _ensure_parent(path: Path) -> None:
@@ -273,7 +279,18 @@ def _apply_runtime_install(req: InstallRequest) -> dict[str, Any]:
 @router.get("/status")
 async def install_status():
     state = None
-    if INSTALL_STATE_PATH.exists():
+    env_exists = ENV_PATH.exists()
+    state_exists = INSTALL_STATE_PATH.exists()
+
+    # .env는 있지만 install_state.json이 없는 경우 자동 복구
+    if env_exists and not state_exists:
+        try:
+            _auto_recover_install_state()
+            state_exists = INSTALL_STATE_PATH.exists()
+        except Exception:
+            pass
+
+    if state_exists:
         try:
             state = json.loads(INSTALL_STATE_PATH.read_text(encoding="utf-8"))
         except Exception:
@@ -281,9 +298,34 @@ async def install_status():
 
     return {
         "installed": _is_installed(),
-        "env_exists": ENV_PATH.exists(),
+        "env_exists": env_exists,
         "state": state,
     }
+
+
+def _auto_recover_install_state() -> None:
+    """
+    .env 파일이 존재하지만 install_state.json이 없는 경우 자동 복구.
+    """
+    INSTALL_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    recovered_state = {
+        "installed": True,
+        "installed_at": _now_iso(),
+        "app_name": getattr(settings, "app_name", "PromptoRAG"),
+        "db_name": getattr(settings, "db_name", "unknown"),
+        "admin_username": getattr(settings, "admin_username", "admin"),
+        "knowledge_source_mount": getattr(settings, "knowledge_source_mount", ""),
+        "ollama_host": getattr(settings, "ollama_host", ""),
+        "answer_model": getattr(settings, "answer_model", ""),
+        "embedding_model": getattr(settings, "ollama_embed_model", ""),
+        "warnings": [],
+        "auto_recovered": True,
+        "recovered_at": _now_iso(),
+    }
+    INSTALL_STATE_PATH.write_text(
+        json.dumps(recovered_state, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 @router.post("/apply")
