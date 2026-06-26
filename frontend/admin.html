@@ -17058,16 +17058,20 @@ LIMIT 10`;
     if (step === 7) {
       const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
       const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
-      const params = new URLSearchParams();
-      if (sourceId) params.set('source_id', sourceId);
-      if (snapshot) params.set('snapshot', snapshot);
-      const url = params.toString() ? `${cfg.api}?${params.toString()}` : cfg.api;
+      // Graph RAG build API는 JSON body를 받음
+      const requestBody = {
+        source_id: sourceId || null,
+        snapshot_id: snapshot || null,
+        rebuild: false,
+        use_ontology: true
+      };
       _wizardSetStatus(step, '실행 중...', 'running');
-      _wizardAppendLog(step, `${cfg.method} ${url} ...`);
+      _wizardAppendLog(step, `${cfg.method} ${cfg.api}\nbody: ${JSON.stringify(requestBody)}`);
       try {
-        const r = await fetch(apiUrl(url), {
+        const r = await fetch(apiUrl(cfg.api), {
           method: cfg.method,
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(formatWizardErrorDetail(d.detail || d.message || d, `HTTP ${r.status}`));
