@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weeslee RAG 설치</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: #fffaf2;
+      --line: #d7c7ae;
+      --text: #2f261a;
+      --muted: #7b6a55;
+      --accent: #8a4b08;
+      --accent-2: #ba6a12;
+      --danger: #b43f2f;
+      --ok: #24744a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans KR", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(186,106,18,.18), transparent 30%),
+        linear-gradient(180deg, #f8f3ea 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: rgba(255,250,242,.92);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(75, 52, 26, .06);
+    }
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    h1, h2 {
+      margin: 0 0 10px;
+      line-height: 1.2;
+    }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+    form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .section {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(215,199,174,.7);
+    }
+    .section-title {
+      grid-column: 1 / -1;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 7px;
+      color: var(--muted);
+    }
+    input, select {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+    .full { grid-column: 1 / -1; }
+    .row-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      grid-column: 1 / -1;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      min-width: 180px;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    .status-box {
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 120px;
+    }
+    .status-ok { color: var(--ok); }
+    .status-err { color: var(--danger); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(186,106,18,.1);
+      border: 1px solid rgba(186,106,18,.15);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .check {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .check input {
+      width: auto;
+    }
+    @media (max-width: 900px) {
+      .hero, form, .section { grid-template-columns: 1fr; }
+      .row-3 { grid-template-columns: 1fr; }
+      .actions { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <section class="card">
+        <div class="eyebrow">Installation</div>
+        <h1>Weeslee RAG 최초 설치</h1>
+        <p>DB 정보, 마운트 정보, LLM/임베딩 정보, 관리자 계정을 입력하면 `.env`, 필요한 디렉토리 구조, DB 생성, 테이블 초기화를 한 번에 수행합니다.</p>
+      </section>
+      <section class="card">
+        <div class="badge">신규 서버 / 신규 프로젝트용</div>
+        <p>설치 완료 후에는 `admin.html`에서 운영 설정과 상태 확인을 계속 진행합니다. 이미 설치된 환경이라면 재설치 체크를 켠 뒤 명시적으로 다시 실행해야 합니다.</p>
+      </section>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <form id="installForm">
+        <div class="section">
+          <h2 class="section-title">관리자 계정</h2>
+          <div>
+            <label for="adminUsername">관리자 아이디</label>
+            <input id="adminUsername" name="admin_username" value="admin" required>
+          </div>
+          <div>
+            <label for="adminPassword">관리자 비밀번호</label>
+            <input id="adminPassword" name="admin_password" type="password" required>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">DB 설정</h2>
+          <div class="row-3">
+            <div>
+              <label for="dbHost">DB Host</label>
+              <input id="dbHost" name="db_host" value="localhost" required>
+            </div>
+            <div>
+              <label for="dbPort">DB Port</label>
+              <input id="dbPort" name="db_port" type="number" value="3306" required>
+            </div>
+            <div>
+              <label for="dbName">DB Name</label>
+              <input id="dbName" name="db_name" value="promptorag" required>
+            </div>
+          </div>
+          <div>
+            <label for="dbUser">DB User</label>
+            <input id="dbUser" name="db_user" value="root" required>
+          </div>
+          <div>
+            <label for="dbPassword">DB Password</label>
+            <input id="dbPassword" name="db_password" type="password">
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">마운트 / 저장 경로</h2>
+          <div class="full">
+            <label for="knowledgeSourceMount">Knowledge Source Mount</label>
+            <input id="knowledgeSourceMount" name="knowledge_source_mount" value="/mnt/w2_project" required>
+          </div>
+          <div class="full">
+            <label for="knowledgeSourceUnc">Knowledge Source UNC</label>
+            <input id="knowledgeSourceUnc" name="knowledge_source_unc" placeholder="예: \\\\diskstation\\W2_프로젝트폴더">
+          </div>
+          <div>
+            <label for="ragSourceFolder">RAG Source Folder</label>
+            <input id="ragSourceFolder" name="rag_source_folder" value="00. RAG 테스트" required>
+          </div>
+          <div>
+            <label for="dataDir">Data Dir</label>
+            <input id="dataDir" name="data_dir" value="./data" required>
+          </div>
+          <div>
+            <label for="uploadDir">Upload Dir</label>
+            <input id="uploadDir" name="upload_dir" value="./uploads" required>
+          </div>
+          <div>
+            <label for="faissIndexDir">FAISS Index Dir</label>
+            <input id="faissIndexDir" name="faiss_index_dir" value="./data/indexes/faiss" required>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">LLM / 임베딩 설정</h2>
+          <div>
+            <label for="ollamaHost">Ollama Host</label>
+            <input id="ollamaHost" name="ollama_host" value="http://localhost:11434" required>
+          </div>
+          <div>
+            <label for="answerModel">LLM Model</label>
+            <input id="answerModel" name="answer_model" value="gemma4:latest" required>
+          </div>
+          <div>
+            <label for="embedModel">Embedding Model</label>
+            <input id="embedModel" name="ollama_embed_model" value="nomic-embed-text" required>
+          </div>
+          <div>
+            <label for="embeddingDim">Embedding Dim</label>
+            <input id="embeddingDim" name="embedding_dim" type="number" value="768" required>
+          </div>
+          <div>
+            <label for="maxEmbedChars">Max Embed Chars</label>
+            <input id="maxEmbedChars" name="max_embed_chars" type="number" value="8000" required>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">앱 설정</h2>
+          <div>
+            <label for="appName">App Name</label>
+            <input id="appName" name="app_name" value="PromptoRAG" required>
+          </div>
+          <div>
+            <label for="appEnv">App Env</label>
+            <select id="appEnv" name="app_env">
+              <option value="production" selected>production</option>
+              <option value="development">development</option>
+            </select>
+          </div>
+          <div class="check full">
+            <input id="debugMode" name="debug" type="checkbox">
+            <label for="debugMode" style="margin:0">디버그 모드 사용</label>
+          </div>
+          <div class="check full">
+            <input id="forceReinstall" name="force_reinstall" type="checkbox">
+            <label for="forceReinstall" style="margin:0">이미 설치된 환경이어도 재설치 허용</label>
+          </div>
+        </div>
+
+        <div class="actions">
+          <div class="hint">설치 시 `.env` 생성, 런타임 디렉토리 생성, DB 생성, 테이블 초기화가 자동 수행됩니다.</div>
+          <div style="display:flex;gap:12px">
+            <button class="btn btn-secondary" type="button" id="statusBtn">설치 상태 확인</button>
+            <button class="btn btn-primary" type="submit" id="submitBtn">설치 실행</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:12px">실행 결과</h2>
+      <div class="status-box" id="statusBox">설치 상태를 확인하거나 설치를 실행하세요.</div>
+    </div>
+  </div>
+
+  <script src="config.js?v=20260625-install"></script>
+  <script>
+    function detectApiBase() {
+      if (typeof window.detectWeesleeApiBase === 'function') return window.detectWeesleeApiBase();
+      if (window.__API_BASE__) return window.__API_BASE__;
+      if (/^\/weeslee-rag(?:\/|$)/.test(window.location.pathname || '')) return '/weeslee-rag/api';
+      return `${window.location.origin}/api`;
+    }
+
+    const API_BASE = String(detectApiBase()).replace(/\/+$/, '');
+    const statusBox = document.getElementById('statusBox');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function apiUrl(path) {
+      if (path.startsWith('/api/')) return `${API_BASE}${path.slice(4)}`;
+      return `${API_BASE}${path.startsWith('/') ? path : '/' + path}`;
+    }
+
+    function setStatus(message, tone) {
+      statusBox.textContent = message;
+      statusBox.className = 'status-box' + (tone === 'ok' ? ' status-ok' : tone === 'err' ? ' status-err' : '');
+    }
+
+    async function loadInstallStatus() {
+      setStatus('설치 상태를 조회하는 중입니다...', '');
+      try {
+        const response = await fetch(apiUrl('/api/install/status'));
+        const data = await response.json();
+        setStatus(JSON.stringify(data, null, 2), data.installed ? 'ok' : '');
+      } catch (error) {
+        setStatus(`설치 상태 조회 실패: ${error.message}`, 'err');
+      }
+    }
+
+    function collectPayload() {
+      const form = document.getElementById('installForm');
+      const formData = new FormData(form);
+      return {
+        app_name: formData.get('app_name'),
+        app_env: formData.get('app_env'),
+        debug: document.getElementById('debugMode').checked,
+        admin_username: formData.get('admin_username'),
+        admin_password: formData.get('admin_password'),
+        db_host: formData.get('db_host'),
+        db_port: Number(formData.get('db_port')),
+        db_name: formData.get('db_name'),
+        db_user: formData.get('db_user'),
+        db_password: formData.get('db_password'),
+        knowledge_source_mount: formData.get('knowledge_source_mount'),
+        knowledge_source_unc: formData.get('knowledge_source_unc'),
+        rag_source_folder: formData.get('rag_source_folder'),
+        ollama_host: formData.get('ollama_host'),
+        answer_model: formData.get('answer_model'),
+        ollama_embed_model: formData.get('ollama_embed_model'),
+        embedding_dim: Number(formData.get('embedding_dim')),
+        max_embed_chars: Number(formData.get('max_embed_chars')),
+        data_dir: formData.get('data_dir'),
+        upload_dir: formData.get('upload_dir'),
+        faiss_index_dir: formData.get('faiss_index_dir'),
+        force_reinstall: document.getElementById('forceReinstall').checked
+      };
+    }
+
+    document.getElementById('statusBtn').addEventListener('click', loadInstallStatus);
+
+    document.getElementById('installForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = collectPayload();
+      submitBtn.disabled = true;
+      setStatus('설치를 실행하는 중입니다. DB 생성과 테이블 초기화가 끝날 때까지 기다리세요...', '');
+
+      try {
+        const response = await fetch(apiUrl('/api/install/apply'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || `HTTP ${response.status}`);
+        }
+        const warnings = (data.warnings || []).length
+          ? `\n\n경고:\n- ${data.warnings.join('\n- ')}`
+          : '';
+        setStatus(
+          `설치 완료\n관리자 계정: ${data.admin_username}\nDB: ${data.db_name}\n생성 디렉토리 수: ${(data.created_dirs || []).length}${warnings}\n\n다음 이동: ${data.next_url}`,
+          'ok'
+        );
+      } catch (error) {
+        setStatus(`설치 실패: ${error.message}`, 'err');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    loadInstallStatus();
+  </script>
+</body>
+</html>
