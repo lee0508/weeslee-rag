@@ -4012,7 +4012,7 @@ POST /api/admin/faiss/activate</code>
     <div class="modal-content" style="width:min(1080px,94vw);max-height:92vh;overflow-y:auto">
       <div class="modal-header" style="position:sticky;top:0;background:var(--surface);z-index:2">
         <div>
-          <h3 style="margin:0;font-size:16px" id="docSourceFormTitle">새 Document Source 등록</h3>
+          <h3 style="margin:0;font-size:16px" id="docSourceFormTitle">Document Source 등록</h3>
           <div style="font-size:12px;color:var(--muted);margin-top:4px" id="docSourceFormSubtitle">원본 문서 저장소를 선택하고 source_id를 등록합니다. dataset_id는 저장 시 자동 생성됩니다.</div>
         </div>
         <button class="btn btn-outline btn-sm" onclick="closeDocSourceForm()" style="padding:4px 8px">✕</button>
@@ -4373,12 +4373,12 @@ POST /api/admin/faiss/activate</code>
     <button class="btn btn-outline btn-sm" id="wizardStopBtn" onclick="wizardStop()" style="display:none">■ 중단</button>
     <span id="wizardAutoStatus" style="font-size:12px;color:var(--muted)"></span>
   </div>
-  <!-- 작업 중 Snapshot ID 표시 -->
+  <!-- 사용 중 Snapshot ID 표시 -->
   <div id="wizardSnapshotInfo" style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:10px 14px;background:var(--surface2);border-radius:6px;font-size:12px">
-    <span style="color:var(--muted)">작업 중 Snapshot:</span>
+    <span style="color:var(--muted)">사용 중 Snapshot:</span>
     <span id="wizardCurrentSnapshot" style="font-weight:600;color:var(--amber)">-</span>
     <span style="color:var(--muted)">|</span>
-    <span style="color:var(--muted)">Source:</span>
+    <span style="color:var(--muted)">New Snapshot:</span>
     <span id="wizardCurrentSource" style="font-weight:600">-</span>
     <button class="btn btn-outline btn-sm" style="margin-left:auto;font-size:11px" onclick="generateNewSnapshot()">새 스냅샷 생성</button>
   </div>
@@ -5385,21 +5385,35 @@ POST /api/admin/faiss/activate</code>
   <div class="card" id="mountManagerCard">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
       <span>🔌 Mount Manager<span class="card-status-dot" id="mountStatusDot"></span></span>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-secondary btn-sm" onclick="checkAllMounts()">마운트 상태 전체 확인</button>
-        <button class="btn btn-outline btn-sm" onclick="loadMountStatus()">↻</button>
-      </div>
+      <button class="btn btn-outline btn-sm" onclick="loadMountStatus()">↻</button>
     </div>
-    <!-- 단일 경로 테스트 -->
-    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">
-      <div class="form-group" style="flex:1;margin-bottom:0">
-        <label>경로 직접 확인</label>
-        <input type="text" id="mountTestPath" placeholder="/mnt/w2_project 또는 \\\\server\\share">
+
+    <!-- 등록된 Document Source 전체 확인 -->
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <label style="font-weight:600;font-size:13px">등록된 Document Source 마운트 상태</label>
+        <button class="btn btn-secondary btn-sm" onclick="checkAllMounts()">전체 상태 확인</button>
       </div>
-      <button class="btn btn-outline" onclick="testSinglePath()">접근 테스트</button>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+        등록된 모든 Document Source의 경로 접근 가능 여부를 자동으로 확인합니다.
+      </div>
+      <div id="mountStatusList"><div class="empty">상태 확인 버튼을 눌러 마운트 상태를 조회하세요.</div></div>
     </div>
-    <div id="mountSingleResult" style="margin-bottom:12px"></div>
-    <div id="mountStatusList"><div class="empty">상태 확인 버튼을 눌러 마운트 상태를 조회하세요.</div></div>
+
+    <!-- 개별 경로 직접 테스트 -->
+    <div style="border-top:1px solid var(--border);padding-top:16px">
+      <label style="font-weight:600;font-size:13px;display:block;margin-bottom:8px">개별 경로 직접 테스트</label>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+        등록되지 않은 경로의 접근 가능 여부를 테스트할 수 있습니다.
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <input type="text" id="mountTestPath" placeholder="/mnt/w2_project 또는 \\server\share">
+        </div>
+        <button class="btn btn-outline" onclick="testSinglePath()">접근 테스트</button>
+      </div>
+      <div id="mountSingleResult" style="margin-top:8px"></div>
+    </div>
   </div>
 
   <!-- Collection Template Manager -->
@@ -13290,6 +13304,12 @@ LIMIT 10`;
   function onCtxSourceChange() {
     syncCtxClientFromSource(true);
     onCtxChange();
+    // Document Source 변경 시 Wizard 상태 초기화 및 Snapshot UI 업데이트
+    if (typeof resetWizardState === 'function') {
+      resetWizardState();
+    } else if (typeof updateSnapshotUI === 'function') {
+      updateSnapshotUI();
+    }
   }
 
   function onCtxDatasetChange() {
@@ -14247,6 +14267,34 @@ LIMIT 10`;
     loadDocSourceFolders(parts.join('/'));
   }
 
+  async function _detectFolderStructureType(subpath) {
+    try {
+      const qs = subpath ? `?subpath=${encodeURIComponent(subpath)}` : '';
+      const resp = await _fetchWithTimeout(
+        `${API_BASE}/knowledge-sources/folders${qs}`,
+        { headers: authHeaders() },
+        10000
+      );
+      if (!resp.ok) return 'flat';
+      const folders = await resp.json();
+      if (!Array.isArray(folders) || folders.length === 0) return 'flat';
+      const names = folders.map(f => (f.name || '').toLowerCase());
+      const rfpKeywords = ['rfp', '제안요청서', '입찰공고', '공고문'];
+      const proposalKeywords = ['제안서', 'proposal', '제안', '응찰'];
+      const deliverableKeywords = ['산출물', '결과물', 'deliverable', '보고서', '최종'];
+      const hasRfp = names.some(n => rfpKeywords.some(k => n.includes(k)));
+      const hasProposal = names.some(n => proposalKeywords.some(k => n.includes(k)));
+      const hasDeliverable = names.some(n => deliverableKeywords.some(k => n.includes(k)));
+      if ((hasRfp && hasProposal) || (hasProposal && hasDeliverable) || (hasRfp && hasDeliverable)) {
+        return 'rfp_proposal_deliverable';
+      }
+      return 'flat';
+    } catch (e) {
+      console.warn('[_detectFolderStructureType]', e);
+      return 'flat';
+    }
+  }
+
   function _applyDocSourcePathSelection(subpath, fullPath, folderName) {
     const sourceName = folderName || _docSourceSourceNameFromPath(subpath);
     const clientId = document.getElementById('dsClient').value.trim() || document.getElementById('ctxClient')?.value || '';
@@ -14261,6 +14309,9 @@ LIMIT 10`;
     _docSourceBrowse.selectedFullPath = mountPath;
     _setDocSourceAutoStatus('폴더 자동 선택 완료', 'green');
     updateDocSourceScanRootPreview();
+    _detectFolderStructureType(subpath).then(structureType => {
+      document.getElementById('dsStructure').value = structureType;
+    });
   }
 
   function selectDocSourceFolder(subpath, fullPath, folderName) {
@@ -16348,15 +16399,26 @@ LIMIT 10`;
   // ── Snapshot UI 업데이트 ────────────────────────────────────────────────────
   function updateSnapshotUI() {
     const snapshotEl = document.getElementById('wizardCurrentSnapshot');
-    const sourceEl = document.getElementById('wizardCurrentSource');
+    const newSnapshotEl = document.getElementById('wizardCurrentSource');
     const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
     const existingSnapshot = getSelectedSnapshot();
 
+    // 사용 중 Snapshot: 현재 선택된 스냅샷 또는 생성된 스냅샷
     if (snapshotEl) {
       snapshotEl.textContent = _wizardFaissSnapshot || existingSnapshot || '(자동 생성 예정)';
     }
-    if (sourceEl) {
-      sourceEl.textContent = sourceId;
+    // New Snapshot: 새로 생성될 스냅샷 ID 미리보기
+    if (newSnapshotEl) {
+      if (_wizardFaissSnapshot) {
+        // 이미 새 스냅샷이 생성된 경우
+        newSnapshotEl.textContent = _wizardFaissSnapshot;
+      } else if (sourceId) {
+        // 아직 생성 전이면 미리보기 형식 표시
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        newSnapshotEl.textContent = `snapshot_${today}_${sourceId}_V?`;
+      } else {
+        newSnapshotEl.textContent = '(Source 선택 필요)';
+      }
     }
   }
 
@@ -16422,16 +16484,8 @@ LIMIT 10`;
     showToast(`새 스냅샷 생성: ${_wizardFaissSnapshot}`, 'success');
   }
 
-  // ctxSource 변경 시 UI 업데이트
+  // ctxSource 변경 시 UI 업데이트 (onCtxSourceChange에서 resetWizardState 호출됨)
   document.addEventListener('DOMContentLoaded', () => {
-    const sourceSelect = document.getElementById('ctxSource');
-    if (sourceSelect) {
-      sourceSelect.addEventListener('change', () => {
-        // source 변경 시 전체 Wizard 상태 초기화
-        resetWizardState();
-        showToast('Document Source가 변경되어 진행 상태가 초기화되었습니다.', 'info', 3000);
-      });
-    }
     // 초기 로드 시 업데이트
     setTimeout(updateSnapshotUI, 500);
   });
@@ -16902,26 +16956,34 @@ LIMIT 10`;
       try {
         const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
 
-        // 기존 스냅샷이 선택되었는지 확인
-        const existingSnapshot = getSelectedSnapshot();
-        const recommendedStage = existingSnapshot ? getRecommendedStartStage() : 1;
-        if (existingSnapshot && recommendedStage > 3) {
-          _wizardAppendLog(step, `기존 스냅샷은 OCR/청킹 단계가 이미 완료된 상태입니다. recommended_start=${recommendedStage}`);
-          _wizardMarkDone(step);
-          _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${existingSnapshot}의 OCR/청킹 완료가 확인됐습니다.`), 'ok');
-          return true;
-        }
-        const startFromStage = Math.max(1, recommendedStage);
+        // 새 스냅샷 vs 기존 스냅샷 판단
+        // _wizardFaissSnapshot이 이미 설정되어 있고 드롭다운 선택값과 다르면 새 스냅샷
+        const dropdownSnapshot = getSelectedSnapshot();
+        const isNewSnapshot = _wizardFaissSnapshot && _wizardFaissSnapshot !== dropdownSnapshot;
 
-        if (existingSnapshot) {
-          _wizardFaissSnapshot = existingSnapshot;
+        // 새 스냅샷이면 Stage 1부터 시작, 기존 스냅샷이면 recommended stage 사용
+        let startFromStage = 1;
+        if (!isNewSnapshot && dropdownSnapshot) {
+          const recommendedStage = getRecommendedStartStage();
+          if (recommendedStage > 3) {
+            _wizardAppendLog(step, `기존 스냅샷은 OCR/청킹 단계가 이미 완료된 상태입니다. recommended_start=${recommendedStage}`);
+            _wizardMarkDone(step);
+            _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${dropdownSnapshot}의 OCR/청킹 완료가 확인됐습니다.`), 'ok');
+            return true;
+          }
+          startFromStage = Math.max(1, recommendedStage);
+          _wizardFaissSnapshot = dropdownSnapshot;
           _wizardAppendLog(step, `기존 스냅샷 재사용: ${_wizardFaissSnapshot}`);
           _wizardAppendLog(step, `Document Source: ${sourceId}`);
           _wizardAppendLog(step, `Stage ${startFromStage}부터 시작`);
         } else {
-          _wizardFaissSnapshot = createNewSnapshotId();
+          // 새 스냅샷 생성 또는 이미 생성된 새 스냅샷 사용
+          if (!_wizardFaissSnapshot) {
+            _wizardFaissSnapshot = createNewSnapshotId();
+          }
           _wizardAppendLog(step, `Document Source: ${sourceId}`);
           _wizardAppendLog(step, `새 스냅샷: ${_wizardFaissSnapshot}`);
+          _wizardAppendLog(step, `Stage 1부터 시작 (새 스냅샷)`);
         }
 
         _wizardAppendLog(step, 'POST /api/admin/faiss/jobs ...');
@@ -16957,13 +17019,23 @@ LIMIT 10`;
         _wizardMarkError(step, 'FAISS 스냅샷이 없습니다. Step 5 (OCR/청킹)를 먼저 실행하세요.');
         return false;
       }
-      _wizardFaissSnapshot = snapshot;
+
+      // 새 스냅샷 vs 기존 스냅샷 판단
+      const dropdownSnapshot = getSelectedSnapshot();
+      const isNewSnapshot = _wizardFaissSnapshot && _wizardFaissSnapshot !== dropdownSnapshot;
+
       try {
         const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
-        const recommendedStage = getSelectedSnapshot() ? getRecommendedStartStage() : 4;
-        const startFromStage = Math.max(4, Math.min(recommendedStage || 4, 5));
+        _wizardFaissSnapshot = snapshot;
+        // 새 스냅샷이면 Stage 4부터 시작, 기존 스냅샷이면 recommended stage 사용
+        let startFromStage = 4;
+        if (!isNewSnapshot && dropdownSnapshot) {
+          const recommendedStage = getRecommendedStartStage();
+          startFromStage = Math.max(4, Math.min(recommendedStage || 4, 5));
+        }
         _wizardSetStatus(step, '잡 시작...', 'running');
-        _wizardAppendLog(step, `POST /api/admin/faiss/jobs\n스냅샷: ${snapshot}\nDocument Source: ${sourceId}`);
+        const snapshotType = isNewSnapshot ? '새 스냅샷' : '기존 스냅샷';
+        _wizardAppendLog(step, `POST /api/admin/faiss/jobs\n스냅샷: ${snapshot} (${snapshotType})\nDocument Source: ${sourceId}\nStage ${startFromStage}부터 시작`);
         const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
@@ -17211,9 +17283,26 @@ LIMIT 10`;
     if (el) el.textContent = '중단 중...';
   }
 
-  checkAuth().then(() => {
-    if (getToken()) initPage();
-  });
+  async function bootstrapAdminPage() {
+    try {
+      const installResp = await fetch(apiUrl('/api/install/status'));
+      if (installResp.ok) {
+        const installData = await installResp.json();
+        if (!installData.installed) {
+          window.location.href = 'install.html';
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[install-status] 조회 실패:', e);
+    }
+
+    checkAuth().then(() => {
+      if (getToken()) initPage();
+    });
+  }
+
+  bootstrapAdminPage();
 
   // ══════════════════════════════════════════════════════════════════════════
   // LPG Ontology 관련 함수 (Phase 8: 4-layer RAG)

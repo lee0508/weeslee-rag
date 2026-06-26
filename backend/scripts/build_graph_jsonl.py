@@ -7,8 +7,8 @@ Output:
   data/indexes/graph/graph_edges.jsonl
   data/indexes/graph/graph_manifest.json
 
-Node types:  project | document | category | organization | technology | methodology | domain | chunk_section
-Edge types:  has_document | has_category | related_sequence | 발주 | 적용기술 | 사용방법론 | 관련도메인 | 동의어 | 유사기술 | APPEARS_IN | MENTIONS
+Node types:  project | document | document_section | category | organization | technology | methodology | domain | chunk_section
+Edge types:  has_document | has_category | CONTAINS_SECTION | related_sequence | 발주 | 적용기술 | 사용방법론 | 관련도메인 | 동의어 | 유사기술 | APPEARS_IN | MENTIONS
 
 Phase 2 enhancements:
 - chunk_section 노드: FAISS 청크의 section_heading 기반 섹션 노드 생성
@@ -651,6 +651,134 @@ def _add_knowledge_graph_nodes(
                 add_edge(doc_id, keyword_id, "관련키워드")
 
 
+# ── DocumentSection 노드 및 CONTAINS_SECTION 엣지 ──────────────────────────────
+
+
+def _add_document_section_nodes_and_edges(
+    nodes: list[dict],
+    edges: list[dict],
+    chunks: list[dict],
+    node_ids: set[str],
+    edge_counter: list[int],
+) -> None:
+    """
+    문서의 구조적 섹션(목차 기반) DocumentSection 노드를 생성하고,
+    Document → DocumentSection CONTAINS_SECTION 엣지를 추가한다.
+
+    DocumentSection은 문서의 논리적 구조를 나타내며, chunk_section과는 구별된다:
+    - DocumentSection: 문서 목차 기반 구조적 섹션 (예: "1. 사업개요", "2. 기술제안")
+    - chunk_section: FAISS 청크의 section_heading 기반 (실제 검색 대상)
+    """
+    from app.services.knowledge_graph import classify_document_section
+
+    def add_node(n: dict) -> bool:
+        if n["id"] not in node_ids:
+            nodes.append(n)
+            node_ids.add(n["id"])
+            return True
+        return False
+
+    def add_edge(src: str, tgt: str, relation: str, **extra) -> None:
+        edge_id = f"{src}->{tgt}:{relation}"
+        if any(e["id"] == edge_id for e in edges):
+            return
+        edge_counter[0] += 1
+        edges.append({"id": edge_id, "source": src, "target": tgt,
+                      "relation": relation, **extra})
+
+    # 1. 문서별로 청크 그룹화
+    doc_chunks: dict[str, list[dict]] = defaultdict(list)
+    for chunk in chunks:
+        doc_id = chunk.get("document_id", "")
+        if doc_id:
+            doc_chunks[doc_id].append(chunk)
+
+    # 2. 각 문서의 섹션 추출 및 DocumentSection 노드 생성
+    section_colors = {
+        "사업개요": "#3b82f6",
+        "현황분석": "#0d9488",
+        "환경분석": "#059669",
+        "목표모델": "#0891b2",
+        "기술제안": "#8b5cf6",
+        "기술및기능": "#8b5cf6",
+        "프로젝트관리": "#a855f7",
+        "프로젝트지원": "#c026d3",
+        "전략및방법론": "#6366f1",
+        "이행계획": "#0284c7",
+        "연구과제": "#db2777",
+        "보안요구사항": "#dc2626",
+        "품질관리": "#16a34a",
+    }
+
+    for doc_id, chunks_list in doc_chunks.items():
+        doc_node_id = f"doc:{doc_id}"
+
+        # 문서 노드가 그래프에 없으면 스킵
+        if doc_node_id not in node_ids:
+            continue
+
+        # 섹션 헤딩 추출 및 그룹화
+        section_headings: dict[str, list[dict]] = defaultdict(list)
+        for chunk in chunks_list:
+            section_title = chunk.get("section_title", "").strip()
+            if not section_title:
+                # section_title이 없으면 section_heading 사용
+                section_title = chunk.get("section_heading", "").strip()
+
+            if section_title:
+                # 번호 제거 (예: "1. 사업개요" → "사업개요")
+                clean_title = re.sub(r"^\d+\.\s*", "", section_title).strip()
+                section_headings[clean_title].append(chunk)
+
+        # 3. DocumentSection 노드 생성 (핵심 섹션만)
+        for section_title, section_chunks in section_headings.items():
+            # 핵심 섹션인지 확인
+            matched_sections = classify_document_section(section_title, "")
+            is_key_section = len(matched_sections) > 0
+
+            # 핵심 섹션이거나 청크가 3개 이상인 경우만 노드 생성
+            if not is_key_section and len(section_chunks) < 3:
+                continue
+
+            # DocumentSection 노드 ID
+            section_node_id = f"doc_section:{doc_id}:{section_title}"
+
+            # 페이지 범위 계산
+            page_nos = [c.get("page_no") for c in section_chunks if c.get("page_no")]
+            start_page = min(page_nos) if page_nos else None
+            end_page = max(page_nos) if page_nos else None
+
+            # section_id 추출 (첫 번째 청크의 section_id)
+            section_id = next((c.get("section_id") for c in section_chunks if c.get("section_id")), None)
+
+            # 노드 생성
+            add_node({
+                "id": section_node_id,
+                "type": "document_section",
+                "label": section_title,
+                "document_id": doc_id,
+                "section_id": section_id,
+                "chunk_count": len(section_chunks),
+                "is_key_section": is_key_section,
+                "start_page": start_page,
+                "end_page": end_page,
+                "matched_entity_sections": list(matched_sections),
+                "color": section_colors.get(section_title, "#64748b"),
+            })
+
+            # Document → DocumentSection CONTAINS_SECTION 엣지
+            add_edge(doc_node_id, section_node_id, "CONTAINS_SECTION",
+                     chunk_count=len(section_chunks),
+                     start_page=start_page,
+                     end_page=end_page)
+
+            # 핵심 섹션이면 entity section 노드와도 연결
+            for matched in matched_sections:
+                entity_section_id = f"section:{matched}"
+                if entity_section_id in node_ids:
+                    add_edge(section_node_id, entity_section_id, "MAPS_TO")
+
+
 # ── Phase 2: Chunk Section 노드 및 APPEARS_IN 엣지 ──────────────────────────────
 
 
@@ -664,6 +792,8 @@ def _add_chunk_section_nodes_and_edges(
     """
     FAISS 청크의 section_heading 기반으로 chunk_section 노드를 생성하고,
     Document → ChunkSection APPEARS_IN 엣지를 추가한다.
+
+    또한 chunk를 DocumentSection과 연결하여 section_id 기반 연결을 강화한다.
 
     Q2 결정: B (핵심 섹션만 Graph 노드화) - entity_mappings 기반 핵심 섹션만 노드로 생성
     """
@@ -760,6 +890,49 @@ def _add_chunk_section_nodes_and_edges(
                     entity_section_id = f"section:{matched}"
                     if entity_section_id in node_ids:
                         add_edge(section_node_id, entity_section_id, "MAPS_TO")
+
+    # 3. Chunk → DocumentSection 연결 강화
+    # chunk의 section_heading을 DocumentSection 노드와 매칭하여 연결
+    # DocumentSection 노드에 chunk_ids 리스트를 추가하여 검색 효율성 향상
+    doc_section_chunk_map: dict[str, list[str]] = defaultdict(list)
+
+    for chunk in chunks:
+        doc_id = chunk.get("document_id", "")
+        section_heading = chunk.get("section_heading", "").strip()
+        chunk_id = chunk.get("chunk_id", "")
+
+        if not doc_id or not section_heading or not chunk_id:
+            continue
+
+        # section_heading에서 번호 제거
+        clean_heading = re.sub(r"^\d+\.\s*", "", section_heading).strip()
+        if not clean_heading:
+            continue
+
+        # 해당 DocumentSection 노드 ID 생성
+        doc_section_id = f"doc_section:{doc_id}:{clean_heading}"
+
+        # DocumentSection 노드가 존재하면 chunk_id 매핑
+        if doc_section_id in node_ids:
+            doc_section_chunk_map[doc_section_id].append(chunk_id)
+
+    # DocumentSection 노드에 chunk_ids 속성 추가
+    chunk_to_doc_section_count = 0
+    doc_sections_with_chunks = 0
+    for node in nodes:
+        if node.get("type") == "document_section":
+            node_id = node["id"]
+            if node_id in doc_section_chunk_map:
+                node["chunk_ids"] = doc_section_chunk_map[node_id]
+                chunk_to_doc_section_count += len(doc_section_chunk_map[node_id])
+                doc_sections_with_chunks += 1
+
+    # 통계 출력
+    print(json.dumps({
+        "phase2_enhancement": "chunk_to_document_section_mapping",
+        "document_sections_with_chunks": doc_sections_with_chunks,
+        "total_chunks_mapped": chunk_to_doc_section_count
+    }, ensure_ascii=False), flush=True)
 
 
 # ── Phase 3: MENTIONS 엣지 (Document → Keyword) ──────────────────────────────
@@ -1016,12 +1189,17 @@ def main() -> int:
     print(json.dumps({"progress": 45, "current": 3, "total": 6, "stage": "그래프 노드/엣지 생성"}), flush=True)
     nodes, edges = _build_nodes_edges(docs)
 
-    # Phase 2: Chunk Section 노드 및 APPEARS_IN 엣지 추가
+    # DocumentSection 노드 및 CONTAINS_SECTION 엣지 추가
     mentions_count = 0
     if chunks:
-        print(json.dumps({"progress": 55, "current": 4, "total": 7, "stage": "Chunk Section 노드/APPEARS_IN 엣지 생성"}), flush=True)
+        print(json.dumps({"progress": 50, "current": 4, "total": 8, "stage": "DocumentSection 노드/CONTAINS_SECTION 엣지 생성"}), flush=True)
         node_ids = {n["id"] for n in nodes}
         edge_counter = [max(int(e["id"].lstrip("e")) for e in edges if e["id"].startswith("e")) if edges else 0]
+        _add_document_section_nodes_and_edges(nodes, edges, chunks, node_ids, edge_counter)
+
+        # Phase 2: Chunk Section 노드 및 APPEARS_IN 엣지 추가
+        print(json.dumps({"progress": 60, "current": 5, "total": 8, "stage": "Chunk Section 노드/APPEARS_IN 엣지 생성"}), flush=True)
+        node_ids = {n["id"] for n in nodes}  # 새 노드 추가 후 갱신
         _add_chunk_section_nodes_and_edges(nodes, edges, chunks, node_ids, edge_counter)
 
         # Phase 3: MENTIONS 엣지 추가 (문서 텍스트 기반 키워드 추출)
@@ -1046,7 +1224,9 @@ def main() -> int:
 
     project_count  = sum(1 for n in nodes if n["type"] == "project")
     document_count = sum(1 for n in nodes if n["type"] == "document")
+    document_section_count = sum(1 for n in nodes if n["type"] == "document_section")
     chunk_section_count = sum(1 for n in nodes if n["type"] == "chunk_section")
+    contains_section_count = sum(1 for e in edges if e["relation"] == "CONTAINS_SECTION")
     appears_in_count = sum(1 for e in edges if e["relation"] == "APPEARS_IN")
     mentions_edge_count = sum(1 for e in edges if e["relation"] == "MENTIONS")
 
@@ -1066,6 +1246,9 @@ def main() -> int:
         "edge_count":     len(edges),
         "project_count":  project_count,
         "document_count": document_count,
+        # DocumentSection 통계
+        "document_section_count": document_section_count,
+        "contains_section_edge_count": contains_section_count,
         # Phase 2: Chunk Section 통계
         "chunk_section_count": chunk_section_count,
         "appears_in_edge_count": appears_in_count,
