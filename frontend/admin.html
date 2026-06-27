@@ -2344,7 +2344,7 @@ POST /api/admin/faiss/rollback</code>
               <div class="wr-field">
                 <label>LLM 모델 <span class="wr-required">*</span></label>
                 <select id="wrStep8LlmModel">
-                  <option value="gemma4:latest">gemma4:latest (Ollama)</option>
+                  <option value="llama3:8b">llama3:8b (Ollama)</option>
                   <option value="llama3.3:latest">llama3.3:latest (Ollama)</option>
                   <option value="claude-3-haiku">claude-3-haiku (API)</option>
                 </select>
@@ -2366,7 +2366,7 @@ POST /api/admin/faiss/rollback</code>
               <pre class="wr-request-body" id="reqPreview8" style="display:none">{
   "source_id": "current_source",
   "wiki_type": "project",
-  "llm_model": "gemma4:latest",
+  "llm_model": "llama3:8b",
   "max_tokens": 2000,
   "temperature": 0.3
 }</pre>
@@ -2391,7 +2391,7 @@ POST /api/admin/faiss/rollback</code>
               <div class="wr-field">
                 <label>LLM 모델 <span class="wr-required">*</span></label>
                 <select id="wrStep9LlmModel">
-                  <option value="gemma4:latest">gemma4:latest (Ollama)</option>
+                  <option value="llama3:8b">llama3:8b (Ollama)</option>
                   <option value="llama3.3:latest">llama3.3:latest (Ollama)</option>
                   <option value="claude-3-sonnet">claude-3-sonnet (API)</option>
                 </select>
@@ -2409,7 +2409,7 @@ POST /api/admin/faiss/rollback</code>
               </div>
               <pre class="wr-request-body" id="reqPreview9" style="display:none">{
   "question": "한국정보화진흥원이 발주한 프로젝트 목록을 보여줘",
-  "llm_model": "gemma4:latest",
+  "llm_model": "llama3:8b",
   "max_retry": 2,
   "execute": true
 }</pre>
@@ -2454,7 +2454,7 @@ POST /api/admin/faiss/rollback</code>
               <div class="wr-field">
                 <label>LLM 모델 <span class="wr-required">*</span></label>
                 <select id="wrStep10LlmModel">
-                  <option value="gemma4:latest">gemma4:latest (Ollama)</option>
+                  <option value="llama3:8b">llama3:8b (Ollama)</option>
                   <option value="llama3.3:latest">llama3.3:latest (Ollama)</option>
                 </select>
               </div>
@@ -2473,7 +2473,7 @@ POST /api/admin/faiss/rollback</code>
   "graph_weight": 0.3,
   "wiki_weight": 0.2,
   "dedupe_threshold": 0.85,
-  "llm_model": "gemma4:latest",
+  "llm_model": "llama3:8b",
   "max_docs": 10
 }</pre>
             </div>
@@ -5343,7 +5343,7 @@ POST /api/admin/faiss/activate</code>
       </div>
       <div class="form-group">
         <label>기본 LLM 모델</label>
-        <input type="text" id="pfLlmModel" value="gemma4:latest" placeholder="예: gemma4:latest">
+        <input type="text" id="pfLlmModel" value="llama3:8b" placeholder="예: llama3:8b">
       </div>
       <div class="form-group">
         <label>기본 임베딩 모델</label>
@@ -5374,7 +5374,7 @@ POST /api/admin/faiss/activate</code>
         <div class="form-group"><label>고객사명 *</label><input type="text" id="cfClientName" placeholder="예: (주)ABC"></div>
         <div class="form-group"><label>설명</label><input type="text" id="cfDescription" placeholder="선택"></div>
         <div class="form-group"><label>데이터 저장 경로</label><input type="text" id="cfDataPath" placeholder="/data/weeslee/weeslee-rag/data/clients/..."></div>
-        <div class="form-group"><label>기본 LLM 모델</label><input type="text" id="cfLlmModel" value="gemma4:latest"></div>
+        <div class="form-group"><label>기본 LLM 모델</label><input type="text" id="cfLlmModel" value="llama3:8b"></div>
         <div class="form-group"><label>기본 임베딩 모델</label><input type="text" id="cfEmbedModel" value="nomic-embed-text"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
@@ -7290,7 +7290,7 @@ POST /api/admin/faiss/activate</code>
     document.getElementById('cfClientName').value = data?.client_name || '';
     document.getElementById('cfDescription').value = data?.description || '';
     document.getElementById('cfDataPath').value = data?.service_data_path || '';
-    document.getElementById('cfLlmModel').value = data?.default_llm_model || 'gemma4:latest';
+    document.getElementById('cfLlmModel').value = data?.default_llm_model || 'llama3:8b';
     document.getElementById('cfEmbedModel').value = data?.default_embedding_model || 'nomic-embed-text';
     document.getElementById('cfEditId').value = data?.client_id || '';
     document.getElementById('cfClientId').disabled = !!data;
@@ -7361,7 +7361,7 @@ POST /api/admin/faiss/activate</code>
         _platformDefaultClientId = '';
         setValue('pfClientName', '미설정');
         setValue('pfClientId', '미설정');
-        setValue('pfLlmModel', 'gemma4:latest');
+        setValue('pfLlmModel', 'llama3:8b');
         ensurePlatformEmbedModelOption('nomic-embed-text');
         const embedEl = document.getElementById('pfEmbedModel');
         if (embedEl) embedEl.value = 'nomic-embed-text';
@@ -7372,7 +7372,7 @@ POST /api/admin/faiss/activate</code>
       _platformDefaultClientId = client.client_id || '';
       setValue('pfClientName', client.client_name || '-');
       setValue('pfClientId', client.client_id || '-');
-      setValue('pfLlmModel', client.default_llm_model || 'gemma4:latest');
+      setValue('pfLlmModel', client.default_llm_model || 'llama3:8b');
       ensurePlatformEmbedModelOption(client.default_embedding_model || 'nomic-embed-text');
       const embedEl = document.getElementById('pfEmbedModel');
       if (embedEl) embedEl.value = client.default_embedding_model || 'nomic-embed-text';
@@ -9909,7 +9909,7 @@ POST /api/admin/faiss/activate</code>
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       showToast('재처리 요청이 완료되었습니다.');
       closeOcrDetailModal();
-      loadOcrResultList();
+      loadOcrResults();
     } catch (e) {
       console.error('재처리 실패:', e);
       showToast('재처리 실패: ' + e.message, 'error');
@@ -9932,7 +9932,7 @@ POST /api/admin/faiss/activate</code>
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       showToast('삭제되었습니다.');
       closeOcrDetailModal();
-      loadOcrResultList();
+      loadOcrResults();
     } catch (e) {
       console.error('삭제 실패:', e);
       showToast('삭제 실패: ' + e.message, 'error');
@@ -10575,7 +10575,7 @@ POST /api/admin/faiss/activate</code>
     const currentSource = getCurrentSourceId() || window._selectedSourceId || '';
     const runtimeEmbedProvider = readRuntimeValue('serverEmbedProvider') || 'ollama';
     const runtimeEmbedModel = readRuntimeValue('serverEmbedModel') || 'nomic-embed-text';
-    const runtimeAnswerModel = readRuntimeValue('serverAnswerModel') || 'gemma4:latest';
+    const runtimeAnswerModel = readRuntimeValue('serverAnswerModel') || 'llama3:8b';
 
     switch(stepNum) {
       case 1:
@@ -15013,7 +15013,7 @@ LIMIT 10`;
         _dashboardActiveClientId = client.client_id || '';
         setText('dashClientId', client.client_id || '-');
         setText('dashClientName', client.client_name || '-');
-        setText('dashLlmModel', client.default_llm_model || 'gemma4:latest');
+        setText('dashLlmModel', client.default_llm_model || 'llama3:8b');
         setText('dashEmbedModel', client.default_embedding_model || 'nomic-embed-text');
         ensureDashboardEmbeddingOption(client.default_embedding_model || 'nomic-embed-text');
         const select = document.getElementById('dashEmbedModelSelect');
@@ -15677,11 +15677,16 @@ LIMIT 10`;
     appendStep2Log('info', 'Metadata Builder 실행 요청');
     showToast('Metadata Builder 실행 중...', 'info');
     try {
-      appendStep2Log('info', 'POST /api/admin/dataset-builder/step2/metadata-auto only_missing=true overwrite=false');
+      const sourceId = getCurrentSourceId?.() || document.getElementById('ctxSource')?.value?.trim() || '';
+      if (!sourceId) {
+        throw new Error('현재 선택된 source_id가 없습니다. Source Context를 먼저 선택하세요.');
+      }
+      appendStep2Log('info', `POST /api/admin/dataset-builder/step2/metadata-auto source_id=${sourceId} only_missing=true overwrite=false`);
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step2/metadata-auto'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          source_id: sourceId,
           only_missing: true,
           overwrite: false
         }),
@@ -17093,21 +17098,22 @@ LIMIT 10`;
         _wizardMarkError(step, 'Document Source가 선택되지 않았습니다.');
         return false;
       }
-      const params = new URLSearchParams();
-      params.set('source_id', sourceId);
-      if (snapshot) params.set('snapshot', snapshot);
-      params.set('wiki_type', wikiType);
-      params.set('model', model);
-      params.set('max_projects', '10');
-      params.set('max_wikis', '0');
-      const url = `${cfg.api}?${params.toString()}`;
+      const requestBody = {
+        source_id: sourceId || null,
+        snapshot_id: snapshot || null,
+        wiki_type: wikiType,
+        model: model,
+        max_wikis: 0,
+        from_inventory: false
+      };
       _wizardSetStatus(step, 'Wiki 생성 중... (시간이 걸릴 수 있습니다)', 'running');
-      _wizardAppendLog(step, `${cfg.method} ${url}`);
+      _wizardAppendLog(step, `${cfg.method} ${cfg.api}`);
       _wizardAppendLog(step, `source_id: ${sourceId}, snapshot: ${snapshot || '(없음)'}, wiki_type: ${wikiType}, model: ${model}`);
       try {
-        const r = await fetch(apiUrl(url), {
+        const r = await fetch(apiUrl(cfg.api), {
           method: cfg.method,
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) {
