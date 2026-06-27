@@ -6950,7 +6950,7 @@ POST /api/admin/faiss/activate</code>
         body: JSON.stringify({
           source_id: sourceId,
           client_id: clientId || document.getElementById('ctxClient')?.value || '',
-          overwrite: false,
+          overwrite: _wizardForceRebuild || false,
         }),
       });
       showToast(`기본 Collection 동기화 완료: ${_formatCollectionBootstrapSummary(result)}`, 'success');
@@ -11522,7 +11522,7 @@ LIMIT 10`;
       const response = await fetch(`${API_BASE}/admin/knowledge-graph/build`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ snapshot_id: snapshotId || null, rebuild: false, use_ontology: true })
+        body: JSON.stringify({ snapshot_id: snapshotId || null, rebuild: _wizardForceRebuild || false, use_ontology: true })
       });
       const data = await response.json();
       if (data.success) {
@@ -15639,7 +15639,7 @@ LIMIT 10`;
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step1/scan'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_id: sourceId, overwrite: false }),
+        body: JSON.stringify({ source_id: sourceId, overwrite: _wizardForceRebuild || false }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.success === false) {
@@ -15687,8 +15687,8 @@ LIMIT 10`;
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source_id: sourceId,
-          only_missing: true,
-          overwrite: false
+          only_missing: !_wizardForceRebuild,
+          overwrite: _wizardForceRebuild || false
         }),
       });
       const d = await r.json().catch(() => ({}));
@@ -15732,7 +15732,7 @@ LIMIT 10`;
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           document_ids: null,  // null이면 모든 검수 완료 문서 처리
-          force_reparse: false
+          force_reparse: _wizardForceRebuild || false
         }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -15790,7 +15790,7 @@ LIMIT 10`;
           model,
           batch_size: batchSize,
           retry_count: retryCount,
-          force_rebuild: false
+          force_rebuild: _wizardForceRebuild || false
         }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -16298,6 +16298,14 @@ LIMIT 10`;
         body.snapshot_id = snapshotId;
       }
     }
+    // Force 재처리 옵션 반영 (_wizardForceRebuild)
+    if (_wizardForceRebuild) {
+      if ('overwrite' in body) body.overwrite = true;
+      if ('rebuild' in body) body.rebuild = true;
+      if ('force_reparse' in body) body.force_reparse = true;
+      if ('force_rebuild' in body) body.force_rebuild = true;
+      if ('only_missing' in body) body.only_missing = false;
+    }
     return body;
   }
 
@@ -16686,7 +16694,7 @@ LIMIT 10`;
     const body = {
       source_id: sourceId,
       snapshot_id: snapshotId || null,
-      overwrite: false,
+      overwrite: _wizardForceRebuild || false,
     };
 
     _wizardSetStatus(step, '실행 중...', 'running');
@@ -16737,7 +16745,7 @@ LIMIT 10`;
     const body = {
       source_id: sourceId,
       snapshot_id: snapshotId || null,
-      overwrite: false,
+      overwrite: _wizardForceRebuild || false,
     };
 
     showToast('현재 Dataset 기준 Tag/Keyword 생성 중...', 'info');
@@ -17975,7 +17983,7 @@ LIMIT 10`;
         headers: authHeaders(true),
         body: JSON.stringify({
           document_ids: null,  // null이면 모든 검수 완료 문서
-          force_reparse: false
+          force_reparse: _wizardForceRebuild || false
         })
       });
 
