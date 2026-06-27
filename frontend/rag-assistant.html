@@ -2989,7 +2989,8 @@
 
     // ── Model dropdown ────────────────────────────────────────────────────
     function populateModelSelect(models) {
-      const genModels = models.filter(m => !/embed/i.test(m));
+      // 임베딩 전용 모델 제외 (embed 포함 또는 bge-m3)
+      const genModels = models.filter(m => !/embed/i.test(m) && !/^bge-/i.test(m));
       if (!genModels.length) return;
       const optHtml = genModels.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
       for (const selId of ['answerModel', 'propModel']) {
@@ -3899,7 +3900,7 @@
       const filterOrg = document.getElementById('filterOrg').value.trim();
       const filterYear = document.getElementById('filterYear').value.trim();
       const answerProvider = document.getElementById('answerProvider').value;
-      const answerModel = document.getElementById('answerModel').value.trim() || 'gemma4:latest';
+      const answerModel = document.getElementById('answerModel').value.trim() || 'llama3:8b';
       const searchMode = document.getElementById('searchMode').value;
       const collection = document.getElementById('collection')?.value || '';
       const documentGroup = document.getElementById('documentGroup')?.value || '';
