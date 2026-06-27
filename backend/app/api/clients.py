@@ -17,7 +17,7 @@ _WEESLEE_DEFAULT = {
     "client_name": "위즐리앤컴퍼니",
     "description": "위즐리 기본 클라이언트 (PoC)",
     "service_data_path": "/data/weeslee/weeslee-rag/data/clients/weeslee",
-    "default_llm_model": "gemma4:latest",
+    "default_llm_model": "llama3:8b",
     "default_embedding_model": "nomic-embed-text",
     "default_vectordb_type": "faiss",
     "default_graph_mode": "jsonl",
@@ -36,7 +36,7 @@ class ClientCreate(BaseModel):
     client_name: str
     description: Optional[str] = ""
     service_data_path: Optional[str] = ""
-    default_llm_model: Optional[str] = "gemma4:latest"
+    default_llm_model: Optional[str] = "llama3:8b"
     default_embedding_model: Optional[str] = "nomic-embed-text"
     default_vectordb_type: Optional[str] = "faiss"
     default_graph_mode: Optional[str] = "jsonl"
