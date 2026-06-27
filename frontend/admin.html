@@ -1767,7 +1767,7 @@ POST /api/admin/wiki/build</code>
                 <div class="wr-field">
                   <label>Wiki 생성 모델</label>
                   <select id="dbStep9WikiModel">
-                    <option value="gemma3:12b">gemma3:12b (Ollama 권장)</option>
+                    <option value="llama3:8b">llama3:8b (Ollama 권장)</option>
                     <option value="qwen3:8b">qwen3:8b (Ollama)</option>
                     <option value="llama3.1:8b">llama3.1:8b (Ollama)</option>
                     <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
@@ -1810,7 +1810,7 @@ Content-Type: application/json
 
 {
   "wiki_type": "project",
-  "model": "gemma3:12b",
+  "model": "llama3:8b",
   "max_wikis": 0
 }</code>
       </section>
@@ -2854,7 +2854,7 @@ GET /api/admin/knowledge-graph/agent-logs</code>
             <div class="wr-field">
               <label>Wiki 생성 모델</label>
               <select id="wikiBuildModel">
-                <option value="gemma3:12b">gemma3:12b (Ollama 권장)</option>
+                <option value="llama3:8b">llama3:8b (Ollama 권장)</option>
                 <option value="qwen3:8b">qwen3:8b (Ollama)</option>
                 <option value="llama3.1:8b">llama3.1:8b (Ollama)</option>
                 <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
@@ -12108,7 +12108,7 @@ LIMIT 10`;
                      || '';
     const groupBy = document.getElementById('wikiBuildGroupBy')?.value || 'project';
     const wikiType = ['project', 'organization', 'technology'].includes(groupBy) ? groupBy : 'project';
-    const model = document.getElementById('wikiBuildModel')?.value || 'gemma3:12b';
+    const model = document.getElementById('wikiBuildModel')?.value || 'llama3:8b';
 
     if (!sourceId) {
       showToast('Document Source가 선택되지 않았습니다.', 'warning');
@@ -15883,7 +15883,7 @@ LIMIT 10`;
     showToast('Wiki Build 실행 중...', 'info');
     try {
       const wikiType = document.getElementById('wrStep8WikiType')?.value || 'project';
-      const model = document.getElementById('wrStep8LlmModel')?.value || 'gemma3:12b';
+      const model = document.getElementById('wrStep8LlmModel')?.value || 'llama3:8b';
       const r = await fetch(apiUrl('/api/admin/llm-wiki/build'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
@@ -17101,7 +17101,7 @@ LIMIT 10`;
       const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
       const groupBy = document.getElementById('wikiBuildGroupBy')?.value || 'project';
       const wikiType = ['project', 'organization', 'technology'].includes(groupBy) ? groupBy : 'project';
-      const model = document.getElementById('wikiBuildModel')?.value || 'gemma3:12b';
+      const model = document.getElementById('wikiBuildModel')?.value || 'llama3:8b';
       if (!sourceId) {
         _wizardMarkError(step, 'Document Source가 선택되지 않았습니다.');
         return false;
