@@ -67,7 +67,7 @@ class Settings(BaseSettings):
 
     # Answer generation defaults
     answer_provider: str = "ollama"
-    answer_model: str = "gemma4:latest"
+    answer_model: str = "llama3:8b"
 
     # ChromaDB
     chroma_host: str = "localhost"
