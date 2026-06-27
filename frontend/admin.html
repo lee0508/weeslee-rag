@@ -17067,7 +17067,7 @@ LIMIT 10`;
       const requestBody = {
         source_id: sourceId || null,
         snapshot_id: snapshot || null,
-        rebuild: false,
+        rebuild: _wizardForceRebuild,
         use_ontology: true
       };
       _wizardSetStatus(step, '실행 중...', 'running');
