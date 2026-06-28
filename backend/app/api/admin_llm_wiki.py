@@ -8,6 +8,11 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import json
+import asyncio
+import subprocess
+import sys
+import threading
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -56,6 +61,8 @@ class WikiStatusResponse(BaseModel):
     technology_wikis: int = 0
     total_wikis: int = 0
     last_built_at: Optional[str] = None
+    running_job_id: Optional[str] = None
+    message: Optional[str] = None
 
 
 class WikiPageInfo(BaseModel):
@@ -125,6 +132,175 @@ def _count_wikis(source_id: Optional[str]) -> Dict[str, int]:
     return counts
 
 
+_WIKI_BUILD_JOBS: Dict[str, Dict[str, Any]] = {}
+_WIKI_JOB_LOCK = threading.Lock()
+
+
+def _wiki_job_scope(source_id: Optional[str], wiki_type: str) -> str:
+    return f"{source_id or 'all'}::{wiki_type}"
+
+
+def _update_wiki_job(job_id: str, **updates) -> None:
+    with _WIKI_JOB_LOCK:
+        job = _WIKI_BUILD_JOBS.get(job_id)
+        if not job:
+            return
+        job.update(updates)
+
+
+def _get_running_wiki_job(source_id: Optional[str], wiki_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    with _WIKI_JOB_LOCK:
+        for job in _WIKI_BUILD_JOBS.values():
+            if job.get("status") != "running":
+                continue
+            if source_id is not None and job.get("source_id") != source_id:
+                continue
+            if wiki_type is not None and job.get("wiki_type") != wiki_type:
+                continue
+            return dict(job)
+    return None
+
+
+def _get_latest_wiki_job(source_id: Optional[str], wiki_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    latest_job: Optional[Dict[str, Any]] = None
+    latest_started_at = ""
+    with _WIKI_JOB_LOCK:
+        for job in _WIKI_BUILD_JOBS.values():
+            if source_id is not None and job.get("source_id") != source_id:
+                continue
+            if wiki_type is not None and job.get("wiki_type") != wiki_type:
+                continue
+            started_at = str(job.get("started_at") or "")
+            if not latest_job or started_at > latest_started_at:
+                latest_job = dict(job)
+                latest_started_at = started_at
+    return latest_job
+
+
+def _get_latest_wiki_mtime(source_id: Optional[str]) -> Optional[str]:
+    latest_ts: Optional[float] = None
+    for wiki_type in ["project", "organization", "technology"]:
+        wiki_dir = _get_wiki_dir(source_id, wiki_type)
+        if not wiki_dir.exists():
+            continue
+        for md_file in wiki_dir.glob("*.md"):
+            try:
+                mtime = md_file.stat().st_mtime
+            except OSError:
+                continue
+            if latest_ts is None or mtime > latest_ts:
+                latest_ts = mtime
+    if latest_ts is None:
+        return None
+    return datetime.fromtimestamp(latest_ts).isoformat(timespec="seconds")
+
+
+def _run_wiki_build_job(job_id: str, request_data: Dict[str, Any]) -> None:
+    source_id = request_data.get("source_id")
+    wiki_type = request_data.get("wiki_type", "project")
+    start_time = datetime.now()
+
+    try:
+        project_root = _get_project_root()
+
+        if wiki_type == "project":
+            build_script = project_root / "backend" / "scripts" / "build_project_wiki.py"
+            if not build_script.exists():
+                raise FileNotFoundError(f"build_project_wiki.py not found at {build_script}")
+
+            cmd = [sys.executable, str(build_script)]
+            if request_data.get("slug"):
+                cmd += ["--project", str(request_data["slug"])]
+            elif source_id:
+                cmd += ["--source-id", str(source_id)]
+            elif request_data.get("from_inventory"):
+                cmd += ["--from-inventory"]
+            else:
+                cmd += ["--all"]
+
+            max_wikis = int(request_data.get("max_wikis") or 0)
+            if max_wikis > 0:
+                cmd += ["--max-projects", str(max_wikis)]
+
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=1800,
+                cwd=str(project_root),
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(proc.stderr.strip() or "Build script failed")
+
+            wiki_dir = _get_wiki_dir(source_id, "project")
+            generated = [p.stem for p in wiki_dir.glob("*.md")] if wiki_dir.exists() else []
+            _update_wiki_job(
+                job_id,
+                status="completed",
+                success=True,
+                finished_at=datetime.now().isoformat(timespec="seconds"),
+                generated_count=len(generated),
+                generated_wikis=generated[:20],
+                output=(proc.stdout or "").strip()[-2000:],
+                processing_time=(datetime.now() - start_time).total_seconds(),
+            )
+            return
+
+        if wiki_type == "organization":
+            from app.api.wiki import generate_wiki_by_organization
+
+            result = asyncio.run(generate_wiki_by_organization(source_id=source_id))
+            _update_wiki_job(
+                job_id,
+                status="completed",
+                success=bool(result.get("success", False)),
+                finished_at=datetime.now().isoformat(timespec="seconds"),
+                generated_count=int(result.get("count", 0) or 0),
+                generated_wikis=(result.get("generated", []) or [])[:20],
+                output=json.dumps(result, ensure_ascii=False)[-2000:],
+                processing_time=(datetime.now() - start_time).total_seconds(),
+            )
+            return
+
+        if wiki_type == "technology":
+            from app.api.wiki import generate_wiki_by_technology
+
+            result = asyncio.run(generate_wiki_by_technology(source_id=source_id))
+            _update_wiki_job(
+                job_id,
+                status="completed",
+                success=bool(result.get("success", False)),
+                finished_at=datetime.now().isoformat(timespec="seconds"),
+                generated_count=int(result.get("count", 0) or 0),
+                generated_wikis=(result.get("generated", []) or [])[:20],
+                output=json.dumps(result, ensure_ascii=False)[-2000:],
+                processing_time=(datetime.now() - start_time).total_seconds(),
+            )
+            return
+
+        raise ValueError(f"Invalid wiki_type: {wiki_type}")
+    except subprocess.TimeoutExpired:
+        _update_wiki_job(
+            job_id,
+            status="failed",
+            success=False,
+            finished_at=datetime.now().isoformat(timespec="seconds"),
+            message="Wiki build timed out (1800s)",
+            processing_time=(datetime.now() - start_time).total_seconds(),
+        )
+    except Exception as e:
+        _update_wiki_job(
+            job_id,
+            status="failed",
+            success=False,
+            finished_at=datetime.now().isoformat(timespec="seconds"),
+            message=str(e),
+            processing_time=(datetime.now() - start_time).total_seconds(),
+        )
+
+
 # ── API Endpoints ───────────────────────────────────────────────────────────
 
 
@@ -136,108 +312,58 @@ async def build_wiki(
     """
     LLM Wiki를 생성합니다.
     """
-    import subprocess
-    import sys
-
-    start_time = datetime.now()
-
     try:
-        project_root = _get_project_root()
-
-        if request.wiki_type == "project":
-            build_script = project_root / "backend" / "scripts" / "build_project_wiki.py"
-
-            if not build_script.exists():
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"build_project_wiki.py not found at {build_script}"
-                )
-
-            cmd = [sys.executable, str(build_script)]
-
-            if request.slug:
-                cmd += ["--project", request.slug]
-            elif request.source_id:
-                cmd += ["--source-id", request.source_id]
-            elif request.from_inventory:
-                cmd += ["--from-inventory"]
-            else:
-                cmd += ["--all"]
-
-            if request.max_wikis > 0:
-                cmd += ["--max-projects", str(request.max_wikis)]
-
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=600,
-                cwd=str(project_root),
-            )
-
-            if proc.returncode != 0:
-                return WikiBuildResponse(
-                    success=False,
-                    message="Wiki build failed",
-                    processing_time=(datetime.now() - start_time).total_seconds(),
-                    output=proc.stderr.strip() or "Build script failed"
-                )
-
-            wiki_dir = _get_wiki_dir(request.source_id, "project")
-            generated = [p.stem for p in wiki_dir.glob("*.md")] if wiki_dir.exists() else []
-
-            processing_time = (datetime.now() - start_time).total_seconds()
-
-            return WikiBuildResponse(
-                success=True,
-                message=f"Wiki 생성 완료: {len(generated)}개 생성됨",
-                generated_count=len(generated),
-                generated_wikis=generated[:20],
-                processing_time=processing_time,
-                output=proc.stdout.strip()[-500:]
-            )
-
-        elif request.wiki_type == "organization":
-            from app.api.wiki import generate_wiki_by_organization
-
-            result = await generate_wiki_by_organization()
-            processing_time = (datetime.now() - start_time).total_seconds()
-
-            return WikiBuildResponse(
-                success=result.get("success", False),
-                message=f"Organization Wiki 생성 완료: {result.get('count', 0)}개",
-                generated_count=result.get("count", 0),
-                generated_wikis=result.get("generated", [])[:20],
-                processing_time=processing_time
-            )
-
-        elif request.wiki_type == "technology":
-            from app.api.wiki import generate_wiki_by_technology
-
-            result = await generate_wiki_by_technology()
-            processing_time = (datetime.now() - start_time).total_seconds()
-
-            return WikiBuildResponse(
-                success=result.get("success", False),
-                message=f"Technology Wiki 생성 완료: {result.get('count', 0)}개",
-                generated_count=result.get("count", 0),
-                generated_wikis=result.get("generated", [])[:20],
-                processing_time=processing_time
-            )
-
-        else:
+        if request.wiki_type not in {"project", "organization", "technology"}:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid wiki_type: {request.wiki_type}"
             )
 
-    except subprocess.TimeoutExpired:
+        running_job = _get_running_wiki_job(request.source_id, request.wiki_type)
+        if running_job:
+            return WikiBuildResponse(
+                success=True,
+                message=f"이미 Wiki build가 실행 중입니다. job_id={running_job['job_id']}",
+                processing_time=0.0,
+                output="already_running"
+            )
+
+        job_id = f"wiki_{uuid.uuid4().hex[:12]}"
+        request_data = request.model_dump()
+        request_data["job_id"] = job_id
+        request_data["scope"] = _wiki_job_scope(request.source_id, request.wiki_type)
+
+        with _WIKI_JOB_LOCK:
+            _WIKI_BUILD_JOBS[job_id] = {
+                "job_id": job_id,
+                "scope": request_data["scope"],
+                "source_id": request.source_id,
+                "wiki_type": request.wiki_type,
+                "status": "running",
+                "success": None,
+                "message": "Wiki build started",
+                "started_at": datetime.now().isoformat(timespec="seconds"),
+                "finished_at": None,
+                "generated_count": 0,
+                "generated_wikis": [],
+                "output": "",
+                "processing_time": 0.0,
+            }
+
+        thread = threading.Thread(
+            target=_run_wiki_build_job,
+            args=(job_id, request_data),
+            daemon=True,
+        )
+        thread.start()
+
         return WikiBuildResponse(
-            success=False,
-            message="Wiki build timed out (600s)",
-            processing_time=600.0
+            success=True,
+            message=f"Wiki build started. job_id={job_id}",
+            generated_count=0,
+            generated_wikis=[],
+            processing_time=0.0,
+            output="started_async"
         )
     except HTTPException:
         raise
@@ -245,27 +371,45 @@ async def build_wiki(
         return WikiBuildResponse(
             success=False,
             message=f"Wiki build failed: {str(e)}",
-            processing_time=(datetime.now() - start_time).total_seconds()
+            processing_time=0.0
         )
 
 
 @router.get("/status", response_model=WikiStatusResponse)
-async def get_wiki_status(source_id: Optional[str] = None):
+async def get_wiki_status(source_id: Optional[str] = None, wiki_type: Optional[str] = None):
     """
     LLM Wiki 상태를 조회합니다.
     """
     try:
         counts = _count_wikis(source_id)
         total = sum(counts.values())
-
+        running_job = _get_running_wiki_job(source_id, wiki_type)
+        latest_job = _get_latest_wiki_job(source_id, wiki_type)
         status = "ready" if total > 0 else "empty"
+        message = None
+        running_job_id = None
+
+        if latest_job:
+            if latest_job.get("status") == "running":
+                status = "building"
+                running_job_id = latest_job.get("job_id")
+                message = latest_job.get("message")
+            elif latest_job.get("status") == "failed":
+                status = "error"
+                message = latest_job.get("message") or "Wiki build failed"
+            elif latest_job.get("status") == "completed":
+                status = "ready" if total > 0 else "empty"
+                message = latest_job.get("message")
 
         return WikiStatusResponse(
             status=status,
             project_wikis=counts["project"],
             organization_wikis=counts["organization"],
             technology_wikis=counts["technology"],
-            total_wikis=total
+            total_wikis=total,
+            last_built_at=_get_latest_wiki_mtime(source_id),
+            running_job_id=running_job_id,
+            message=message,
         )
 
     except Exception as e:

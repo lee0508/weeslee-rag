@@ -1107,11 +1107,15 @@ async def upload_multiple_documents(
 
 
 # ────────────────────────────────────────────────────────────────────────────
-# LLM 설정 관리 API
+# LLM 설정 관리 API (MySQL DB 기반)
 # ────────────────────────────────────────────────────────────────────────────
+
+from app.services.platform_store import get_llm_settings_by_client, save_llm_settings_by_client
+
 
 class LlmSettingsRequest(BaseModel):
     """LLM 설정 요청 모델"""
+    client_id: str = "weeslee"
     system_prompt: str = ""
     temperature: float = 0.3
     top_p: float = 0.9
@@ -1123,21 +1127,8 @@ class LlmSettingsRequest(BaseModel):
     typo_dict: str = ""
 
 
-def _get_llm_settings_path():
-    """LLM 설정 파일 경로 반환."""
-    from pathlib import Path
-    project_root = Path(__file__).resolve().parents[3]
-    return project_root / "data" / "config" / "llm_settings.json"
-
-
-@router.get("/llm-settings")
-async def get_llm_settings():
-    """LLM 설정 조회."""
-    settings_path = _get_llm_settings_path()
-    if not settings_path.exists():
-        # 기본값 반환
-        return {
-            "system_prompt": """당신은 RAG 기반 문서 검색 및 답변 시스템입니다.
+_LLM_SETTINGS_DEFAULTS = {
+    "system_prompt": """당신은 RAG 기반 문서 검색 및 답변 시스템입니다.
 
 규칙:
 1. 검색된 문서의 내용만을 기반으로 답변하세요.
@@ -1145,28 +1136,29 @@ async def get_llm_settings():
 3. 추측하거나 일반 지식으로 답변하지 마세요.
 4. 답변 시 근거 문서를 명시하세요.
 5. 불확실한 경우 "확인이 필요합니다"라고 표시하세요.""",
-            "temperature": 0.3,
-            "top_p": 0.9,
-            "max_tokens": 2000,
-            "require_evidence": True,
-            "strict_mode": True,
-            "show_confidence": False,
-            "cite_source": True,
-            "typo_dict": ""
-        }
+    "temperature": 0.3,
+    "top_p": 0.9,
+    "max_tokens": 2000,
+    "require_evidence": True,
+    "strict_mode": True,
+    "show_confidence": False,
+    "cite_source": True,
+    "typo_dict": ""
+}
 
-    try:
-        return json.loads(settings_path.read_text(encoding="utf-8"))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"설정 파일 읽기 실패: {str(e)}")
+
+@router.get("/llm-settings")
+async def get_llm_settings(client_id: str = "weeslee"):
+    """LLM 설정 조회 (MySQL DB 기반)."""
+    settings = get_llm_settings_by_client(client_id)
+    if not settings:
+        return {**_LLM_SETTINGS_DEFAULTS, "client_id": client_id}
+    return {**_LLM_SETTINGS_DEFAULTS, **settings}
 
 
 @router.post("/llm-settings")
 async def save_llm_settings(request: LlmSettingsRequest):
-    """LLM 설정 저장."""
-    settings_path = _get_llm_settings_path()
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-
+    """LLM 설정 저장 (MySQL DB 기반)."""
     settings_data = {
         "system_prompt": request.system_prompt,
         "temperature": request.temperature,
@@ -1180,38 +1172,18 @@ async def save_llm_settings(request: LlmSettingsRequest):
     }
 
     try:
-        settings_path.write_text(
-            json.dumps(settings_data, ensure_ascii=False, indent=2),
-            encoding="utf-8"
-        )
-        return {"success": True, "message": "LLM 설정 저장 완료"}
+        saved = save_llm_settings_by_client(request.client_id, settings_data)
+        return {"success": True, "message": "LLM 설정 DB 저장 완료", "data": saved}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"설정 저장 실패: {str(e)}")
 
 
-def get_active_llm_settings() -> dict:
+def get_active_llm_settings(client_id: str = "weeslee") -> dict:
     """현재 활성 LLM 설정 반환 (다른 서비스에서 사용)."""
-    settings_path = _get_llm_settings_path()
-    defaults = {
-        "system_prompt": "",
-        "temperature": 0.3,
-        "top_p": 0.9,
-        "max_tokens": 2000,
-        "require_evidence": True,
-        "strict_mode": True,
-        "show_confidence": False,
-        "cite_source": True,
-        "typo_dict": ""
-    }
-
-    if not settings_path.exists():
-        return defaults
-
-    try:
-        saved = json.loads(settings_path.read_text(encoding="utf-8"))
-        return {**defaults, **saved}
-    except Exception:
-        return defaults
+    settings = get_llm_settings_by_client(client_id)
+    if not settings:
+        return {**_LLM_SETTINGS_DEFAULTS}
+    return {**_LLM_SETTINGS_DEFAULTS, **settings}
 
 
 def apply_typo_correction(query: str, typo_dict_str: str) -> str:

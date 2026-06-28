@@ -21,6 +21,16 @@ _WEESLEE_DEFAULT = {
     "default_embedding_model": "nomic-embed-text",
     "default_vectordb_type": "faiss",
     "default_graph_mode": "jsonl",
+    "ocr_mode": "auto",
+    "ocr_language": "kor+eng",
+    "ocr_dpi": 300,
+    "ocr_engine": "tesseract",
+    "ocr_supported_extensions": ".pdf, .docx, .hwp, .hwpx, .pptx, .xlsx",
+    "ocr_min_text_length": 50,
+    "ocr_image_preprocess": "none",
+    "ocr_hwp_extractor": "pyhwp",
+    "ocr_table_extract": True,
+    "ocr_max_file_size_mb": 100,
     "enabled": True,
 }
 
@@ -40,6 +50,16 @@ class ClientCreate(BaseModel):
     default_embedding_model: Optional[str] = "nomic-embed-text"
     default_vectordb_type: Optional[str] = "faiss"
     default_graph_mode: Optional[str] = "jsonl"
+    ocr_mode: Optional[str] = "auto"
+    ocr_language: Optional[str] = "kor+eng"
+    ocr_dpi: Optional[int] = 300
+    ocr_engine: Optional[str] = "tesseract"
+    ocr_supported_extensions: Optional[str] = ".pdf, .docx, .hwp, .hwpx, .pptx, .xlsx"
+    ocr_min_text_length: Optional[int] = 50
+    ocr_image_preprocess: Optional[str] = "none"
+    ocr_hwp_extractor: Optional[str] = "pyhwp"
+    ocr_table_extract: Optional[bool] = True
+    ocr_max_file_size_mb: Optional[int] = 100
     enabled: bool = True
 
 
@@ -51,6 +71,16 @@ class ClientUpdate(BaseModel):
     default_embedding_model: Optional[str] = None
     default_vectordb_type: Optional[str] = None
     default_graph_mode: Optional[str] = None
+    ocr_mode: Optional[str] = None
+    ocr_language: Optional[str] = None
+    ocr_dpi: Optional[int] = None
+    ocr_engine: Optional[str] = None
+    ocr_supported_extensions: Optional[str] = None
+    ocr_min_text_length: Optional[int] = None
+    ocr_image_preprocess: Optional[str] = None
+    ocr_hwp_extractor: Optional[str] = None
+    ocr_table_extract: Optional[bool] = None
+    ocr_max_file_size_mb: Optional[int] = None
     enabled: Optional[bool] = None
 
 

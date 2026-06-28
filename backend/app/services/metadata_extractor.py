@@ -462,8 +462,9 @@ def get_metadata_extractor() -> MetadataExtractorService:
 
 # ── Rule-Based Extractor (ocr_* 필드 전용) ─────────────────────────────────
 
-# 분석 대상 텍스트 길이 제한 (성능 최적화: 앞 5000자)
-_ANALYSIS_LIMIT = 5000
+# 분석 대상 텍스트 길이 제한
+# HWP/HWPX 제안요청서는 발주기관 표기가 뒤쪽에 나오는 경우가 있어 범위를 조금 넓힌다.
+_ANALYSIS_LIMIT = 20000
 
 
 class RuleBasedMetadataExtractor:
@@ -473,18 +474,95 @@ class RuleBasedMetadataExtractor:
     신뢰도가 낮은 항목은 이후 LLM 보완 대상이 된다.
     """
 
+    _ORG_NAME_PATTERN = re.compile(
+        r"("
+        r"[가-힣A-Za-z0-9·&-]{2,20}"
+        r"(?:\s+[가-힣A-Za-z0-9·&-]{2,20}){0,2}"
+        r"(?:부|청|처|공사|공단|연구원|연구소|재단|위원회|센터|병원|대학교|대학|학교|진흥원|협회|본부|관리원|교육원|평가원)"
+        r")(?=[은는이가의와과을를에로도및,.:;)\]\\s]|$)"
+    )
+    _ORG_SUFFIXES = (
+        "부", "청", "처", "공사", "공단", "연구원", "연구소", "재단", "위원회",
+        "센터", "병원", "대학교", "대학", "학교", "진흥원", "협회", "본부",
+        "관리원", "교육원", "평가원",
+    )
+
+    def _clean_line_value(self, value: str, max_len: int = 200) -> Optional[str]:
+        value = re.sub(r"^[\s\-•·□ㅇ○▷▶()]+", "", str(value or ""))
+        value = re.sub(r"\s+", " ", value).strip(" :：|/\t()[]{}<>")
+        if not value:
+            return None
+        return value[:max_len]
+
+    def _extract_labeled_value(self, text: str, labels: list[str], min_len: int = 3, max_len: int = 100) -> Optional[str]:
+        label_group = "|".join(re.escape(label) for label in labels)
+        match = re.search(rf"(?:{label_group})\s*[:：]?\s*([^\n\r]{{{min_len},{max_len}}})", text)
+        if not match:
+            return None
+        return self._clean_line_value(match.group(1), max_len=max_len)
+
+    def _extract_org_candidate(self, value: str) -> Optional[str]:
+        cleaned = self._clean_line_value(value)
+        if not cleaned:
+            return None
+        cleaned = re.sub(r"^(?:차세대|통합|지능형|디지털|스마트|클라우드)\s+", "", cleaned)
+
+        for candidate in self._extract_org_candidates_from_line(cleaned):
+            return candidate
+        return None
+
+    def _strip_trailing_particle(self, token: str) -> str:
+        return re.sub(r"(은|는|이|가|의|와|과|을|를|에|로|도|만|부터|까지)$", "", token)
+
+    def _extract_org_candidates_from_line(self, line: str) -> list[str]:
+        normalized = re.sub(r"[\"'“”‘’`·•□ㅇ○▷▶,:;<>\\[\\]{}()/]", " ", line or "")
+        raw_tokens = [self._clean_line_value(tok, max_len=40) for tok in normalized.split()]
+        tokens = [tok for tok in raw_tokens if tok]
+        candidates: list[str] = []
+
+        for start in range(len(tokens)):
+            for width in range(1, 4):
+                part = [self._strip_trailing_particle(tok) for tok in tokens[start:start + width]]
+                if len(part) != width:
+                    continue
+                candidate = self._clean_line_value(" ".join(part), max_len=80)
+                if not candidate:
+                    continue
+                if self._is_org_shape(candidate):
+                    candidates.append(candidate)
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            deduped.append(candidate)
+        return deduped
+
+    def _is_org_shape(self, candidate: str) -> bool:
+        parts = [part for part in (candidate or "").split() if part]
+        if not 1 <= len(parts) <= 3:
+            return False
+        if not candidate.endswith(self._ORG_SUFFIXES):
+            return False
+        for part in parts:
+            if not re.fullmatch(r"[가-힣A-Za-z0-9·&-]{2,20}", part):
+                return False
+        return True
+
     def extract_project_name(self, text: str) -> tuple[Optional[str], float]:
         """레이블 기반 → 키워드 패턴 순으로 사업명을 추출한다."""
         head = text[:_ANALYSIS_LIMIT]
 
-        label_match = re.search(
-            r'(?:사업명|과업명|프로젝트명|과업|사업)\s*[:：]\s*([^\n\r]{5,80})',
-            head
+        labeled_name = self._extract_labeled_value(
+            head,
+            ["사업명", "용역사업명", "용역명", "과업명", "프로젝트명", "사업", "과업"],
+            min_len=5,
+            max_len=100,
         )
-        if label_match:
-            name = label_match.group(1).strip()
-            if name:
-                return name[:200], 0.85
+        if labeled_name:
+            return labeled_name, 0.88
 
         keyword_match = re.search(
             r'([가-힣A-Za-z0-9\s]{5,60}(?:정보화|시스템|플랫폼|인프라|데이터|서비스)?'
@@ -492,7 +570,7 @@ class RuleBasedMetadataExtractor:
             head
         )
         if keyword_match:
-            name = keyword_match.group(1).strip()
+            name = self._clean_line_value(keyword_match.group(1))
             if name:
                 return name[:200], 0.60
 
@@ -506,6 +584,7 @@ class RuleBasedMetadataExtractor:
         # 부서/조직 일반 표현 (특정 기관명 아님)
         '업무부', '유관부처', '관련부처', '업무관련부', '담당부서',
         '추진부서', '지원부서', '수행부서', '처리부서',
+        '발주처', '발주기관', '주관기관', '수요기관', '담당기관', '제출처', '문의처',
         # 날짜/기간 표현 (로부터, 이후 등)
         '계약일로부', '계약체결일로부', '착수일로부', '추진과제로부',
         '세부추진과제로부', '사고로부', '이행여부',
@@ -513,6 +592,10 @@ class RuleBasedMetadataExtractor:
         '처리결과', '업무처리', '대응지원', '지원사업', '비상대처',
         # IT/기술 용어 (접미사 오탐)
         '아키텍처',
+        '세부',
+        '첨부',
+        '정부',
+        '외부', '내부', '일부', '내·외부', '연락처', '공사',
         # 정치/행정 일반 표현 (발주기관 아님)
         '윤석열정부', '연방정부', '전자정부', '디지털정부',
         # 기타 명확한 오탐
@@ -523,42 +606,184 @@ class RuleBasedMetadataExtractor:
 
     # 날짜/기간/업무처리 패턴 차단
     _ORG_SUFFIX_BLOCKLIST = re.compile(r'로부$|요청$|신청$|처리$|여부$|결과$|에 따름$')
+    _ORG_TEXT_BLOCKLIST = (
+        "공사이행보증서",
+        "제출된 공사",
+        "발생할 경우",
+        "요청에 의해",
+        "추진하여야",
+        "확인을 위한",
+        "계약상대자",
+        "제안업체",
+        "공동수급체",
+        "하도급",
+        "입찰공고문",
+        "필요시",
+        "관련 법령",
+        "누출할 경우",
+        "사업 수행과정",
+        "수행과정",
+        "입찰 및",
+        "평가위원회",
+        "심의위원회",
+        "위하여",
+        "대하여",
+        "이후",
+        "경우",
+        "변경함으로써",
+    )
+    _ORG_END_BLOCKLIST = ("여부", "세부", "첨부")
+    _ORG_NORMALIZE_MAP = {
+        "IITP": "정보통신기획평가원",
+        "K-water": "한국수자원공사",
+        "KOFIH": "한국국제보건의료재단",
+        "NIA": "한국지능정보사회진흥원",
+    }
+    _ORG_PARENT_UNIT_SUFFIXES = ("위원회", "본부", "실", "국", "과", "센터")
+
+    def _is_valid_org_candidate(self, candidate: Optional[str]) -> bool:
+        if not candidate:
+            return False
+        if len(candidate) < 2:
+            return False
+        if candidate in self._ORG_BLOCKLIST:
+            return False
+        if self._ORG_SUFFIX_BLOCKLIST.search(candidate):
+            return False
+        if any(token in candidate for token in self._ORG_TEXT_BLOCKLIST):
+            return False
+        if candidate.endswith(self._ORG_END_BLOCKLIST):
+            return False
+        if candidate.endswith("부") and len(candidate) <= 2:
+            return False
+        if candidate in {"학교", "공단", "범정부", "디지털혁신본부", "경영기획본부", "모든 성과물 공사"}:
+            return False
+        if candidate.endswith("공단") and candidate.count(" ") >= 1:
+            return False
+        if candidate.count(" ") >= 1 and any(token in candidate for token in ["위하여", "대하여", "이후", "경우"]):
+            return False
+        if "지식재산권" in candidate:
+            return False
+        if candidate.endswith(("부", "청", "처")) and candidate.count(" ") >= 1:
+            return False
+        if len(candidate) >= 18 and candidate.count(" ") >= 2:
+            return False
+        return True
+
+    def _normalize_org_candidate(self, candidate: str) -> str:
+        parts = [part for part in (candidate or "").split() if part]
+        if len(parts) == 2 and parts[0].endswith(("부", "청", "처")) and parts[1].endswith(self._ORG_PARENT_UNIT_SUFFIXES):
+            return parts[0]
+        return candidate
+
+    def _score_org_candidate(self, candidate: str, line: str) -> float:
+        score = 0.55
+        candidate_idx = line.find(candidate)
+        prefix = line[:candidate_idx] if candidate_idx >= 0 else line
+
+        if re.search(r"(발주기관|주관기관|수요기관|발주처|담당기관)\s*[:：(]?\s*$", prefix):
+            score = 0.92
+        elif re.search(r"(수행기관|문의처|제출처|장소)\s*[:：(]?\s*$", prefix):
+            score = 0.82
+        elif any(label in line for label in ["계약", "평가", "사업"]):
+            score = 0.65
+
+        if candidate in ("조달청",) and any(token in line for token in ["입찰참가자격", "국가종합전자조달시스템", "조달청 입찰", "조달청 제안평가", "조달청 규정", "평가기관 : 조달청", "평가는 조달청", "조달청 평가"]):
+            score -= 0.35
+
+        if any(marker in line for marker in [f"{candidate}에서", f"{candidate}은", f"{candidate}는"]):
+            if any(token in line for token in ["평가위원회", "구성", "주관", "요청", "협의"]):
+                score += 0.18
+
+        if candidate == "법무부" and any(token in line for token in ["법무부장관", "법무부 장관", "법무부 관련 수행사업"]):
+            score += 0.22
+
+        if any(token in line for token in ["고시", "지침", "시행령", "시행규칙", "하도급"]):
+            score -= 0.25
+
+        if any(token in line for token in ["계약예규", "예규", "별표"]):
+            score -= 0.30
+
+        if candidate == "조달청" and any(token in line for token in ["규정에 따름", "자료가 사본", "입찰참가자격등록증", "제안서평가 세부기준"]):
+            score -= 0.40
+
+        if candidate.endswith("부") and any(token in line for token in ["고시", "지침"]):
+            score -= 0.15
+
+        if candidate.endswith(("부", "청", "처")) and any(token in line for token in ["계약예규", "예규", "고시", "지침"]):
+            score -= 0.20
+
+        if candidate.endswith(("협회", "공단")) and any(token in line for token in ["관리․감독", "관리감독", "이행실적확인서", "경력증명서"]):
+            score -= 0.22
+
+        if candidate.startswith(("한국", "국가", "국립")):
+            score += 0.03
+
+        return max(0.2, min(score, 0.95))
+
+    def _collect_org_candidates(self, text: str) -> list[tuple[str, float]]:
+        candidates: list[tuple[str, float]] = []
+
+        for raw_line in text.splitlines():
+            line = self._clean_line_value(raw_line, max_len=200)
+            if not line:
+                continue
+
+            for alias, canonical in self._ORG_NORMALIZE_MAP.items():
+                if alias in line and self._is_org_shape(canonical):
+                    candidates.append((canonical, 0.86))
+
+            for candidate in self._extract_org_candidates_from_line(line):
+                candidate = self._normalize_org_candidate(candidate)
+                if not self._is_valid_org_candidate(candidate):
+                    continue
+                candidates.append((candidate[:200], self._score_org_candidate(candidate, line)))
+
+        return candidates
 
     def extract_organization(self, text: str) -> tuple[Optional[str], float]:
         """레이블 기반 → 기관명 패턴 순으로 발주기관을 추출한다."""
         head = text[:_ANALYSIS_LIMIT]
 
-        # 레이블 기반 추출 (수신은 제거 — 제안요청서 등 비기관명 혼입 방지)
-        label_match = re.search(
-            r'(?:발주기관|주관기관|제출처|발주처)\s*[:：]\s*([^\n\r]{3,60})',
-            head
-        )
-        if label_match:
-            org = label_match.group(1).strip()
-            if org and org not in self._ORG_BLOCKLIST and not self._ORG_SUFFIX_BLOCKLIST.search(org):
-                return org[:200], 0.85
+        labeled_patterns = [
+            r"(?:발주기관|주관기관|수요기관|발주처|담당기관)(?![가-힣A-Za-z0-9])\s*\(\s*([^)]+?)\s*\)",
+            r"(?:발주기관|주관기관|수요기관|발주처|담당기관|수행기관|문의처|제출처)(?![가-힣A-Za-z0-9])\s*[:：]?\s*([^\n\r]{2,80})",
+        ]
+        for pattern in labeled_patterns:
+            match = re.search(pattern, head)
+            if not match:
+                continue
+            org = self._extract_org_candidate(match.group(1))
+            if self._is_valid_org_candidate(org):
+                return org[:200], 0.90
 
-        # 패턴 기반 추출
-        # 단일 '원'은 제거 (지원, 대응원 등 오탐 많음); 복합 접미사만 허용
-        org_match = re.search(
-            r'([가-힣]{2,15}(?:부|청|처|공사|공단|연구원|연구소|재단|위원회|센터))',
-            head
-        )
-        if org_match:
-            org = org_match.group(1).strip()
-            if (
-                len(org) >= 4
-                and org not in self._ORG_BLOCKLIST
-                and not self._ORG_SUFFIX_BLOCKLIST.search(org)
-            ):
-                return org[:200], 0.55
+        candidates = self._collect_org_candidates(head)
+        if candidates:
+            score_by_org: dict[str, float] = {}
+            freq_by_org: dict[str, int] = {}
+
+            for org, score in candidates:
+                freq_by_org[org] = freq_by_org.get(org, 0) + 1
+                boosted = min(score + (freq_by_org[org] - 1) * 0.03, 0.95)
+                prev = score_by_org.get(org, 0.0)
+                if boosted > prev:
+                    score_by_org[org] = boosted
+
+            best_org = max(
+                score_by_org.keys(),
+                key=lambda org: (score_by_org[org], freq_by_org.get(org, 0), len(org)),
+            )
+            best_score = score_by_org[best_org]
+            if best_score < 0.50:
+                return None, 0.0
+            return best_org[:200], best_score
 
         return None, 0.0
 
     def extract_year(self, text: str) -> tuple[Optional[int], float]:
         """문서 앞부분의 최빈 20XX 연도를 추출한다."""
         head = text[:_ANALYSIS_LIMIT]
-        years = re.findall(r'\b(20[012]\d)\b', head)
+        years = re.findall(r'\b(20[012]\d)(?:년도)?\b', head)
         if not years:
             return None, 0.0
 
@@ -576,14 +801,22 @@ class RuleBasedMetadataExtractor:
         head = text[:_ANALYSIS_LIMIT]
 
         patterns = [
-            (r'제안요청서|제안\s*요청\s*서|RFP\b|입찰공고', 'RFP', 0.90),
-            (r'기술제안서|제안서\b|사업제안서|수행제안서', '제안서', 0.88),
-            (r'최종보고서|완료보고서|결과보고서|중간보고서|ISP\b|ISMP\b|정보화전략계획', '산출물', 0.85),
+            (r'제안요청서|제안\s*요청\s*서|RFP\b|입찰공고|입찰참가자격|제안서\s*평가|평가항목|상세\s*요구사항', 'RFP', 0.92),
+            (r'기술제안서|제안서\b|사업제안서|수행제안서|제안발표|수행방안|추진전략|제안개요', '제안서', 0.88),
+            (r'착수보고서|중간보고서|최종보고서|완료보고서|결과보고서|현황분석|환경분석|목표모델|이행계획|ISP\b|ISMP\b|정보화전략계획', '산출물', 0.86),
         ]
 
         for pattern, doc_type, confidence in patterns:
             if re.search(pattern, head):
                 return doc_type, confidence
+
+        proposal_signals = re.findall(r'전략및방법론|기술및기능|프로젝트관리|프로젝트지원', head)
+        if len(proposal_signals) >= 2:
+            return "제안서", 0.82
+
+        deliverable_signals = re.findall(r'환경분석|현황분석|목표모델|이행계획', head)
+        if len(deliverable_signals) >= 2:
+            return "산출물", 0.80
 
         return None, 0.0
 

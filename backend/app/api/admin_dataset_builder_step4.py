@@ -240,6 +240,36 @@ def _save_ocr_metadata(db: Session, doc: DocumentMetadata, document_id: int) -> 
         # ocr_* 저장 실패는 파싱 성공 여부에 영향 없음
 
 
+def _get_step4_target_documents(db: Session, document_ids: Optional[List[int]]) -> List[DocumentMetadata]:
+    """Step 4 대상 문서를 조회한다."""
+    query = db.query(DocumentMetadata).filter(
+        DocumentMetadata.include_in_rag == True,
+        DocumentMetadata.is_excluded == False,
+        DocumentMetadata.removed_at.is_(None),
+    )
+
+    if document_ids:
+        query = query.filter(DocumentMetadata.document_id.in_(document_ids))
+    else:
+        query = query.filter(
+            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+        )
+
+    return query.all()
+
+
+def _fill_dataset_id_if_needed(doc: DocumentMetadata, dataset_id_cache: dict) -> None:
+    """source 설정 기준 dataset_id를 보완한다."""
+    if doc.dataset_id or not doc.source_id:
+        return
+
+    if doc.source_id not in dataset_id_cache:
+        ctx = get_source_dataset_context(doc.source_id)
+        dataset_id_cache[doc.source_id] = ctx.get("dataset_id")
+
+    doc.dataset_id = dataset_id_cache[doc.source_id]
+
+
 # ── API Endpoints ───────────────────────────────────────────────────────────
 
 
@@ -258,18 +288,10 @@ async def parse_documents(
     start_time = datetime.now()
 
     try:
-        # 처리 대상 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
-        query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
-            DocumentMetadata.removed_at.is_(None),
-        )
-
-        if request.document_ids:
-            query = query.filter(DocumentMetadata.document_id.in_(request.document_ids))
-
-        documents = query.all()
+        # 기본적으로는 검수 완료 문서만 일괄 처리한다.
+        # 단, 명시적으로 document_ids를 지정한 경우에는 개별 재파싱/진단 목적이므로
+        # meta_status 제한 없이 선택된 문서만 처리할 수 있게 한다.
+        documents = _get_step4_target_documents(db, request.document_ids)
 
         if not documents:
             return ParseResponse(
@@ -314,11 +336,7 @@ async def parse_documents(
                 else:
                     processed += 1
                     # dataset_id 저장 (source 설정에서 조회, 없으면 스킵)
-                    if not doc.dataset_id and doc.source_id:
-                        if doc.source_id not in _dataset_id_cache:
-                            ctx = get_source_dataset_context(doc.source_id)
-                            _dataset_id_cache[doc.source_id] = ctx.get("dataset_id")
-                        doc.dataset_id = _dataset_id_cache[doc.source_id]
+                    _fill_dataset_id_if_needed(doc, _dataset_id_cache)
                     # OCR 추출 텍스트로 ocr_* 메타데이터 추출 및 DB 저장
                     _save_ocr_metadata(db, doc, result["document_id"])
             else:
@@ -351,6 +369,90 @@ async def parse_documents(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Parse failed: {str(e)}")
+
+
+@router.post("/refresh-metadata", response_model=ParseResponse)
+async def refresh_ocr_metadata(
+    request: ParseRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 4에서 이미 추출된 텍스트를 재사용해 ocr_* 메타데이터만 다시 계산한다.
+
+    - processed_text_store에 저장된 full_text를 사용한다.
+    - OCR/Parser는 다시 실행하지 않는다.
+    """
+    start_time = datetime.now()
+
+    try:
+        documents = _get_step4_target_documents(db, request.document_ids)
+
+        if not documents:
+            return ParseResponse(
+                success=True,
+                message="No documents to process",
+                total_documents=0,
+                processed=0,
+                failed=0,
+                skipped=0,
+                processing_time=0.0,
+            )
+
+        processed = 0
+        failed = 0
+        skipped = 0
+        failures = []
+        dataset_id_cache: dict = {}
+
+        for doc in documents:
+            report = processed_text_store.get_report(str(doc.document_id))
+            full_text = processed_text_store.get_text(str(doc.document_id)) or ""
+
+            if not report or not full_text.strip():
+                doc.ocr_metadata_status = "skipped"
+                skipped += 1
+                failures.append({
+                    "document_id": doc.document_id,
+                    "file_path": doc.file_path,
+                    "error": "Processed text not found",
+                })
+                continue
+
+            _fill_dataset_id_if_needed(doc, dataset_id_cache)
+            _save_ocr_metadata(db, doc, doc.document_id)
+
+            if doc.ocr_metadata_status == "success":
+                processed += 1
+            elif doc.ocr_metadata_status == "skipped":
+                skipped += 1
+            else:
+                failed += 1
+                failures.append({
+                    "document_id": doc.document_id,
+                    "file_path": doc.file_path,
+                    "error": "OCR metadata refresh failed",
+                })
+
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+        processing_time = (datetime.now() - start_time).total_seconds()
+
+        return ParseResponse(
+            success=True,
+            message=f"Refreshed OCR metadata for {processed} documents, {failed} failed, {skipped} skipped",
+            total_documents=len(documents),
+            processed=processed,
+            failed=failed,
+            skipped=skipped,
+            processing_time=processing_time,
+            failures=failures[:10],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OCR metadata refresh failed: {str(e)}")
 
 
 @router.get("/status", response_model=Step4StatusResponse)
@@ -613,18 +715,9 @@ async def parse_documents_streaming(
 ):
     """백그라운드에서 문서를 파싱하고 SSE로 진행 상황 전송."""
     try:
-        # 처리 대상 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
-        query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
-            DocumentMetadata.removed_at.is_(None),
-        )
-
-        if document_ids:
-            query = query.filter(DocumentMetadata.document_id.in_(document_ids))
-
-        documents = query.all()
+        # 기본 일괄 실행은 검수 완료 문서만 대상으로 유지한다.
+        # 단, 명시적인 document_ids 재처리는 개별 진단/복구 목적이므로 meta_status 제한을 두지 않는다.
+        documents = _get_step4_target_documents(db, document_ids)
         total = len(documents)
 
         await emit_parse_event(job_id, {

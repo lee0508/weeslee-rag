@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core.database import SessionLocal
-from app.models.platform_config import PlatformClient, PlatformDocumentSource
+from app.models.platform_config import PlatformClient, PlatformDocumentSource, PlatformLlmSettings
 from sqlalchemy.exc import SQLAlchemyError
 
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "platform_config"
@@ -22,6 +22,7 @@ _STORE_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _DB_STORE_MODELS = {
     "clients": (PlatformClient, "client_id"),
     "document_sources": (PlatformDocumentSource, "source_id"),
+    "llm_settings": (PlatformLlmSettings, "id"),
 }
 
 
@@ -294,3 +295,55 @@ def seed_if_empty(store_name: str, defaults: list[dict], id_field: str = "id") -
             now = _now()
             seeded = [{**d, "created_at": d.get("created_at") or now, "updated_at": d.get("updated_at") or now} for d in defaults]
             _save(store_name, seeded)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM Settings 전용 함수 (client_id 기준 조회/저장)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_llm_settings_by_client(client_id: str = "weeslee") -> dict | None:
+    """client_id 기준으로 LLM Settings 조회."""
+    try:
+        db = SessionLocal()
+        try:
+            row = db.query(PlatformLlmSettings).filter(
+                PlatformLlmSettings.client_id == client_id
+            ).first()
+            return _serialize_model(row) if row else None
+        finally:
+            db.close()
+    except SQLAlchemyError:
+        return None
+
+
+def save_llm_settings_by_client(client_id: str, data: dict) -> dict:
+    """client_id 기준으로 LLM Settings 저장 (upsert)."""
+    try:
+        db = SessionLocal()
+        try:
+            row = db.query(PlatformLlmSettings).filter(
+                PlatformLlmSettings.client_id == client_id
+            ).first()
+
+            now = _now()
+            payload = _normalize_db_payload(PlatformLlmSettings, data, include_updated_at=True)
+            payload["client_id"] = client_id
+
+            if row:
+                for key, value in payload.items():
+                    if key != "id":
+                        setattr(row, key, value)
+                db.commit()
+                db.refresh(row)
+                return _serialize_model(row)
+            else:
+                payload["created_at"] = now
+                new_row = PlatformLlmSettings(**payload)
+                db.add(new_row)
+                db.commit()
+                db.refresh(new_row)
+                return _serialize_model(new_row)
+        finally:
+            db.close()
+    except SQLAlchemyError as e:
+        raise RuntimeError(f"DB 저장 실패: {e}")

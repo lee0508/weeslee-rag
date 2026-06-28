@@ -1,0 +1,46 @@
+합계 42
+drwxrwxrwx  39 weeslee weeslee     0  5월 14 17:56 .
+drwxr-xr-x   3 root    root     4096  5월 19 16:08 ..
+drwxrwxrwx   5 weeslee weeslee     0  5월 14 17:57 00. RAG 소스
+drwxrwxrwx   3 weeslee weeslee     0  9월 25  2024 00. ★임시평가
+drwxrwxrwx   6 weeslee weeslee     0  3월 24 15:37 00. ■위즐리템플릿■
+drwxrwxrwx  13 weeslee weeslee     0  4월  1 14:24 00. 영업활동
+drwxrwxrwx   7 weeslee weeslee     0  4월 16 01:36 00. 위즐리견적서양식
+drwxrwxrwx  10 weeslee weeslee     0  6월  5 11:04 00. 위즐리주간업무공유
+drwxrwxrwx   5 weeslee weeslee     0  5월 18  2023 01-1. 빅데이터수행자료
+drwxrwxrwx  12 weeslee weeslee     0  2월 16  2024 01-2. 자동차 RnD과제
+drwxrwxrwx  13 weeslee weeslee     0  1월 30  2024 01-3. 스마트시티
+drwxrwxrwx   9 weeslee weeslee     0 10월  4  2021 01-4 로봇애플리케이션
+drwxrwxrwx 128 weeslee weeslee     0  6월 26 21:54 01. 국내사업폴더
+drwxrwxrwx  21 weeslee weeslee     0 11월 17  2025 02. 해외사업폴더
+drwxrwxrwx  15 weeslee weeslee     0  1월  9  2024 03. 민간사업
+drwxrwxrwx  11 weeslee weeslee     0  5월  1  2023 04. ★클라우드TFT★
+drwxrwxrwx  11 weeslee weeslee     0  5월 14 17:56 05. ★LLM_위즐리★
+drwxrwxrwx  20 weeslee weeslee     0  4월 13 13:24 20. 솔루션 및 기술
+drwxrwxrwx  13 weeslee weeslee     0  2월 19  2025 21. 기술동향
+drwxrwxrwx   3 weeslee weeslee     0  5월 27  2020 22. 일반동향
+-rwxrwxrwx   1 weeslee weeslee   657  5월 21  2023 2212. k-water 데이터허브플랫폼_ISP(WEESLEESERVER2) (Z) - 바로 가기.lnk
+drwxrwxrwx   5 weeslee weeslee     0  1월 24  2025 23. 정책동향
+drwxrwxrwx   4 weeslee weeslee     0  6월  8  2022 24. 데이터분석 툴
+drwxrwxrwx  24 weeslee weeslee     0  4월 26  2022 30. 사업개발
+drwxrwxrwx  11 weeslee weeslee     0  2월 22  2024 31. 대외활동
+drwxrwxrwx  29 weeslee weeslee     0  4월  8 17:03 41. 정부과제
+drwxrwxrwx  10 weeslee weeslee     0  3월 10  2025 42. 파트너협업
+drwxrwxrwx   3 weeslee weeslee     0  5월 18  2023 43. 선문대LINC과제
+drwxrwxrwx  17 weeslee weeslee     0  8월  6  2020 70. 기술자료
+drwxrwxrwx  12 weeslee weeslee     0  5월 14 16:47 80. 컨설턴트 OJT 자료
+drwxrwxrwx  17 weeslee weeslee     0  8월  1  2024 81. 외부솔루션_세미나
+drwxrwxrwx  50 weeslee weeslee     0  3월 22  2024 82. 경제관련 신문스크랩
+drwxrwxrwx  33 weeslee weeslee     0  3월 23 17:48 90. 기타(Tool)
+drwxrwxrwx   3 weeslee weeslee     0  9월  1  2024 91. 보관창고
+drwxrwxrwx  31 weeslee weeslee     0 10월 14  2024 99. 참고자료 (Confidential)
+drwxrwxrwx   7 weeslee weeslee     0  9월 26  2017 Backup(AppCheck)
+-rwxrwxrwx   1 weeslee weeslee  1700 12월 13  2023 Robotemi_애플리케이션(diskstation) - 바로 가기.lnk
+drwxrwxrwx   5 weeslee weeslee     0  6월  4  2025 TMP
+drwxrwxrwx   3 weeslee weeslee     0  7월 12  2020 Temp
+-rwxrwxrwx   1 weeslee weeslee   581 10월 31  2022 Weeslee_2(diskstation) (Y) - 바로 가기.lnk
+-rwxrwxrwx   1 weeslee weeslee    66  6월 29  2023 ZOOM 회의주소.txt
+-rwxrwxrwx   1 weeslee weeslee 32200  4월  3 21:22 과기정통부_AI-NEXT_2차사업_전략.docx
+drwxrwxrwx   5 weeslee weeslee     0  3월  4  2025 교육폴더
+-rwxrwxrwx   1 weeslee weeslee  1602 10월 30  2023 농정원 ISP(diskstation) - 바로 가기.lnk
+drwxrwxrwx   6 weeslee weeslee     0  1월  6  2025 프로젝트

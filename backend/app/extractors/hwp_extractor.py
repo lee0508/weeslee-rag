@@ -43,6 +43,18 @@ def _hwp5txt_path() -> str:
     return "hwp5txt"
 
 
+def _hwp5proc_path() -> str:
+    """venv bin 디렉토리에서 hwp5proc 경로를 반환한다."""
+    bin_dir = Path(sys.executable).parent
+    candidate = bin_dir / "hwp5proc"
+    if candidate.exists():
+        return str(candidate)
+    candidate_exe = bin_dir / "hwp5proc.exe"
+    if candidate_exe.exists():
+        return str(candidate_exe)
+    return "hwp5proc"
+
+
 def _libreoffice_path() -> str:
     """LibreOffice soffice 경로를 반환한다."""
     # Windows
@@ -55,6 +67,21 @@ def _libreoffice_path() -> str:
             return c
     # Linux/Mac
     return "soffice"
+
+
+def _detect_hwp_container(file_path: str) -> str:
+    """파일 시그니처로 실제 컨테이너 형식을 판별한다."""
+    try:
+        with open(file_path, "rb") as fp:
+            header = fp.read(8)
+    except OSError:
+        return "unknown"
+
+    if header.startswith(b"PK\x03\x04"):
+        return "hwpx"
+    if header.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"):
+        return "hwp"
+    return "unknown"
 
 
 class HwpExtractor(BaseExtractor):
@@ -107,6 +134,20 @@ class HwpExtractor(BaseExtractor):
             "filename": Path(file_path).name,
             "extraction_attempts": [],
         }
+        detected_container = _detect_hwp_container(file_path)
+        metadata["detected_container"] = detected_container
+
+        # 확장자는 .hwp지만 실제 파일이 HWPX인 경우가 있다.
+        if detected_container == "hwpx":
+            from app.extractors.hwpx_extractor import HwpxExtractor
+
+            hwpx_result = await HwpxExtractor().extract(file_path)
+            if hwpx_result.get("success"):
+                result_metadata = hwpx_result.get("metadata") or {}
+                result_metadata.update(metadata)
+                result_metadata["final_method"] = "hwpx_magic_detected"
+                hwpx_result["metadata"] = result_metadata
+                return hwpx_result
 
         # 1단계: hwp5txt 직접 추출 시도
         direct_result = self._extract_with_hwp5txt(file_path)
@@ -164,6 +205,19 @@ class HwpExtractor(BaseExtractor):
                 ocr_result.metadata["final_method"] = "ocr"
                 ocr_result.metadata["ocr_required"] = True
                 return ocr_result.to_dict()
+
+        # 4단계: 본문 파싱이 깨지는 HWP는 preview text로 마지막 복구 시도
+        preview_result = self._extract_with_prvtext(file_path)
+        metadata["extraction_attempts"].append({
+            "method": "prvtext",
+            "success": preview_result.success if preview_result else False,
+            "text_length": len(preview_result.content) if preview_result and preview_result.content else 0,
+        })
+        if preview_result and preview_result.success and preview_result.content:
+            preview_result.metadata.update(metadata)
+            preview_result.metadata["final_method"] = "hwp_prvtext_fallback"
+            preview_result.metadata["preview_text_recovered"] = True
+            return preview_result.to_dict()
 
         # 모든 방법 실패 → 가장 좋은 결과 반환
         if direct_result.success and direct_result.content:
@@ -346,6 +400,36 @@ class HwpExtractor(BaseExtractor):
 
         except Exception as e:
             print(f"[WARN] OCR extraction failed for {file_path}: {e}")
+            return None
+
+    def _extract_with_prvtext(self, file_path: str) -> Optional[ExtractionResult]:
+        """hwp5proc PrvText 스트림으로 마지막 복구를 시도한다."""
+        try:
+            result = subprocess.run(
+                [_hwp5proc_path(), "cat", file_path, "PrvText"],
+                capture_output=True,
+                timeout=60,
+            )
+            raw = result.stdout or b""
+            if not raw:
+                return None
+
+            # PrvText는 보통 UTF-16LE 텍스트 스트림이다.
+            text = raw.decode("utf-16-le", errors="ignore").replace("\x00", "").strip()
+            if not text:
+                return None
+
+            return ExtractionResult(
+                success=True,
+                content=text,
+                metadata={
+                    "source": file_path,
+                    "filename": Path(file_path).name,
+                    "content_length": len(text),
+                },
+                method="hwp_prvtext"
+            )
+        except Exception:
             return None
 
     def _check_quality(self, text: str) -> dict:

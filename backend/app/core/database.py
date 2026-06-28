@@ -1,7 +1,7 @@
 """
 Database connection and session management
 """
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
@@ -25,6 +25,33 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for models
 Base = declarative_base()
+
+
+CLIENTS_TABLE_EXTRA_COLUMNS = {
+    "ocr_mode": "VARCHAR(30) NULL DEFAULT 'auto'",
+    "ocr_language": "VARCHAR(50) NULL DEFAULT 'kor+eng'",
+    "ocr_dpi": "INT NULL DEFAULT 300",
+    "ocr_engine": "VARCHAR(50) NULL DEFAULT 'tesseract'",
+    "ocr_supported_extensions": "TEXT NULL",
+    "ocr_min_text_length": "INT NULL DEFAULT 50",
+    "ocr_image_preprocess": "VARCHAR(50) NULL DEFAULT 'none'",
+    "ocr_hwp_extractor": "VARCHAR(50) NULL DEFAULT 'pyhwp'",
+    "ocr_table_extract": "TINYINT(1) NULL DEFAULT 1",
+    "ocr_max_file_size_mb": "INT NULL DEFAULT 100",
+}
+
+CLIENTS_TABLE_DEFAULT_BACKFILL = {
+    "ocr_mode": "auto",
+    "ocr_language": "kor+eng",
+    "ocr_dpi": 300,
+    "ocr_engine": "tesseract",
+    "ocr_supported_extensions": ".pdf, .docx, .hwp, .hwpx, .pptx, .xlsx",
+    "ocr_min_text_length": 50,
+    "ocr_image_preprocess": "none",
+    "ocr_hwp_extractor": "pyhwp",
+    "ocr_table_extract": 1,
+    "ocr_max_file_size_mb": 100,
+}
 
 
 def configure_database(database_url: str | None = None) -> None:
@@ -75,3 +102,41 @@ def init_db() -> None:
     )
 
     Base.metadata.create_all(bind=engine)
+    _ensure_platform_client_columns()
+
+
+def _ensure_platform_client_columns() -> None:
+    """Backfill newly added clients table columns on existing MySQL installs."""
+    inspector = inspect(engine)
+    try:
+        tables = set(inspector.get_table_names())
+    except Exception:
+        return
+
+    if "clients" not in tables:
+        return
+
+    try:
+        existing_columns = {col["name"] for col in inspector.get_columns("clients")}
+    except Exception:
+        return
+
+    missing = {
+        name: ddl for name, ddl in CLIENTS_TABLE_EXTRA_COLUMNS.items()
+        if name not in existing_columns
+    }
+    if not missing:
+        return
+
+    with engine.begin() as conn:
+        for column_name, ddl in missing.items():
+            conn.execute(text(f"ALTER TABLE clients ADD COLUMN {column_name} {ddl}"))
+        for column_name, default_value in CLIENTS_TABLE_DEFAULT_BACKFILL.items():
+            if column_name in missing or column_name in existing_columns:
+                conn.execute(
+                    text(
+                        f"UPDATE clients SET {column_name} = :default_value "
+                        f"WHERE {column_name} IS NULL"
+                    ),
+                    {"default_value": default_value},
+                )

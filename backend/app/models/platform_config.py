@@ -1,7 +1,7 @@
 """
 Platform configuration models for service-level admin data.
 """
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, Float, Integer, String, Text
 from sqlalchemy.types import JSON
 
 from app.core.database import Base
@@ -20,6 +20,16 @@ class PlatformClient(Base):
     default_embedding_model = Column(String(100), nullable=True)
     default_vectordb_type = Column(String(50), nullable=True)
     default_graph_mode = Column(String(50), nullable=True)
+    ocr_mode = Column(String(30), nullable=True)
+    ocr_language = Column(String(50), nullable=True)
+    ocr_dpi = Column(Integer, nullable=True)
+    ocr_engine = Column(String(50), nullable=True)
+    ocr_supported_extensions = Column(Text, nullable=True)
+    ocr_min_text_length = Column(Integer, nullable=True)
+    ocr_image_preprocess = Column(String(50), nullable=True)
+    ocr_hwp_extractor = Column(String(50), nullable=True)
+    ocr_table_extract = Column(Boolean, default=True, nullable=True)
+    ocr_max_file_size_mb = Column(Integer, nullable=True)
     enabled = Column(Boolean, default=True, nullable=False)
     created_at = Column(String(40), nullable=True)
     updated_at = Column(String(40), nullable=True)
@@ -54,5 +64,25 @@ class PlatformDocumentSource(Base):
     last_scan_removed_files = Column(JSON, nullable=True)
     needs_rag_build = Column(Boolean, default=False, nullable=False)
     next_action = Column(Text, nullable=True)
+    created_at = Column(String(40), nullable=True)
+    updated_at = Column(String(40), nullable=True)
+
+
+class PlatformLlmSettings(Base):
+    """LLM Settings configuration stored in DB."""
+
+    __tablename__ = "llm_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    client_id = Column(String(100), nullable=False, default="weeslee", index=True)
+    system_prompt = Column(Text, nullable=True)
+    temperature = Column(Float, default=0.3, nullable=True)
+    top_p = Column(Float, default=0.9, nullable=True)
+    max_tokens = Column(Integer, default=2000, nullable=True)
+    require_evidence = Column(Boolean, default=True, nullable=True)
+    strict_mode = Column(Boolean, default=True, nullable=True)
+    show_confidence = Column(Boolean, default=False, nullable=True)
+    cite_source = Column(Boolean, default=True, nullable=True)
+    typo_dict = Column(Text, nullable=True)
     created_at = Column(String(40), nullable=True)
     updated_at = Column(String(40), nullable=True)

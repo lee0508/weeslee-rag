@@ -12231,10 +12231,61 @@ LIMIT 10`;
     loadWikiStatus();
   }
 
+  function getCurrentWikiBuildContext() {
+    const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
+    const snapshotId = (typeof _wizardFaissSnapshot !== 'undefined' && _wizardFaissSnapshot)
+      || (typeof getSelectedSnapshot === 'function' ? getSelectedSnapshot() : '')
+      || '';
+    const groupBy = document.getElementById('wikiBuildGroupBy')?.value || 'project';
+    const wikiType = ['project', 'organization', 'technology'].includes(groupBy) ? groupBy : 'project';
+    const model = document.getElementById('wikiBuildModel')?.value
+      || document.getElementById('wrStep8LlmModel')?.value
+      || 'llama3:8b';
+    return { sourceId, snapshotId, wikiType, model };
+  }
+
+  async function pollWikiBuildStatus(sourceId, wikiType, options = {}) {
+    const timeoutMs = Number(options.timeoutMs || 1800000);
+    const intervalMs = Number(options.intervalMs || 5000);
+    const startedAt = Date.now();
+
+    while ((Date.now() - startedAt) < timeoutMs) {
+      const query = new URLSearchParams();
+      if (sourceId) query.set('source_id', sourceId);
+      if (wikiType) query.set('wiki_type', wikiType);
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/status?${query.toString()}`, {
+        headers: authHeaders()
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+      }
+
+      if (typeof options.onProgress === 'function') {
+        options.onProgress(data);
+      }
+
+      if (data.status === 'ready') {
+        return data;
+      }
+      if (data.status === 'error') {
+        throw new Error(data.message || 'Wiki build failed');
+      }
+
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+
+    throw new Error(`Wiki build timeout (${Math.round(timeoutMs / 1000)}s)`);
+  }
+
   // Wiki 상태 로드
   async function loadWikiStatus() {
     try {
-      const response = await fetch(`${API_BASE}/admin/llm-wiki/status`, {
+      const { sourceId, wikiType } = getCurrentWikiBuildContext();
+      const query = new URLSearchParams();
+      if (sourceId) query.set('source_id', sourceId);
+      if (wikiType) query.set('wiki_type', wikiType);
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/status?${query.toString()}`, {
         headers: authHeaders()
       });
       const data = await response.json();
@@ -12246,7 +12297,15 @@ LIMIT 10`;
       if (totalEl) totalEl.textContent = data.total_wikis || 0;
       if (projectEl) projectEl.textContent = data.project_wikis || 0;
       if (orgEl) orgEl.textContent = data.organization_wikis || 0;
-      if (lastBuildEl) lastBuildEl.textContent = data.last_built_at || '-';
+      if (lastBuildEl) {
+        if (data.status === 'building') {
+          lastBuildEl.textContent = `빌드 중${data.running_job_id ? ` (${data.running_job_id})` : ''}`;
+        } else if (data.status === 'error') {
+          lastBuildEl.textContent = `실패: ${data.message || '-'}`;
+        } else {
+          lastBuildEl.textContent = data.last_built_at || '-';
+        }
+      }
     } catch (error) {
       console.error('loadWikiStatus error:', error);
     }
@@ -12254,13 +12313,7 @@ LIMIT 10`;
 
   // Wiki 생성 실행 (wizardRun(8)과 동일한 방식)
   async function runWikiBuild() {
-    const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
-    const snapshot = (typeof _wizardFaissSnapshot !== 'undefined' && _wizardFaissSnapshot)
-                     || (typeof getSelectedSnapshot === 'function' ? getSelectedSnapshot() : '')
-                     || '';
-    const groupBy = document.getElementById('wikiBuildGroupBy')?.value || 'project';
-    const wikiType = ['project', 'organization', 'technology'].includes(groupBy) ? groupBy : 'project';
-    const model = document.getElementById('wikiBuildModel')?.value || 'llama3:8b';
+    const { sourceId, snapshotId, wikiType, model } = getCurrentWikiBuildContext();
 
     if (!sourceId) {
       showToast('Document Source가 선택되지 않았습니다.', 'warning');
@@ -12272,28 +12325,30 @@ LIMIT 10`;
     if (buildBtn) buildBtn.disabled = true;
 
     try {
-      const params = new URLSearchParams();
-      params.set('source_id', sourceId);
-      if (snapshot) params.set('snapshot', snapshot);
-      params.set('wiki_type', wikiType);
-      params.set('model', model);
-      params.set('max_projects', '10');
-      params.set('max_wikis', '0');
-
-      const url = `${API_BASE}/admin/llm-wiki/build?${params.toString()}`;
-      const response = await fetch(url, {
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/build`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_id: sourceId,
+          snapshot_id: snapshotId || null,
+          wiki_type: wikiType,
+          model,
+          max_wikis: 0,
+          from_inventory: false
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
         const errDetail = data.detail || data.message || JSON.stringify(data);
         throw new Error(errDetail);
       }
-      const wikiCount = data.count || data.generated?.length || data.generated_count || 0;
-      showToast(`Wiki 생성 완료: ${wikiCount}개 생성됨`, 'success');
-      loadWikiStatus();
-      loadWikiPreview();
+      showToast(data.message || 'Wiki 빌드를 시작했습니다.', 'info', 5000);
+      await pollWikiBuildStatus(sourceId, wikiType, {
+        onProgress: () => { loadWikiStatus(); }
+      });
+      await loadWikiStatus();
+      await loadWikiPreview();
+      showToast('Wiki 생성이 완료되었습니다.', 'success');
     } catch (error) {
       console.error('runWikiBuild error:', error);
       showToast('Wiki 생성 실패: ' + error.message, 'error');
@@ -12707,7 +12762,12 @@ LIMIT 10`;
     const listDiv = document.getElementById('wikiPreviewList');
     if (listDiv) listDiv.innerHTML = '<div class="wr-nav-loading">로딩 중...</div>';
     try {
-      const response = await fetch(`${API_BASE}/admin/llm-wiki/preview?limit=50`, {
+      const { sourceId, wikiType } = getCurrentWikiBuildContext();
+      const query = new URLSearchParams();
+      query.set('limit', '50');
+      if (sourceId) query.set('source_id', sourceId);
+      if (wikiType) query.set('wiki_type', wikiType);
+      const response = await fetch(`${API_BASE}/admin/llm-wiki/preview?${query.toString()}`, {
         headers: authHeaders()
       });
       const data = await response.json();
@@ -16055,20 +16115,34 @@ LIMIT 10`;
   async function runStep9WikiBuild() {
     showToast('Wiki Build 실행 중...', 'info');
     try {
-      const wikiType = document.getElementById('wrStep8WikiType')?.value || 'project';
+      const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
+      const snapshotId = _wizardFaissSnapshot || getSelectedSnapshot();
+      const wikiType = document.getElementById('wrStep8WikiType')?.value
+        || document.getElementById('wikiBuildGroupBy')?.value
+        || 'project';
       const model = document.getElementById('wrStep8LlmModel')?.value || 'llama3:8b';
+      if (!sourceId) throw new Error('Document Source가 선택되지 않았습니다.');
       const r = await fetch(apiUrl('/api/admin/llm-wiki/build'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wiki_type: wikiType, model, max_wikis: 0 }),
+        body: JSON.stringify({
+          source_id: sourceId,
+          snapshot_id: snapshotId || null,
+          wiki_type: wikiType,
+          model,
+          max_wikis: 0,
+          from_inventory: false
+        }),
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
-      if (d.success) {
-        showToast(`Wiki Build 완료! ${d.generated_count || 0}개 생성됨`, 'success', 5000);
-      } else {
-        showToast('Wiki Build 실패: ' + (d.message || d.error), 'error');
-      }
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || d.message || `HTTP ${r.status}`);
+      showToast(d.message || 'Wiki Build 시작됨', 'info', 5000);
+      await pollWikiBuildStatus(sourceId, wikiType, {
+        onProgress: () => { loadWikiStatus(); }
+      });
+      await loadWikiStatus();
+      await loadWikiPreview();
+      showToast('Wiki Build 완료!', 'success', 5000);
       if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
     } catch (e) {
       showToast('Wiki Build 실패: ' + e.message, 'error');
@@ -17302,9 +17376,17 @@ LIMIT 10`;
           throw new Error(formatWizardErrorDetail(errDetail, `HTTP ${r.status}`));
         }
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 600));
+        await pollWikiBuildStatus(sourceId, wikiType, {
+          onProgress: (statusData) => {
+            _wizardSetStatus(step, `Wiki 생성 중... ${statusData.running_job_id || ''}`.trim(), 'running');
+            if (statusData.message) {
+              _wizardAppendLog(step, `status: ${statusData.message}`);
+            }
+          }
+        });
+        await loadWikiStatus();
         _wizardMarkDone(step);
-        const wikiCount = d.count || d.generated?.length || 0;
-        _wizardSetRunSummary(_wizardBuildSummary(step, `Wiki ${wikiCount}개 생성 완료`), 'ok');
+        _wizardSetRunSummary(_wizardBuildSummary(step, `Wiki 생성 완료 (${wikiType})`), 'ok');
         return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }

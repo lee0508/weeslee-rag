@@ -43,6 +43,11 @@ class QualityCheckResult:
     total_page_count: int = 0
     empty_page_ratio: float = 0.0
 
+    # CID 폰트 인코딩 문제 감지
+    cid_count: int = 0
+    cid_ratio: float = 0.0
+    cid_detected: bool = False
+
     quality_score: float = 0.0
     decision: str = "use_direct_text"
     decision_reason: str = ""
@@ -64,6 +69,9 @@ class QualityCheckResult:
             "empty_page_count": self.empty_page_count,
             "total_page_count": self.total_page_count,
             "empty_page_ratio": round(self.empty_page_ratio, 4),
+            "cid_count": self.cid_count,
+            "cid_ratio": round(self.cid_ratio, 4),
+            "cid_detected": self.cid_detected,
             "quality_score": round(self.quality_score, 4),
             "decision": self.decision,
             "decision_reason": self.decision_reason,
@@ -82,6 +90,8 @@ class TextQualityChecker:
         "max_garbage_ratio": 0.15,       # 특수문자 비율 상한
         "quality_score_threshold": 0.6,  # 품질 점수 임계값
         "min_chars_per_page": 30,        # 페이지당 최소 글자 수 (빈 페이지 판정)
+        "cid_count_threshold": 20,       # CID 패턴 개수 임계값
+        "cid_ratio_threshold": 0.005,    # CID 패턴 비율 임계값
     }
 
     # 의미 없는 문자 패턴 (OCR 오류, 깨진 문자 등)
@@ -110,6 +120,7 @@ class TextQualityChecker:
         self._english_re = re.compile(r'[a-zA-Z]')
         self._number_re = re.compile(r'[0-9]')
         self._space_re = re.compile(r'\s')
+        self._cid_re = re.compile(r'\(cid:\d+\)')  # CID 폰트 인코딩 패턴
 
     def check(self, text: str, page_texts: Optional[list[str]] = None) -> QualityCheckResult:
         """
@@ -143,6 +154,20 @@ class TextQualityChecker:
         result.garbage_count = len(self._garbage_re.findall(text))
         result.special_count = result.char_count - (
             result.korean_count + result.english_count + result.number_count
+        )
+
+        # CID 폰트 인코딩 문제 감지
+        cid_matches = self._cid_re.findall(text)
+        result.cid_count = len(cid_matches)
+        if result.text_length > 0:
+            result.cid_ratio = result.cid_count / result.text_length
+
+        # CID 감지 기준: count >= 20 OR ratio >= 0.005
+        cid_count_threshold = self.thresholds["cid_count_threshold"]
+        cid_ratio_threshold = self.thresholds["cid_ratio_threshold"]
+        result.cid_detected = (
+            result.cid_count >= cid_count_threshold or
+            result.cid_ratio >= cid_ratio_threshold
         )
 
         # 비율 계산
@@ -240,6 +265,9 @@ class TextQualityChecker:
         if result.text_length < self.thresholds["min_text_length"]:
             warnings.append(f"텍스트 길이 부족: {result.text_length}자 (최소 {self.thresholds['min_text_length']}자)")
 
+        if result.cid_detected:
+            warnings.append(f"CID 폰트 깨짐 감지: {result.cid_count}개 패턴 (비율: {result.cid_ratio:.1%})")
+
         if result.korean_ratio < self.thresholds["min_korean_ratio"] and result.english_ratio < 0.3:
             warnings.append(f"한글 비율 낮음: {result.korean_ratio:.1%}")
 
@@ -260,6 +288,10 @@ class TextQualityChecker:
             - decision: "use_direct_text" | "need_pdf_convert" | "need_ocr" | "need_manual_review"
         """
         threshold = self.thresholds["quality_score_threshold"]
+
+        # CID 폰트 깨짐 감지 → OCR 필요 (최우선)
+        if result.cid_detected:
+            return "need_ocr", f"CID 폰트 깨짐 감지 ({result.cid_count}개)"
 
         # 텍스트가 거의 없음 → OCR 필요
         if result.text_length < self.thresholds["min_text_length"]:
