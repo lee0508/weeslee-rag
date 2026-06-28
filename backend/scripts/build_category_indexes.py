@@ -33,6 +33,18 @@ SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
 
 CATEGORIES = ["rfp", "proposal", "deliverable"]
 
+# 한글 카테고리 → 영문 카테고리 매핑
+CATEGORY_MAP = {
+    "RFP": "rfp",
+    "rfp": "rfp",
+    "제안요청서": "rfp",
+    "제안서": "proposal",
+    "proposal": "proposal",
+    "산출물": "deliverable",
+    "deliverable": "deliverable",
+    "최종보고서": "deliverable",
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build per-category FAISS sub-indexes")
@@ -67,7 +79,9 @@ def main() -> int:
 
     by_category: dict[str, list[dict]] = {}
     for chunk in all_chunks:
-        cat = chunk.get("category", "")
+        raw_cat = chunk.get("category", "")
+        # 한글 카테고리를 영문으로 매핑
+        cat = CATEGORY_MAP.get(raw_cat, raw_cat.lower() if raw_cat else "")
         by_category.setdefault(cat, []).append(chunk)
 
     print("Chunks per category:")
