@@ -50,6 +50,50 @@ async def ollama_health():
         return {"status": "unhealthy", "ollama": "disconnected", "error": str(exc)}
 
 
+@router.get("/health/ollama/models")
+async def ollama_models():
+    """Ollama에서 사용 가능한 모델 목록을 LLM과 임베딩으로 분류하여 반환"""
+    try:
+        from app.services.ollama import get_ollama
+        ollama = get_ollama()
+        models = await ollama.list_models()
+
+        # 임베딩 모델 패턴 (이름에 embed, bge, e5 등 포함)
+        embedding_patterns = ["embed", "bge", "e5-", "gte-", "nomic"]
+
+        llm_models = []
+        embedding_models = []
+
+        for m in models:
+            name = m.get("name", "")
+            model_info = {
+                "name": name,
+                "size": m.get("size", 0),
+                "modified_at": m.get("modified_at", ""),
+            }
+
+            # 임베딩 모델인지 확인
+            is_embedding = any(p in name.lower() for p in embedding_patterns)
+            if is_embedding:
+                embedding_models.append(model_info)
+            else:
+                llm_models.append(model_info)
+
+        return {
+            "status": "ok",
+            "llm_models": llm_models,
+            "embedding_models": embedding_models,
+            "total": len(models)
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "error": str(exc),
+            "llm_models": [],
+            "embedding_models": []
+        }
+
+
 @router.get("/health/all")
 async def full_health_check():
     """Full system health check — all components checked independently."""

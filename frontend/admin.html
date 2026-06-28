@@ -975,13 +975,11 @@ POST /api/admin/wiki/build</code>
                   <small class="wr-field-hint">높을수록 정확하지만 처리 시간 증가</small>
                 </div>
                 <div class="wr-field">
-                  <label>OCR 엔진</label>
-                  <select id="dbStep1OcrEngine">
-                    <option value="tesseract">Tesseract (로컬)</option>
-                    <option value="easyocr">EasyOCR (로컬)</option>
-                    <option value="olmocr">olmOCR (CUDA/GPU)</option>
-                    <option value="naver_clova">Naver CLOVA OCR (API)</option>
-                  </select>
+                  <label>설치된 OCR 엔진</label>
+                  <div id="dbStep1OcrEngineList" class="wr-status-list">
+                    <div class="wr-status-row"><span>서버 DB 값 로딩</span></div>
+                  </div>
+                  <small class="wr-field-hint" id="dbStep1OcrEngineHint">서버에 실제 설치된 OCR 엔진 목록을 MySQL DB에서 읽어옵니다.</small>
                 </div>
                 <div class="wr-field">
                   <label>최소 텍스트 길이</label>
@@ -1379,14 +1377,12 @@ POST /api/admin/wiki/build</code>
             <div class="wr-field">
               <label>임베딩 모델 <span class="wr-required">*</span></label>
               <select id="dbStep6EmbedModel">
-                <option value="nomic-embed-text">nomic-embed-text (Ollama)</option>
-                <option value="bge-m3">bge-m3 (Ollama)</option>
-                <option value="text-embedding-3-small">text-embedding-3-small (OpenAI)</option>
+                <option value="">서버 임베딩 모델 목록 로딩 중...</option>
               </select>
             </div>
             <div class="wr-field">
               <label>임베딩 차원</label>
-              <input id="dbStep6EmbedDim" type="number" value="768" readonly>
+              <input id="dbStep6EmbedDim" type="number" value="" placeholder="서버 값 로딩" readonly>
             </div>
             <div class="wr-field">
               <label>배치 크기</label>
@@ -1467,10 +1463,12 @@ POST /api/admin/wiki/build</code>
         <div class="wr-card" style="margin-top:24px">
           <h3 class="wr-card-title">Embedding PCA 3D 시각화</h3>
           <div class="wr-callout wr-callout-info">현재 source_id 기준 임베딩 샘플을 PCA 3차원으로 축소해 표시합니다. 원본 벡터 전체가 아니라 샘플링된 좌표만 시각화합니다.</div>
+          <div class="wr-callout wr-callout-warning" style="margin-top:12px">현재 PCA 3D는 Active Snapshot 벡터를 기준으로 하며, 선택한 source_id가 있으면 해당 source의 벡터만 필터링해서 표시합니다.</div>
           <div class="wr-form-grid">
             <div class="wr-field">
               <label>현재 source_id</label>
               <input id="dbStep6PcaSourceId" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+              <small class="wr-field-hint" id="dbStep6PcaContextHint">dataset_id=- | active_snapshot=-</small>
             </div>
             <div class="wr-field">
               <label>샘플 수</label>
@@ -1709,9 +1707,12 @@ POST /api/admin/wiki/build</code>
         <div class="wr-callout wr-callout-info" style="margin-bottom:20px">
           현재 source_id 기준 임베딩 샘플을 PCA 3차원으로 축소해 표시합니다. 원본 벡터 전체가 아니라 샘플링된 좌표만 시각화합니다.
         </div>
+        <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
+          현재 PCA 3D는 Active Snapshot 벡터를 기준으로 하며, 선택한 source_id가 있으면 해당 source의 벡터만 필터링해서 표시합니다.
+        </div>
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <button class="wr-btn" type="button" onclick="showWrPage('rag-build-wizard')">← Dataset Builder</button>
-          <button class="wr-btn wr-btn-primary" type="button" onclick="loadEmbeddingPca3d()">PCA 3D 새로고침</button>
+          <button class="wr-btn wr-btn-primary" type="button" onclick="loadEmbeddingPca3dFromViewer()">PCA 3D 새로고침</button>
         </div>
         <div class="wr-card">
           <h3 class="wr-card-title">PCA 시각화 설정</h3>
@@ -1719,6 +1720,7 @@ POST /api/admin/wiki/build</code>
             <div class="wr-field">
               <label>현재 source_id</label>
               <input id="pcaViewerSourceId" type="text" readonly style="background:var(--surface2);color:var(--amber)">
+              <small class="wr-field-hint" id="pcaViewerContextHint">dataset_id=- | active_snapshot=-</small>
             </div>
             <div class="wr-field">
               <label>샘플 수</label>
@@ -1938,14 +1940,11 @@ POST /api/admin/faiss/rollback</code>
                 <small class="wr-field-hint">높을수록 정확하지만 처리 시간 증가</small>
               </div>
               <div class="wr-field">
-                <label>OCR 엔진</label>
-                <select id="wrStep1OcrEngine">
-                  <option value="tesseract">Tesseract (로컬)</option>
-                  <option value="easyocr">EasyOCR (로컬)</option>
-                  <option value="olmocr">olmOCR (CUDA/GPU)</option>
-                  <option value="naver_clova">Naver CLOVA OCR (API)</option>
-                  <option value="google_vision">Google Vision (API)</option>
-                </select>
+                <label>설치된 OCR 엔진</label>
+                <div id="wrStep1OcrEngineList" class="wr-status-list">
+                  <div class="wr-status-row"><span>서버 DB 값 로딩</span></div>
+                </div>
+                <small class="wr-field-hint" id="wrStep1OcrEngineHint">서버에 실제 설치된 OCR 엔진 목록을 MySQL DB에서 읽어옵니다.</small>
               </div>
               <div class="wr-field">
                 <label>최소 텍스트 길이</label>
@@ -1984,14 +1983,7 @@ POST /api/admin/faiss/rollback</code>
                 <span class="wr-toggle-icon">▼</span>
               </div>
               <pre class="wr-request-body" id="reqPreview1" style="display:none">{
-  "ocr_mode": "auto",
-  "ocr_language": "kor+eng",
-  "ocr_dpi": 300,
-  "ocr_engine": "tesseract",
-  "min_text_length": 50,
-  "image_preprocess": "none",
-  "hwp_extractor": "pyhwp",
-  "table_extract": true
+  "message": "미리보기 갱신 시 현재 서버/화면 값을 반영합니다."
 }</pre>
             </div>
             <div class="wr-inline-actions">
@@ -2019,14 +2011,12 @@ POST /api/admin/faiss/rollback</code>
               <div class="wr-field">
                 <label>임베딩 모델 <span class="wr-required">*</span></label>
                 <select id="wrStep2EmbedModel">
-                  <option value="nomic-embed-text">nomic-embed-text (Ollama)</option>
-                  <option value="bge-m3">bge-m3 (Ollama)</option>
-                  <option value="text-embedding-3-small">text-embedding-3-small (OpenAI)</option>
+                  <option value="">서버 임베딩 모델 목록 로딩 중...</option>
                 </select>
               </div>
               <div class="wr-field">
                 <label>임베딩 차원</label>
-                <input id="wrStep2EmbedDim" type="number" value="768" readonly>
+                <input id="wrStep2EmbedDim" type="number" value="" placeholder="서버 값 로딩" readonly>
               </div>
             </div>
             <div class="wr-request-preview">
@@ -2035,10 +2025,7 @@ POST /api/admin/faiss/rollback</code>
                 <span class="wr-toggle-icon">▼</span>
               </div>
               <pre class="wr-request-body" id="reqPreview2" style="display:none">{
-  "chunk_size": 1000,
-  "chunk_overlap": 200,
-  "embedding_model": "nomic-embed-text",
-  "embedding_provider": "ollama"
+  "message": "미리보기 갱신 시 현재 서버/화면 값을 반영합니다."
 }</pre>
             </div>
             <div class="wr-inline-actions">
@@ -5344,14 +5331,14 @@ POST /api/admin/faiss/activate</code>
       </div>
         <div class="form-group">
           <label>기본 LLM 모델</label>
-          <input type="text" id="pfLlmModel" value="" placeholder="서버 값 로딩 후 표시">
+          <select id="pfLlmModel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="">서버 모델 목록 로딩 중...</option>
+          </select>
         </div>
       <div class="form-group">
         <label>기본 임베딩 모델</label>
         <select id="pfEmbedModel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
-          <option value="nomic-embed-text">nomic-embed-text</option>
-          <option value="bge-m3">bge-m3</option>
-          <option value="text-embedding-3-small">text-embedding-3-small</option>
+          <option value="">서버 모델 목록 로딩 중...</option>
         </select>
       </div>
     </div>
@@ -5375,8 +5362,16 @@ POST /api/admin/faiss/activate</code>
         <div class="form-group"><label>고객사명 *</label><input type="text" id="cfClientName" placeholder="예: (주)ABC"></div>
         <div class="form-group"><label>설명</label><input type="text" id="cfDescription" placeholder="선택"></div>
         <div class="form-group"><label>데이터 저장 경로</label><input type="text" id="cfDataPath" placeholder="/data/weeslee/weeslee-rag/data/clients/..."></div>
-        <div class="form-group"><label>기본 LLM 모델</label><input type="text" id="cfLlmModel" placeholder="서버 값 로딩 후 표시"></div>
-        <div class="form-group"><label>기본 임베딩 모델</label><input type="text" id="cfEmbedModel" placeholder="서버 값 로딩 후 표시"></div>
+        <div class="form-group"><label>기본 LLM 모델</label>
+          <select id="cfLlmModel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="">서버 모델 목록 로딩 중...</option>
+          </select>
+        </div>
+        <div class="form-group"><label>기본 임베딩 모델</label>
+          <select id="cfEmbedModel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="">서버 모델 목록 로딩 중...</option>
+          </select>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-primary" onclick="saveClient()">저장</button>
@@ -5860,6 +5855,7 @@ POST /api/admin/faiss/activate</code>
     const tag = document.getElementById('activeTag');
     const el  = document.getElementById('activeContent');
     _currentActiveSnapshot = active?.snapshot || '';
+    syncEmbeddingPcaContextFields();
     syncPipelineSelectionState();
 
     if (!active) {
@@ -7265,6 +7261,8 @@ POST /api/admin/faiss/activate</code>
       ocr_language: client.ocr_language,
       ocr_dpi: client.ocr_dpi,
       ocr_engine: client.ocr_engine,
+      ocr_engine_options: client.ocr_engine_options,
+      ocr_environment_info: client.ocr_environment_info,
       ocr_supported_extensions: client.ocr_supported_extensions,
       ocr_min_text_length: client.ocr_min_text_length,
       ocr_image_preprocess: client.ocr_image_preprocess,
@@ -7274,6 +7272,40 @@ POST /api/admin/faiss/activate</code>
     };
   }
 
+  function getInstalledOcrEngines(settings) {
+    const options = Array.isArray(settings?.ocr_engine_options) ? settings.ocr_engine_options : [];
+    return options.filter(engine => engine && engine.installed);
+  }
+
+  function renderInstalledOcrEngines(settings) {
+    const engines = getInstalledOcrEngines(settings);
+    const gpu = settings?.ocr_environment_info?.gpu || {};
+    const recommended = settings?.ocr_environment_info?.recommended_engine || settings?.ocr_engine || '';
+    const engineHtml = engines.length
+      ? engines.map(engine => {
+          const tags = [];
+          if (engine.gpu_recommended) tags.push('GPU 권장');
+          if (recommended && engine.id === recommended) tags.push('권장');
+          const detail = tags.length ? ` <span style="color:var(--muted)">(${tags.join(', ')})</span>` : '';
+          return `<div class="wr-status-row"><span>${escapeHtml(engine.name || engine.id)}${detail}</span></div>`;
+        }).join('')
+      : '<div class="wr-status-row"><span>설치된 OCR 엔진이 DB에 없습니다.</span></div>';
+
+    ['dbStep1OcrEngineList', 'wrStep1OcrEngineList'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = engineHtml;
+    });
+
+    const hint = gpu.available
+      ? `GPU 사용 가능: ${escapeHtml(gpu.device_name || 'CUDA GPU')}`
+      : 'GPU 정보 없음 또는 CUDA 미사용';
+
+    ['dbStep1OcrEngineHint', 'wrStep1OcrEngineHint'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = hint;
+    });
+  }
+
   function applyOcrSettingsToStep3(settings) {
     if (!settings) return;
 
@@ -7281,7 +7313,6 @@ POST /api/admin/faiss/activate</code>
       ['dbStep1OcrEnable', settings.ocr_mode],
       ['dbStep1OcrLang', settings.ocr_language],
       ['dbStep1OcrDpi', settings.ocr_dpi],
-      ['dbStep1OcrEngine', settings.ocr_engine],
       ['dbStep1MinTextLen', settings.ocr_min_text_length],
       ['dbStep1ImagePreprocess', settings.ocr_image_preprocess],
       ['dbStep1HwpExtractor', settings.ocr_hwp_extractor],
@@ -7290,7 +7321,6 @@ POST /api/admin/faiss/activate</code>
       ['wrStep1OcrEnable', settings.ocr_mode],
       ['wrStep1OcrLang', settings.ocr_language],
       ['wrStep1OcrDpi', settings.ocr_dpi],
-      ['wrStep1OcrEngine', settings.ocr_engine],
       ['wrStep1MinTextLen', settings.ocr_min_text_length],
       ['wrStep1ImagePreprocess', settings.ocr_image_preprocess],
       ['wrStep1HwpExtractor', settings.ocr_hwp_extractor],
@@ -7300,6 +7330,8 @@ POST /api/admin/faiss/activate</code>
       setCheckedValue('dbStep1TableExtract', settings.ocr_table_extract);
       setCheckedValue('wrStep1TableExtract', settings.ocr_table_extract);
     }
+
+    renderInstalledOcrEngines(settings);
   }
 
   async function fetchServerSystemSettings(forceReload = false) {
@@ -7377,6 +7409,9 @@ POST /api/admin/faiss/activate</code>
     document.getElementById('cfClientName').value = data?.client_name || '';
     document.getElementById('cfDescription').value = data?.description || '';
     document.getElementById('cfDataPath').value = data?.service_data_path || '';
+    // select에 값 설정 전에 옵션 존재 여부 확인
+    ensureModelOption('cfLlmModel', data?.default_llm_model || '');
+    ensureModelOption('cfEmbedModel', data?.default_embedding_model || '');
     document.getElementById('cfLlmModel').value = data?.default_llm_model || '';
     document.getElementById('cfEmbedModel').value = data?.default_embedding_model || '';
     document.getElementById('cfEditId').value = data?.client_id || '';
@@ -7439,10 +7474,107 @@ POST /api/admin/faiss/activate</code>
     }
   }
 
+  // ── Ollama 모델 목록 로드 ─────────────────────────────────────────────────
+  let _ollamaModels = { llm: [], embedding: [] };
+
+  async function loadOllamaModels() {
+    try {
+      const res = await platformFetch('/health/ollama/models');
+      if (res.status === 'ok') {
+        _ollamaModels.llm = res.llm_models || [];
+        _ollamaModels.embedding = res.embedding_models || [];
+        populateModelSelects();
+        return true;
+      }
+      console.warn('Ollama 모델 목록 로드 실패:', res.error);
+      return false;
+    } catch (e) {
+      console.warn('Ollama 모델 목록 로드 실패:', e.message);
+      return false;
+    }
+  }
+
+  function populateModelSelects() {
+    // 플랫폼 설정의 LLM/임베딩 select
+    populateLlmSelect('pfLlmModel');
+    populateEmbeddingSelect('pfEmbedModel');
+    // Client Manager 폼의 LLM/임베딩 select
+    populateLlmSelect('cfLlmModel');
+    populateEmbeddingSelect('cfEmbedModel');
+    // Builder 내부 임베딩 모델 select
+    populateEmbeddingSelect('dbStep6EmbedModel');
+    populateEmbeddingSelect('wrStep2EmbedModel');
+  }
+
+  function populateLlmSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">-- LLM 모델 선택 --</option>';
+    _ollamaModels.llm.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.name;
+      opt.textContent = m.name;
+      select.appendChild(opt);
+    });
+    // 기존 값이 목록에 없으면 추가
+    if (currentValue && !Array.from(select.options).some(o => o.value === currentValue)) {
+      const opt = document.createElement('option');
+      opt.value = currentValue;
+      opt.textContent = currentValue + ' (현재 설정)';
+      select.appendChild(opt);
+    }
+    if (currentValue) select.value = currentValue;
+  }
+
+  function populateEmbeddingSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">-- 임베딩 모델 선택 --</option>';
+    _ollamaModels.embedding.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.name;
+      opt.textContent = m.name;
+      select.appendChild(opt);
+    });
+    // 기존 값이 목록에 없으면 추가
+    if (currentValue && !Array.from(select.options).some(o => o.value === currentValue)) {
+      const opt = document.createElement('option');
+      opt.value = currentValue;
+      opt.textContent = currentValue + ' (현재 설정)';
+      select.appendChild(opt);
+    }
+    if (currentValue) select.value = currentValue;
+  }
+
+  function refreshBuilderRequestPreviews() {
+    [1, 2].forEach((stepNum) => {
+      if (document.getElementById(`reqPreview${stepNum}`)) {
+        updateRequestPreview(stepNum);
+      }
+    });
+  }
+
+  function ensureModelOption(selectId, model) {
+    const select = document.getElementById(selectId);
+    if (!select || !model) return;
+    const exists = Array.from(select.options).some(opt => opt.value === model);
+    if (!exists) {
+      const opt = document.createElement('option');
+      opt.value = model;
+      opt.textContent = model;
+      select.appendChild(opt);
+    }
+  }
+
   async function loadPlatformDefaultModels() {
     const setValue = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     try {
+      // Ollama 모델 목록을 먼저 로드
+      await loadOllamaModels();
+
       const snapshot = await fetchServerSystemSettings(true);
       const clients = snapshot.clients || [];
       const runtime = snapshot.runtime || {};
@@ -7453,10 +7585,10 @@ POST /api/admin/faiss/activate</code>
         _platformDefaultClientId = '';
         setValue('pfClientName', '미설정');
         setValue('pfClientId', '미설정');
-        setValue('pfLlmModel', '');
-        ensurePlatformEmbedModelOption(runtimeCfg.embedding_model || '');
-        const embedEl = document.getElementById('pfEmbedModel');
-        if (embedEl) embedEl.value = runtimeCfg.embedding_model || '';
+        ensureModelOption('pfLlmModel', runtimeCfg.answer_model || '');
+        ensureModelOption('pfEmbedModel', runtimeCfg.embedding_model || '');
+        setValue('pfLlmModel', runtimeCfg.answer_model || '');
+        setValue('pfEmbedModel', runtimeCfg.embedding_model || '');
         setText('pfModelHint', '등록된 Client가 없어 서버 DB 설정을 표시할 수 없습니다.');
         return;
       }
@@ -7464,12 +7596,14 @@ POST /api/admin/faiss/activate</code>
       _platformDefaultClientId = client.client_id || '';
       setValue('pfClientName', client.client_name || '-');
       setValue('pfClientId', client.client_id || '-');
+      // LLM 모델 설정
+      ensureModelOption('pfLlmModel', client.default_llm_model || '');
       setValue('pfLlmModel', client.default_llm_model || '');
-      ensurePlatformEmbedModelOption(client.default_embedding_model || '');
-      ensurePlatformEmbedModelOption(runtimeCfg.active_embedding_model || runtimeCfg.embedding_model || '');
+      // 임베딩 모델 설정
+      ensureModelOption('pfEmbedModel', client.default_embedding_model || '');
+      ensureModelOption('pfEmbedModel', runtimeCfg.active_embedding_model || runtimeCfg.embedding_model || '');
+      setValue('pfEmbedModel', client.default_embedding_model || '');
       applyOcrSettingsToStep3(getActiveClientOcrSettings(snapshot));
-      const embedEl = document.getElementById('pfEmbedModel');
-      if (embedEl) embedEl.value = client.default_embedding_model || '';
       const runtimeEmbed = displayServerValue(runtimeCfg.active_embedding_model || runtimeCfg.embedding_model, '미제공');
       const runtimeLlm = displayServerValue(runtimeCfg.answer_model, '미제공');
       setText('pfModelHint', `DB 기본값: ${client.client_name || client.client_id || '-'} / Runtime LLM: ${runtimeLlm} / Runtime Embedding: ${runtimeEmbed}`);
@@ -8949,6 +9083,22 @@ POST /api/admin/faiss/activate</code>
     return platformFetch(url);
   }
 
+  async function resolveOverviewBaseSourceId() {
+    if (_activeSnapshotInfo?.source_id) {
+      return String(_activeSnapshotInfo.source_id).trim();
+    }
+    try {
+      const data = await platformFetch('/admin/snapshot/active');
+      if (data?.success && data?.active_config?.source_id) {
+        _activeSnapshotInfo = data.active_config;
+        return String(data.active_config.source_id).trim();
+      }
+    } catch (e) {
+      console.warn('[overview] active snapshot source resolve failed:', e.message);
+    }
+    return '';
+  }
+
   let _wrCurrentPagePanelId = '';
 
   function getActiveWrPagePanelId() {
@@ -9462,18 +9612,19 @@ POST /api/admin/faiss/activate</code>
     };
 
     try {
+      const overviewSourceId = await resolveOverviewBaseSourceId();
       const [sourceSummary, datasetSummary] = await Promise.all([
-        fetchDocumentSourceSummary(),
-        fetchDatasetStatusSummary(getCurrentSourceId?.() || ''),
+        fetchDocumentSourceSummary({ sourceId: overviewSourceId }),
+        fetchDatasetStatusSummary(overviewSourceId),
       ]);
 
       // Step 1: 소스 등록
-      const sourceOk = sourceSummary.totalSources > 0;
-      setStep(1, sourceOk ? 'ok' : 'err', sourceOk ? '✓ 등록됨' : '미등록');
-      setText('wrOverviewSourceState', sourceOk ? `${sourceSummary.totalSources}개 등록` : '등록 필요');
+      const sourceOk = !!overviewSourceId;
+      setStep(1, sourceOk ? 'ok' : 'err', sourceOk ? `✓ ${overviewSourceId}` : 'Active Snapshot 없음');
+      setText('wrOverviewSourceState', sourceOk ? overviewSourceId : 'Active Snapshot 없음');
 
       // Step 2: 파일 스캔
-      const totalFiles = Number(sourceSummary.totalFiles || datasetSummary.total_documents || 0);
+      const totalFiles = Number(sourceSummary.totalFiles || 0);
       const changedOrNew = Number(sourceSummary.newFiles || 0) + Number(sourceSummary.changedFiles || 0);
       setStep(2, totalFiles > 0 ? 'ok' : 'err', totalFiles > 0 ? `✓ ${totalFiles}개 파일` : '스캔 필요');
       setText('wrOverviewFileState', totalFiles > 0 ? `${totalFiles}개` : '스캔 필요');
@@ -9483,11 +9634,13 @@ POST /api/admin/faiss/activate</code>
       const totalDocs = Number(datasetSummary.total_documents || 0);
       const metaBuilt = Number(datasetSummary.step2_completed || 0);
       const reviewRequired = Number(datasetSummary.step3_review_required || 0);
-      const reviewed = Number(datasetSummary.step3_reviewed || 0);
       const metaOk = totalDocs > 0 && metaBuilt >= totalDocs && reviewRequired === 0;
-      const metaRunning = metaBuilt > 0 || reviewed > 0;
-      setStep(3, metaOk ? 'ok' : (metaRunning ? 'running' : 'err'), metaOk ? '✓ 완료' : (metaRunning ? `${metaBuilt}/${totalDocs}` : '생성 필요'));
-      setText('wrOverviewMetaState', metaOk ? '완료' : (metaRunning ? `${metaBuilt}/${totalDocs}` : '생성 필요'));
+      const metaRunning = metaBuilt > 0;
+      const metaStatusText = reviewRequired > 0
+        ? `검토 대기 ${reviewRequired}건`
+        : (metaOk ? '완료' : (metaRunning ? `${metaBuilt}/${totalDocs}` : '생성 필요'));
+      setStep(3, metaOk ? 'ok' : (metaRunning || reviewRequired > 0 ? 'running' : 'err'), metaOk ? '✓ 완료' : metaStatusText);
+      setText('wrOverviewMetaState', metaStatusText);
       setText('wrAlertPendingDocs', `${reviewRequired}건`);
     } catch {
       setStep(1, 'err', '연결 오류');
@@ -9614,7 +9767,6 @@ POST /api/admin/faiss/activate</code>
         ocr_mode: document.getElementById('dbStep1OcrEnable')?.value || 'auto',
         ocr_language: document.getElementById('dbStep1OcrLang')?.value || '',
         ocr_dpi: parseInt(document.getElementById('dbStep1OcrDpi')?.value || '0', 10) || null,
-        ocr_engine: document.getElementById('dbStep1OcrEngine')?.value || '',
         ocr_supported_extensions: document.getElementById('dbStep1Extensions')?.value?.trim() || '',
         ocr_min_text_length: parseInt(document.getElementById('dbStep1MinTextLen')?.value || '0', 10) || null,
         ocr_image_preprocess: document.getElementById('dbStep1ImagePreprocess')?.value || '',
@@ -10132,8 +10284,10 @@ POST /api/admin/faiss/activate</code>
 
   function applyServerConfigToBuilderDefaults(cfg) {
     if (!cfg) return;
+    ensureModelOption('dbStep6EmbedModel', cfg.embedding_model);
     setSelectIfOptionExists('dbStep6EmbedModel', cfg.embedding_model);
     setFieldValue('dbStep6EmbedDim', cfg.embedding_dim);
+    ensureModelOption('wrStep2EmbedModel', cfg.embedding_model);
     setSelectIfOptionExists('wrStep2EmbedModel', cfg.embedding_model);
     setFieldValue('wrStep2EmbedDim', cfg.embedding_dim);
     ['wrStep8LlmModel', 'wrStep9LlmModel', 'wrStep10LlmModel'].forEach((id) => {
@@ -10181,11 +10335,38 @@ POST /api/admin/faiss/activate</code>
     el.className = `wr-callout ${tone === 'info' || tone === 'success' ? 'wr-callout-info' : 'wr-callout-warning'}`;
   }
 
-  function setEmbeddingPcaSource() {
+  function getCurrentPcaContext() {
     const sourceId = getCurrentSourceId() || document.getElementById('ctxSource')?.value || '';
-    const sourceEl = document.getElementById('dbStep6PcaSourceId');
-    if (sourceEl) sourceEl.value = sourceId || '-';
-    return sourceId;
+    const selectedSource = document.getElementById('ctxSource')?.selectedOptions?.[0] || null;
+    const datasetId = getCurrentDatasetId() || selectedSource?.dataset?.datasetId || '';
+    const activeSnapshotText = document.getElementById('ctxActiveSnapshotDisplay')?.textContent?.trim() || '';
+    const activeSnapshot = (_currentActiveSnapshot || activeSnapshotText || '').replace(/^-$/, '').trim();
+    return {
+      sourceId,
+      datasetId,
+      activeSnapshot,
+    };
+  }
+
+  function syncEmbeddingPcaContextFields() {
+    const context = getCurrentPcaContext();
+    const summaryText = `dataset_id=${context.datasetId || '-'} | active_snapshot=${context.activeSnapshot || '-'}`;
+    const sourceTargets = ['dbStep6PcaSourceId', 'pcaViewerSourceId'];
+    const hintTargets = ['dbStep6PcaContextHint', 'pcaViewerContextHint'];
+
+    sourceTargets.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = context.sourceId || '-';
+    });
+    hintTargets.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = summaryText;
+    });
+    return context;
+  }
+
+  function setEmbeddingPcaSource() {
+    return syncEmbeddingPcaContextFields().sourceId;
   }
 
   function clearEmbeddingPcaPlot(message = 'PCA 3D 시각화 대기 중') {
@@ -10263,7 +10444,9 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function loadEmbeddingPca3d() {
-    const sourceId = setEmbeddingPcaSource();
+    clearEmbeddingPcaPlot('PCA 3D 시각화 대기 중');
+    const context = syncEmbeddingPcaContextFields();
+    const sourceId = context.sourceId;
     const sampleLimit = parseInt(document.getElementById('dbStep6PcaSampleLimit')?.value || '600', 10) || 600;
     const groupBy = document.getElementById('dbStep6PcaGroupBy')?.value || 'category';
 
@@ -10273,7 +10456,10 @@ POST /api/admin/faiss/activate</code>
       return;
     }
 
-    setEmbeddingPcaSummary(`PCA 3D 계산 중... source_id=${sourceId}, sample_limit=${sampleLimit}, group_by=${groupBy}`, 'info');
+    setEmbeddingPcaSummary(
+      `PCA 3D 계산 중... source_id=${sourceId}, dataset_id=${context.datasetId || '-'}, active_snapshot=${context.activeSnapshot || '-'}, sample_limit=${sampleLimit}, group_by=${groupBy}`,
+      'info'
+    );
     clearEmbeddingPcaPlot('PCA 3D 좌표를 계산하는 중입니다...');
 
     try {
@@ -10297,7 +10483,7 @@ POST /api/admin/faiss/activate</code>
       renderEmbeddingPca3d(data);
       const ratios = (data.explained_variance_ratio || []).map(v => `${(Number(v || 0) * 100).toFixed(1)}%`);
       setEmbeddingPcaSummary(
-        `source_id=${data.source_id || sourceId} | 모델=${data.model || '-'} | 차원=${Number(data.embedding_dim || 0).toLocaleString('ko-KR')} | 전체 벡터=${Number(data.total_embeddings || 0).toLocaleString('ko-KR')}개 | 샘플=${Number(data.sampled_points || 0).toLocaleString('ko-KR')}개 | 분산설명력=${ratios.join(' / ')}`,
+        `source_id=${data.source_id || sourceId} | dataset_id=${context.datasetId || '-'} | active_snapshot=${context.activeSnapshot || '-'} | 모델=${data.model || '-'} | 차원=${Number(data.embedding_dim || 0).toLocaleString('ko-KR')} | 전체 벡터=${Number(data.total_embeddings || 0).toLocaleString('ko-KR')}개 | 샘플=${Number(data.sampled_points || 0).toLocaleString('ko-KR')}개 | 분산설명력=${ratios.join(' / ')}`,
         'success'
       );
     } catch (e) {
@@ -10309,10 +10495,7 @@ POST /api/admin/faiss/activate</code>
 
   // 독립 PCA Viewer용 함수들
   function setPcaViewerSource() {
-    const sourceId = getCurrentSourceId() || document.getElementById('ctxSource')?.value || '';
-    const sourceEl = document.getElementById('pcaViewerSourceId');
-    if (sourceEl) sourceEl.value = sourceId || '-';
-    return sourceId;
+    return syncEmbeddingPcaContextFields().sourceId;
   }
 
   function setPcaViewerSummary(message, tone = 'warning') {
@@ -10397,7 +10580,9 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function loadEmbeddingPca3dFromViewer() {
-    const sourceId = setPcaViewerSource();
+    clearPcaViewerPlot('PCA 3D 시각화 대기 중');
+    const context = syncEmbeddingPcaContextFields();
+    const sourceId = context.sourceId;
     const sampleLimit = parseInt(document.getElementById('pcaViewerSampleLimit')?.value || '600', 10) || 600;
     const groupBy = document.getElementById('pcaViewerGroupBy')?.value || 'category';
 
@@ -10407,7 +10592,10 @@ POST /api/admin/faiss/activate</code>
       return;
     }
 
-    setPcaViewerSummary(`PCA 3D 계산 중... source_id=${sourceId}, sample_limit=${sampleLimit}, group_by=${groupBy}`, 'info');
+    setPcaViewerSummary(
+      `PCA 3D 계산 중... source_id=${sourceId}, dataset_id=${context.datasetId || '-'}, active_snapshot=${context.activeSnapshot || '-'}, sample_limit=${sampleLimit}, group_by=${groupBy}`,
+      'info'
+    );
     clearPcaViewerPlot('PCA 3D 좌표를 계산하는 중입니다...');
 
     try {
@@ -10431,7 +10619,7 @@ POST /api/admin/faiss/activate</code>
       renderPcaViewerPlot(data);
       const ratios = (data.explained_variance_ratio || []).map(v => `${(Number(v || 0) * 100).toFixed(1)}%`);
       setPcaViewerSummary(
-        `source_id=${data.source_id || sourceId} | 모델=${data.model || '-'} | 차원=${Number(data.embedding_dim || 0).toLocaleString('ko-KR')} | 전체 벡터=${Number(data.total_embeddings || 0).toLocaleString('ko-KR')}개 | 샘플=${Number(data.sampled_points || 0).toLocaleString('ko-KR')}개 | 분산설명력=${ratios.join(' / ')}`,
+        `source_id=${data.source_id || sourceId} | dataset_id=${context.datasetId || '-'} | active_snapshot=${context.activeSnapshot || '-'} | 모델=${data.model || '-'} | 차원=${Number(data.embedding_dim || 0).toLocaleString('ko-KR')} | 전체 벡터=${Number(data.total_embeddings || 0).toLocaleString('ko-KR')}개 | 샘플=${Number(data.sampled_points || 0).toLocaleString('ko-KR')}개 | 분산설명력=${ratios.join(' / ')}`,
         'success'
       );
     } catch (e) {
@@ -10498,7 +10686,7 @@ POST /api/admin/faiss/activate</code>
       syncStep6EmbeddingPreset();
       const snapshot = await fetchServerSystemSettings(true);
       applyOcrSettingsToStep3(getActiveClientOcrSettings(snapshot));
-      updateRequestPreview(1);
+      refreshBuilderRequestPreviews();
 
       showToast('서버 설정을 로드했습니다.', 'success', 2000);
     } catch (e) {
@@ -10730,19 +10918,21 @@ POST /api/admin/faiss/activate</code>
     const runtimeAnswerModel = readRuntimeValue('serverAnswerModel') || 'llama3:8b';
 
     switch(stepNum) {
-      case 1:
+      case 1: {
+        const installedOcrEngines = getInstalledOcrEngines(getActiveClientOcrSettings());
         body = {
           source_id: currentSource,
           ocr_mode: document.getElementById('wrStep1OcrEnable')?.value || 'auto',
           ocr_language: document.getElementById('wrStep1OcrLang')?.value || 'kor+eng',
           ocr_dpi: parseInt(document.getElementById('wrStep1OcrDpi')?.value) || 300,
-          ocr_engine: document.getElementById('wrStep1OcrEngine')?.value || 'tesseract',
+          installed_ocr_engines: installedOcrEngines.map(engine => engine.id),
           min_text_length: parseInt(document.getElementById('wrStep1MinTextLen')?.value) || 50,
           image_preprocess: document.getElementById('wrStep1ImagePreprocess')?.value || 'none',
           hwp_extractor: document.getElementById('wrStep1HwpExtractor')?.value || 'pyhwp',
           table_extract: document.getElementById('wrStep1TableExtract')?.value === 'enabled'
         };
         break;
+      }
       case 2:
         body = {
           chunk_size: parseInt(document.getElementById('wrStep2ChunkSize')?.value) || 1000,
@@ -13491,6 +13681,7 @@ LIMIT 10`;
     const ds  = getCurrentDatasetId();
     console.log('[CTX] Source:', src, '| Dataset:', ds);
     updateCtxSourceHint();
+    syncEmbeddingPcaContextFields();
     syncWrCurrentSourceSelect();
     // 스냅샷 목록 새로고침
     loadSnapshotList();
@@ -13514,6 +13705,7 @@ LIMIT 10`;
     const ds  = getCurrentDatasetId();
     console.log('[CTX Dataset] Source:', src, '| Dataset:', ds);
     updateCtxSourceHint();
+    syncEmbeddingPcaContextFields();
     syncWrCurrentSourceSelect();
     // 스냅샷 목록 새로고침
     loadSnapshotList();
@@ -13771,6 +13963,7 @@ LIMIT 10`;
   function updateActiveSnapshotDisplay(config) {
     const idEl = document.getElementById('ctxActiveSnapshotId');
     const badgeEl = document.getElementById('ctxActiveBadge');
+    _currentActiveSnapshot = config?.active_snapshot_id || '';
 
     if (!config || !config.active_snapshot_id) {
       if (idEl) idEl.textContent = '없음';
@@ -13801,10 +13994,12 @@ LIMIT 10`;
           syncWrCurrentSourceSelect();
           updateCtxDatasetFromSource();
           updateCtxSourceHint();
+          syncEmbeddingPcaContextFields();
           console.log('[Active Snapshot] source_id 자동 선택:', activeSourceId);
         }
       }
     }
+    syncEmbeddingPcaContextFields();
   }
 
   // ── Snapshot 상세 정보 모달 ──────────────────────────────────────
@@ -15597,12 +15792,18 @@ LIMIT 10`;
           const activeSnapshot = faissData.active_snapshot || faissData.snapshot ||
                                  (faissData.active && faissData.active.snapshot) || '-';
           if (ctxActiveSnapshotEl) ctxActiveSnapshotEl.textContent = activeSnapshot;
+          _currentActiveSnapshot = activeSnapshot === '-' ? '' : activeSnapshot;
+          syncEmbeddingPcaContextFields();
         } else {
           if (ctxActiveSnapshotEl) ctxActiveSnapshotEl.textContent = '-';
+          _currentActiveSnapshot = '';
+          syncEmbeddingPcaContextFields();
         }
       } catch (e) {
         console.warn('Active snapshot 조회 실패:', e.message);
         if (ctxActiveSnapshotEl) ctxActiveSnapshotEl.textContent = '-';
+        _currentActiveSnapshot = '';
+        syncEmbeddingPcaContextFields();
       }
 
       showToast('Source Context 새로고침 완료', 'success', 1500);
@@ -16697,6 +16898,7 @@ LIMIT 10`;
         showToast('Document Source가 변경되어 진행 상태가 초기화되었습니다.', 'info', 3000);
       });
     }
+    syncEmbeddingPcaContextFields();
     // 초기 로드 시 업데이트
     setTimeout(updateSnapshotUI, 500);
   });
