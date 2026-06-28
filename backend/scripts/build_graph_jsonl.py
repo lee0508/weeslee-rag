@@ -1126,6 +1126,8 @@ def parse_args() -> argparse.Namespace:
                    help="Output directory (default: data/indexes/graph or data/indexes/graph/{source_id})")
     p.add_argument("--source-id", default="",
                    help="Document Source ID. Filters documents and outputs to source-specific directory.")
+    p.add_argument("--rebuild", action="store_true",
+                   help="Force rebuild (always rebuilds, kept for API compatibility)")
     return p.parse_args()
 
 
