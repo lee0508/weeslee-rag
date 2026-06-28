@@ -25,6 +25,7 @@ from typing import Optional
 
 from app.core.config import settings
 from app.services.rag_source_pipeline import build_manifest
+from app.services.platform_store import get_record
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
@@ -356,17 +357,31 @@ async def run_pipeline(job_id: str) -> None:
         # ── Stage 5: 카테고리 인덱스 (90%) ───────────────────────────────
         if should_run(5):
             emit(90, "카테고리 인덱스 빌드 중...")
-            rc = await _run_script(
-                [
-                    "build_category_indexes.py",
-                    "--combined-chunks", str(p["chunks_jsonl"]),
-                    "--output-dir", str(p["faiss_dir"]),
-                    "--snapshot", snapshot,
-                    "--embedding-provider", "ollama",
-                    "--ollama-model", settings.ollama_embed_model,
-                ],
-                emit, 90, 93,
-            )
+
+            # Document Source에서 동적 카테고리 가져오기
+            category_keys = []
+            if source_id:
+                source = get_record("document_sources", "source_id", source_id)
+                if source:
+                    cat_config = source.get("category_config") or {}
+                    categories = cat_config.get("categories", [])
+                    category_keys = [c.get("key") for c in categories if c.get("key")]
+
+            # 카테고리가 없으면 기본값 사용
+            if not category_keys:
+                category_keys = ["rfp", "proposal", "deliverable"]
+
+            cmd_args = [
+                "build_category_indexes.py",
+                "--combined-chunks", str(p["chunks_jsonl"]),
+                "--output-dir", str(p["faiss_dir"]),
+                "--snapshot", snapshot,
+                "--embedding-provider", "ollama",
+                "--ollama-model", settings.ollama_embed_model,
+                "--categories",
+            ] + category_keys
+
+            rc = await _run_script(cmd_args, emit, 90, 93)
             if rc != 0:
                 emit(90, "카테고리 인덱스", "경고: build_category_indexes.py 실패 (비필수)")
             save_pipeline_state(source_id, snapshot, 5)

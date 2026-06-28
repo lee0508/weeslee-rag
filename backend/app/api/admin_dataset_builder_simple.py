@@ -24,9 +24,10 @@ from app.core.database import SessionLocal, get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
 from app.services.document_source_paths import resolve_scan_root
 from app.services.document_uid import make_document_uid, detect_file_change, calculate_file_checksum
-from app.services.platform_store import get_record, list_records
+from app.services.platform_store import get_record, list_records, update_record
 from app.services.tag_keyword_generator import TagKeywordGenerator
 from app.services.dataset_context import get_source_dataset_context, ensure_source_dataset_context
+from app.services.category_service import detect_categories_from_directory
 from app.core.config import settings
 from app.core.mappings import mappings
 
@@ -110,18 +111,25 @@ def classify_relative_path(relative_path: str, source: Optional[Dict[str, Any]] 
     00. RAG 소스 기준 relative_path를 분석하여
     document_group, category_folder, category_id, section_type을 반환.
 
-    폴더 구조 예시:
-    - 01. RFP/RFP_축산유통 데이터랩 고도화.hwp
-    - 02. 제안서/01. 전략및방법론/전략및방법론_사업명.pptx
-    - 03. 산출물/02. 현황분석/현황분석_사업명.pptx
+    폴더 구조 정의:
+    - ROOT (Document Source): 데이터셋 최상위 폴더
+    - 1 Depth: 카테고리 폴더 (예: 01. RFP, 02. 제안서, 03. 산출물)
+    - 2 Depth 이하: 프로젝트/연도/섹션 등 하위 구조
+
+    예시:
+    - 01. RFP/RFP_축산유통.hwp → category=rfp, section=RFP
+    - 02. 제안서/01. 전략및방법론/파일.pptx → category=proposal, section=전략및방법론
+    - 03. 산출물/02. 현황분석/파일.pptx → category=deliverable, section=현황분석
     """
     path_parts = extract_source_context_parts(source) + split_path_parts(relative_path)
 
     top_folder = path_parts[0] if len(path_parts) >= 1 else ""
     second_folder = path_parts[1] if len(path_parts) >= 2 else ""
 
+    # 1 Depth 폴더에서 document_group 추출 (정규화된 이름)
     document_group = DOCUMENT_GROUP_MAP.get(top_folder, normalize_numbered_name(top_folder))
 
+    # 파일이 ROOT에 직접 있는 경우
     if looks_like_file(top_folder):
         source_name = normalize_numbered_name((source or {}).get("source_name", ""))
         document_group = source_name or ""
@@ -135,29 +143,38 @@ def classify_relative_path(relative_path: str, source: Optional[Dict[str, Any]] 
             "section_type": fit_text(section_type, 100),
         }
 
-    # RFP는 하위 섹션 폴더가 없으므로 cat_rfp로 처리
-    if top_folder == "01. RFP":
-        category_folder = top_folder
-        category_id = "cat_rfp"
-        section_type = "RFP"
+    # Document Source의 동적 카테고리 설정 조회
+    source_id = (source or {}).get("source_id", "")
+    category_config = (source or {}).get("category_config") or {}
+    source_categories = category_config.get("categories", [])
 
-    # 제안서/산출물은 두 번째 폴더가 실제 섹션
-    elif top_folder in ("02. 제안서", "03. 산출물"):
+    # 1 Depth 폴더에서 카테고리 키 찾기
+    category_key = ""
+    top_folder_lower = top_folder.lower()
+    top_folder_normalized = normalize_numbered_name(top_folder).lower()
+
+    for cat in source_categories:
+        cat_path = (cat.get("path") or "").lower()
+        cat_name = (cat.get("name") or "").lower()
+        if cat_path == top_folder_lower or cat_name == top_folder_normalized:
+            category_key = cat.get("key", "")
+            break
+
+    # 동적 카테고리에서 찾지 못하면 기본 매핑 사용
+    if not category_key:
+        from app.services.category_service import normalize_category_key as norm_cat_key
+        category_key = norm_cat_key(top_folder)
+
+    # category_id 생성: cat_{category_key}
+    category_id = f"cat_{category_key}" if category_key else "cat_unknown"
+
+    # 2 Depth 폴더를 section_type으로 사용
+    if second_folder and not looks_like_file(second_folder):
+        section_type = normalize_numbered_name(second_folder)
         category_folder = second_folder
-        category_id = CATEGORY_ID_MAP.get(
-            second_folder,
-            f"cat_{normalize_slug(second_folder)}" if second_folder else "cat_unknown"
-        )
-        section_type = normalize_numbered_name(second_folder) if second_folder else ""
-
     else:
-        # 기타 폴더 구조
-        category_folder = second_folder or top_folder
-        category_id = CATEGORY_ID_MAP.get(
-            category_folder,
-            f"cat_{normalize_slug(category_folder)}"
-        )
-        section_type = normalize_numbered_name(category_folder)
+        section_type = normalize_numbered_name(top_folder)
+        category_folder = top_folder
 
     return {
         "document_group": fit_text(document_group, 50),
@@ -591,6 +608,16 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     samples["removed"].append(rel_path)
 
         db.commit()
+
+        # 6.5 디렉토리 구조에서 카테고리 자동 감지 및 저장
+        detected_categories = detect_categories_from_directory(scan_root_str)
+        if detected_categories:
+            update_record(
+                "document_sources",
+                "source_id",
+                source_id,
+                {"category_config": {"categories": detected_categories}}
+            )
 
         # 7. 총 document_metadata 레코드 수 조회
         total_metadata = db.query(func.count(DocumentMetadata.id)).scalar() or 0

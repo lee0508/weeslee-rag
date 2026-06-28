@@ -64,6 +64,7 @@ class PlatformDocumentSource(Base):
     last_scan_removed_files = Column(JSON, nullable=True)
     needs_rag_build = Column(Boolean, default=False, nullable=False)
     next_action = Column(Text, nullable=True)
+    category_config = Column(JSON, nullable=True)  # {"categories": [{"path": "01. RFP", "name": "RFP", "key": "rfp"}, ...]}
     created_at = Column(String(40), nullable=True)
     updated_at = Column(String(40), nullable=True)
 
