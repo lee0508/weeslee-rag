@@ -971,7 +971,7 @@ POST /api/admin/wiki/build</code>
                 </div>
                 <div class="wr-field">
                   <label>OCR DPI</label>
-                  <input id="dbStep1OcrDpi" type="number" value="300" min="150" max="600">
+                    <input id="dbStep1OcrDpi" type="number" value="" min="150" max="600" placeholder="서버 DB 값 로딩">
                   <small class="wr-field-hint">높을수록 정확하지만 처리 시간 증가</small>
                 </div>
                 <div class="wr-field">
@@ -985,7 +985,7 @@ POST /api/admin/wiki/build</code>
                 </div>
                 <div class="wr-field">
                   <label>최소 텍스트 길이</label>
-                  <input id="dbStep1MinTextLen" type="number" value="50" min="0" max="500">
+                    <input id="dbStep1MinTextLen" type="number" value="" min="0" max="500" placeholder="서버 DB 값 로딩">
                   <small class="wr-field-hint">추출 텍스트가 이보다 짧으면 OCR fallback</small>
                 </div>
                 <div class="wr-field">
@@ -1015,11 +1015,11 @@ POST /api/admin/wiki/build</code>
                 </div>
                 <div class="wr-field">
                   <label>지원 확장자</label>
-                  <input id="dbStep1Extensions" value=".pdf, .docx, .hwp, .hwpx, .pptx, .xlsx" readonly>
+                    <input id="dbStep1Extensions" value="" placeholder="서버 DB 값 로딩" readonly>
                 </div>
                 <div class="wr-field">
                   <label>최대 파일 크기</label>
-                  <input id="dbStep1MaxFileSize" value="100 MB">
+                    <input id="dbStep1MaxFileSize" value="" placeholder="서버 DB 값 로딩">
                 </div>
               </div>
           <div class="wr-inline-actions" style="margin-top:16px">
@@ -1117,6 +1117,7 @@ POST /api/admin/wiki/build</code>
               <button class="wr-btn" type="button" onclick="selectAllStep4RagReady()" style="margin-left:12px">RAG 준비 완료만 선택</button>
               <button class="wr-btn" type="button" onclick="clearStep4Selection()" style="margin-left:8px">선택 해제</button>
             </div>
+            <button class="wr-btn" type="button" onclick="refreshSelectedStep4OcrMetadata()" style="margin-right:8px">선택 문서 OCR 메타 재생성</button>
             <button class="wr-btn wr-btn-primary" type="button" onclick="proceedToStep5Chunking()">선택 문서 청킹 (Step 5로 진행)</button>
           </div>
         </div>
@@ -1933,7 +1934,7 @@ POST /api/admin/faiss/rollback</code>
               </div>
               <div class="wr-field">
                 <label>OCR DPI</label>
-                <input id="wrStep1OcrDpi" type="number" value="300" min="150" max="600">
+                <input id="wrStep1OcrDpi" type="number" value="" min="150" max="600" placeholder="서버 DB 값 로딩">
                 <small class="wr-field-hint">높을수록 정확하지만 처리 시간 증가</small>
               </div>
               <div class="wr-field">
@@ -1948,7 +1949,7 @@ POST /api/admin/faiss/rollback</code>
               </div>
               <div class="wr-field">
                 <label>최소 텍스트 길이</label>
-                <input id="wrStep1MinTextLen" type="number" value="50" min="0" max="500">
+                <input id="wrStep1MinTextLen" type="number" value="" min="0" max="500" placeholder="서버 DB 값 로딩">
                 <small class="wr-field-hint">추출 텍스트가 이보다 짧으면 OCR fallback</small>
               </div>
               <div class="wr-field">
@@ -3780,8 +3781,8 @@ POST /api/admin/faiss/activate</code>
         <div class="wr-form-grid">
           <div class="wr-field"><label>LLM model</label><input id="wrSettingsLlmModel" value="로딩 중..." readonly></div>
           <div class="wr-field"><label>Embedding model</label><input id="wrSettingsEmbedModel" value="로딩 중..." readonly></div>
-          <div class="wr-field"><label>Document ID strategy</label><input value="file hash based document_id" readonly></div>
-          <div class="wr-field"><label>Job runner</label><input value="Python Thread based runner" readonly></div>
+          <div class="wr-field"><label>Document ID strategy</label><input id="wrSettingsDocIdStrategy" value="확인 중..." readonly></div>
+          <div class="wr-field"><label>Job runner</label><input id="wrSettingsJobRunner" value="확인 중..." readonly></div>
         </div>
         <h2 class="wr-section-title" style="margin-top:24px">System Status</h2>
         <div class="wr-form-grid">
@@ -5341,10 +5342,10 @@ POST /api/admin/faiss/activate</code>
         <label>Client ID</label>
         <input type="text" id="pfClientId" readonly value="로딩 중...">
       </div>
-      <div class="form-group">
-        <label>기본 LLM 모델</label>
-        <input type="text" id="pfLlmModel" value="llama3:8b" placeholder="예: llama3:8b">
-      </div>
+        <div class="form-group">
+          <label>기본 LLM 모델</label>
+          <input type="text" id="pfLlmModel" value="" placeholder="서버 값 로딩 후 표시">
+        </div>
       <div class="form-group">
         <label>기본 임베딩 모델</label>
         <select id="pfEmbedModel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
@@ -5374,8 +5375,8 @@ POST /api/admin/faiss/activate</code>
         <div class="form-group"><label>고객사명 *</label><input type="text" id="cfClientName" placeholder="예: (주)ABC"></div>
         <div class="form-group"><label>설명</label><input type="text" id="cfDescription" placeholder="선택"></div>
         <div class="form-group"><label>데이터 저장 경로</label><input type="text" id="cfDataPath" placeholder="/data/weeslee/weeslee-rag/data/clients/..."></div>
-        <div class="form-group"><label>기본 LLM 모델</label><input type="text" id="cfLlmModel" value="llama3:8b"></div>
-        <div class="form-group"><label>기본 임베딩 모델</label><input type="text" id="cfEmbedModel" value="nomic-embed-text"></div>
+        <div class="form-group"><label>기본 LLM 모델</label><input type="text" id="cfLlmModel" placeholder="서버 값 로딩 후 표시"></div>
+        <div class="form-group"><label>기본 임베딩 모델</label><input type="text" id="cfEmbedModel" placeholder="서버 값 로딩 후 표시"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-primary" onclick="saveClient()">저장</button>
@@ -7236,10 +7237,96 @@ POST /api/admin/faiss/activate</code>
   // ── Client Manager ───────────────────────────────────────────────────────
 
   let _clients = [];
+  let _systemSettingsSnapshot = null;
+
+  function displayServerValue(value, fallback = '미설정') {
+    if (value === null || value === undefined) return fallback;
+    const text = String(value).trim();
+    return text ? text : fallback;
+  }
+
+  function setValueIfPresent(id, value) {
+    const el = document.getElementById(id);
+    if (!el || value === null || value === undefined) return;
+    el.value = String(value);
+  }
+
+  function setCheckedValue(id, checked) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = checked ? 'enabled' : 'disabled';
+  }
+
+  function getActiveClientOcrSettings(snapshot = _systemSettingsSnapshot) {
+    const client = snapshot?.activeClient || null;
+    if (!client) return null;
+    return {
+      ocr_mode: client.ocr_mode,
+      ocr_language: client.ocr_language,
+      ocr_dpi: client.ocr_dpi,
+      ocr_engine: client.ocr_engine,
+      ocr_supported_extensions: client.ocr_supported_extensions,
+      ocr_min_text_length: client.ocr_min_text_length,
+      ocr_image_preprocess: client.ocr_image_preprocess,
+      ocr_hwp_extractor: client.ocr_hwp_extractor,
+      ocr_table_extract: client.ocr_table_extract,
+      ocr_max_file_size_mb: client.ocr_max_file_size_mb,
+    };
+  }
+
+  function applyOcrSettingsToStep3(settings) {
+    if (!settings) return;
+
+    [
+      ['dbStep1OcrEnable', settings.ocr_mode],
+      ['dbStep1OcrLang', settings.ocr_language],
+      ['dbStep1OcrDpi', settings.ocr_dpi],
+      ['dbStep1OcrEngine', settings.ocr_engine],
+      ['dbStep1MinTextLen', settings.ocr_min_text_length],
+      ['dbStep1ImagePreprocess', settings.ocr_image_preprocess],
+      ['dbStep1HwpExtractor', settings.ocr_hwp_extractor],
+      ['dbStep1Extensions', settings.ocr_supported_extensions],
+      ['dbStep1MaxFileSize', settings.ocr_max_file_size_mb ? `${settings.ocr_max_file_size_mb} MB` : ''],
+      ['wrStep1OcrEnable', settings.ocr_mode],
+      ['wrStep1OcrLang', settings.ocr_language],
+      ['wrStep1OcrDpi', settings.ocr_dpi],
+      ['wrStep1OcrEngine', settings.ocr_engine],
+      ['wrStep1MinTextLen', settings.ocr_min_text_length],
+      ['wrStep1ImagePreprocess', settings.ocr_image_preprocess],
+      ['wrStep1HwpExtractor', settings.ocr_hwp_extractor],
+    ].forEach(([id, value]) => setValueIfPresent(id, value));
+
+    if (typeof settings.ocr_table_extract === 'boolean') {
+      setCheckedValue('dbStep1TableExtract', settings.ocr_table_extract);
+      setCheckedValue('wrStep1TableExtract', settings.ocr_table_extract);
+    }
+  }
+
+  async function fetchServerSystemSettings(forceReload = false) {
+    if (!forceReload && _systemSettingsSnapshot) return _systemSettingsSnapshot;
+
+    const [clientsResult, faissResult] = await Promise.allSettled([
+      platformFetch('/admin/clients'),
+      platformFetch('/admin/faiss/status'),
+    ]);
+
+    const clients = clientsResult.status === 'fulfilled' && Array.isArray(clientsResult.value)
+      ? clientsResult.value
+      : [];
+    const runtime = faissResult.status === 'fulfilled' && faissResult.value
+      ? faissResult.value
+      : null;
+    const activeClient = clients.find(c => c.enabled) || clients[0] || null;
+
+    _systemSettingsSnapshot = { clients, runtime, activeClient };
+    return _systemSettingsSnapshot;
+  }
 
   async function loadClients() {
     try {
-      _clients = await platformFetch('/admin/clients');
+      const snapshot = await fetchServerSystemSettings(true);
+      _clients = snapshot.clients || [];
+      applyOcrSettingsToStep3(getActiveClientOcrSettings(snapshot));
       renderClients(_clients);
       _populateClientSelects();
       _setStatusDot('clientStatusDot', true);
@@ -7290,8 +7377,8 @@ POST /api/admin/faiss/activate</code>
     document.getElementById('cfClientName').value = data?.client_name || '';
     document.getElementById('cfDescription').value = data?.description || '';
     document.getElementById('cfDataPath').value = data?.service_data_path || '';
-    document.getElementById('cfLlmModel').value = data?.default_llm_model || 'llama3:8b';
-    document.getElementById('cfEmbedModel').value = data?.default_embedding_model || 'nomic-embed-text';
+    document.getElementById('cfLlmModel').value = data?.default_llm_model || '';
+    document.getElementById('cfEmbedModel').value = data?.default_embedding_model || '';
     document.getElementById('cfEditId').value = data?.client_id || '';
     document.getElementById('cfClientId').disabled = !!data;
     document.getElementById('clientForm').style.display = 'block';
@@ -7321,6 +7408,7 @@ POST /api/admin/faiss/activate</code>
       } else {
         await platformFetch('/admin/clients', { method: 'POST', body: JSON.stringify(body) });
       }
+      _systemSettingsSnapshot = null;
       showToast('저장되었습니다.', 'success');
       closeClientForm();
       loadClients();
@@ -7331,6 +7419,7 @@ POST /api/admin/faiss/activate</code>
     if (!confirm(`고객사 '${id}'를 삭제하시겠습니까?`)) return;
     try {
       await platformFetch(`/admin/clients/${id}`, { method: 'DELETE' });
+      _systemSettingsSnapshot = null;
       showToast('삭제되었습니다.', 'success');
       loadClients();
     } catch (e) { showToast(e.message, 'error'); }
@@ -7354,29 +7443,36 @@ POST /api/admin/faiss/activate</code>
     const setValue = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     try {
-      const clients = await platformFetch('/admin/clients');
+      const snapshot = await fetchServerSystemSettings(true);
+      const clients = snapshot.clients || [];
+      const runtime = snapshot.runtime || {};
+      const runtimeCfg = runtime.server_config || {};
       if (Array.isArray(clients)) _clients = clients;
-      const client = (clients || []).find(c => c.enabled) || (clients || [])[0];
+      const client = snapshot.activeClient;
       if (!client) {
         _platformDefaultClientId = '';
         setValue('pfClientName', '미설정');
         setValue('pfClientId', '미설정');
-        setValue('pfLlmModel', 'llama3:8b');
-        ensurePlatformEmbedModelOption('nomic-embed-text');
+        setValue('pfLlmModel', '');
+        ensurePlatformEmbedModelOption(runtimeCfg.embedding_model || '');
         const embedEl = document.getElementById('pfEmbedModel');
-        if (embedEl) embedEl.value = 'nomic-embed-text';
-        setText('pfModelHint', '등록된 Client가 없어 기본 모델을 저장할 수 없습니다.');
+        if (embedEl) embedEl.value = runtimeCfg.embedding_model || '';
+        setText('pfModelHint', '등록된 Client가 없어 서버 DB 설정을 표시할 수 없습니다.');
         return;
       }
 
       _platformDefaultClientId = client.client_id || '';
       setValue('pfClientName', client.client_name || '-');
       setValue('pfClientId', client.client_id || '-');
-      setValue('pfLlmModel', client.default_llm_model || 'llama3:8b');
-      ensurePlatformEmbedModelOption(client.default_embedding_model || 'nomic-embed-text');
+      setValue('pfLlmModel', client.default_llm_model || '');
+      ensurePlatformEmbedModelOption(client.default_embedding_model || '');
+      ensurePlatformEmbedModelOption(runtimeCfg.active_embedding_model || runtimeCfg.embedding_model || '');
+      applyOcrSettingsToStep3(getActiveClientOcrSettings(snapshot));
       const embedEl = document.getElementById('pfEmbedModel');
-      if (embedEl) embedEl.value = client.default_embedding_model || 'nomic-embed-text';
-      setText('pfModelHint', `활성 Client: ${client.client_name || client.client_id || '-'} (${client.client_id || '-'})`);
+      if (embedEl) embedEl.value = client.default_embedding_model || '';
+      const runtimeEmbed = displayServerValue(runtimeCfg.active_embedding_model || runtimeCfg.embedding_model, '미제공');
+      const runtimeLlm = displayServerValue(runtimeCfg.answer_model, '미제공');
+      setText('pfModelHint', `DB 기본값: ${client.client_name || client.client_id || '-'} / Runtime LLM: ${runtimeLlm} / Runtime Embedding: ${runtimeEmbed}`);
     } catch (e) {
       _platformDefaultClientId = '';
       setText('pfModelHint', `기본 모델 설정 로드 실패: ${e.message}`);
@@ -7407,6 +7503,7 @@ POST /api/admin/faiss/activate</code>
           default_embedding_model: embedModel
         })
       });
+      _systemSettingsSnapshot = null;
 
       const client = _clients.find(c => c.client_id === clientId);
       if (client) {
@@ -7493,6 +7590,15 @@ POST /api/admin/faiss/activate</code>
   function renderMountStatus(sources) {
     const el = document.getElementById('mountStatusList');
     if (!sources.length) { el.innerHTML = '<div class="empty">등록된 소스가 없습니다.</div>'; return; }
+    // 첫 번째 소스의 마운트 경로를 입력 필드에 자동 반영
+    const testPathInput = document.getElementById('mountTestPath');
+    if (testPathInput && sources.length > 0) {
+      const firstSource = sources[0];
+      const defaultPath = firstSource.mount_path || firstSource.source_uri || '';
+      if (defaultPath && !testPathInput.value.trim()) {
+        testPathInput.value = defaultPath;
+      }
+    }
     el.innerHTML = sources.map(s => {
       const mi = s.mount_path_info;
       const ui = s.source_uri_info;
@@ -7626,28 +7732,19 @@ POST /api/admin/faiss/activate</code>
 5. 불확실한 경우 "확인이 필요합니다"라고 표시하세요.`;
 
   async function loadLlmSettings() {
+    // 2026-06-28: localStorage fallback 제거, DB 기반으로 통일
     try {
-      // 서버에서 설정 로드 시도
-      const res = await fetch(`${API_BASE}/api/admin/llm-settings`);
+      const res = await platformFetch('/admin/llm-settings?client_id=weeslee');
       if (res.ok) {
         const data = await res.json();
         applyLlmSettingsToUI(data);
         return;
       }
     } catch (e) {
-      console.log('서버 LLM 설정 로드 실패, localStorage 사용:', e.message);
+      console.warn('[loadLlmSettings] 서버 LLM 설정 로드 실패:', e.message);
     }
-    // localStorage fallback
-    const saved = localStorage.getItem(LLM_SETTINGS_KEY);
-    if (saved) {
-      try {
-        applyLlmSettingsToUI(JSON.parse(saved));
-      } catch (e) {
-        applyDefaultLlmSettings();
-      }
-    } else {
-      applyDefaultLlmSettings();
-    }
+    // 서버 응답 실패 시 기본값 적용
+    applyDefaultLlmSettings();
   }
 
   function applyDefaultLlmSettings() {
@@ -7693,21 +7790,24 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function saveLlmSettings() {
+    // 2026-06-28: localStorage 제거, DB 기반으로 통일
     const settings = getLlmSettingsFromUI();
-    // localStorage 저장
-    localStorage.setItem(LLM_SETTINGS_KEY, JSON.stringify(settings));
+    settings.client_id = 'weeslee';  // client_id 추가
 
-    // 서버 저장 시도 - platformFetch 사용 (인증 헤더 포함)
-    // 2026-06-12: 인증 헤더 누락 문제 수정
     try {
-      await platformFetch('/admin/llm-settings', {
+      const res = await platformFetch('/admin/llm-settings', {
         method: 'POST',
         body: JSON.stringify(settings),
       });
-      showToast('LLM 설정이 저장되었습니다.', 'success');
+      if (res.ok) {
+        showToast('LLM 설정이 DB에 저장되었습니다.', 'success');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(`저장 실패: ${errData.detail || res.statusText}`, 'error');
+      }
     } catch (e) {
-      console.warn('[saveLlmSettings] 서버 저장 실패:', e.message);
-      showToast('서버 저장 실패. 브라우저에만 임시 저장됨.', 'warning');
+      console.error('[saveLlmSettings] 서버 저장 실패:', e.message);
+      showToast(`저장 실패: ${e.message}`, 'error');
     }
   }
 
@@ -9489,6 +9589,45 @@ POST /api/admin/faiss/activate</code>
     showToast('Step 1 OCR/파싱 설정을 저장했습니다.', 'success', 2400);
   }
 
+  async function saveStep3TextExtractionSettings() {
+    try {
+      const snapshot = await fetchServerSystemSettings(true);
+      const client = snapshot.activeClient;
+      if (!client?.client_id) {
+        showToast('활성 Client가 없어 Step 3 설정을 저장할 수 없습니다.', 'warning', 2400);
+        return;
+      }
+
+      const maxFileSizeRaw = (document.getElementById('dbStep1MaxFileSize')?.value || '').trim();
+      const maxFileSize = parseInt(maxFileSizeRaw.replace(/[^0-9]/g, ''), 10);
+      const payload = {
+        ocr_mode: document.getElementById('dbStep1OcrEnable')?.value || 'auto',
+        ocr_language: document.getElementById('dbStep1OcrLang')?.value || '',
+        ocr_dpi: parseInt(document.getElementById('dbStep1OcrDpi')?.value || '0', 10) || null,
+        ocr_engine: document.getElementById('dbStep1OcrEngine')?.value || '',
+        ocr_supported_extensions: document.getElementById('dbStep1Extensions')?.value?.trim() || '',
+        ocr_min_text_length: parseInt(document.getElementById('dbStep1MinTextLen')?.value || '0', 10) || null,
+        ocr_image_preprocess: document.getElementById('dbStep1ImagePreprocess')?.value || '',
+        ocr_hwp_extractor: document.getElementById('dbStep1HwpExtractor')?.value || '',
+        ocr_table_extract: (document.getElementById('dbStep1TableExtract')?.value || 'enabled') === 'enabled',
+        ocr_max_file_size_mb: Number.isFinite(maxFileSize) ? maxFileSize : null
+      };
+
+      await platformFetch(`/admin/clients/${encodeURIComponent(client.client_id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+
+      _systemSettingsSnapshot = null;
+      const refreshed = await fetchServerSystemSettings(true);
+      applyOcrSettingsToStep3(getActiveClientOcrSettings(refreshed));
+      updateRequestPreview(1);
+      showToast('Step 3 Text Extraction 설정을 서버 DB에 저장했습니다.', 'success', 2400);
+    } catch (e) {
+      showToast('Step 3 설정 저장 실패: ' + e.message, 'error', 3000);
+    }
+  }
+
   // ── OCR 결과 조회 함수 ──────────────────────────────────────────────────────
   let ocrResultsPage = 0;
   const ocrResultsLimit = 20;
@@ -10347,6 +10486,9 @@ POST /api/admin/faiss/activate</code>
       setFieldValue('serverActiveSnapshot', cfg.active_snapshot);
       applyServerConfigToBuilderDefaults(cfg);
       syncStep6EmbeddingPreset();
+      const snapshot = await fetchServerSystemSettings(true);
+      applyOcrSettingsToStep3(getActiveClientOcrSettings(snapshot));
+      updateRequestPreview(1);
 
       showToast('서버 설정을 로드했습니다.', 'success', 2000);
     } catch (e) {
@@ -14766,21 +14908,29 @@ LIMIT 10`;
 
   // ── Settings 페이지 서버 기반 로드 (2026-06-15) ────────────────────
   async function loadWrSettingsFromServer() {
-    // FAISS status API에서 LLM/Embedding 모델 정보 조회
+    const setValue = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    };
+
+    setValue('wrSettingsDocIdStrategy', '서버 미제공');
+    setValue('wrSettingsJobRunner', '서버 미제공');
+
+    // 서버 DB + 런타임 설정에서 모델 정보 조회
     try {
-      const r = await fetch(apiUrl('/api/admin/faiss/status'), {
-        headers: authHeaders()
-      });
-      if (r.ok) {
-        const d = await r.json();
-        const cfg = d.server_config || {};
-        const llmEl = document.getElementById('wrSettingsLlmModel');
-        const embedEl = document.getElementById('wrSettingsEmbedModel');
-        if (llmEl) llmEl.value = cfg.answer_model || '(미설정)';
-        if (embedEl) embedEl.value = cfg.embedding_model || '(미설정)';
-      }
+      const snapshot = await fetchServerSystemSettings(true);
+      const client = snapshot.activeClient || {};
+      const runtime = snapshot.runtime || {};
+      const cfg = runtime.server_config || {};
+      applyOcrSettingsToStep3(getActiveClientOcrSettings(snapshot));
+      const llmValue = cfg.answer_model || client.default_llm_model || '미설정';
+      const embedValue = cfg.active_embedding_model || cfg.embedding_model || client.default_embedding_model || '미설정';
+      setValue('wrSettingsLlmModel', llmValue);
+      setValue('wrSettingsEmbedModel', embedValue);
     } catch (e) {
-      console.warn('[loadWrSettingsFromServer] FAISS status 조회 실패:', e.message);
+      console.warn('[loadWrSettingsFromServer] 서버 설정 조회 실패:', e.message);
+      setValue('wrSettingsLlmModel', '로드 실패');
+      setValue('wrSettingsEmbedModel', '로드 실패');
     }
 
     // system-check API에서 HWP/OCR/Ollama/FAISS 상태 조회
@@ -14801,6 +14951,10 @@ LIMIT 10`;
       }
     } catch (e) {
       console.warn('[loadWrSettingsFromServer] system-check 조회 실패:', e.message);
+      setValue('wrSettingsHwpStatus', '로드 실패');
+      setValue('wrSettingsOcrStatus', '로드 실패');
+      setValue('wrSettingsOllamaStatus', '로드 실패');
+      setValue('wrSettingsFaissStatus', '로드 실패');
     }
   }
 
@@ -14983,6 +15137,7 @@ LIMIT 10`;
         method: 'PUT',
         body: JSON.stringify({ default_embedding_model: model })
       });
+      _systemSettingsSnapshot = null;
       const dashEmbedModel = document.getElementById('dashEmbedModel');
       if (dashEmbedModel) dashEmbedModel.textContent = model;
       if (hintEl) hintEl.textContent = `Client ${clientId} 기본 임베딩 모델이 ${model}로 저장되었습니다.`;
@@ -15006,19 +15161,23 @@ LIMIT 10`;
   async function loadDashboardPlatformInfo() {
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     try {
-      const clients = await platformFetch('/admin/clients');
+      const snapshot = await fetchServerSystemSettings(true);
+      const clients = snapshot.clients || [];
+      const runtime = snapshot.runtime || {};
+      const runtimeCfg = runtime.server_config || {};
       if (clients && clients.length > 0) {
-        // 첫 번째 활성화된 클라이언트 또는 첫 번째 클라이언트
-        const client = clients.find(c => c.enabled) || clients[0];
+        const client = snapshot.activeClient || clients[0];
         _dashboardActiveClientId = client.client_id || '';
         setText('dashClientId', client.client_id || '-');
         setText('dashClientName', client.client_name || '-');
-        setText('dashLlmModel', client.default_llm_model || 'llama3:8b');
-        setText('dashEmbedModel', client.default_embedding_model || 'nomic-embed-text');
-        ensureDashboardEmbeddingOption(client.default_embedding_model || 'nomic-embed-text');
+        setText('dashLlmModel', displayServerValue(client.default_llm_model));
+        setText('dashEmbedModel', displayServerValue(client.default_embedding_model));
+        ensureDashboardEmbeddingOption(client.default_embedding_model || '');
+        ensureDashboardEmbeddingOption(runtimeCfg.active_embedding_model || runtimeCfg.embedding_model || '');
         const select = document.getElementById('dashEmbedModelSelect');
-        if (select) select.value = client.default_embedding_model || 'nomic-embed-text';
-        setText('dashEmbedModelHint', `활성 Client: ${client.client_name || client.client_id || '-'} (${client.client_id || '-'})`);
+        if (select) select.value = client.default_embedding_model || '';
+        const runtimeEmbed = displayServerValue(runtimeCfg.active_embedding_model || runtimeCfg.embedding_model, '미제공');
+        setText('dashEmbedModelHint', `활성 Client: ${client.client_name || client.client_id || '-'} (${client.client_id || '-'}) / Runtime Embedding: ${runtimeEmbed}`);
       } else {
         _dashboardActiveClientId = '';
         setText('dashClientId', '미설정');
@@ -15139,6 +15298,10 @@ LIMIT 10`;
 
   // Dataset Builder 단계별 설정 저장
   function saveDatasetBuilderStepSettings(stepNum) {
+    if (stepNum === 4) {
+      saveStep3TextExtractionSettings();
+      return;
+    }
     showToast(`Step ${stepNum} 설정을 저장했습니다.`, 'success', 2000);
   }
 
@@ -18238,6 +18401,49 @@ LIMIT 10`;
       const errorMsg = e.message || e.toString() || '알 수 없는 오류';
       showToast(`청킹 실패: ${errorMsg}`, 'error');
       console.error('proceedToStep5Chunking error:', e);
+    }
+  }
+
+  async function refreshSelectedStep4OcrMetadata() {
+    if (step4SelectedIds.size === 0) {
+      showToast('선택된 문서가 없습니다', 'warning');
+      return;
+    }
+
+    const confirmed = confirm(`선택된 ${step4SelectedIds.size}개 문서의 OCR 메타데이터를 다시 생성하시겠습니까?\n기존 OCR 텍스트를 재사용하며 OCR/Parser는 다시 실행하지 않습니다.`);
+    if (!confirmed) return;
+
+    try {
+      const documentIds = Array.from(step4SelectedIds).map(id => parseInt(id, 10));
+
+      const response = await fetch(`${API_BASE}/admin/dataset-builder/step4/refresh-metadata`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document_ids: documentIds,
+          force_reparse: false
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data.detail || data.message || 'OCR metadata refresh failed');
+      }
+
+      showToast(`OCR 메타 재생성 완료: 처리 ${data.processed || 0}개, 건너뜀 ${data.skipped || 0}개, 실패 ${data.failed || 0}개`, 'success', 5000);
+      appendStep4Log('success', `OCR 메타 재생성 완료: 처리 ${data.processed || 0}개, 건너뜀 ${data.skipped || 0}개, 실패 ${data.failed || 0}개`);
+
+      if (typeof loadStep4ParseResults === 'function') {
+        await loadStep4ParseResults();
+      }
+      if (typeof loadDatasetStatusSummary === 'function') {
+        loadDatasetStatusSummary();
+      }
+    } catch (e) {
+      const errorMsg = e.message || e.toString() || '알 수 없는 오류';
+      appendStep4Log('error', `OCR 메타 재생성 실패: ${errorMsg}`);
+      showToast(`OCR 메타 재생성 실패: ${errorMsg}`, 'error');
+      console.error('refreshSelectedStep4OcrMetadata error:', e);
     }
   }
 
