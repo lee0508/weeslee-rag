@@ -207,6 +207,7 @@ class ScanResponse(BaseModel):
 
 
 class MetadataAutoRequest(BaseModel):
+    source_id: Optional[str] = None
     only_missing: bool = True
     overwrite: bool = False
 
@@ -648,6 +649,10 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
     """
     try:
         query = db.query(DocumentMetadata)
+
+        # source_id 필터 적용 (필수)
+        if request.source_id:
+            query = query.filter(DocumentMetadata.source_id == request.source_id)
 
         if request.only_missing:
             query = query.filter(DocumentMetadata.meta_status == MetaStatus.REGISTERED.value)
