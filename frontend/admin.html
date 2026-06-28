@@ -7590,13 +7590,23 @@ POST /api/admin/faiss/activate</code>
   function renderMountStatus(sources) {
     const el = document.getElementById('mountStatusList');
     if (!sources.length) { el.innerHTML = '<div class="empty">등록된 소스가 없습니다.</div>'; return; }
-    // 첫 번째 소스의 마운트 경로를 입력 필드에 자동 반영
+    // 모든 소스의 공통 루트 경로를 추출하여 입력 필드에 자동 반영
     const testPathInput = document.getElementById('mountTestPath');
-    if (testPathInput && sources.length > 0) {
-      const firstSource = sources[0];
-      const defaultPath = firstSource.mount_path || firstSource.source_uri || '';
-      if (defaultPath && !testPathInput.value.trim()) {
-        testPathInput.value = defaultPath;
+    if (testPathInput && sources.length > 0 && !testPathInput.value.trim()) {
+      const paths = sources.map(s => s.mount_path || s.source_uri || '').filter(p => p);
+      if (paths.length > 0) {
+        // 공통 루트 경로 추출 (예: /mnt/w2_project)
+        const commonRoot = paths.reduce((common, path) => {
+          if (!common) return path;
+          const parts1 = common.split('/');
+          const parts2 = path.split('/');
+          let i = 0;
+          while (i < parts1.length && i < parts2.length && parts1[i] === parts2[i]) i++;
+          return parts1.slice(0, i).join('/');
+        }, '');
+        if (commonRoot) {
+          testPathInput.value = commonRoot;
+        }
       }
     }
     el.innerHTML = sources.map(s => {
