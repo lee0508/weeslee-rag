@@ -47,6 +47,7 @@ from app.api.snapshot_admin import router as snapshot_admin_router
 from app.api.admin_knowledge_graph import router as admin_knowledge_graph_router
 from app.api.admin_llm_wiki import router as admin_llm_wiki_router
 from app.api.admin_publish import router as admin_publish_router
+from app.api.admin_search_scopes import router as admin_search_scopes_router
 from app.api.install import router as install_router
 from app.api.qa_services import router as qa_services_router
 try:
@@ -152,6 +153,7 @@ app.include_router(snapshot_admin_router, prefix="/api/admin", tags=["Admin - Sn
 app.include_router(admin_knowledge_graph_router, prefix="/api", tags=["Admin - Knowledge Graph"])
 app.include_router(admin_llm_wiki_router, prefix="/api", tags=["Admin - LLM Wiki"])
 app.include_router(admin_publish_router, prefix="/api", tags=["Admin - Publish"])
+app.include_router(admin_search_scopes_router, prefix="/api", tags=["Admin - Search Scopes"])
 app.include_router(install_router, prefix="/api", tags=["Install"])
 app.include_router(qa_services_router, prefix="/api", tags=["QA Services"])
 if _ocr_results_available and ocr_results_router is not None:
