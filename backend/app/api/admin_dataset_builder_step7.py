@@ -136,16 +136,34 @@ def save_faiss_collection(
 
 
 def _load_collection_metadata(metadata_path: Path) -> Dict[str, Any]:
-    """legacy로 여러 JSON이 붙은 metadata.json도 첫 객체를 복구해 읽는다."""
+    """legacy metadata.json 또는 JSONL 기반 metadata 파일을 복구해 읽는다."""
     raw = metadata_path.read_text(encoding="utf-8")
     try:
-        return json.loads(raw)
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
     except json.JSONDecodeError:
-        decoder = json.JSONDecoder()
-        parsed, _ = decoder.raw_decode(raw.lstrip())
-        if not isinstance(parsed, dict):
-            raise
-        return parsed
+        pass
+
+    total_vectors = 0
+    document_ids: set[str] = set()
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        row = json.loads(line)
+        total_vectors += 1
+        document_id = str(row.get("document_id") or "").strip()
+        if document_id:
+            document_ids.add(document_id)
+
+    return {
+        "collection_name": metadata_path.parent.name,
+        "total_vectors": total_vectors,
+        "documents_count": len(document_ids),
+        "created_at": None,
+        "legacy_jsonl": True,
+    }
 
 
 def _normalize_collection_metadata(metadata: Dict[str, Any], collection_dir: Path) -> Dict[str, Any]:
