@@ -15882,6 +15882,21 @@ LIMIT 10`;
     return `${(num * 100).toFixed(1)}%`;
   }
 
+  function summarizeStep2Clusters(documents, field, label) {
+    const items = Array.isArray(documents) ? documents : [];
+    const counts = new Map();
+    items.forEach(doc => {
+      const raw = doc?.[field];
+      const key = String(raw || '(빈값)').trim() || '(빈값)';
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const summary = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko'))
+      .map(([key, count]) => `${key} ${count}건`)
+      .join(', ');
+    appendStep2Log('info', `${label}: ${summary || '집계 없음'}`);
+  }
+
   function renderStep2MetadataRecords(data, metaStatus) {
     const tbody = document.getElementById('step2DbRecordsBody');
     if (!tbody) return;
@@ -15950,6 +15965,11 @@ LIMIT 10`;
       renderStep2MetadataRecords(d, metaStatus);
       if (!options.silent) {
         appendStep2Log('success', `DB 레코드 조회 완료: ${d.count || 0}건 표시 / 전체 ${d.total || 0}건`);
+        const docs = d.items || d.documents || [];
+        summarizeStep2Clusters(docs, 'document_group', '문서그룹 군집');
+        summarizeStep2Clusters(docs, 'section_type', '섹션유형 군집');
+        summarizeStep2Clusters(docs, 'category_id', '카테고리 군집');
+        summarizeStep2Clusters(docs, 'file_type', '파일유형 군집');
         showToast(`Step 2 DB 레코드 ${d.count || 0}건 조회 완료`, 'success', 2400);
       }
       return d;
