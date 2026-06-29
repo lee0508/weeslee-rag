@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.services.dataset_context import get_source_dataset_context, generate_dataset_id
+from app.models.snapshot_manifest import SnapshotManifest
 
 
 router = APIRouter(
@@ -159,6 +160,30 @@ def _calculate_precision_recall(
     return precision, recall
 
 
+def _load_snapshot_manifest(snapshot_id: str) -> Optional[SnapshotManifest]:
+    if not snapshot_id:
+        return None
+    snapshot_path = _get_project_root() / "data" / "snapshots" / f"{snapshot_id}.json"
+    if not snapshot_path.exists():
+        return None
+    try:
+        return SnapshotManifest(**json.loads(snapshot_path.read_text(encoding="utf-8")))
+    except Exception:
+        return None
+
+
+def _load_faiss_manifest(snapshot_id: str) -> Optional[dict]:
+    if not snapshot_id:
+        return None
+    manifest_path = _get_project_root() / "data" / "indexes" / "faiss" / f"{snapshot_id}_ollama.manifest.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
     """현재 활성 Snapshot 정보 조회 - FAISS status 함수를 직접 호출"""
     # 1. FAISS status endpoint의 로직을 사용하여 현재 활성 정보 조회
@@ -170,14 +195,40 @@ def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
         if active:
             snapshot = (active or {}).get("snapshot", "") or (active or {}).get("active_snapshot", "")
             if snapshot:
+                snapshot_manifest = _load_snapshot_manifest(snapshot)
+                faiss_manifest = _load_faiss_manifest(snapshot)
+                resolved_source_id = None
+                resolved_dataset_id = None
+                document_count = int(active.get("document_count", 0) or 0)
+                chunk_count = int(active.get("chunk_count", 0) or active.get("vector_count", 0) or 0)
+
+                if snapshot_manifest:
+                    resolved_source_id = (snapshot_manifest.dataset.source_id or "").strip() or None
+                    resolved_dataset_id = (snapshot_manifest.dataset.dataset_id or "").strip() or None
+                    document_count = int(snapshot_manifest.dataset.document_count or document_count or 0)
+                    chunk_count = int(snapshot_manifest.rag_build.chunk_count or chunk_count or 0)
+                elif faiss_manifest:
+                    counts_by_source = faiss_manifest.get("counts_by_source") or {}
+                    if isinstance(counts_by_source, dict) and len(counts_by_source) == 1:
+                        resolved_source_id = next(iter(counts_by_source.keys()), "").strip() or None
+                        if resolved_source_id:
+                            resolved_dataset_id = get_source_dataset_context(resolved_source_id).get("dataset_id") or None
+                    document_count = int(faiss_manifest.get("document_count") or document_count or 0)
+                    chunk_count = int(faiss_manifest.get("vector_count") or chunk_count or 0)
+
+                if not resolved_source_id or not resolved_dataset_id:
+                    parsed_source_id, parsed_dataset_id = _resolve_ids_from_snapshot(snapshot, resolved_source_id)
+                    resolved_source_id = resolved_source_id or parsed_source_id
+                    resolved_dataset_id = resolved_dataset_id or parsed_dataset_id
+
                 return {
                     "snapshot": snapshot,
                     "snapshot_id": snapshot,
-                    "source_id": active.get("source_id"),
-                    "dataset_id": active.get("dataset_id"),
+                    "source_id": resolved_source_id or active.get("source_id"),
+                    "dataset_id": resolved_dataset_id or active.get("dataset_id"),
                     "activated_at": active.get("activated_at"),
-                    "chunk_count": active.get("chunk_count", 0) or active.get("vector_count", 0),
-                    "document_count": active.get("document_count", 0),
+                    "chunk_count": chunk_count,
+                    "document_count": document_count,
                 }
     except Exception:
         pass
