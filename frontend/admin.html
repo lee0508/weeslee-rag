@@ -13525,7 +13525,7 @@ LIMIT 10`;
     } catch { sel.innerHTML = '<option value="">Client 로드 실패</option>'; }
   }
 
-  async function refreshCtxSourceSelect() {
+  async function refreshCtxSourceSelect(preferredSourceId = '') {
     const sel = document.getElementById('ctxSource');
     if (!sel) return;
     try {
@@ -13548,7 +13548,9 @@ LIMIT 10`;
         return `<option value="${esc(sourceId)}" data-source-name="${esc(sourceName)}" data-dataset-id="${esc(datasetId)}" data-dataset-status="${esc(datasetStatus)}" data-client-id="${esc(s.client_id || '')}">${esc(label)}</option>`;
       }).join('');
       const currentClient = getCurrentClientId();
+      const requestedSourceId = String(preferredSourceId || '').trim();
       const preferredSource =
+        sources.find(s => requestedSourceId && (s.source_id || s.id) === requestedSourceId) ||
         sources.find(s => (s.source_id || s.id) === current) ||
         sources.find(s => currentClient && s.client_id === currentClient && s.enabled !== false) ||
         sources.find(s => s.enabled !== false) ||
@@ -14818,7 +14820,7 @@ LIMIT 10`;
       }
 
       // 컨텍스트 바 드롭다운 갱신 후 새 항목 선택
-      await refreshCtxSourceSelect();
+      await refreshCtxSourceSelect(savedSourceId);
       const sel = document.getElementById('ctxSource');
       if (sel) sel.value = savedSourceId;
       syncCtxClientFromSource(true);
