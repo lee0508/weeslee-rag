@@ -12347,6 +12347,7 @@ LIMIT 10`;
     const timeoutMs = Number(options.timeoutMs || 1800000);
     const intervalMs = Number(options.intervalMs || 5000);
     const startedAt = Date.now();
+    let lastMessage = '';
 
     while ((Date.now() - startedAt) < timeoutMs) {
       const query = new URLSearchParams();
@@ -12361,8 +12362,11 @@ LIMIT 10`;
       }
 
       if (typeof options.onProgress === 'function') {
-        options.onProgress(data);
+        const progressData = { ...data, message_changed: data.message && data.message !== lastMessage };
+        options.onProgress(progressData);
       }
+
+      lastMessage = data.message || lastMessage;
 
       if (data.status === 'ready') {
         return data;
@@ -17514,7 +17518,7 @@ LIMIT 10`;
         await pollWikiBuildStatus(sourceId, wikiType, {
           onProgress: (statusData) => {
             _wizardSetStatus(step, `Wiki 생성 중... ${statusData.running_job_id || ''}`.trim(), 'running');
-            if (statusData.message) {
+            if (statusData.message && statusData.message_changed) {
               _wizardAppendLog(step, `status: ${statusData.message}`);
             }
           }

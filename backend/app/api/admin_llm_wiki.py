@@ -243,6 +243,7 @@ def _run_wiki_build_job(job_id: str, request_data: Dict[str, Any]) -> None:
                 finished_at=datetime.now().isoformat(timespec="seconds"),
                 generated_count=len(generated),
                 generated_wikis=generated[:20],
+                message=f"Wiki build completed: {len(generated)} pages",
                 output=(proc.stdout or "").strip()[-2000:],
                 processing_time=(datetime.now() - start_time).total_seconds(),
             )
@@ -259,6 +260,7 @@ def _run_wiki_build_job(job_id: str, request_data: Dict[str, Any]) -> None:
                 finished_at=datetime.now().isoformat(timespec="seconds"),
                 generated_count=int(result.get("count", 0) or 0),
                 generated_wikis=(result.get("generated", []) or [])[:20],
+                message=f"Wiki build completed: {int(result.get('count', 0) or 0)} pages",
                 output=json.dumps(result, ensure_ascii=False)[-2000:],
                 processing_time=(datetime.now() - start_time).total_seconds(),
             )
@@ -275,6 +277,7 @@ def _run_wiki_build_job(job_id: str, request_data: Dict[str, Any]) -> None:
                 finished_at=datetime.now().isoformat(timespec="seconds"),
                 generated_count=int(result.get("count", 0) or 0),
                 generated_wikis=(result.get("generated", []) or [])[:20],
+                message=f"Wiki build completed: {int(result.get('count', 0) or 0)} pages",
                 output=json.dumps(result, ensure_ascii=False)[-2000:],
                 processing_time=(datetime.now() - start_time).total_seconds(),
             )
