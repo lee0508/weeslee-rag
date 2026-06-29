@@ -15897,6 +15897,18 @@ LIMIT 10`;
     appendStep2Log('info', `${label}: ${summary || '집계 없음'}`);
   }
 
+  function formatStep4ClusterSummary(items, label, nameKey, typeKey = '', limit = 10) {
+    const rows = Array.isArray(items) ? items.slice(0, limit) : [];
+    if (!rows.length) return `${label}: 집계 없음`;
+    const summary = rows.map(item => {
+      const name = item?.[nameKey] || '(빈값)';
+      const type = typeKey && item?.[typeKey] ? `${item[typeKey]}/` : '';
+      const frequency = Number(item?.frequency || 0);
+      return `${type}${name} ${frequency}건`;
+    }).join(', ');
+    return `${label}: ${summary}`;
+  }
+
   function renderStep2MetadataRecords(data, metaStatus) {
     const tbody = document.getElementById('step2DbRecordsBody');
     if (!tbody) return;
@@ -17082,6 +17094,8 @@ LIMIT 10`;
     _wizardAppendLog(step, `Tag ${data.tag_count || 0}개, Keyword ${data.keyword_count || 0}개 생성`);
     _wizardAppendLog(step, `문서-Tag 매핑 ${data.document_tag_mapping_count || 0}건`);
     _wizardAppendLog(step, `문서-Keyword 매핑 ${data.document_keyword_mapping_count || 0}건`);
+    _wizardAppendLog(step, formatStep4ClusterSummary(data.tag_clusters_top10, 'Tag 군집', 'tag_name', 'tag_type'));
+    _wizardAppendLog(step, formatStep4ClusterSummary(data.keyword_clusters_top10, 'Keyword 군집', 'keyword', 'keyword_type'));
 
     if (typeof loadTags === 'function') loadTags();
     if (typeof loadKeywords === 'function') loadKeywords();

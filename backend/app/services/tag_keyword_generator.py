@@ -178,7 +178,9 @@ class TagKeywordGenerator:
             "output_path": output_path,
             "next_action": "Metadata Review에서 자동 생성된 태그와 키워드를 검수하세요.",
             "tag_summary": self._summarize_tags(tags),
+            "tag_clusters_top10": self._summarize_tag_clusters(tags),
             "keyword_top10": [k["keyword"] for k in keywords_list[:10]],
+            "keyword_clusters_top10": self._summarize_keyword_clusters(keywords_list),
         }
 
     def _load_documents(self) -> List[DocumentMetadata]:
@@ -415,6 +417,32 @@ class TagKeywordGenerator:
             if tag.get("frequency", 0) > 0:
                 summary[tag["tag_type"]] += 1
         return dict(summary)
+
+    def _summarize_tag_clusters(self, tags: List[Dict]) -> List[Dict[str, Any]]:
+        """빈도가 있는 태그 군집 상위 목록을 반환합니다."""
+        rows = []
+        for tag in tags:
+            frequency = int(tag.get("frequency") or 0)
+            if frequency <= 0:
+                continue
+            rows.append({
+                "tag_type": tag.get("tag_type") or "unknown",
+                "tag_name": tag.get("tag_name") or "",
+                "frequency": frequency,
+            })
+        rows.sort(key=lambda item: (-item["frequency"], str(item["tag_type"]), str(item["tag_name"])))
+        return rows[:10]
+
+    def _summarize_keyword_clusters(self, keywords: List[Dict]) -> List[Dict[str, Any]]:
+        """키워드 군집 상위 목록을 반환합니다."""
+        rows = []
+        for keyword in keywords[:10]:
+            rows.append({
+                "keyword": keyword.get("keyword") or "",
+                "keyword_type": keyword.get("keyword_type") or "general",
+                "frequency": int(keyword.get("frequency") or 0),
+            })
+        return rows
 
     def _write_snapshot_json(
         self,
