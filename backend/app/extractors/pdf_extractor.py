@@ -28,23 +28,25 @@ def _is_easyocr_available() -> bool:
         return False
 
 
-# EasyOCR reader 캐싱 (초기화 비용 절감)
-_easyocr_reader: Optional[Any] = None
+# EasyOCR reader 캐싱 (CPU/GPU 모드별 분리)
+_easyocr_readers: dict[str, Any] = {}
 
 
-def _get_easyocr_reader():
+def _get_easyocr_reader(use_gpu_override: Optional[bool] = None):
     """EasyOCR reader 싱글톤 반환."""
-    global _easyocr_reader
-    if _easyocr_reader is None:
+    try:
+        import torch
+        detected_gpu = torch.cuda.is_available()
+    except ImportError:
+        detected_gpu = False
+
+    use_gpu = detected_gpu if use_gpu_override is None else bool(use_gpu_override)
+    cache_key = "gpu" if use_gpu else "cpu"
+
+    if cache_key not in _easyocr_readers:
         import easyocr
-        # GPU 사용 가능하면 GPU, 아니면 CPU
-        try:
-            import torch
-            use_gpu = torch.cuda.is_available()
-        except ImportError:
-            use_gpu = False
-        _easyocr_reader = easyocr.Reader(['ko', 'en'], gpu=use_gpu, verbose=False)
-    return _easyocr_reader
+        _easyocr_readers[cache_key] = easyocr.Reader(['ko', 'en'], gpu=use_gpu, verbose=False)
+    return _easyocr_readers[cache_key]
 
 
 class PDFExtractor(BaseExtractor):
@@ -54,9 +56,10 @@ class PDFExtractor(BaseExtractor):
     def supported_extensions(self) -> List[str]:
         return [".pdf"]
 
-    def __init__(self, use_ocr: bool = True, ocr_threshold: int = 50):
+    def __init__(self, use_ocr: bool = True, ocr_threshold: int = 50, ocr_use_gpu: Optional[bool] = None):
         self.use_ocr = use_ocr
         self.ocr_threshold = ocr_threshold
+        self.ocr_use_gpu = ocr_use_gpu
 
     def _is_scanned_pdf(self, pdf_path: str) -> bool:
         """Return True if first 3 pages yield less than ocr_threshold chars each."""
@@ -170,7 +173,7 @@ class PDFExtractor(BaseExtractor):
             import numpy as np
             from pdf2image import convert_from_path
 
-            reader = _get_easyocr_reader()
+            reader = _get_easyocr_reader(self.ocr_use_gpu)
             images = convert_from_path(pdf_path, dpi=200)
             parts = []
 
@@ -197,6 +200,7 @@ class PDFExtractor(BaseExtractor):
                     "pages": len(images),
                     "ocr_engine": "easyocr",
                     "ocr_lang": "ko+en",
+                    "ocr_gpu": bool(self.ocr_use_gpu),
                 },
                 method="easyocr",
             )

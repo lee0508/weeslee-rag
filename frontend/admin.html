@@ -3791,6 +3791,24 @@ POST /api/admin/faiss/activate</code>
           <div class="wr-field"><label>Ollama</label><input id="wrSettingsOllamaStatus" value="확인 중..." readonly></div>
           <div class="wr-field"><label>FAISS Index</label><input id="wrSettingsFaissStatus" value="확인 중..." readonly></div>
         </div>
+        <h2 class="wr-section-title" style="margin-top:24px">GPU Runtime Control</h2>
+        <p class="wr-page-lead" id="wrGpuModeHint" style="margin-bottom:12px">GPU 설정을 로드하는 중입니다.</p>
+        <div class="wr-form-grid">
+          <div class="wr-field"><label><input id="wrGpuEnabled" type="checkbox"> GPU 모드 전체 활성화</label></div>
+          <div class="wr-field"><label>CUDA_VISIBLE_DEVICES</label><input id="wrGpuCudaDevices" value="0"></div>
+          <div class="wr-field"><label><input id="wrGpuOllama" type="checkbox"> LLM / Ollama GPU 선호</label></div>
+          <div class="wr-field"><label><input id="wrGpuOcr" type="checkbox"> OCR GPU 사용</label></div>
+          <div class="wr-field"><label><input id="wrGpuChunk" type="checkbox"> Chunk 단계 GPU 전달</label></div>
+          <div class="wr-field"><label><input id="wrGpuEmbedding" type="checkbox"> Embedding GPU 선호</label></div>
+          <div class="wr-field"><label><input id="wrGpuFaiss" type="checkbox"> FAISS GPU 사용</label></div>
+          <div class="wr-field"><label>GPU 감지</label><input id="wrGpuDetectStatus" value="확인 중..." readonly></div>
+          <div class="wr-field"><label>PyTorch CUDA</label><input id="wrGpuTorchStatus" value="확인 중..." readonly></div>
+          <div class="wr-field"><label>FAISS GPU</label><input id="wrGpuFaissGpuStatus" value="확인 중..." readonly></div>
+        </div>
+        <div class="wr-inline-actions" style="margin-top:16px">
+          <button class="wr-btn wr-btn-primary" type="button" onclick="saveRuntimeComputeSettings()">GPU 설정 저장</button>
+          <button class="wr-btn" type="button" onclick="loadRuntimeComputeSettings(true)">GPU 설정 새로고침</button>
+        </div>
         <button class="wr-btn" type="button" onclick="loadWrSettingsFromServer()" style="margin-top:16px">↻ 상태 새로고침</button>
         <h2 class="wr-section-title" id="wr-settings-legacy" data-wr-anchor>Platform Settings</h2>
         <button class="wr-btn" type="button" data-wr-legacy-tab="platform">Legacy Platform 설정 열기</button>
@@ -7247,6 +7265,7 @@ POST /api/admin/faiss/activate</code>
 
   let _clients = [];
   let _systemSettingsSnapshot = null;
+  let _runtimeComputeSnapshot = null;
 
   function displayServerValue(value, fallback = '미설정') {
     if (value === null || value === undefined) return fallback;
@@ -7281,6 +7300,87 @@ POST /api/admin/faiss/activate</code>
       ocr_table_extract: client.ocr_table_extract,
       ocr_max_file_size_mb: client.ocr_max_file_size_mb,
     };
+  }
+
+  function getRuntimeGpuModeLabel(stage) {
+    const snapshot = _runtimeComputeSnapshot || {};
+    const effective = snapshot.effective || {};
+    const settings = snapshot.settings || {};
+    const enabled = !!effective[stage];
+    if (enabled) {
+      return `GPU ON (CUDA_VISIBLE_DEVICES=${settings.cuda_visible_devices || '0'})`;
+    }
+    return 'GPU OFF';
+  }
+
+  async function loadRuntimeComputeSettings(forceReload = false) {
+    if (!forceReload && _runtimeComputeSnapshot) return _runtimeComputeSnapshot;
+
+    const snapshot = await api('/admin/runtime-compute-settings');
+    _runtimeComputeSnapshot = snapshot;
+
+    const settings = snapshot.settings || {};
+    const detection = snapshot.detection || {};
+    const torchCuda = detection.torch_cuda || {};
+    const cards = detection.nvidia_cards || [];
+    const faissGpu = detection.faiss_gpu || {};
+
+    setCheckedValue('wrGpuEnabled', !!settings.gpu_enabled);
+    setCheckedValue('wrGpuOllama', !!settings.ollama_use_gpu);
+    setCheckedValue('wrGpuOcr', !!settings.ocr_use_gpu);
+    setCheckedValue('wrGpuChunk', !!settings.chunk_use_gpu);
+    setCheckedValue('wrGpuEmbedding', !!settings.embedding_use_gpu);
+    setCheckedValue('wrGpuFaiss', !!settings.faiss_use_gpu);
+    setValueIfPresent('wrGpuCudaDevices', settings.cuda_visible_devices || '0');
+
+    setValueIfPresent(
+      'wrGpuDetectStatus',
+      detection.gpu_available
+        ? `✅ ${cards[0]?.name || torchCuda.device_name || 'GPU 감지됨'}`
+        : '❌ GPU 미감지'
+    );
+    setValueIfPresent(
+      'wrGpuTorchStatus',
+      torchCuda.available
+        ? `✅ ${torchCuda.device_name || 'CUDA 사용 가능'}`
+        : '❌ CUDA 비활성'
+    );
+    setValueIfPresent(
+      'wrGpuFaissGpuStatus',
+      faissGpu.available
+        ? `✅ ${faissGpu.version || 'faiss-gpu 사용 가능'}`
+        : '❌ faiss-gpu 미설치'
+    );
+
+    const hintEl = document.getElementById('wrGpuModeHint');
+    if (hintEl) {
+      const stageSummary = ['ocr', 'chunk', 'embedding', 'faiss']
+        .map(stage => `${stage.toUpperCase()}: ${getRuntimeGpuModeLabel(stage)}`)
+        .join(' / ');
+      hintEl.textContent = `현재 설정: ${settings.gpu_enabled ? 'GPU 모드' : 'CPU 모드'} / ${stageSummary}. Ollama GPU는 서비스 재시작 후 실제 반영됩니다.`;
+    }
+
+    return snapshot;
+  }
+
+  async function saveRuntimeComputeSettings() {
+    const payload = {
+      gpu_enabled: !!document.getElementById('wrGpuEnabled')?.checked,
+      cuda_visible_devices: document.getElementById('wrGpuCudaDevices')?.value?.trim() || '0',
+      ollama_use_gpu: !!document.getElementById('wrGpuOllama')?.checked,
+      ocr_use_gpu: !!document.getElementById('wrGpuOcr')?.checked,
+      chunk_use_gpu: !!document.getElementById('wrGpuChunk')?.checked,
+      embedding_use_gpu: !!document.getElementById('wrGpuEmbedding')?.checked,
+      faiss_use_gpu: !!document.getElementById('wrGpuFaiss')?.checked,
+    };
+
+    const result = await api('/admin/runtime-compute-settings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    _runtimeComputeSnapshot = result.snapshot || null;
+    await loadRuntimeComputeSettings(true);
+    showToast('GPU 런타임 설정을 저장했습니다.', 'success');
   }
 
   function applyOcrSettingsToStep3(settings) {
@@ -15120,10 +15220,13 @@ LIMIT 10`;
         const ocrEl = document.getElementById('wrSettingsOcrStatus');
         const ollamaEl = document.getElementById('wrSettingsOllamaStatus');
         const faissEl = document.getElementById('wrSettingsFaissStatus');
+        const compute = d.compute || {};
+        const effective = compute.effective || {};
+        const gpuBadge = stage => effective[stage] ? ' [GPU]' : ' [CPU]';
         if (hwpEl) hwpEl.value = d.hwp_extractor?.ok ? '✅ 정상' : '❌ ' + (d.hwp_extractor?.detail || '오류');
-        if (ocrEl) ocrEl.value = d.ocr_tesseract?.ok ? '✅ 정상' : '❌ ' + (d.ocr_tesseract?.detail || '오류');
-        if (ollamaEl) ollamaEl.value = d.ollama?.ok ? '✅ ' + (d.ollama?.detail || '정상') : '❌ ' + (d.ollama?.detail || '오류');
-        if (faissEl) faissEl.value = d.faiss_index?.ok ? '✅ ' + (d.faiss_index?.detail || '정상') : '❌ ' + (d.faiss_index?.detail || '오류');
+        if (ocrEl) ocrEl.value = (d.ocr_tesseract?.ok ? '✅ 정상' : '❌ ' + (d.ocr_tesseract?.detail || '오류')) + gpuBadge('ocr');
+        if (ollamaEl) ollamaEl.value = (d.ollama?.ok ? '✅ ' + (d.ollama?.detail || '정상') : '❌ ' + (d.ollama?.detail || '오류')) + gpuBadge('ollama');
+        if (faissEl) faissEl.value = (d.faiss_index?.ok ? '✅ ' + (d.faiss_index?.detail || '정상') : '❌ ' + (d.faiss_index?.detail || '오류')) + gpuBadge('faiss');
       }
     } catch (e) {
       console.warn('[loadWrSettingsFromServer] system-check 조회 실패:', e.message);
@@ -15131,6 +15234,19 @@ LIMIT 10`;
       setValue('wrSettingsOcrStatus', '로드 실패');
       setValue('wrSettingsOllamaStatus', '로드 실패');
       setValue('wrSettingsFaissStatus', '로드 실패');
+    }
+
+    try {
+      const computeSnapshot = await loadRuntimeComputeSettings(true);
+      const effective = computeSnapshot?.effective || {};
+      const enabledStages = Object.entries(effective)
+        .filter(([, enabled]) => !!enabled)
+        .map(([stage]) => stage)
+        .join(', ');
+      setValue('wrSettingsJobRunner', enabledStages ? `GPU 모드 (${enabledStages})` : 'CPU 모드');
+    } catch (e) {
+      console.warn('[loadWrSettingsFromServer] runtime compute settings 조회 실패:', e.message);
+      setValue('wrSettingsJobRunner', 'GPU 설정 로드 실패');
     }
   }
 
@@ -16126,7 +16242,7 @@ LIMIT 10`;
 
   // Step 5: Chunk Build 실행
   async function runStep5ChunkBuild() {
-    showToast('Chunk Build 실행 중...', 'info');
+    showToast(`Chunk Build 실행 중... ${getRuntimeGpuModeLabel('chunk')}`, 'info');
     try {
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step5/chunk'), {
         method: 'POST',
@@ -16149,7 +16265,7 @@ LIMIT 10`;
 
   // Step 6: Embedding Build 실행
   async function runStep6EmbedBuild() {
-    showToast('Embedding Build 실행 중...', 'info');
+    showToast(`Embedding Build 실행 중... ${getRuntimeGpuModeLabel('embedding')}`, 'info');
     try {
       const model = document.getElementById('dbStep6EmbedModel')?.value || 'nomic-embed-text';
       const batchSize = parseInt(document.getElementById('dbStep6BatchSize')?.value || '32', 10) || 32;
@@ -16185,7 +16301,7 @@ LIMIT 10`;
 
   // Step 7: FAISS Build 실행
   async function runStep7FaissBuild() {
-    showToast('FAISS Build 실행 중...', 'info');
+    showToast(`FAISS Build 실행 중... ${getRuntimeGpuModeLabel('faiss')}`, 'info');
     try {
       const sourceId = getCurrentSourceId?.() || '';
       const datasetId = getCurrentDatasetId?.() || '';
@@ -16207,7 +16323,7 @@ LIMIT 10`;
       const d = await r.json();
       if (d.success) {
         showToast(
-          `FAISS Build 완료! collection=${d.collection_name || collectionName}, vectors=${Number(d.total_vectors || 0).toLocaleString('ko-KR')}`,
+          `FAISS Build 완료! collection=${d.collection_name || collectionName}, vectors=${Number(d.total_vectors || 0).toLocaleString('ko-KR')}, mode=${d.gpu_used ? 'GPU' : 'CPU'}`,
           'success',
           5000
         );
@@ -18389,6 +18505,7 @@ LIMIT 10`;
       // 콘솔 패널 초기화 (에러 발생 전에 먼저 실행)
       clearStep4Console();
       document.getElementById('step4ProgressBar').style.display = 'block';
+      appendStep4Log('info', `OCR 실행 모드: ${getRuntimeGpuModeLabel('ocr')}`);
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
@@ -18609,6 +18726,7 @@ LIMIT 10`;
     if (!confirmed) return;
 
     try {
+      showToast(`선택 문서 청킹 실행... ${getRuntimeGpuModeLabel('chunk')}`, 'info');
       const documentIds = Array.from(step4SelectedIds).map(id => parseInt(id));
 
       const response = await fetch(`${API_BASE}/admin/dataset-builder/step5/chunk`, {

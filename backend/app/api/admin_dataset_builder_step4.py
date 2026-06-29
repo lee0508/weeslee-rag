@@ -25,6 +25,11 @@ from app.services.processed_text_store import processed_text_store, ProcessingRe
 from app.extractors.extractor import DocumentExtractor
 from app.services.metadata_extractor import rule_based_extractor
 from app.services.dataset_context import get_source_dataset_context
+from app.services.runtime_compute_settings import (
+    describe_stage_compute_mode,
+    get_runtime_compute_settings,
+    is_stage_gpu_enabled,
+)
 
 
 router = APIRouter(
@@ -67,10 +72,6 @@ class Step4StatusResponse(BaseModel):
 
 
 # ── Helper Functions ────────────────────────────────────────────────────────
-
-
-# DocumentExtractor 싱글톤 인스턴스
-_document_extractor = DocumentExtractor(use_ocr=True)
 
 
 def _calculate_quality_score(text_length: int) -> float:
@@ -124,8 +125,14 @@ async def parse_document(document_id: int, file_path: str, force: bool = False) 
 
         start_time = datetime.now()
 
+        runtime_settings = get_runtime_compute_settings()
+        extractor = DocumentExtractor(
+            use_ocr=True,
+            ocr_use_gpu=is_stage_gpu_enabled("ocr", runtime_settings),
+        )
+
         # DocumentExtractor로 추출 (Strategy Pattern)
-        extract_result = await _document_extractor.extract(file_path)
+        extract_result = await extractor.extract(file_path)
 
         # 추출 결과 매핑
         text = extract_result.get("content", "")
@@ -723,6 +730,11 @@ async def parse_documents_streaming(
         await emit_parse_event(job_id, {
             "stage": "초기화",
             "log": f"총 {total}개 문서 파싱 시작",
+            "progress": 0,
+        })
+        await emit_parse_event(job_id, {
+            "stage": "초기화",
+            "log": f"OCR 실행 모드: {describe_stage_compute_mode('ocr')}",
             "progress": 0,
         })
 

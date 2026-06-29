@@ -26,6 +26,11 @@ from typing import Optional
 from app.core.config import settings
 from app.services.rag_source_pipeline import build_manifest
 from app.services.platform_store import get_record
+from app.services.runtime_compute_settings import (
+    build_runtime_compute_env,
+    describe_stage_compute_mode,
+    get_runtime_compute_settings,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
@@ -275,6 +280,8 @@ async def run_pipeline(job_id: str) -> None:
         emit(0, "파이프라인 시작")
 
     try:
+        runtime_settings = get_runtime_compute_settings()
+
         # ── Stage 1: manifest CSV 확인 (5%) ───────────────────────────────
         if should_run(1):
             emit(5, "manifest CSV 확인")
@@ -298,6 +305,7 @@ async def run_pipeline(job_id: str) -> None:
             p["text_dir"].mkdir(parents=True, exist_ok=True)
             p["metadata_dir"].mkdir(parents=True, exist_ok=True)
             emit(10, "텍스트 추출 중...")
+            emit(10, "실행 모드", describe_stage_compute_mode("ocr", runtime_settings))
             rc = await _run_script(
                 [
                     "extract_manifest_batch.py",
@@ -308,6 +316,7 @@ async def run_pipeline(job_id: str) -> None:
                     "--use-ocr",   # auto-fall-back to tesseract for scanned PDFs
                 ],
                 emit, 10, 50,
+                env=build_runtime_compute_env("ocr", runtime_settings),
             )
             if rc != 0:
                 raise RuntimeError("extract_manifest_batch.py 실패")
@@ -319,6 +328,7 @@ async def run_pipeline(job_id: str) -> None:
         if should_run(3):
             p["chunks_dir"].mkdir(parents=True, exist_ok=True)
             emit(55, "청크 생성 중...")
+            emit(55, "실행 모드", describe_stage_compute_mode("chunk", runtime_settings))
             rc = await _run_script(
                 [
                     "build_chunk_batch.py",
@@ -326,6 +336,7 @@ async def run_pipeline(job_id: str) -> None:
                     "--output-jsonl", str(p["chunks_jsonl"]),
                 ],
                 emit, 55, 68,
+                env=build_runtime_compute_env("chunk", runtime_settings),
             )
             if rc != 0:
                 raise RuntimeError("build_chunk_batch.py 실패")
@@ -337,6 +348,7 @@ async def run_pipeline(job_id: str) -> None:
         if should_run(4):
             p["faiss_dir"].mkdir(parents=True, exist_ok=True)
             emit(70, "FAISS 인덱스 빌드 중...")
+            emit(70, "실행 모드", describe_stage_compute_mode("faiss", runtime_settings))
             rc = await _run_script(
                 [
                     "build_faiss_index.py",
@@ -347,9 +359,10 @@ async def run_pipeline(job_id: str) -> None:
                     "--ollama-model", settings.ollama_embed_model,
                 ],
                 emit, 70, 88,
+                env=build_runtime_compute_env("faiss", runtime_settings),
             )
             if rc != 0:
-                raise RuntimeError("build_faiss_index.py 실패")
+                raise RuntimeError(_format_script_failure("build_faiss_index.py", rc))
             save_pipeline_state(source_id, snapshot, 4)
         elif start_from > 4:
             emit(88, "Stage 4 건너뜀", "이전에 완료됨")
@@ -357,6 +370,7 @@ async def run_pipeline(job_id: str) -> None:
         # ── Stage 5: 카테고리 인덱스 (90%) ───────────────────────────────
         if should_run(5):
             emit(90, "카테고리 인덱스 빌드 중...")
+            emit(90, "실행 모드", describe_stage_compute_mode("faiss", runtime_settings))
 
             # Document Source에서 동적 카테고리 가져오기
             category_keys = []
@@ -381,9 +395,15 @@ async def run_pipeline(job_id: str) -> None:
                 "--categories",
             ] + category_keys
 
-            rc = await _run_script(cmd_args, emit, 90, 93)
+            rc = await _run_script(
+                cmd_args,
+                emit,
+                90,
+                93,
+                env=build_runtime_compute_env("faiss", runtime_settings),
+            )
             if rc != 0:
-                emit(90, "카테고리 인덱스", "경고: build_category_indexes.py 실패 (비필수)")
+                emit(90, "카테고리 인덱스", f"경고: {_format_script_failure('build_category_indexes.py', rc)} (비필수)")
             save_pipeline_state(source_id, snapshot, 5)
         elif start_from > 5:
             emit(93, "Stage 5 건너뜀", "이전에 완료됨")
@@ -396,7 +416,7 @@ async def run_pipeline(job_id: str) -> None:
                 emit, 94, 96,
             )
             if rc != 0:
-                emit(94, "그래프 빌드", "경고: build_graph_jsonl.py 실패 (비필수)")
+                emit(94, "그래프 빌드", f"경고: {_format_script_failure('build_graph_jsonl.py', rc)} (비필수)")
             save_pipeline_state(source_id, snapshot, 6)
         elif start_from > 6:
             emit(96, "Stage 6 건너뜀", "이전에 완료됨")
@@ -427,6 +447,7 @@ async def _run_script(
     emit,
     pct_start: int,
     pct_end: int,
+    env: Optional[dict[str, str]] = None,
 ) -> int:
     """Run a pipeline script; stream stdout lines as log events.
 
@@ -440,6 +461,7 @@ async def _run_script(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
         cwd=str(SCRIPTS_DIR),
+        env=env,
     )
     async for raw in proc.stdout:
         line = raw.decode("utf-8", errors="replace").rstrip()
@@ -464,6 +486,15 @@ async def _run_script(
         emit(calculated_pct, stage_text, line)
     await proc.wait()
     return proc.returncode
+
+
+def _format_script_failure(script_name: str, return_code: int) -> str:
+    """사람이 읽을 수 있는 subprocess 실패 메시지를 만든다."""
+    if return_code < 0:
+        return f"{script_name} 실패 (signal {-return_code})"
+    if return_code > 128:
+        return f"{script_name} 실패 (signal {return_code - 128})"
+    return f"{script_name} 실패 (exit code {return_code})"
 
 
 def activate_snapshot(

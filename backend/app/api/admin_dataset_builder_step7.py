@@ -17,6 +17,7 @@ import json
 from app.core.config import settings
 from app.core.database import get_db
 from app.services.processed_text_store import ProcessedTextStore
+from app.services.runtime_compute_settings import is_stage_gpu_enabled
 # 확장 메서드 로드
 import app.services.processed_text_store_extensions
 
@@ -53,6 +54,7 @@ class FAISSBuildResponse(BaseModel):
     documents: List[DocumentIndexInfo]
     index_type: str
     created_at: str
+    gpu_used: bool = False
 
 
 class FAISSStatusResponse(BaseModel):
@@ -131,6 +133,25 @@ def save_faiss_collection(
         json.dump(metadata, f, ensure_ascii=False, indent=2)
 
     return str(index_path)
+
+
+def _build_index_with_optional_gpu(index: faiss.Index, vectors: np.ndarray) -> tuple[faiss.Index, bool]:
+    gpu_requested = is_stage_gpu_enabled("faiss")
+    gpu_api_ready = all(
+        hasattr(faiss, attr)
+        for attr in ("StandardGpuResources", "index_cpu_to_gpu", "index_gpu_to_cpu")
+    )
+    if gpu_requested and gpu_api_ready:
+        try:
+            resources = faiss.StandardGpuResources()
+            gpu_index = faiss.index_cpu_to_gpu(resources, 0, index)
+            gpu_index.add(vectors)
+            return faiss.index_gpu_to_cpu(gpu_index), True
+        except Exception:
+            pass
+
+    index.add(vectors)
+    return index, False
 
 
 # ── API Endpoints ────────────────────────────────────────────────────────
@@ -238,9 +259,7 @@ async def build_faiss_index(
 
         # FAISS 인덱스 생성
         index = create_faiss_index(vectors, index_type=req.index_type, metric=req.metric)
-
-        # 벡터 추가
-        index.add(vectors)
+        index, gpu_used = _build_index_with_optional_gpu(index, vectors)
 
         # 메타데이터 준비
         metadata = {
@@ -272,7 +291,8 @@ async def build_faiss_index(
             documents_indexed=len([d for d in document_infos if d.status == "success"]),
             documents=document_infos,
             index_type=req.index_type,
-            created_at=metadata["created_at"]
+            created_at=metadata["created_at"],
+            gpu_used=gpu_used,
         )
 
     except HTTPException:

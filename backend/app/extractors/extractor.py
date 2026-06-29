@@ -21,7 +21,7 @@ class DocumentExtractor:
     based on file type
     """
 
-    def __init__(self, use_ocr: bool = True):
+    def __init__(self, use_ocr: bool = True, ocr_use_gpu: Optional[bool] = None):
         """
         Initialize document extractor
 
@@ -29,8 +29,9 @@ class DocumentExtractor:
             use_ocr: Whether to enable OCR for scanned documents
         """
         self.use_ocr = use_ocr
+        self.ocr_use_gpu = ocr_use_gpu
         self.extractors: List[BaseExtractor] = [
-            PDFExtractor(use_ocr=use_ocr),
+            PDFExtractor(use_ocr=use_ocr, ocr_use_gpu=ocr_use_gpu),
             DocxExtractor(),
             PptxExtractor(),
             XlsxExtractor(),

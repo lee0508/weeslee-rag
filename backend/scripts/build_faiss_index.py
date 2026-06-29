@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import time
 import urllib.error
@@ -107,6 +108,32 @@ def load_chunks(path: Path) -> list[dict]:
     return rows
 
 
+def _is_faiss_gpu_requested() -> bool:
+    return os.environ.get("WEESLEE_GPU_MODE") == "1" and os.environ.get("WEESLEE_GPU_FAISS") == "1"
+
+
+def _build_faiss_index(matrix: np.ndarray) -> tuple["faiss.Index", bool]:
+    dim = matrix.shape[1]
+    cpu_index = faiss.IndexFlatIP(dim)
+
+    if _is_faiss_gpu_requested():
+        gpu_api_ready = all(
+            hasattr(faiss, attr)
+            for attr in ("StandardGpuResources", "index_cpu_to_gpu", "index_gpu_to_cpu")
+        )
+        if gpu_api_ready:
+            try:
+                resources = faiss.StandardGpuResources()
+                gpu_index = faiss.index_cpu_to_gpu(resources, 0, cpu_index)
+                gpu_index.add(matrix)
+                return faiss.index_gpu_to_cpu(gpu_index), True
+            except Exception as exc:
+                print(f"WARN FAISS GPU fallback to CPU: {exc}", flush=True)
+
+    cpu_index.add(matrix)
+    return cpu_index, False
+
+
 def main() -> int:
     args = parse_args()
     chunks_jsonl = Path(args.chunks_jsonl).resolve()
@@ -193,8 +220,7 @@ def main() -> int:
 
     matrix = np.vstack(embeddings).astype(np.float32)
     dim = matrix.shape[1]
-    index = faiss.IndexFlatIP(dim)
-    index.add(matrix)
+    index, gpu_used = _build_faiss_index(matrix)
     faiss.write_index(index, str(output_index))
 
     with output_metadata.open("w", encoding="utf-8") as handle:
@@ -221,6 +247,8 @@ def main() -> int:
         "source_count": len(by_source),
         "counts_by_document": by_document,
         "counts_by_source": by_source,
+        "gpu_requested": _is_faiss_gpu_requested(),
+        "gpu_used": gpu_used,
         "notes": [
             "hashing provider is for pipeline validation only",
             "use ollama embeddings for meaningful retrieval quality",

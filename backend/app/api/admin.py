@@ -27,6 +27,10 @@ from app.services.metadata_db import metadata_db_service  # Legacy SQLite (depre
 from app.services.unified_document_service import unified_document_service  # MySQL primary
 from app.services.metadata_auto_generator import metadata_auto_generator
 from app.services.admin_stats_service import get_snapshot_stats
+from app.services.runtime_compute_settings import (
+    get_runtime_compute_snapshot,
+    save_runtime_compute_settings,
+)
 from app.core.config import settings
 from app.models.document_pipeline_status import DatasetStatusSummary
 
@@ -82,6 +86,16 @@ class CollectionInfo(BaseModel):
     document_count: int
     vector_count: int
     created_at: str
+
+
+class RuntimeComputeSettingsRequest(BaseModel):
+    gpu_enabled: bool = False
+    cuda_visible_devices: str = "0"
+    ollama_use_gpu: bool = False
+    ocr_use_gpu: bool = True
+    chunk_use_gpu: bool = False
+    embedding_use_gpu: bool = True
+    faiss_use_gpu: bool = True
 
 
 # Progress tracking for SSE
@@ -509,12 +523,33 @@ async def system_check():
     text_dir = project_root / "data" / "staged" / "text"
     text_count = len(list(text_dir.glob("*.txt"))) if text_dir.exists() else 0
 
+    compute = get_runtime_compute_snapshot()
+
     return {
         "hwp_extractor":  {"ok": hwp_ok,    "detail": hwp_msg},
         "ocr_tesseract":  {"ok": ocr_ok,    "detail": ocr_msg},
         "ollama":         {"ok": ollama_ok,  "detail": ollama_msg},
         "faiss_index":    {"ok": faiss_ok,   "detail": faiss_msg},
         "staged_texts":   {"count": text_count, "dir": str(text_dir)},
+        "compute": compute,
+    }
+
+
+@router.get("/runtime-compute-settings")
+async def get_runtime_compute_settings_api():
+    """GPU/CPU 런타임 설정과 현재 감지 상태를 반환한다."""
+    return get_runtime_compute_snapshot()
+
+
+@router.post("/runtime-compute-settings")
+async def save_runtime_compute_settings_api(request: RuntimeComputeSettingsRequest):
+    """GPU/CPU 런타임 설정을 저장한다."""
+    saved = save_runtime_compute_settings(request.model_dump())
+    return {
+        "success": True,
+        "message": "런타임 GPU 설정이 저장되었습니다.",
+        "data": saved,
+        "snapshot": get_runtime_compute_snapshot(),
     }
 
 
