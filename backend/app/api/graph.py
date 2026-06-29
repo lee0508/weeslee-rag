@@ -150,6 +150,26 @@ def _manifest(source_id: Optional[str] = None) -> dict:
         return {}
 
 
+def _graph_summary_from_manifest(manifest: dict) -> dict | None:
+    """manifest에 집계값이 있으면 graph JSONL 전체 로드 없이 summary 반환."""
+    if not manifest:
+        return None
+    node_count = int(manifest.get("node_count") or 0)
+    edge_count = int(manifest.get("edge_count") or 0)
+    project_count = int(manifest.get("project_count") or 0)
+    document_count = int(manifest.get("document_count") or 0)
+    if not any([node_count, edge_count, project_count, document_count]):
+        return None
+    return {
+        "built_at": manifest.get("built_at"),
+        "source_type": manifest.get("source_type"),
+        "project_count": project_count,
+        "document_count": document_count,
+        "edge_count": edge_count,
+        "has_data": node_count > 0,
+    }
+
+
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/stats")
@@ -172,8 +192,15 @@ async def graph_stats(source_id: Optional[str] = None):
 @router.get("/summary")
 async def graph_summary(source_id: Optional[str] = None):
     """그래프 전체 통계."""
-    cache = _load_graph(source_id)
     m = _manifest(source_id)
+    manifest_summary = _graph_summary_from_manifest(m)
+    if manifest_summary:
+        return {
+            "source_id": source_id or "all",
+            **manifest_summary,
+        }
+
+    cache = _load_graph(source_id)
     return {
         "source_id":      source_id or "all",
         "built_at":       m.get("built_at"),

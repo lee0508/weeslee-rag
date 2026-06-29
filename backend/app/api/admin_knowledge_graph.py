@@ -10,6 +10,9 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import json
+import subprocess
+import sys
+import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -126,6 +129,14 @@ class GraphPreviewResponse(BaseModel):
     edges: List[EdgeInfo] = []
     node_type_counts: Dict[str, int] = {}
     relation_type_counts: Dict[str, int] = {}
+
+
+def _read_text_tail(path: Path, max_chars: int = 4000) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return ""
+    return text[-max_chars:]
 
 
 # ── Helper Functions ────────────────────────────────────────────────────────
@@ -279,9 +290,6 @@ async def build_knowledge_graph(
     """
     Knowledge Graph를 빌드합니다.
     """
-    import subprocess
-    import sys
-
     start_time = datetime.now()
 
     try:
@@ -302,28 +310,42 @@ async def build_knowledge_graph(
         if request.rebuild:
             cmd += ["--rebuild"]
 
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=300,
-            cwd=str(project_root),
-        )
+        with tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8", suffix="_graph_build.log", delete=False) as log_file:
+            log_path = Path(log_file.name)
+            proc = subprocess.Popen(
+                cmd,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                cwd=str(project_root),
+            )
+            try:
+                proc.wait(timeout=300)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=5)
+                return GraphBuildResponse(
+                    success=False,
+                    message="Graph build timed out (300s)",
+                    processing_time=300.0,
+                    output=_read_text_tail(log_path, 2000) or "Timeout after 300 seconds"
+                )
 
         if proc.returncode != 0:
             return GraphBuildResponse(
                 success=False,
                 message="Graph build failed",
                 processing_time=(datetime.now() - start_time).total_seconds(),
-                output=proc.stderr.strip() or "Build script failed"
+                output=_read_text_tail(log_path, 3000) or "Build script failed"
             )
 
         # 출력에서 결과 파싱
         node_count = 0
         edge_count = 0
 
-        for line in reversed(proc.stdout.strip().splitlines()):
+        log_text = _read_text_tail(log_path, 12000)
+        for line in reversed(log_text.strip().splitlines()):
             try:
                 data = json.loads(line)
                 if data.get("graph_complete"):
@@ -341,16 +363,9 @@ async def build_knowledge_graph(
             node_count=node_count,
             edge_count=edge_count,
             processing_time=processing_time,
-            output=proc.stdout.strip()[-500:]
+            output=log_text[-1000:]
         )
 
-    except subprocess.TimeoutExpired:
-        return GraphBuildResponse(
-            success=False,
-            message="Graph build timed out (300s)",
-            processing_time=300.0,
-            output="Timeout after 300 seconds"
-        )
     except Exception as e:
         return GraphBuildResponse(
             success=False,
@@ -366,15 +381,23 @@ async def get_graph_status(source_id: Optional[str] = None):
     Knowledge Graph 상태를 조회합니다.
     """
     try:
-        from app.api.graph import _load_graph, _manifest
+        from app.api.graph import _load_graph, _manifest, _graph_summary_from_manifest
+
+        manifest = _manifest(source_id)
+        manifest_summary = _graph_summary_from_manifest(manifest)
+
+        if manifest_summary:
+            return GraphStatusResponse(
+                status="ready" if manifest_summary["has_data"] else "empty",
+                node_count=int(manifest.get("node_count") or 0),
+                edge_count=int(manifest.get("edge_count") or 0),
+                built_at=manifest.get("built_at"),
+                schema_version=manifest.get("schema_version", "phase2"),
+                snapshot_id=manifest.get("snapshot_id")
+            )
 
         cache = _load_graph(source_id)
-        manifest = _manifest(source_id)
-
-        if not cache["nodes"]:
-            status = "empty"
-        else:
-            status = "ready"
+        status = "ready" if cache["nodes"] else "empty"
 
         return GraphStatusResponse(
             status=status,

@@ -185,22 +185,27 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
     return docs
 
 
-def _chunks_from_faiss_meta(path: Path) -> list[dict]:
-    """Extract all chunks with section_heading info from FAISS metadata JSONL."""
+def _chunks_from_faiss_meta(path: Path, allowed_doc_ids: set[str] | None = None) -> list[dict]:
+    """Extract chunks with section_heading info from FAISS metadata JSONL."""
     chunks: list[dict] = []
     with path.open("r", encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
             row = json.loads(line)
+            document_id = row.get("document_id", "")
+            if allowed_doc_ids is not None and document_id not in allowed_doc_ids:
+                continue
             chunk_id = row.get("chunk_id", "")
             if not chunk_id:
                 continue
             meta = row.get("metadata") or {}
             chunks.append({
                 "chunk_id": chunk_id,
-                "document_id": row.get("document_id", ""),
+                "document_id": document_id,
                 "section_heading": row.get("section_heading", ""),
+                "section_title": row.get("section_title") or meta.get("section_title", ""),
+                "section_id": row.get("section_id") or meta.get("section_id"),
                 "page_no": row.get("page_no") or meta.get("page_no", 0),
                 "slide_no": row.get("slide_no") or meta.get("slide_no"),
                 "char_count": row.get("char_count", 0),
@@ -208,7 +213,7 @@ def _chunks_from_faiss_meta(path: Path) -> list[dict]:
     return chunks
 
 
-def _load_document_texts_by_source_path() -> dict[str, str]:
+def _load_document_texts_by_source_path(allowed_source_paths: set[str] | None = None) -> dict[str, str]:
     """Load combined document texts from processed_text/{doc_id}/ files.
 
     source_path를 키로 사용하여 FAISS document_id와 매핑 가능하게 함.
@@ -246,6 +251,8 @@ def _load_document_texts_by_source_path() -> dict[str, str]:
 
                 # 경로 정규화 (역슬래시 → 슬래시)
                 source_path_key = source_path.replace("\\", "/")
+                if allowed_source_paths is not None and source_path_key not in allowed_source_paths:
+                    continue
 
                 # chunks.json에서 텍스트 추출
                 with chunks_file.open("r", encoding="utf-8") as f:
@@ -1155,16 +1162,12 @@ def main() -> int:
     # 진행률 출력: 데이터 로드 시작
     print(json.dumps({"progress": 10, "current": 1, "total": 5, "stage": "그래프 데이터 로드"}), flush=True)
 
-    # Phase 2: 청크 데이터도 로드 (section_heading, page_no 추출용)
-    chunks: list[dict] = []
-
     if faiss_meta_path and faiss_meta_path.exists():
         docs = _docs_from_faiss_meta(faiss_meta_path)
-        chunks = _chunks_from_faiss_meta(faiss_meta_path)  # Phase 2
         source_type = "faiss_metadata"
         source_path = str(faiss_meta_path)
         print(json.dumps({"source": "faiss_metadata", "path": str(faiss_meta_path),
-                          "doc_count": len(docs), "chunk_count": len(chunks)}, ensure_ascii=False))
+                          "doc_count": len(docs)}, ensure_ascii=False))
     else:
         docs = _docs_from_manifests()
         source_type = "manifest_csv"
@@ -1187,6 +1190,19 @@ def main() -> int:
             print(json.dumps({"error": f"No documents found for source_id '{source_id}'"}))
             return 1
 
+    allowed_doc_ids = {doc["document_id"] for doc in docs if doc.get("document_id")}
+    allowed_source_paths = {
+        doc.get("source_path", "").replace("\\", "/")
+        for doc in docs
+        if doc.get("source_path")
+    }
+
+    # Phase 2: 청크 데이터도 로드 (section_heading, page_no 추출용)
+    chunks: list[dict] = []
+    if faiss_meta_path and faiss_meta_path.exists():
+        chunks = _chunks_from_faiss_meta(faiss_meta_path, allowed_doc_ids=allowed_doc_ids)
+        print(json.dumps({"phase2": "filtered_chunks_loaded", "chunk_count": len(chunks)}, ensure_ascii=False))
+
     # 진행률 출력: 노드/엣지 생성
     print(json.dumps({"progress": 45, "current": 3, "total": 6, "stage": "그래프 노드/엣지 생성"}), flush=True)
     nodes, edges = _build_nodes_edges(docs)
@@ -1206,7 +1222,7 @@ def main() -> int:
 
         # Phase 3: MENTIONS 엣지 추가 (문서 텍스트 기반 키워드 추출)
         print(json.dumps({"progress": 70, "current": 5, "total": 7, "stage": "문서 텍스트 로드 및 MENTIONS 엣지 생성"}), flush=True)
-        source_path_texts = _load_document_texts_by_source_path()
+        source_path_texts = _load_document_texts_by_source_path(allowed_source_paths=allowed_source_paths)
         if source_path_texts:
             node_ids = {n["id"] for n in nodes}  # 새 노드 추가 후 갱신
             mentions_count = _add_document_keyword_mentions(nodes, edges, source_path_texts, node_ids, edge_counter)
