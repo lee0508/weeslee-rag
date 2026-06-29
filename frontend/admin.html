@@ -8994,6 +8994,7 @@ POST /api/admin/faiss/activate</code>
     if (typeof window.refreshRightSourcePanel === 'function') {
       window.refreshRightSourcePanel();
     }
+    loadDocumentSourceOverview();
   }
 
   // ══ Phase 3: 사이드바 고도화 ══════════════════════════════════════════════
@@ -9147,6 +9148,92 @@ POST /api/admin/faiss/activate</code>
       ? `/admin/dataset/status-summary?${qs.toString()}`
       : '/admin/dataset/status-summary';
     return platformFetch(url);
+  }
+
+  function _resolveDocumentSourceContext(sources = [], publishData = {}, activeConfig = null) {
+    const list = Array.isArray(sources) ? sources : [];
+    const activeSourceId = String(activeConfig?.source_id || publishData?.source_id || '').trim();
+    const activeDatasetId = String(activeConfig?.dataset_id || publishData?.dataset_id || '').trim();
+    const currentSourceId = getCurrentSourceId?.() || '';
+
+    const selected =
+      (activeSourceId
+        ? list.find(src => String(src?.source_id || src?.id || '').trim() === activeSourceId)
+        : null) ||
+      (activeDatasetId
+        ? list.find(src => String(src?.dataset_id || '').trim() === activeDatasetId)
+        : null) ||
+      (currentSourceId
+        ? list.find(src => String(src?.source_id || src?.id || '').trim() === currentSourceId)
+        : null) ||
+      getPreferredDocumentSource(list);
+
+    return {
+      activeSourceId,
+      activeDatasetId,
+      selected,
+    };
+  }
+
+  async function loadDocumentSourceOverview() {
+    const setCallout = (message, tone = 'info') => {
+      const el = document.getElementById('wrSourceCallout');
+      if (!el) return;
+      el.textContent = message;
+      el.classList.remove('wr-callout-info', 'wr-callout-success', 'wr-callout-warning', 'wr-callout-danger');
+      el.classList.add(`wr-callout-${tone}`);
+    };
+
+    try {
+      const [sources, publishData] = await Promise.all([
+        platformFetch('/admin/document-sources'),
+        platformFetch('/admin/publish/status')
+      ]);
+
+      const { activeDatasetId, selected } = _resolveDocumentSourceContext(sources, publishData, _activeSnapshotInfo);
+      const allSummary = summarizeDocumentSources(sources, { aggregate: true });
+      const selectedSourceId = String(selected?.source_id || selected?.id || '').trim();
+      const selectedStatus = String(selected?.status || '').toLowerCase();
+      const isAccessible = selectedStatus === 'accessible';
+      const selectedName = selected?.source_name || selected?.name || selectedSourceId || '-';
+      const datasetId = activeDatasetId || selected?.dataset_id || '미생성';
+      const fileCount = Number(selected?.last_scan_file_count || selected?.file_count || 0);
+
+      wrSetText('wrSourceCount', selected ? '1' : wrFmtCount(allSummary.totalSources));
+      wrSetText('wrSourceAccessibleCount', selected ? (isAccessible ? '1' : '0') : wrFmtCount(allSummary.accessibleSources));
+      wrSetText('wrSourceDefaultName', selectedName);
+
+      const pathEl = document.getElementById('wrSourceDefaultPath');
+      const clientEl = document.getElementById('wrSourceDefaultClient');
+      if (pathEl) {
+        pathEl.value = selected
+          ? (resolveDocSourceScanPath(selected.mount_path, selected.root_subpath) || selected.mount_path || '(경로 없음)')
+          : '등록된 Source 없음';
+      }
+      if (clientEl) {
+        clientEl.value = selected?.client_id || '-';
+      }
+
+      if (!selected) {
+        setCallout('Active Dataset과 연결된 Document Source를 찾지 못했습니다. Source 등록 상태를 확인하세요.', 'warning');
+        return;
+      }
+
+      setCallout(
+        `Active Dataset 기준 Source: ${selectedName} (${selectedSourceId}) · dataset_id=${datasetId} · ${isAccessible ? '연결 확인됨' : '연결 확인 필요'} · 파일 ${wrFmtCount(fileCount, '개')}`,
+        isAccessible ? 'success' : 'warning'
+      );
+    } catch (e) {
+      console.warn('[loadDocumentSourceOverview] failed:', e);
+      wrSetText('wrSourceCount', '오류');
+      wrSetText('wrSourceAccessibleCount', '-');
+      wrSetText('wrSourceDefaultName', '-');
+      const pathEl = document.getElementById('wrSourceDefaultPath');
+      const clientEl = document.getElementById('wrSourceDefaultClient');
+      if (pathEl) pathEl.value = '로드 실패';
+      if (clientEl) clientEl.value = '-';
+      setCallout('Document Source 상태를 불러오지 못했습니다. Publish/Active Snapshot 상태를 확인하세요.', 'danger');
+    }
   }
 
   let _wrCurrentPagePanelId = '';
@@ -11762,6 +11849,9 @@ LIMIT 10`;
       if (typeof refreshDatasetBuilderUiAssistants === 'function') {
         setTimeout(() => refreshDatasetBuilderUiAssistants(pagePanelId), 0);
       }
+      if (pagePanelId === 'source-documents') {
+        setTimeout(() => loadDocumentSourceOverview(), 0);
+      }
       return true;
     }
     return false;
@@ -13712,6 +13802,7 @@ LIMIT 10`;
   function onCtxSourceChange() {
     syncCtxClientFromSource(true);
     onCtxChange();
+    loadDocumentSourceOverview();
   }
 
   function onCtxDatasetChange() {
@@ -13730,6 +13821,7 @@ LIMIT 10`;
     if (typeof refreshDatasetBuilderUiAssistants === 'function') {
       refreshDatasetBuilderUiAssistants();
     }
+    loadDocumentSourceOverview();
   }
 
   function updateCtxSourceHint() {
@@ -13963,14 +14055,17 @@ LIMIT 10`;
       if (data.success && data.active_config) {
         _activeSnapshotInfo = data.active_config;
         updateActiveSnapshotDisplay(data.active_config);
+        loadDocumentSourceOverview();
       } else {
         _activeSnapshotInfo = null;
         updateActiveSnapshotDisplay(null);
+        loadDocumentSourceOverview();
       }
     } catch (e) {
       console.warn('[snapshot] loadActiveSnapshotInfo error:', e);
       _activeSnapshotInfo = null;
       updateActiveSnapshotDisplay(null);
+      loadDocumentSourceOverview();
     }
   }
 
@@ -15150,14 +15245,11 @@ LIMIT 10`;
   // Source Settings를 Document Source API에서 동적 로드 (2026-06-12)
   async function loadSourceSettingsFromApi() {
     try {
-      const sources = await platformFetch('/admin/document-sources');
-
-      // 현재 선택 Source 우선, 없으면 enabled 첫 번째, 없으면 목록 첫 번째
-      const currentSourceId = getCurrentSourceId();
-      const selected =
-        sources.find(s => s.source_id === currentSourceId) ||
-        sources.find(s => s.enabled) ||
-        sources[0];
+      const [sources, publishData] = await Promise.all([
+        platformFetch('/admin/document-sources'),
+        platformFetch('/admin/publish/status')
+      ]);
+      const selected = _resolveDocumentSourceContext(sources, publishData, _activeSnapshotInfo).selected;
 
       const pathEl = document.getElementById('wrSourceDefaultPath');
       const clientEl = document.getElementById('wrSourceDefaultClient');
