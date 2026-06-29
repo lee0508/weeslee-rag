@@ -5833,6 +5833,7 @@ POST /api/admin/faiss/activate</code>
   async function api(path, opts = {}) {
     const r = await fetch(apiUrl(path), {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      cache: 'no-store',
       ...opts,
     });
     if (r.status === 401) {
@@ -17442,6 +17443,8 @@ LIMIT 10`;
         _wizardMarkDone(step);
         _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${snapshot} 활성화 완료. (source: ${sourceId})`), 'ok');
         // 활성화 후 Active Snapshot 정보 새로고침
+        if (typeof loadIndexes === 'function') loadIndexes();
+        if (typeof loadStatus === 'function') loadStatus();
         if (typeof loadActiveSnapshotInfo === 'function') loadActiveSnapshotInfo();
         if (typeof refreshSourceContext === 'function') refreshSourceContext();
         return true;
