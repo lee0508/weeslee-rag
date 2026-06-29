@@ -160,7 +160,29 @@ def _calculate_precision_recall(
 
 
 def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
-    """현재 활성 Snapshot 정보 조회 - active_snapshot.json 또는 active_index.json에서 읽기"""
+    """현재 활성 Snapshot 정보 조회 - FAISS status 함수를 직접 호출"""
+    # 1. FAISS status endpoint의 로직을 사용하여 현재 활성 정보 조회
+    try:
+        from app.services import faiss_job_runner as runner
+
+        active = runner.read_active_index()
+
+        if active:
+            snapshot = (active or {}).get("snapshot", "") or (active or {}).get("active_snapshot", "")
+            if snapshot:
+                return {
+                    "snapshot": snapshot,
+                    "snapshot_id": snapshot,
+                    "source_id": active.get("source_id"),
+                    "dataset_id": active.get("dataset_id"),
+                    "activated_at": active.get("activated_at"),
+                    "chunk_count": active.get("chunk_count", 0) or active.get("vector_count", 0),
+                    "document_count": active.get("document_count", 0),
+                }
+    except Exception:
+        pass
+
+    # 2. Fallback: 파일 시스템 조회
     project_root = _get_project_root()
 
     if source_id:

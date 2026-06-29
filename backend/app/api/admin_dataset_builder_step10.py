@@ -273,7 +273,10 @@ async def get_step10_status(source_id: Optional[str] = None):
             if stats.get("loaded"):
                 faiss_status = "ready"
                 faiss_doc_count = int(
-                    stats.get("filtered_metadata_count")
+                    stats.get("filtered_document_count")
+                    or stats.get("document_count")
+                    or stats.get("documents_count")
+                    or stats.get("filtered_metadata_count")
                     or stats.get("metadata_count")
                     or stats.get("vector_count")
                     or 0

@@ -36,8 +36,9 @@ def _snapshots_dir() -> Path:
 
 def _active_snapshot_paths() -> list[Path]:
     return [
-        PROJECT_ROOT / "data" / "active_snapshot.json",
+        # Snapshot V2 state should override the older flat active file.
         _snapshots_dir() / "active_snapshot.json",
+        PROJECT_ROOT / "data" / "active_snapshot.json",
         _active_index_path(),
     ]
 

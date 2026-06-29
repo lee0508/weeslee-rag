@@ -148,6 +148,14 @@ def _load_collection_metadata(metadata_path: Path) -> Dict[str, Any]:
         return parsed
 
 
+def _normalize_collection_metadata(metadata: Dict[str, Any], collection_dir: Path) -> Dict[str, Any]:
+    normalized = dict(metadata or {})
+    normalized.setdefault("collection_name", collection_dir.name)
+    normalized.setdefault("total_vectors", 0)
+    normalized.setdefault("documents_count", 0)
+    return normalized
+
+
 def _build_index_with_optional_gpu(index: faiss.Index, vectors: np.ndarray) -> tuple[faiss.Index, bool]:
     gpu_requested = is_stage_gpu_enabled("faiss")
     gpu_api_ready = all(
@@ -333,7 +341,10 @@ async def get_faiss_status(db: Session = Depends(get_db)):
 
             metadata_path = collection_dir / "metadata.json"
             if metadata_path.exists():
-                metadata = _load_collection_metadata(metadata_path)
+                metadata = _normalize_collection_metadata(
+                    _load_collection_metadata(metadata_path),
+                    collection_dir,
+                )
                 collections.append(metadata["collection_name"])
                 total_vectors += metadata.get("total_vectors", 0)
                 total_documents += metadata.get("documents_count", 0)
@@ -365,7 +376,10 @@ async def get_collection_info(collection_name: str):
         if not metadata_path.exists():
             raise HTTPException(status_code=404, detail="Collection metadata not found")
 
-        metadata = _load_collection_metadata(metadata_path)
+        metadata = _normalize_collection_metadata(
+            _load_collection_metadata(metadata_path),
+            collection_dir,
+        )
 
         # vector_to_doc_map은 너무 크므로 제외
         if "vector_to_doc_map" in metadata:
@@ -424,7 +438,10 @@ async def get_faiss_stats():
 
             metadata_path = collection_dir / "metadata.json"
             if metadata_path.exists():
-                metadata = _load_collection_metadata(metadata_path)
+                metadata = _normalize_collection_metadata(
+                    _load_collection_metadata(metadata_path),
+                    collection_dir,
+                )
 
                 stats["total_collections"] += 1
                 stats["total_vectors"] += metadata.get("total_vectors", 0)

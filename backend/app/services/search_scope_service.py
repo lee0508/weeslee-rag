@@ -69,7 +69,32 @@ def _load_snapshot_manifests() -> list[SnapshotManifest]:
             manifests.append(SnapshotManifest(**data))
         except Exception:
             continue
-    return manifests
+    if not manifests:
+        return manifests
+
+    canonical_by_faiss_id: dict[str, SnapshotManifest] = {}
+    for snap in manifests:
+        faiss_id = str(snap.rag_build.faiss_index_id or snap.snapshot_id or "").strip()
+        if not faiss_id:
+            continue
+        current = canonical_by_faiss_id.get(faiss_id)
+        if current is None:
+            canonical_by_faiss_id[faiss_id] = snap
+            continue
+        current_is_alias = current.snapshot_id == faiss_id
+        candidate_is_alias = snap.snapshot_id == faiss_id
+        if current_is_alias and not candidate_is_alias:
+            canonical_by_faiss_id[faiss_id] = snap
+
+    filtered: list[SnapshotManifest] = []
+    for snap in manifests:
+        faiss_id = str(snap.rag_build.faiss_index_id or snap.snapshot_id or "").strip()
+        canonical = canonical_by_faiss_id.get(faiss_id)
+        # Hide legacy alias manifests when a canonical snapshot manifest exists.
+        if canonical and canonical.snapshot_id != snap.snapshot_id and snap.snapshot_id == faiss_id:
+            continue
+        filtered.append(snap)
+    return filtered
 
 
 def _faiss_index_exists(snapshot: SnapshotManifest) -> bool:

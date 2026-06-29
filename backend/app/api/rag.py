@@ -50,16 +50,7 @@ def _rag_runtime():
 
 
 def _active_snapshot() -> str:
-    if ACTIVE_INDEX_PATH.exists():
-        try:
-            data = json.loads(ACTIVE_INDEX_PATH.read_text(encoding="utf-8"))
-            # active_snapshot 키 우선, 하위 호환성을 위해 snapshot도 지원
-            snap = data.get("active_snapshot") or data.get("snapshot", "")
-            if snap:
-                return snap
-        except Exception:
-            pass
-    return settings.faiss_snapshot
+    return _rag_runtime().get_active_snapshot()
 
 
 def _index_paths(snapshot: str, category: Optional[str] = None) -> tuple[Path, Path]:
@@ -443,7 +434,6 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
             snapshot = resolved_snapshots[0]
         else:
             snapshot = resolved_snapshots[0] if resolved_snapshots else _active_snapshot()
-            default_index, default_meta = _index_paths(snapshot, request.category)
             payload = _rag_runtime().run_rag_query(
                 query=effective_query,
                 original_query=request.query,
@@ -457,9 +447,6 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
                 max_chunks_per_doc=request.max_chunks_per_doc,
                 mode=effective_mode,
                 snapshot=snapshot,
-                index_path=str(default_index),
-                metadata_path=str(default_meta),
-                chunks_jsonl=str(_rag_runtime().default_chunks_path(snapshot)),
             )
 
     payload["documents"] = _filter_documents_by_selected_ids(
@@ -724,7 +711,6 @@ async def search_documents(request: SearchRequest, http_request: Request):
             )
         else:
             snapshot = resolved_snapshots[0] if resolved_snapshots else _active_snapshot()
-            default_index, default_meta = _index_paths(snapshot, None)
             payload = _rag_runtime().run_rag_query(
                 query=effective_query,
                 original_query=request.query,
@@ -738,9 +724,6 @@ async def search_documents(request: SearchRequest, http_request: Request):
                 max_chunks_per_doc=3,
                 mode=rag_mode,
                 snapshot=snapshot,
-                index_path=str(default_index),
-                metadata_path=str(default_meta),
-                chunks_jsonl=str(_rag_runtime().default_chunks_path(snapshot)),
             )
     except Exception as exc:
         duration_ms = int((time.perf_counter() - started) * 1000)
