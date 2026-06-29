@@ -64,7 +64,7 @@ def _resolve(source_path: str) -> Path | None:
     if not p:
         return None
 
-    # Linux absolute path — must be within data/raw/ or PROJECT_ROOT
+    # Linux absolute path — must be within data/raw/, PROJECT_ROOT, or knowledge source root
     if p.startswith('/'):
         try:
             resolved = Path(p).resolve()
@@ -77,6 +77,15 @@ def _resolve(source_path: str) -> Path | None:
                 except ValueError:
                     try:
                         resolved.relative_to(_DATA_DIR)
+                        return resolved
+                    except ValueError:
+                        pass
+                # Also accept paths inside knowledge source root (/mnt/w2_project)
+                from app.services.knowledge_source import knowledge_source_service
+                if knowledge_source_service.is_accessible():
+                    try:
+                        ks_root = Path(knowledge_source_service.get_root_path()).resolve()
+                        resolved.relative_to(ks_root)
                         return resolved
                     except ValueError:
                         pass
