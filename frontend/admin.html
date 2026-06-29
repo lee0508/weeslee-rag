@@ -14285,15 +14285,17 @@ LIMIT 10`;
     const activeSourceId = config.source_id || '';
     if (activeSourceId) {
       const ctxSource = document.getElementById('ctxSource');
-      if (ctxSource && ctxSource.value !== activeSourceId) {
-        // 옵션 목록에 해당 source_id가 있는지 확인
+      if (ctxSource) {
         const hasOption = Array.from(ctxSource.options).some(opt => opt.value === activeSourceId);
         if (hasOption) {
-          ctxSource.value = activeSourceId;
+          if (ctxSource.value !== activeSourceId) {
+            ctxSource.value = activeSourceId;
+            console.log('[Active Snapshot] source_id 자동 선택:', activeSourceId);
+          }
+          syncCtxClientFromSource(true);
           syncWrCurrentSourceSelect();
           updateCtxDatasetFromSource();
           updateCtxSourceHint();
-          console.log('[Active Snapshot] source_id 자동 선택:', activeSourceId);
         }
       }
     }
