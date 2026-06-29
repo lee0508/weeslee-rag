@@ -256,6 +256,27 @@
             <div class="wr-summary-value" id="wrOverviewSearchState">확인 중</div>
           </div>
         </div>
+        <div class="wr-card" style="margin-top:20px">
+          <h3 class="wr-card-title">Active Dataset 기준 운영 정보</h3>
+          <div class="wr-summary-grid">
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Active Dataset</div>
+              <div class="wr-summary-value" id="wrOverviewActiveDataset">확인 중</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Active Snapshot</div>
+              <div class="wr-summary-value" id="wrOverviewActiveSnapshot">확인 중</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Document Source 경로</div>
+              <div class="wr-summary-value" id="wrOverviewSourcePath" style="font-size:12px;line-height:1.5">확인 중</div>
+            </div>
+            <div class="wr-summary-card">
+              <div class="wr-summary-label">Dataset Builder 상태</div>
+              <div class="wr-summary-value" id="wrOverviewBuilderState" style="font-size:12px;line-height:1.5">확인 중</div>
+            </div>
+          </div>
+        </div>
 
         <div class="wr-grid" style="margin-top:20px; display: none;" id="wrDashboardSettingsSection">
           <div class="wr-card">
@@ -9152,25 +9173,61 @@ POST /api/admin/faiss/activate</code>
 
   function _resolveDocumentSourceContext(sources = [], publishData = {}, activeConfig = null) {
     const list = Array.isArray(sources) ? sources : [];
-    const activeSourceId = String(activeConfig?.source_id || publishData?.source_id || '').trim();
-    const activeDatasetId = String(activeConfig?.dataset_id || publishData?.dataset_id || '').trim();
     const currentSourceId = getCurrentSourceId?.() || '';
+    const activeSourceCandidate = String(activeConfig?.source_id || '').trim();
+    const activeDatasetCandidate = String(activeConfig?.dataset_id || '').trim();
+    const publishSourceCandidate = String(publishData?.source_id || '').trim();
+    const publishDatasetCandidate = String(publishData?.dataset_id || '').trim();
+
+    const selectedByActiveSource = activeSourceCandidate
+      ? list.find(src => String(src?.source_id || src?.id || '').trim() === activeSourceCandidate)
+      : null;
+    const selectedByActiveDataset = !selectedByActiveSource && activeDatasetCandidate
+      ? list.find(src => String(src?.dataset_id || '').trim() === activeDatasetCandidate)
+      : null;
+    const selectedByPublishSource = !selectedByActiveSource && !selectedByActiveDataset && publishSourceCandidate
+      ? list.find(src => String(src?.source_id || src?.id || '').trim() === publishSourceCandidate)
+      : null;
+    const selectedByPublishDataset = !selectedByActiveSource && !selectedByActiveDataset && !selectedByPublishSource && publishDatasetCandidate
+      ? list.find(src => String(src?.dataset_id || '').trim() === publishDatasetCandidate)
+      : null;
 
     const selected =
-      (activeSourceId
-        ? list.find(src => String(src?.source_id || src?.id || '').trim() === activeSourceId)
-        : null) ||
-      (activeDatasetId
-        ? list.find(src => String(src?.dataset_id || '').trim() === activeDatasetId)
-        : null) ||
+      selectedByActiveSource ||
+      selectedByActiveDataset ||
+      selectedByPublishSource ||
+      selectedByPublishDataset ||
       (currentSourceId
         ? list.find(src => String(src?.source_id || src?.id || '').trim() === currentSourceId)
         : null) ||
       getPreferredDocumentSource(list);
 
+    const resolvedSourceId = String(
+      selectedByActiveSource?.source_id ||
+      selectedByActiveSource?.id ||
+      selectedByActiveDataset?.source_id ||
+      selectedByActiveDataset?.id ||
+      selectedByPublishSource?.source_id ||
+      selectedByPublishSource?.id ||
+      selectedByPublishDataset?.source_id ||
+      selectedByPublishDataset?.id ||
+      activeSourceCandidate ||
+      publishSourceCandidate ||
+      ''
+    ).trim();
+    const resolvedDatasetId = String(
+      selectedByActiveSource?.dataset_id ||
+      selectedByActiveDataset?.dataset_id ||
+      selectedByPublishSource?.dataset_id ||
+      selectedByPublishDataset?.dataset_id ||
+      activeDatasetCandidate ||
+      publishDatasetCandidate ||
+      ''
+    ).trim();
+
     return {
-      activeSourceId,
-      activeDatasetId,
+      activeSourceId: resolvedSourceId,
+      activeDatasetId: resolvedDatasetId,
       selected,
     };
   }
@@ -9234,6 +9291,26 @@ POST /api/admin/faiss/activate</code>
       if (clientEl) clientEl.value = '-';
       setCallout('Document Source 상태를 불러오지 못했습니다. Publish/Active Snapshot 상태를 확인하세요.', 'danger');
     }
+  }
+
+  async function fetchActiveDashboardContext() {
+    const [sources, publishData] = await Promise.all([
+      platformFetch('/admin/document-sources'),
+      platformFetch('/admin/publish/status')
+    ]);
+    const context = _resolveDocumentSourceContext(sources, publishData, _activeSnapshotInfo);
+    const selected = context.selected || null;
+    const sourceId = String(selected?.source_id || selected?.id || '').trim();
+    const datasetSummary = await fetchDatasetStatusSummary(sourceId);
+
+    return {
+      sources,
+      publishData,
+      context,
+      selected,
+      sourceId,
+      datasetSummary,
+    };
   }
 
   let _wrCurrentPagePanelId = '';
@@ -9715,6 +9792,10 @@ POST /api/admin/faiss/activate</code>
     setText('wrSystemSuccessRate', '-');
     setText('wrSystemAvgResponse', '-');
     setText('wrSystemReferencedDocs', '-');
+    setText('wrOverviewActiveDataset', '확인 중');
+    setText('wrOverviewActiveSnapshot', '확인 중');
+    setText('wrOverviewSourcePath', '확인 중');
+    setText('wrOverviewBuilderState', '확인 중');
     const setNextAction = () => {
       const nextText = document.getElementById('wrOverviewNextText');
       const nextBtn = document.getElementById('wrOverviewNextBtn');
@@ -9749,15 +9830,26 @@ POST /api/admin/faiss/activate</code>
     };
 
     try {
-      const [sourceSummary, datasetSummary] = await Promise.all([
-        fetchDocumentSourceSummary(),
-        fetchDatasetStatusSummary(getCurrentSourceId?.() || ''),
-      ]);
+      const {
+        sources,
+        publishData,
+        context,
+        selected,
+        sourceId,
+        datasetSummary
+      } = await fetchActiveDashboardContext();
+      const sourceSummary = summarizeDocumentSources(sources, { sourceId });
+      const activeDatasetId = context.activeDatasetId || selected?.dataset_id || '-';
+      const activeSnapshotId = publishData.active_snapshot || _activeSnapshotInfo?.active_snapshot_id || '-';
+      const sourcePath = selected
+        ? (resolveDocSourceScanPath(selected.mount_path, selected.root_subpath) || selected.mount_path || '(경로 없음)')
+        : '연결된 Source 없음';
 
       // Step 1: 소스 등록
-      const sourceOk = sourceSummary.totalSources > 0;
+      const sourceOk = !!selected;
+      const sourceAccessible = String(selected?.status || '').toLowerCase() === 'accessible';
       setStep(1, sourceOk ? 'ok' : 'err', sourceOk ? '✓ 등록됨' : '미등록');
-      setText('wrOverviewSourceState', sourceOk ? `${sourceSummary.totalSources}개 등록` : '등록 필요');
+      setText('wrOverviewSourceState', sourceOk ? `${selected?.source_name || selected?.name || sourceId} (${sourceAccessible ? '연결됨' : '확인 필요'})` : '등록 필요');
 
       // Step 2: 파일 스캔
       const totalFiles = Number(sourceSummary.totalFiles || datasetSummary.total_documents || 0);
@@ -9776,6 +9868,13 @@ POST /api/admin/faiss/activate</code>
       setStep(3, metaOk ? 'ok' : (metaRunning ? 'running' : 'err'), metaOk ? '✓ 완료' : (metaRunning ? `${metaBuilt}/${totalDocs}` : '생성 필요'));
       setText('wrOverviewMetaState', metaOk ? '완료' : (metaRunning ? `${metaBuilt}/${totalDocs}` : '생성 필요'));
       setText('wrAlertPendingDocs', `${reviewRequired}건`);
+      setText('wrOverviewActiveDataset', activeDatasetId || '-');
+      setText('wrOverviewActiveSnapshot', activeSnapshotId || '-');
+      setText('wrOverviewSourcePath', sourcePath);
+      setText(
+        'wrOverviewBuilderState',
+        `문서 ${wrFmtCount(totalDocs, '건')} · 메타 ${wrFmtCount(metaBuilt, '건')} · 검수완료 ${wrFmtCount(reviewed, '건')}`
+      );
     } catch {
       setStep(1, 'err', '연결 오류');
       setStep(2, 'err', '연결 오류');
@@ -9783,6 +9882,10 @@ POST /api/admin/faiss/activate</code>
       setText('wrOverviewSourceState', '연결 오류');
       setText('wrOverviewFileState', '연결 오류');
       setText('wrOverviewMetaState', '연결 오류');
+      setText('wrOverviewActiveDataset', '연결 오류');
+      setText('wrOverviewActiveSnapshot', '연결 오류');
+      setText('wrOverviewSourcePath', '연결 오류');
+      setText('wrOverviewBuilderState', '연결 오류');
     }
 
     // Step 4: FAISS 인덱스
@@ -15056,7 +15159,13 @@ LIMIT 10`;
     const h = { 'Authorization': 'Bearer ' + getToken() };
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     let missingDeployDetected = false;
-    const currentSourceId = getCurrentSourceId();
+    let currentSourceId = getCurrentSourceId();
+    try {
+      const activeContext = await fetchActiveDashboardContext();
+      currentSourceId = activeContext.sourceId || currentSourceId;
+    } catch (e) {
+      console.warn('[loadDashboard] active context fallback:', e.message);
+    }
     const graphSummaryUrl = currentSourceId
       ? `/api/graph/summary?source_id=${encodeURIComponent(currentSourceId)}`
       : '/api/graph/summary';
