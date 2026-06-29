@@ -1149,24 +1149,44 @@ def main() -> int:
         out_dir = _get_graph_dir(source_id)
 
     # Resolve source
-    faiss_meta_path: Path | None = None
+    faiss_meta_paths: list[Path] = []
     snapshot = args.snapshot or _read_active_snapshot()  # Phase 3용으로 미리 추출
     if args.faiss_meta:
-        faiss_meta_path = Path(args.faiss_meta)
+        faiss_meta_paths = [Path(args.faiss_meta)]
     else:
         if snapshot:
+            # 1차: 단일 통합 메타데이터 파일 시도
             candidate = FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl"
             if candidate.exists():
-                faiss_meta_path = candidate
+                faiss_meta_paths = [candidate]
+            else:
+                # 2차: 카테고리별 메타데이터 파일 병합 (rfp, proposal, deliverable)
+                category_files = sorted(FAISS_DIR.glob(f"{snapshot}_*_ollama_metadata.jsonl"))
+                if category_files:
+                    faiss_meta_paths = category_files
+                    print(json.dumps({"info": f"카테고리별 FAISS 메타데이터 {len(category_files)}개 병합",
+                                      "files": [f.name for f in category_files]}, ensure_ascii=False))
 
     # 진행률 출력: 데이터 로드 시작
     print(json.dumps({"progress": 10, "current": 1, "total": 5, "stage": "그래프 데이터 로드"}), flush=True)
 
-    if faiss_meta_path and faiss_meta_path.exists():
-        docs = _docs_from_faiss_meta(faiss_meta_path)
+    if faiss_meta_paths:
+        # 여러 FAISS metadata 파일에서 문서 추출 (중복 제거)
+        docs = []
+        for meta_path in faiss_meta_paths:
+            docs.extend(_docs_from_faiss_meta(meta_path))
+        # document_id 기준 중복 제거
+        seen_doc_ids: set[str] = set()
+        unique_docs = []
+        for doc in docs:
+            doc_id = doc.get("document_id", "")
+            if doc_id and doc_id not in seen_doc_ids:
+                seen_doc_ids.add(doc_id)
+                unique_docs.append(doc)
+        docs = unique_docs
         source_type = "faiss_metadata"
-        source_path = str(faiss_meta_path)
-        print(json.dumps({"source": "faiss_metadata", "path": str(faiss_meta_path),
+        source_path = ", ".join(str(p) for p in faiss_meta_paths)
+        print(json.dumps({"source": "faiss_metadata", "files": [p.name for p in faiss_meta_paths],
                           "doc_count": len(docs)}, ensure_ascii=False))
     else:
         docs = _docs_from_manifests()
@@ -1199,8 +1219,9 @@ def main() -> int:
 
     # Phase 2: 청크 데이터도 로드 (section_heading, page_no 추출용)
     chunks: list[dict] = []
-    if faiss_meta_path and faiss_meta_path.exists():
-        chunks = _chunks_from_faiss_meta(faiss_meta_path, allowed_doc_ids=allowed_doc_ids)
+    if faiss_meta_paths:
+        for meta_path in faiss_meta_paths:
+            chunks.extend(_chunks_from_faiss_meta(meta_path, allowed_doc_ids=allowed_doc_ids))
         print(json.dumps({"phase2": "filtered_chunks_loaded", "chunk_count": len(chunks)}, ensure_ascii=False))
 
     # 진행률 출력: 노드/엣지 생성
