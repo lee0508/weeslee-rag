@@ -375,6 +375,9 @@
         <button class="wr-btn wr-btn-primary" type="button" data-wr-legacy-tab="docsource" style="margin-bottom:20px">Legacy Document Source 열기</button>
         <h2 class="wr-section-title" id="wr-source-settings" data-wr-anchor>Source Settings</h2>
         <div class="wr-form-grid">
+          <div class="wr-field"><label>Active Dataset</label><input id="wrSourceActiveDataset" value="(로딩 중...)" readonly></div>
+          <div class="wr-field"><label>Active Source ID</label><input id="wrSourceActiveSourceId" value="(로딩 중...)" readonly></div>
+          <div class="wr-field"><label>Active Snapshot</label><input id="wrSourceActiveSnapshot" value="(로딩 중...)" readonly></div>
           <div class="wr-field"><label>Default source path</label><input id="wrSourceDefaultPath" value="(로딩 중...)" readonly></div>
           <div class="wr-field"><label>Default client</label><input id="wrSourceDefaultClient" value="(로딩 중...)" readonly></div>
         </div>
@@ -9262,6 +9265,9 @@ POST /api/admin/faiss/activate</code>
 
       const pathEl = document.getElementById('wrSourceDefaultPath');
       const clientEl = document.getElementById('wrSourceDefaultClient');
+      const datasetEl = document.getElementById('wrSourceActiveDataset');
+      const sourceIdEl = document.getElementById('wrSourceActiveSourceId');
+      const snapshotEl = document.getElementById('wrSourceActiveSnapshot');
       if (pathEl) {
         pathEl.value = selected
           ? (resolveDocSourceScanPath(selected.mount_path, selected.root_subpath) || selected.mount_path || '(경로 없음)')
@@ -9269,6 +9275,15 @@ POST /api/admin/faiss/activate</code>
       }
       if (clientEl) {
         clientEl.value = selected?.client_id || '-';
+      }
+      if (datasetEl) {
+        datasetEl.value = activeDatasetId || selected?.dataset_id || '-';
+      }
+      if (sourceIdEl) {
+        sourceIdEl.value = selectedSourceId || context.activeSourceId || '-';
+      }
+      if (snapshotEl) {
+        snapshotEl.value = publishData.active_snapshot || _activeSnapshotInfo?.active_snapshot_id || '-';
       }
 
       if (!selected) {
@@ -9287,8 +9302,14 @@ POST /api/admin/faiss/activate</code>
       wrSetText('wrSourceDefaultName', '-');
       const pathEl = document.getElementById('wrSourceDefaultPath');
       const clientEl = document.getElementById('wrSourceDefaultClient');
+      const datasetEl = document.getElementById('wrSourceActiveDataset');
+      const sourceIdEl = document.getElementById('wrSourceActiveSourceId');
+      const snapshotEl = document.getElementById('wrSourceActiveSnapshot');
       if (pathEl) pathEl.value = '로드 실패';
       if (clientEl) clientEl.value = '-';
+      if (datasetEl) datasetEl.value = '-';
+      if (sourceIdEl) sourceIdEl.value = '-';
+      if (snapshotEl) snapshotEl.value = '-';
       setCallout('Document Source 상태를 불러오지 못했습니다. Publish/Active Snapshot 상태를 확인하세요.', 'danger');
     }
   }
@@ -15358,14 +15379,21 @@ LIMIT 10`;
         platformFetch('/admin/document-sources'),
         platformFetch('/admin/publish/status')
       ]);
-      const selected = _resolveDocumentSourceContext(sources, publishData, _activeSnapshotInfo).selected;
+      const context = _resolveDocumentSourceContext(sources, publishData, _activeSnapshotInfo);
+      const selected = context.selected;
 
       const pathEl = document.getElementById('wrSourceDefaultPath');
       const clientEl = document.getElementById('wrSourceDefaultClient');
+      const datasetEl = document.getElementById('wrSourceActiveDataset');
+      const sourceIdEl = document.getElementById('wrSourceActiveSourceId');
+      const snapshotEl = document.getElementById('wrSourceActiveSnapshot');
 
       if (!selected) {
         if (pathEl) pathEl.value = '등록된 Source 없음';
         if (clientEl) clientEl.value = '-';
+        if (datasetEl) datasetEl.value = '-';
+        if (sourceIdEl) sourceIdEl.value = '-';
+        if (snapshotEl) snapshotEl.value = '-';
         return;
       }
 
@@ -15373,13 +15401,22 @@ LIMIT 10`;
 
       if (pathEl) pathEl.value = root || selected.mount_path || '(경로 없음)';
       if (clientEl) clientEl.value = selected.client_id || '';
+      if (datasetEl) datasetEl.value = context.activeDatasetId || selected.dataset_id || '-';
+      if (sourceIdEl) sourceIdEl.value = selected.source_id || selected.id || context.activeSourceId || '-';
+      if (snapshotEl) snapshotEl.value = publishData.active_snapshot || _activeSnapshotInfo?.active_snapshot_id || '-';
 
     } catch (e) {
       console.warn('[loadSourceSettingsFromApi] Document Source 로드 실패:', e.message);
       const pathEl = document.getElementById('wrSourceDefaultPath');
       const clientEl = document.getElementById('wrSourceDefaultClient');
+      const datasetEl = document.getElementById('wrSourceActiveDataset');
+      const sourceIdEl = document.getElementById('wrSourceActiveSourceId');
+      const snapshotEl = document.getElementById('wrSourceActiveSnapshot');
       if (pathEl) pathEl.value = '로드 실패';
       if (clientEl) clientEl.value = '-';
+      if (datasetEl) datasetEl.value = '-';
+      if (sourceIdEl) sourceIdEl.value = '-';
+      if (snapshotEl) snapshotEl.value = '-';
     }
   }
 
