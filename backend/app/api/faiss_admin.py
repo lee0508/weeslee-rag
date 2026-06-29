@@ -123,6 +123,39 @@ def _load_faiss_manifest(snapshot_id: str) -> Optional[dict]:
         return None
 
 
+def _resolve_snapshot_source_dataset(snapshot: str, fallback_source_id: Optional[str] = None, fallback_dataset_id: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    source_id = fallback_source_id or None
+    dataset_id = fallback_dataset_id or None
+    snapshot_manifest = _load_snapshot_manifest(snapshot)
+    faiss_manifest = _load_faiss_manifest(snapshot)
+
+    if snapshot_manifest:
+        source_id = (snapshot_manifest.dataset.source_id or "").strip() or source_id
+        dataset_id = (snapshot_manifest.dataset.dataset_id or "").strip() or dataset_id
+    elif faiss_manifest:
+        counts_by_source = faiss_manifest.get("counts_by_source") or {}
+        if isinstance(counts_by_source, dict) and len(counts_by_source) == 1:
+            source_id = next(iter(counts_by_source.keys()), "").strip() or source_id
+            if source_id and not dataset_id:
+                dataset_id = get_source_dataset_context(source_id).get("dataset_id") or None
+
+    if snapshot and (not source_id or not dataset_id):
+        parts = snapshot.replace("snapshot_", "").split("_")
+        if len(parts) >= 2:
+            date_part = parts[0]
+            source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
+            parsed_source_id = "_".join(source_parts) if source_parts else ""
+            if parsed_source_id and not source_id:
+                source_id = parsed_source_id
+            if source_id and not dataset_id:
+                dataset_id = get_source_dataset_context(source_id).get("dataset_id") or generate_dataset_id(
+                    source_id,
+                    f"{date_part}T00:00:00+00:00",
+                )
+
+    return source_id, dataset_id
+
+
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/status")
@@ -133,35 +166,7 @@ async def faiss_status():
     snapshot_manifest = _load_snapshot_manifest(snapshot)
     faiss_manifest = _load_faiss_manifest(snapshot)
 
-    # snapshot_id에서 source_id, dataset_id 추출
-    # 형식: snapshot_YYYYMMDD_source_id_vN 또는 snapshot_YYYYMMDD_VN
-    source_id = None
-    dataset_id = None
-    if snapshot_manifest:
-        source_id = (snapshot_manifest.dataset.source_id or "").strip() or None
-        dataset_id = (snapshot_manifest.dataset.dataset_id or "").strip() or None
-    elif faiss_manifest:
-        counts_by_source = faiss_manifest.get("counts_by_source") or {}
-        if isinstance(counts_by_source, dict) and len(counts_by_source) == 1:
-            source_id = next(iter(counts_by_source.keys()), "").strip() or None
-            if source_id:
-                source_context = get_source_dataset_context(source_id)
-                dataset_id = source_context.get("dataset_id") or None
-    elif snapshot:
-        # snapshot_20260616_rag_source_v1 형식 파싱
-        parts = snapshot.replace("snapshot_", "").split("_")
-        if len(parts) >= 2:
-            date_part = parts[0]  # YYYYMMDD
-            # source_id 추출 (v로 시작하는 버전 부분 제외)
-            source_parts = [p for p in parts[1:] if not p.lower().startswith("v")]
-            if source_parts:
-                source_id = "_".join(source_parts)
-            if source_id:
-                source_context = get_source_dataset_context(source_id)
-                dataset_id = source_context.get("dataset_id") or generate_dataset_id(
-                    source_id,
-                    f"{date_part}T00:00:00+00:00",
-                )
+    source_id, dataset_id = _resolve_snapshot_source_dataset(snapshot)
 
     active_payload = dict(active or {})
     if snapshot:
@@ -399,12 +404,17 @@ async def activate_index(req: ActivateRequest):
             status_code=404,
             detail=f"Index file not found for snapshot: {req.snapshot}",
         )
-    result = runner.activate_snapshot(req.snapshot, req.source_id, req.dataset_id)
+    resolved_source_id, resolved_dataset_id = _resolve_snapshot_source_dataset(
+        req.snapshot,
+        req.source_id,
+        req.dataset_id,
+    )
+    result = runner.activate_snapshot(req.snapshot, resolved_source_id, resolved_dataset_id)
     return {
         "activated": result,
         "stats": stats,
-        "source_id": req.source_id,
-        "dataset_id": req.dataset_id,
+        "source_id": resolved_source_id,
+        "dataset_id": resolved_dataset_id,
         "snapshot": req.snapshot,
     }
 
