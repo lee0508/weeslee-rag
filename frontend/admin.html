@@ -14173,12 +14173,79 @@ LIMIT 10`;
   // ── Active Snapshot 정보 로드 ────────────────────────────────────
   let _activeSnapshotInfo = null;
 
+  function normalizeActiveSnapshotConfig(snapshotData = null, faissData = null) {
+    const snapshotConfig = snapshotData?.success && snapshotData?.active_config
+      ? snapshotData.active_config
+      : null;
+    const faissActive = faissData?.active || null;
+    const faissServer = faissData?.server_config || {};
+
+    const activeSnapshotId = String(
+      faissData?.snapshot_id ||
+      faissActive?.snapshot ||
+      faissServer?.active_snapshot ||
+      snapshotConfig?.active_snapshot_id ||
+      ''
+    ).trim();
+
+    if (!activeSnapshotId) return null;
+
+    return {
+      active_snapshot_id: activeSnapshotId,
+      faiss_index_id: String(
+        faissActive?.snapshot ||
+        faissData?.snapshot_id ||
+        snapshotConfig?.faiss_index_id ||
+        activeSnapshotId
+      ).trim(),
+      index_file: faissActive?.index_file || snapshotConfig?.index_file || '',
+      metadata_file: faissActive?.metadata_file || snapshotConfig?.metadata_file || '',
+      embedding_provider: faissServer?.embedding_provider || snapshotConfig?.embedding_provider || '',
+      vector_count: Number(
+        faissActive?.vector_count ||
+        faissData?.stats?.chunk_count ||
+        snapshotConfig?.vector_count ||
+        0
+      ),
+      document_count: Number(
+        faissActive?.document_count ||
+        snapshotConfig?.document_count ||
+        0
+      ),
+      chunk_count: Number(
+        faissActive?.chunk_count ||
+        faissData?.stats?.chunk_count ||
+        snapshotConfig?.chunk_count ||
+        0
+      ),
+      dataset_id: String(
+        faissData?.dataset_id ||
+        faissActive?.dataset_id ||
+        faissServer?.active_dataset_id ||
+        snapshotConfig?.dataset_id ||
+        ''
+      ).trim(),
+      source_id: String(
+        faissData?.source_id ||
+        faissActive?.source_id ||
+        faissServer?.active_source_id ||
+        snapshotConfig?.source_id ||
+        ''
+      ).trim(),
+      activated_at: faissActive?.activated_at || snapshotConfig?.activated_at || null,
+    };
+  }
+
   async function loadActiveSnapshotInfo() {
     try {
-      const data = await platformFetch('/admin/snapshot/active');
-      if (data.success && data.active_config) {
-        _activeSnapshotInfo = data.active_config;
-        updateActiveSnapshotDisplay(data.active_config);
+      const [snapshotData, faissData] = await Promise.all([
+        platformFetch('/admin/snapshot/active').catch(() => null),
+        platformFetch('/admin/faiss/status').catch(() => null),
+      ]);
+      const normalizedConfig = normalizeActiveSnapshotConfig(snapshotData, faissData);
+      if (normalizedConfig?.active_snapshot_id) {
+        _activeSnapshotInfo = normalizedConfig;
+        updateActiveSnapshotDisplay(normalizedConfig);
         loadDocumentSourceOverview();
       } else {
         _activeSnapshotInfo = null;
