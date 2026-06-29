@@ -2051,7 +2051,7 @@
           <div>
             <label for="searchScope">검색 범위</label>
             <select id="searchScope" onchange="updateSearchScopeHint()">
-              <option value="active_snapshot">현재 Active Snapshot</option>
+              <option value="all_sources" selected>전체 데이터셋</option>
             </select>
             <div id="searchScopeHint" style="margin-top:4px;font-size:11px;color:var(--gray-400);line-height:1.5;">
               검색 범위를 불러오는 중입니다.
@@ -2059,8 +2059,8 @@
           </div>
           <div>
             <label for="searchSnapshotMulti">Snapshot 직접 선택</label>
-            <select id="searchSnapshotMulti" multiple size="7" onchange="updateSnapshotSelectionHint(); updateSearchScopeHint()">
-            </select>
+            <div id="searchSnapshotMulti" style="max-height:172px;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px;background:rgba(255,255,255,.03);">
+            </div>
             <div id="searchSnapshotHint" style="margin-top:4px;font-size:11px;color:var(--gray-400);line-height:1.5;">
               선택 없으면 검색 범위를 사용합니다.
             </div>
@@ -2210,7 +2210,7 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title" data-i18n="query_input">Query Input</div>
-            <div class="status" id="queryStatus" data-i18n="ready">Ready.</div>
+            <div class="status" id="queryStatus" data-i18n="ready" hidden>Ready.</div>
           </div>
           <div class="card-body">
             <!-- RFP 파일 업로드 바 -->
@@ -3004,10 +3004,13 @@
 
     async function loadOllamaModels() {
       try {
-        const r = await fetch(`${API_BASE}/health/ollama`);
+        const r = await fetch(`${API_BASE}/health/ollama/models`);
         if (!r.ok) return;
         const data = await r.json();
-        populateModelSelect(data.models || []);
+        const llmModels = Array.isArray(data.llm_models)
+          ? data.llm_models.map(model => model?.name).filter(Boolean)
+          : [];
+        populateModelSelect(llmModels);
       } catch (_) {}
     }
 
@@ -3090,48 +3093,50 @@
     let _searchScopes = [];
 
     function getSelectedSearchScope() {
-      return document.getElementById('searchScope')?.value || 'active_snapshot';
+      return document.getElementById('searchScope')?.value || 'all_sources';
+    }
+
+    function getSnapshotCheckboxNodes() {
+      return Array.from(document.querySelectorAll('#searchSnapshotMulti input[type="checkbox"][data-snapshot-id]'));
     }
 
     function getSelectedSnapshotIds() {
-      return Array.from(document.getElementById('searchSnapshotMulti')?.selectedOptions || [])
-        .map(option => option.value)
+      return getSnapshotCheckboxNodes()
+        .filter(node => node.checked)
+        .map(node => node.dataset.snapshotId || '')
         .filter(Boolean);
     }
 
     function clearSelectedSnapshots() {
-      const selectEl = document.getElementById('searchSnapshotMulti');
-      if (!selectEl) return;
-      Array.from(selectEl.options).forEach(option => {
-        option.selected = false;
+      getSnapshotCheckboxNodes().forEach(node => {
+        node.checked = false;
       });
       updateSnapshotSelectionHint();
       updateSearchScopeHint();
     }
 
     function updateSnapshotSelectionHint() {
-      const selectEl = document.getElementById('searchSnapshotMulti');
       const hintEl = document.getElementById('searchSnapshotHint');
-      if (!selectEl || !hintEl) return;
-      const selectedOptions = Array.from(selectEl.selectedOptions || []);
-      if (!selectedOptions.length) {
+      if (!hintEl) return;
+      const selectedNodes = getSnapshotCheckboxNodes().filter(node => node.checked);
+      if (!selectedNodes.length) {
         hintEl.textContent = '선택 없으면 위 검색 범위를 사용합니다.';
         return;
       }
-      const labels = selectedOptions.slice(0, 3).map(option => option.textContent || option.value);
-      const moreCount = selectedOptions.length - labels.length;
-      hintEl.textContent = `선택 Snapshot ${selectedOptions.length}개: ${labels.join(', ')}${moreCount > 0 ? ` 외 ${moreCount}개` : ''}`;
+      const labels = selectedNodes.slice(0, 3).map(node => node.dataset.snapshotLabel || node.dataset.snapshotId || '');
+      const moreCount = selectedNodes.length - labels.length;
+      hintEl.textContent = `선택 Snapshot ${selectedNodes.length}개: ${labels.join(', ')}${moreCount > 0 ? ` 외 ${moreCount}개` : ''}`;
     }
 
     function renderSnapshotMultiSelect(sources) {
-      const selectEl = document.getElementById('searchSnapshotMulti');
-      if (!selectEl) return;
+      const listEl = document.getElementById('searchSnapshotMulti');
+      if (!listEl) return;
       const selectedIds = new Set(getSelectedSnapshotIds());
-      selectEl.innerHTML = '';
+      listEl.innerHTML = '';
 
       const sourceList = Array.isArray(sources) ? sources : [];
       if (!sourceList.length) {
-        selectEl.disabled = true;
+        listEl.innerHTML = '<div style="font-size:11px;color:var(--gray-500);padding:4px 2px;">표시할 Snapshot이 없습니다.</div>';
         updateSnapshotSelectionHint();
         return;
       }
@@ -3141,19 +3146,45 @@
           ? source.snapshots.filter(item => item?.queryable)
           : [];
         if (!snapshots.length) return;
-        const group = document.createElement('optgroup');
-        group.label = source.source_name || source.source_id || 'Source';
+        const group = document.createElement('div');
+        group.style.marginBottom = '8px';
+        const title = document.createElement('div');
+        title.textContent = source.source_name || source.source_id || 'Source';
+        title.style.fontSize = '11px';
+        title.style.color = 'var(--gray-400)';
+        title.style.marginBottom = '4px';
+        title.style.fontWeight = '600';
+        group.appendChild(title);
         snapshots.forEach(snapshot => {
-          const option = document.createElement('option');
-          option.value = snapshot.snapshot_id;
-          option.textContent = `${snapshot.snapshot_id}${snapshot.is_active ? ' [active]' : ''}`;
-          option.selected = selectedIds.has(snapshot.snapshot_id);
-          group.appendChild(option);
+          const row = document.createElement('label');
+          row.style.display = 'flex';
+          row.style.alignItems = 'center';
+          row.style.gap = '6px';
+          row.style.fontSize = '11px';
+          row.style.color = 'var(--gray-200)';
+          row.style.margin = '0 0 4px 0';
+          row.style.cursor = 'pointer';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.dataset.snapshotId = snapshot.snapshot_id;
+          checkbox.dataset.snapshotLabel = `${snapshot.snapshot_id}${snapshot.is_active ? ' [active]' : ''}`;
+          checkbox.checked = selectedIds.has(snapshot.snapshot_id);
+          checkbox.addEventListener('change', () => {
+            updateSnapshotSelectionHint();
+            updateSearchScopeHint();
+          });
+
+          const text = document.createElement('span');
+          text.textContent = checkbox.dataset.snapshotLabel;
+
+          row.appendChild(checkbox);
+          row.appendChild(text);
+          group.appendChild(row);
         });
-        selectEl.appendChild(group);
+        listEl.appendChild(group);
       });
 
-      selectEl.disabled = !selectEl.options.length;
       updateSnapshotSelectionHint();
     }
 
@@ -3193,15 +3224,15 @@
         selectEl.innerHTML = '';
         if (!_searchScopes.length) {
           const option = document.createElement('option');
-          option.value = 'active_snapshot';
-          option.textContent = '현재 Active Snapshot';
+          option.value = 'all_sources';
+          option.textContent = '전체 데이터셋';
           selectEl.appendChild(option);
           _searchScopes = [{
-            scope_id: 'active_snapshot',
-            label: '현재 Active Snapshot',
-            description: '현재 활성 스냅샷 1개만 검색합니다.',
-            snapshot_count: 1,
-            source_count: 1,
+            scope_id: 'all_sources',
+            label: '전체 데이터셋',
+            description: '사용 가능한 전체 Source의 최신 Snapshot을 검색합니다.',
+            snapshot_count: 0,
+            source_count: 0,
           }];
         } else {
           _searchScopes.forEach(scope => {
@@ -3212,23 +3243,26 @@
           });
         }
 
+        const preferredValue = _searchScopes.some(scope => scope.scope_id === 'all_sources')
+          ? 'all_sources'
+          : (data.default_scope_id || _searchScopes[0]?.scope_id || 'active_snapshot');
         const nextValue = _searchScopes.some(scope => scope.scope_id === currentValue)
           ? currentValue
-          : (data.default_scope_id || _searchScopes[0]?.scope_id || 'active_snapshot');
+          : preferredValue;
         selectEl.value = nextValue;
         updateSearchScopeHint();
       } catch (error) {
         console.error('loadSearchScopes error:', error);
         _searchScopes = [{
-          scope_id: 'active_snapshot',
-          label: '현재 Active Snapshot',
+          scope_id: 'all_sources',
+          label: '전체 데이터셋',
           description: '기본 검색 범위를 사용합니다.',
-          snapshot_count: 1,
-          source_count: 1,
+          snapshot_count: 0,
+          source_count: 0,
         }];
-        selectEl.innerHTML = '<option value="active_snapshot">현재 Active Snapshot</option>';
+        selectEl.innerHTML = '<option value="all_sources">전체 데이터셋</option>';
         renderSnapshotMultiSelect([]);
-        if (hintEl) hintEl.textContent = '검색 범위 목록을 가져오지 못해 기본 Active Snapshot으로 고정합니다.';
+        if (hintEl) hintEl.textContent = '검색 범위 목록을 가져오지 못해 기본 전체 데이터셋으로 고정합니다.';
       }
     }
 
