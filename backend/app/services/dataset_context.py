@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 from typing import Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from app.services.platform_store import get_record, update_record
 
 
 _STORE = "document_sources"
 _ID_FIELD = "source_id"
+_KST = ZoneInfo("Asia/Seoul")
 
 
 def _utc_now_iso() -> str:
@@ -15,10 +17,10 @@ def _utc_now_iso() -> str:
 def _dataset_stamp(value: Optional[str] = None) -> str:
     if value:
         try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00")).strftime("%Y%m%d_%H%M%S")
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(_KST).strftime("%Y%m%d_%H%M%S")
         except Exception:
             pass
-    return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return datetime.now(_KST).strftime("%Y%m%d_%H%M%S")
 
 
 def generate_dataset_id(source_id: str, created_at: Optional[str] = None) -> str:

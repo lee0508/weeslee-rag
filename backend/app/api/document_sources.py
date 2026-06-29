@@ -182,7 +182,8 @@ def _next_action(new_count: int, changed_count: int, removed_count: int, initial
 
 
 def _generate_source_id() -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    from zoneinfo import ZoneInfo
+    stamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y%m%d_%H%M%S")
     for _ in range(10):
         source_id = f"src_{stamp}_{secrets.token_hex(3)}"
         if not get_record(STORE, ID_FIELD, source_id):
