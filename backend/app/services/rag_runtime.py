@@ -23,10 +23,45 @@ _cache_lock = threading.Lock()
 _active_snapshot_cache: dict[str, Any] = {"path": None, "mtime": None, "snapshot": None}
 _bundle_cache: dict[tuple[str, str], dict[str, Any]] = {}
 _chunk_cache: dict[str, dict[str, Any]] = {}
+_snapshot_manifest_cache: dict[str, dict[str, Any]] = {}
 
 
 def _resolve_setting_path(path_value: str) -> Path:
     return Path(path_value).expanduser().resolve()
+
+
+def _snapshots_dir() -> Path:
+    return PROJECT_ROOT / "data" / "snapshots"
+
+
+def _resolve_faiss_index_id(snapshot_id: str) -> str:
+    """snapshot_id에 해당하는 faiss_index_id를 반환. manifest가 없으면 snapshot_id 그대로 반환."""
+    snapshot_id = str(snapshot_id or "").strip()
+    if not snapshot_id:
+        return snapshot_id
+
+    with _cache_lock:
+        cached = _snapshot_manifest_cache.get(snapshot_id)
+        if cached:
+            return cached.get("faiss_index_id", snapshot_id)
+
+    snapshots_dir = _snapshots_dir()
+    for pattern in [f"snapshot_{snapshot_id}.json", f"{snapshot_id}.json", f"*{snapshot_id}*.json"]:
+        for manifest_path in snapshots_dir.glob(pattern):
+            try:
+                data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if data.get("snapshot_id") == snapshot_id:
+                    faiss_index_id = (data.get("rag_build") or {}).get("faiss_index_id", "")
+                    with _cache_lock:
+                        _snapshot_manifest_cache[snapshot_id] = {
+                            "faiss_index_id": faiss_index_id or snapshot_id,
+                            "manifest": data,
+                        }
+                    return faiss_index_id or snapshot_id
+            except Exception:
+                continue
+
+    return snapshot_id
 
 
 def _scripts_dir() -> Path:
@@ -402,15 +437,18 @@ def run_multi_rag_query(
 
     all_hits: list[Any] = []
     skipped_snapshots: list[dict[str, str]] = []
+    resolved_index_ids: list[str] = []
     for snapshot_id in resolved_snapshots:
         try:
-            index_path, meta_path = default_index_paths(snapshot_id, category)
-            chunks_path = default_chunks_path(snapshot_id)
+            faiss_index_id = _resolve_faiss_index_id(snapshot_id)
+            index_path, meta_path = default_index_paths(faiss_index_id, category)
+            chunks_path = default_chunks_path(faiss_index_id)
             if not (index_path.exists() and meta_path.exists() and chunks_path.exists()):
                 skipped_snapshots.append(
-                    {"snapshot": snapshot_id, "error": "required files missing"}
+                    {"snapshot": snapshot_id, "faiss_index_id": faiss_index_id, "error": "required files missing"}
                 )
                 continue
+            resolved_index_ids.append(faiss_index_id)
             bundle = _get_bundle(index_path.resolve(), meta_path.resolve())
             chunk_map = _get_chunk_map(chunks_path.resolve())
             all_hits.extend(_build_hits_for_snapshot(snapshot_id, bundle, chunk_map, args))
@@ -445,8 +483,10 @@ def run_multi_rag_query(
         args,
         documents,
         answer,
-        snapshot=resolved_snapshots[0],
-        snapshots=resolved_snapshots,
+        snapshot=resolved_index_ids[0] if resolved_index_ids else resolved_snapshots[0],
+        snapshots=resolved_index_ids or resolved_snapshots,
     )
     payload["skipped_snapshots"] = skipped_snapshots
+    payload["requested_snapshots"] = resolved_snapshots
+    payload["resolved_index_ids"] = resolved_index_ids
     return payload

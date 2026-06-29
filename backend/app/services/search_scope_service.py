@@ -147,8 +147,10 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
                 "latest_queryable_snapshot": "",
             },
         )
+        faiss_index_id = (snap.rag_build.faiss_index_id or snap.snapshot_id or "").strip()
         snapshot_entry = {
             "snapshot_id": snap.snapshot_id,
+            "faiss_index_id": faiss_index_id,
             "dataset_id": snap.dataset.dataset_id,
             "is_active": bool(snap.is_active),
             "status": snap.status.value,
@@ -161,7 +163,7 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
         }
         info["snapshots"].append(snapshot_entry)
         if snapshot_entry["queryable"] and not info["latest_queryable_snapshot"]:
-            info["latest_queryable_snapshot"] = snap.snapshot_id
+            info["latest_queryable_snapshot"] = faiss_index_id
 
     for snapshot_id in _list_faiss_snapshot_names():
         if snapshot_id in known_snapshot_ids:
@@ -270,7 +272,11 @@ def get_search_scope_catalog() -> dict[str, Any]:
     active_source_ids = [
         source_id
         for source_id, info in registry.items()
-        if any(str(snap.get("snapshot_id") or "") == active_snapshot for snap in info.get("snapshots", []))
+        if any(
+            str(snap.get("snapshot_id") or "") == active_snapshot
+            or str(snap.get("faiss_index_id") or "") == active_snapshot
+            for snap in info.get("snapshots", [])
+        )
     ][:1]
 
     source_latest = [
