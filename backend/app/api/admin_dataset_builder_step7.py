@@ -135,6 +135,19 @@ def save_faiss_collection(
     return str(index_path)
 
 
+def _load_collection_metadata(metadata_path: Path) -> Dict[str, Any]:
+    """legacy로 여러 JSON이 붙은 metadata.json도 첫 객체를 복구해 읽는다."""
+    raw = metadata_path.read_text(encoding="utf-8")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        parsed, _ = decoder.raw_decode(raw.lstrip())
+        if not isinstance(parsed, dict):
+            raise
+        return parsed
+
+
 def _build_index_with_optional_gpu(index: faiss.Index, vectors: np.ndarray) -> tuple[faiss.Index, bool]:
     gpu_requested = is_stage_gpu_enabled("faiss")
     gpu_api_ready = all(
@@ -320,11 +333,10 @@ async def get_faiss_status(db: Session = Depends(get_db)):
 
             metadata_path = collection_dir / "metadata.json"
             if metadata_path.exists():
-                with open(metadata_path, "r", encoding="utf-8") as f:
-                    metadata = json.load(f)
-                    collections.append(metadata["collection_name"])
-                    total_vectors += metadata.get("total_vectors", 0)
-                    total_documents += metadata.get("documents_count", 0)
+                metadata = _load_collection_metadata(metadata_path)
+                collections.append(metadata["collection_name"])
+                total_vectors += metadata.get("total_vectors", 0)
+                total_documents += metadata.get("documents_count", 0)
 
         return FAISSStatusResponse(
             collections=collections,
@@ -353,8 +365,7 @@ async def get_collection_info(collection_name: str):
         if not metadata_path.exists():
             raise HTTPException(status_code=404, detail="Collection metadata not found")
 
-        with open(metadata_path, "r", encoding="utf-8") as f:
-            metadata = json.load(f)
+        metadata = _load_collection_metadata(metadata_path)
 
         # vector_to_doc_map은 너무 크므로 제외
         if "vector_to_doc_map" in metadata:
@@ -413,20 +424,19 @@ async def get_faiss_stats():
 
             metadata_path = collection_dir / "metadata.json"
             if metadata_path.exists():
-                with open(metadata_path, "r", encoding="utf-8") as f:
-                    metadata = json.load(f)
+                metadata = _load_collection_metadata(metadata_path)
 
-                    stats["total_collections"] += 1
-                    stats["total_vectors"] += metadata.get("total_vectors", 0)
-                    stats["total_documents"] += metadata.get("documents_count", 0)
+                stats["total_collections"] += 1
+                stats["total_vectors"] += metadata.get("total_vectors", 0)
+                stats["total_documents"] += metadata.get("documents_count", 0)
 
-                    # 컬렉션 요약 정보만 추가
-                    stats["collections"].append({
-                        "name": metadata["collection_name"],
-                        "vectors": metadata.get("total_vectors", 0),
-                        "documents": metadata.get("documents_count", 0),
-                        "created_at": metadata.get("created_at")
-                    })
+                # 컬렉션 요약 정보만 추가
+                stats["collections"].append({
+                    "name": metadata["collection_name"],
+                    "vectors": metadata.get("total_vectors", 0),
+                    "documents": metadata.get("documents_count", 0),
+                    "created_at": metadata.get("created_at")
+                })
 
         return stats
 

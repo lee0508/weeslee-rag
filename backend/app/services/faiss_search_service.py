@@ -146,6 +146,7 @@ class FaissSearchService:
         self._init_embedding_dim = embedding_dim
         self._index = None
         self._metadata: list[dict] = []
+        self._active_metadata: list[dict] = []
         self._chunks: dict[str, dict] = {}  # chunk_id -> chunk data
         self._loaded = False
 
@@ -234,6 +235,13 @@ class FaissSearchService:
                         for line in f
                         if line.strip()
                     ]
+                if self.source_id:
+                    self._active_metadata = [
+                        row for row in self._metadata
+                        if str(row.get("source_id") or row.get("metadata", {}).get("source_id") or "").strip() == self.source_id
+                    ]
+                else:
+                    self._active_metadata = list(self._metadata)
                 # ollama 인덱스면 embedding_provider 업데이트
                 if "_ollama" in str(index_path):
                     self.embedding_provider = "ollama"
@@ -330,6 +338,11 @@ class FaissSearchService:
 
                 row = self._metadata[idx]
 
+                if self.source_id:
+                    row_source_id = str(row.get("source_id") or row.get("metadata", {}).get("source_id") or "").strip()
+                    if row_source_id != self.source_id:
+                        continue
+
                 # 필터 적용
                 if category_filter:
                     if row.get("category", "").lower() != category_filter.lower():
@@ -397,6 +410,7 @@ class FaissSearchService:
             "loaded": self._index is not None,
             "vector_count": self._index.ntotal if self._index else 0,
             "metadata_count": len(self._metadata),
+            "filtered_metadata_count": len(self._active_metadata),
             "chunks_count": len(self._chunks),
             "embedding_provider": self.embedding_provider,
             "source_id": self.source_id,

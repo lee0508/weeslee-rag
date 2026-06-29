@@ -272,7 +272,12 @@ async def get_step10_status(source_id: Optional[str] = None):
 
             if stats.get("loaded"):
                 faiss_status = "ready"
-                faiss_doc_count = stats.get("total_vectors", 0)
+                faiss_doc_count = int(
+                    stats.get("filtered_metadata_count")
+                    or stats.get("metadata_count")
+                    or stats.get("vector_count")
+                    or 0
+                )
         except Exception:
             faiss_status = "error"
 
