@@ -391,7 +391,7 @@ def _resolve_query_request(request: RagQueryRequest) -> tuple[str, str, Optional
 
 def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str) -> tuple[dict, str, Optional[dict]]:
     effective_mode, effective_query, mode_detection = _resolve_query_request(request)
-    resolved_scope = resolve_search_scope(request.search_scope, request.snapshot_ids)
+    resolved_scope = resolve_search_scope(request.search_scope)
 
     if request.index_path or request.metadata_path or request.chunks_jsonl:
         snapshot = _active_snapshot()
@@ -682,7 +682,7 @@ async def search_documents(request: SearchRequest, http_request: Request):
         )
         return result
 
-    resolved_scope = resolve_search_scope(request.search_scope, request.snapshot_ids)
+    resolved_scope = resolve_search_scope(request.search_scope)
     resolved_snapshots = [
         str(value).strip()
         for value in (resolved_scope.get("snapshot_ids") or [])

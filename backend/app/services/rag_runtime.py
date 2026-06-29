@@ -34,6 +34,14 @@ def _snapshots_dir() -> Path:
     return PROJECT_ROOT / "data" / "snapshots"
 
 
+def _active_snapshot_paths() -> list[Path]:
+    return [
+        PROJECT_ROOT / "data" / "active_snapshot.json",
+        _snapshots_dir() / "active_snapshot.json",
+        _active_index_path(),
+    ]
+
+
 def _resolve_faiss_index_id(snapshot_id: str) -> str:
     """snapshot_id에 해당하는 faiss_index_id를 반환. manifest가 없으면 snapshot_id 그대로 반환."""
     snapshot_id = str(snapshot_id or "").strip()
@@ -88,28 +96,39 @@ def _assembler():
 
 
 def get_active_snapshot() -> str:
-    active_index_path = _active_index_path()
-    if not active_index_path.exists():
+    active_paths = [path for path in _active_snapshot_paths() if path.exists()]
+    if not active_paths:
         return settings.faiss_snapshot
 
-    resolved = str(active_index_path.resolve())
-    mtime = active_index_path.stat().st_mtime
+    cache_key = "|".join(str(path.resolve()) for path in active_paths)
+    latest_mtime = max(path.stat().st_mtime for path in active_paths)
     with _cache_lock:
         if (
-            _active_snapshot_cache.get("path") == resolved
-            and _active_snapshot_cache.get("mtime") == mtime
+            _active_snapshot_cache.get("path") == cache_key
+            and _active_snapshot_cache.get("mtime") == latest_mtime
         ):
             return _active_snapshot_cache.get("snapshot") or settings.faiss_snapshot
 
         snapshot = settings.faiss_snapshot
-        try:
-            data = json.loads(active_index_path.read_text(encoding="utf-8"))
-            snapshot = data.get("snapshot") or snapshot
-        except Exception:
-            pass
+        for path in active_paths:
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+
+            candidate = (
+                data.get("active_snapshot_id")
+                or data.get("snapshot_id")
+                or data.get("snapshot")
+                or data.get("active_snapshot")
+            )
+            candidate = str(candidate or "").strip()
+            if candidate:
+                snapshot = candidate
+                break
 
         _active_snapshot_cache.update(
-            {"path": resolved, "mtime": mtime, "snapshot": snapshot}
+            {"path": cache_key, "mtime": latest_mtime, "snapshot": snapshot}
         )
         return snapshot
 
@@ -360,11 +379,12 @@ def run_rag_query(
 ) -> dict:
     assembler = _assembler()
     resolved_snapshot = snapshot or get_active_snapshot()
-    default_index, default_meta = default_index_paths(resolved_snapshot, category)
+    resolved_index_id = _resolve_faiss_index_id(resolved_snapshot)
+    default_index, default_meta = default_index_paths(resolved_index_id, category)
     resolved_index = Path(index_path).resolve() if index_path else default_index.resolve()
     resolved_meta = Path(metadata_path).resolve() if metadata_path else default_meta.resolve()
     resolved_chunks = (
-        Path(chunks_jsonl).resolve() if chunks_jsonl else default_chunks_path(resolved_snapshot).resolve()
+        Path(chunks_jsonl).resolve() if chunks_jsonl else default_chunks_path(resolved_index_id).resolve()
     )
 
     args = _build_args(

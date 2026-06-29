@@ -133,6 +133,7 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
     source_names = _source_name_map()
     registry: dict[str, dict[str, Any]] = {}
     known_snapshot_ids: set[str] = set()
+    known_faiss_index_ids: set[str] = set()
     for snap in sorted(_load_snapshot_manifests(), key=_snapshot_sort_key, reverse=True):
         source_id = str(snap.dataset.source_id or "").strip()
         if not source_id:
@@ -148,6 +149,8 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
             },
         )
         faiss_index_id = (snap.rag_build.faiss_index_id or snap.snapshot_id or "").strip()
+        if faiss_index_id:
+            known_faiss_index_ids.add(faiss_index_id)
         snapshot_entry = {
             "snapshot_id": snap.snapshot_id,
             "faiss_index_id": faiss_index_id,
@@ -163,10 +166,10 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
         }
         info["snapshots"].append(snapshot_entry)
         if snapshot_entry["queryable"] and not info["latest_queryable_snapshot"]:
-            info["latest_queryable_snapshot"] = faiss_index_id
+            info["latest_queryable_snapshot"] = snap.snapshot_id
 
     for snapshot_id in _list_faiss_snapshot_names():
-        if snapshot_id in known_snapshot_ids:
+        if snapshot_id in known_snapshot_ids or snapshot_id in known_faiss_index_ids:
             continue
         source_id = _parse_source_id_from_snapshot(snapshot_id)
         if not source_id:
