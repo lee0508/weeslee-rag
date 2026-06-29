@@ -349,6 +349,8 @@ async def run_pipeline(job_id: str) -> None:
             p["faiss_dir"].mkdir(parents=True, exist_ok=True)
             emit(70, "FAISS 인덱스 빌드 중...")
             emit(70, "실행 모드", describe_stage_compute_mode("faiss", runtime_settings))
+            emit(70, "Stage 4", "임베딩 생성과 FAISS 인덱스 저장을 시작합니다.")
+            emit(70, "Stage 4", f"입력 청크: {p['chunks_jsonl'].name}")
             rc = await _run_script(
                 [
                     "build_faiss_index.py",
@@ -371,6 +373,7 @@ async def run_pipeline(job_id: str) -> None:
         if should_run(5):
             emit(90, "카테고리 인덱스 빌드 중...")
             emit(90, "실행 모드", describe_stage_compute_mode("faiss", runtime_settings))
+            emit(90, "Stage 5", "카테고리별 보조 인덱스를 생성합니다.")
 
             # Document Source에서 동적 카테고리 가져오기
             category_keys = []
@@ -384,6 +387,8 @@ async def run_pipeline(job_id: str) -> None:
             # 카테고리가 없으면 기본값 사용
             if not category_keys:
                 category_keys = ["rfp", "proposal", "deliverable"]
+
+            emit(90, "Stage 5", f"카테고리 대상: {', '.join(category_keys)}")
 
             cmd_args = [
                 "build_category_indexes.py",
@@ -469,21 +474,29 @@ async def _run_script(
         # JSON 진행률 파싱 시도
         calculated_pct = pct_start
         stage_text = args[0]
+        log_text = line
         try:
-            if line.startswith("{") and "progress" in line:
+            if line.startswith("{"):
                 data = json.loads(line)
-                script_pct = data.get("progress", 0)
-                # 스크립트 진행률(0-100)을 pct_start ~ pct_end 범위로 매핑
-                calculated_pct = pct_start + int((script_pct / 100) * (pct_end - pct_start))
-                stage_text = data.get("stage", args[0])
-                current = data.get("current", "")
-                total = data.get("total", "")
-                if current and total:
-                    stage_text = f"{stage_text} ({current}/{total})"
+                if "progress" in data:
+                    script_pct = data.get("progress", 0)
+                    # 스크립트 진행률(0-100)을 pct_start ~ pct_end 범위로 매핑
+                    calculated_pct = pct_start + int((script_pct / 100) * (pct_end - pct_start))
+                    stage_text = data.get("stage", args[0])
+                    current = data.get("current", "")
+                    total = data.get("total", "")
+                    if current and total:
+                        stage_text = f"{stage_text} ({current}/{total})"
+                if data.get("stage"):
+                    log_text = json.dumps(data, ensure_ascii=False)
+                elif data.get("warning"):
+                    log_text = f"경고: {data.get('warning')}"
+                elif data.get("error"):
+                    log_text = f"오류: {data.get('error')}"
         except (json.JSONDecodeError, KeyError, TypeError):
             pass
 
-        emit(calculated_pct, stage_text, line)
+        emit(calculated_pct, stage_text, log_text)
     await proc.wait()
     return proc.returncode
 

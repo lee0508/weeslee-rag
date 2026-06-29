@@ -13,6 +13,30 @@
   <link rel="stylesheet" href="assets/css/admin-legacy-console.css?v=20260623V4">
   <link rel="stylesheet" href="assets/css/admin-docs-layout.css?v=20260624-contextbar240">
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <style>
+    .wizard-log {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 8px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      min-height: 72px;
+      max-height: 600px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .wizard-log.show {
+      display: block;
+    }
+  </style>
 </head>
 <body>
 
@@ -13924,6 +13948,15 @@ LIMIT 10`;
   }
 
   function onCtxSourceChange() {
+    // Document Source가 변경되면 snapshot 선택 초기화
+    _selectedSnapshot = '';
+    _wizardFaissSnapshot = null;
+    const snapshotSel = document.getElementById('ctxSnapshot');
+    if (snapshotSel) {
+      snapshotSel.value = '';
+    }
+    console.log('[onCtxSourceChange] Snapshot 선택 초기화됨');
+
     syncCtxClientFromSource(true);
     onCtxChange();
     loadDocumentSourceOverview();
@@ -17395,12 +17428,79 @@ LIMIT 10`;
     if (!el) return;
     el.classList.add('show');
     el.textContent += msg + '\n';
+    el.scrollTop = el.scrollHeight;
   }
 
-  function _wizardMarkDone(step) {
+  function _wizardFormatStructuredJobLog(rawLine) {
+    if (!rawLine || typeof rawLine !== 'string') return '';
+    const line = rawLine.trim();
+    if (!line.startsWith('{') || !line.endsWith('}')) return line;
+
+    try {
+      const data = JSON.parse(line);
+      const stage = String(data.stage || '').trim();
+      const progress = data.progress;
+      const current = data.current;
+      const total = data.total;
+
+      if (typeof progress !== 'undefined') {
+        let text = `[${progress}%] ${stage || '상태 확인 중...'}`;
+        if (current && total) text += ` (${current}/${total})`;
+        return text;
+      }
+
+      if (data.source === 'faiss_metadata') {
+        return `FAISS 메타데이터 로드: 문서 ${Number(data.doc_count || 0).toLocaleString()}건`;
+      }
+
+      if (data.source === 'manifest_csv') {
+        return `Manifest 로드: 문서 ${Number(data.doc_count || 0).toLocaleString()}건`;
+      }
+
+      if (data.phase2 === 'filtered_chunks_loaded') {
+        return `청크 로드 완료: ${Number(data.chunk_count || 0).toLocaleString()}개`;
+      }
+
+      if (data.graph_complete) {
+        return `그래프 빌드 완료: 노드 ${Number(data.node_count || 0).toLocaleString()}개, 엣지 ${Number(data.edge_count || 0).toLocaleString()}개`;
+      }
+
+      if (data.warning) return `경고: ${data.warning}`;
+      if (data.error) return `오류: ${data.error}`;
+      if (data.message) return String(data.message);
+    } catch (_) {
+      return line;
+    }
+
+    return line;
+  }
+
+  function _wizardAppendJobLog(step, msg) {
+    const formatted = _wizardFormatStructuredJobLog(msg);
+    if (formatted) _wizardAppendLog(step, formatted);
+  }
+
+  function _wizardMarkDone(step, stepStartTime) {
     _wizardSetStatus(step, '완료', 'ok');
     const el = document.querySelector(`.wizard-step[data-step="${step}"]`);
     if (el) { el.classList.remove('active-step'); el.classList.add('done'); }
+
+    // ── 단계 완료 시간 및 소요 시간 기록 ──────────────────────────────────────
+    if (stepStartTime) {
+      const endTime = Date.now();
+      const endTimeStr = new Date().toLocaleString('ko-KR', { hour12: false });
+      const elapsedMs = endTime - stepStartTime;
+      const elapsedSec = (elapsedMs / 1000).toFixed(1);
+      const elapsedMin = (elapsedMs / 60000).toFixed(1);
+
+      const cfg = WIZARD_STEPS[step];
+      _wizardAppendLog(step, `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      _wizardAppendLog(step, `Step ${step}: ${cfg?.name || ''} 완료`);
+      _wizardAppendLog(step, `종료 시간: ${endTimeStr}`);
+      _wizardAppendLog(step, `소요 시간: ${elapsedSec}초 (${elapsedMin}분)`);
+      _wizardAppendLog(step, `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    }
+
     renderWizardProgressBar();
     if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
   }
@@ -17464,7 +17564,7 @@ LIMIT 10`;
       const logs = Array.isArray(job.log) ? job.log : [];
       if (logs.length > seenLogCount) {
         logs.slice(seenLogCount).forEach(line => {
-          if (line) _wizardAppendLog(step, line);
+          if (line) _wizardAppendJobLog(step, line);
         });
         seenLogCount = logs.length;
       }
@@ -17488,7 +17588,7 @@ LIMIT 10`;
     throw new Error('잡 상태 조회 타임아웃');
   }
 
-  async function _wizardRunTagKeywordBootstrap(step) {
+  async function _wizardRunTagKeywordBootstrap(step, stepStartTime) {
     // 새 통합 API 사용 (QA2 기반, 2026-06-15)
     const sourceId = document.getElementById('ctxSource')?.value?.trim()
       || window.currentContext?.source_id
@@ -17530,7 +17630,7 @@ LIMIT 10`;
     if (typeof loadTags === 'function') loadTags();
     if (typeof loadKeywords === 'function') loadKeywords();
 
-    _wizardMarkDone(step);
+    _wizardMarkDone(step, stepStartTime);
     const summary = `문서 ${data.document_count || 0}건, Tag ${data.tag_count || 0}개, Keyword ${data.keyword_count || 0}개`;
     _wizardSetRunSummary(_wizardBuildSummary(step, summary), 'ok');
     return true;
@@ -17676,7 +17776,7 @@ LIMIT 10`;
         try {
           const ev = JSON.parse(e.data);
           if (ev.heartbeat) return;
-          if (ev.log) _wizardAppendLog(step, ev.log);
+          if (ev.log) _wizardAppendJobLog(step, ev.log);
           if (ev.stage && ev.stage !== lastStage) {
             lastStage = ev.stage;
             _wizardAppendLog(step, `[${ev.progress || 0}%] ${ev.stage}`);
@@ -17710,6 +17810,14 @@ LIMIT 10`;
     if (logEl)  { logEl.classList.add('show'); logEl.textContent = ''; }
     if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
 
+    // ── 단계 시작 시간 기록 ──────────────────────────────────────────────────
+    const stepStartTime = Date.now();
+    const startTimeStr = new Date().toLocaleString('ko-KR', { hour12: false });
+    _wizardAppendLog(step, `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    _wizardAppendLog(step, `Step ${step}: ${cfg?.name || ''} 시작`);
+    _wizardAppendLog(step, `시작 시간: ${startTimeStr}`);
+    _wizardAppendLog(step, `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
     // ── source_id 필수 검증 (Step 9 검색 테스트 제외) ────────────────────────
     const currentSourceId = document.getElementById('ctxSource')?.value?.trim() || '';
     if (!currentSourceId && step !== 9 && cfg?.special !== 'interactive') {
@@ -17736,7 +17844,7 @@ LIMIT 10`;
         // Force 재처리 모드가 아니고, 기존 스냅샷의 OCR/청킹이 완료된 경우 스킵
         if (existingSnapshot && recommendedStage > 3 && !_wizardForceRebuild) {
           _wizardAppendLog(step, `기존 스냅샷은 OCR/청킹 단계가 이미 완료된 상태입니다. recommended_start=${recommendedStage}`);
-          _wizardMarkDone(step);
+          _wizardMarkDone(step, stepStartTime);
           _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${existingSnapshot}의 OCR/청킹 완료가 확인됐습니다.`), 'ok');
           return true;
         }
@@ -17776,7 +17884,7 @@ LIMIT 10`;
         _wizardSetStatus(step, 'OCR/청킹 실행 중...', 'running');
         _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage} | end_stage: 3`);
         await _wizardSseStream(step, _wizardFaissJobId);
-        _wizardMarkDone(step);
+        _wizardMarkDone(step, stepStartTime);
         const resumeMsg = startFromStage > 1 ? ` (Stage ${startFromStage}부터 재개)` : '';
         _wizardSetRunSummary(_wizardBuildSummary(step, `OCR/청킹 잡 ${_wizardFaissJobId} 실행 완료.${resumeMsg}`), 'ok');
         await loadSnapshotList({ preferredSnapshot: _wizardFaissSnapshot });
@@ -17799,6 +17907,13 @@ LIMIT 10`;
         const startFromStage = Math.max(4, Math.min(recommendedStage || 4, 5));
         _wizardSetStatus(step, '잡 시작...', 'running');
         _wizardAppendLog(step, `POST /api/admin/faiss/jobs\n스냅샷: ${snapshot}\nDocument Source: ${sourceId}`);
+        _wizardAppendLog(step, `실행 범위: Stage ${startFromStage} ~ 5`);
+        if (startFromStage === 4) {
+          _wizardAppendLog(step, `이번 실행 내용: 임베딩 생성 → FAISS 인덱스 → 카테고리 인덱스`);
+        } else {
+          _wizardAppendLog(step, `이번 실행 내용: 카테고리 인덱스만 재생성`);
+          _wizardAppendLog(step, `Stage 4(임베딩/FAISS)는 기존 결과를 재사용합니다.`);
+        }
         const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
@@ -17815,7 +17930,7 @@ LIMIT 10`;
         _wizardSetStatus(step, 'FAISS 생성 중...', 'running');
         _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage} | end_stage: 5`);
         await _wizardSseStream(step, _wizardFaissJobId);
-        _wizardMarkDone(step);
+        _wizardMarkDone(step, stepStartTime);
         _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 잡 ${_wizardFaissJobId} 실행 완료.`), 'ok');
         await loadSnapshotList({ preferredSnapshot: snapshot });
         return true;
@@ -17834,7 +17949,7 @@ LIMIT 10`;
     // ── tag_keyword_bootstrap: Tag/Keyword 일괄 생성 (Step 4) ───────────────
     if (cfg?.special === 'tag_keyword_bootstrap') {
       try {
-        return await _wizardRunTagKeywordBootstrap(step);
+        return await _wizardRunTagKeywordBootstrap(step, stepStartTime);
       } catch (e) { _wizardMarkError(step, e.message); return false; }
     }
 
@@ -17863,7 +17978,7 @@ LIMIT 10`;
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 400));
-        _wizardMarkDone(step);
+        _wizardMarkDone(step, stepStartTime);
         _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${snapshot} 활성화 완료. (source: ${sourceId})`), 'ok');
         // 활성화 후 Active Snapshot 정보 새로고침
         if (typeof loadIndexes === 'function') loadIndexes();
@@ -17901,7 +18016,7 @@ LIMIT 10`;
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(formatWizardErrorDetail(d.detail || d.message || d, `HTTP ${r.status}`));
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 600));
-        _wizardMarkDone(step);
+        _wizardMarkDone(step, stepStartTime);
         _wizardSetRunSummary(_wizardBuildSummary(step, _wizardFormatResponseSummary(step, d)), 'ok');
         if (typeof loadGraphSummary === 'function') await loadGraphSummary();
         return true;
@@ -17950,7 +18065,7 @@ LIMIT 10`;
           }
         });
         await loadWikiStatus();
-        _wizardMarkDone(step);
+        _wizardMarkDone(step, stepStartTime);
         _wizardSetRunSummary(_wizardBuildSummary(step, `Wiki 생성 완료 (${wikiType})`), 'ok');
         return true;
       } catch (e) { _wizardMarkError(step, e.message); return false; }
@@ -17969,7 +18084,7 @@ LIMIT 10`;
       const d = await r.json().catch(() => ({}));
       if (r.ok) {
         _wizardAppendLog(step, JSON.stringify(d, null, 2).slice(0, 400));
-        _wizardMarkDone(step);
+        _wizardMarkDone(step, stepStartTime);
         _wizardSetRunSummary(_wizardBuildSummary(step, _wizardFormatResponseSummary(step, d)), 'ok');
         return true;
       }
@@ -18020,8 +18135,22 @@ LIMIT 10`;
 
     // ── 전체 실행 전 snapshot_id 결정 ──────────────────────────────────────
     // 우선순위: 1) 이미 설정된 _wizardFaissSnapshot, 2) 드롭다운 선택값, 3) 새로 생성
-    const existingSnapshot = _wizardFaissSnapshot || keepSnapshot;
+    let existingSnapshot = _wizardFaissSnapshot || keepSnapshot;
 
+    // ── 안전장치: 기존 snapshot이 현재 source_id와 일치하는지 확인 ──────────
+    if (existingSnapshot && existingSnapshot.includes('_src_')) {
+      const snapshotSourceId = existingSnapshot.split('_src_')[1]?.split('_')[0];
+      const snapshotFullSourceId = snapshotSourceId ? `src_${snapshotSourceId}` : null;
+
+      if (snapshotFullSourceId && snapshotFullSourceId !== currentSourceId) {
+        console.warn(`[wizardRunAll] 경고: 기존 스냅샷(${existingSnapshot})의 source_id(${snapshotFullSourceId})가 현재 source_id(${currentSourceId})와 다릅니다. 새 스냅샷을 생성합니다.`);
+        showToast(`다른 Source의 스냅샷이 선택되어 있어 새 스냅샷을 생성합니다.`, 'warning', 4000);
+        existingSnapshot = null;
+        _selectedSnapshot = '';
+      }
+    }
+
+    // ── snapshot_id 결정 ─────────────────────────────────────────────────────
     if (!existingSnapshot) {
       // 새 snapshot_id 생성 (createNewSnapshotId() 사용)
       _wizardFaissSnapshot = createNewSnapshotId();
