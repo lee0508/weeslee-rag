@@ -724,7 +724,12 @@ async def list_documents_mysql(
         limit=limit,
         offset=offset,
     )
-    return {"documents": documents, "count": len(documents)}
+    total = unified_document_service.count_documents(
+        document_type=document_type,
+        status=status,
+        meta_status=meta_status,
+    )
+    return {"documents": documents, "count": len(documents), "total": total}
 
 
 @router.get("/documents/{document_id}")

@@ -4869,7 +4869,7 @@ POST /api/admin/faiss/activate</code>
           <span>📁 문서 관리</span>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary" onclick="openUploadModal()">+ 문서 업로드</button>
-            <button class="btn btn-secondary" onclick="autoGenerateAllMetadata()">✨ 전체 자동 메타 생성</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSelectedDocuments()">🗑️ 선택 삭제</button>
             <button class="btn btn-outline" onclick="loadDocuments()">↻ 새로고침</button>
           </div>
         </div>
@@ -4877,9 +4877,6 @@ POST /api/admin/faiss/activate</code>
         <!-- 문서 현황 요약 -->
         <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
           <div class="bm-stat"><div class="val" id="docStatTotal">-</div><div class="lbl">전체 문서</div></div>
-          <div class="bm-stat" style="border-left:3px solid var(--red)"><div class="val" id="docStatUnclassified">-</div><div class="lbl">미분류</div></div>
-          <div class="bm-stat" style="border-left:3px solid var(--green)"><div class="val" id="docStatConfirmed">-</div><div class="lbl">메타 확정</div></div>
-          <div class="bm-stat" style="border-left:3px solid var(--amber)"><div class="val" id="docStatRagReady">-</div><div class="lbl">RAG 준비</div></div>
         </div>
 
         <!-- 필터 -->
@@ -4907,50 +4904,40 @@ POST /api/admin/faiss/activate</code>
               <option value="unknown">미분류</option>
             </optgroup>
           </select>
-          <select id="filterStatus" onchange="loadDocuments()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
-            <option value="">전체 상태</option>
-            <option value="uploaded">업로드됨</option>
-            <option value="text_extracted">텍스트 추출됨</option>
-            <option value="metadata_auto_suggested">자동 메타 생성됨</option>
-            <option value="metadata_confirmed">메타 확정됨</option>
-            <option value="rag_ready">RAG 준비됨</option>
-          </select>
-          <select id="filterMetaStatus" onchange="loadDocuments()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
-            <option value="">전체 메타 상태</option>
-            <option value="pending">대기</option>
-            <option value="auto_suggested">자동 생성됨</option>
-            <option value="confirmed">확정됨</option>
-          </select>
-          <input type="text" id="filterSearch" placeholder="사업명/파일명 검색" oninput="debounceLoadDocs()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text);width:200px">
+          <input type="text" id="filterSearch" placeholder="파일명 검색" oninput="debounceLoadDocs()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text);width:200px">
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)">
             <input type="checkbox" id="selectAllDocs" onchange="toggleSelectAllDocs()"> 전체 선택
           </label>
-          <button class="btn btn-secondary btn-sm" onclick="autoGenerateSelectedMetadata()">✨ 선택 자동 메타</button>
-          <button class="btn btn-primary btn-sm" onclick="runSelectedDocsRagAdd()">⚙️ 선택 RAG 추가</button>
-          <button class="btn btn-outline btn-sm" onclick="switchTab('pipeline')">→ RAG 처리</button>
-          <button class="btn btn-outline btn-sm" onclick="buildGraphFromSelection()">Graph RAG 7단계</button>
+          <!-- 숨김 처리된 메타/RAG 버튼 -->
+          <select id="filterStatus" onchange="loadDocuments()" style="display:none"><option value=""></option></select>
+          <select id="filterMetaStatus" onchange="loadDocuments()" style="display:none"><option value=""></option></select>
         </div>
 
         <!-- 문서 목록 테이블 -->
         <div style="overflow-x:auto">
-          <table class="bm-table" style="min-width:900px">
+          <table class="bm-table" style="min-width:700px">
             <thead>
               <tr>
                 <th style="width:30px"><input type="checkbox" id="headerCheckDoc" onchange="toggleSelectAllDocs()"></th>
                 <th>파일명</th>
                 <th style="width:100px">문서 유형</th>
-                <th>사업명</th>
-                <th style="width:120px">발주기관</th>
-                <th style="width:90px">처리 상태</th>
-                <th style="width:80px">메타 상태</th>
-                <th style="width:200px">파이프라인 상태 (10단계)</th>
-                <th style="width:140px">작업</th>
+                <th style="width:150px">디렉토리</th>
+                <th style="width:100px">파일 크기</th>
+                <th style="width:120px">수정일</th>
+                <th style="width:80px">작업</th>
               </tr>
             </thead>
             <tbody id="documentTableBody">
-              <tr><td colspan="9" class="empty">문서 관리 탭을 선택하면 목록이 로드됩니다.</td></tr>
+              <tr><td colspan="7" class="empty">문서 관리 탭을 선택하면 목록이 로드됩니다.</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- 페이지네이션 -->
+        <div id="docPagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:16px">
+          <button class="btn btn-outline btn-sm" onclick="loadDocuments(docCurrentPage - 1)" id="docPrevBtn" disabled>◀ 이전</button>
+          <span id="docPageInfo" style="font-size:13px;color:var(--muted)">1 / 1</span>
+          <button class="btn btn-outline btn-sm" onclick="loadDocuments(docCurrentPage + 1)" id="docNextBtn" disabled>다음 ▶</button>
         </div>
       </div>
     </main>
@@ -8506,49 +8493,85 @@ POST /api/admin/faiss/activate</code>
 
   let _docLoadTimeout = null;
   let _selectedDocIds = new Set();
+  let docCurrentPage = 1;
+  const DOC_PAGE_SIZE = 15;
+  let docTotalPages = 1;
+  let docTotalCount = 0;
 
   function debounceLoadDocs() {
     if (_docLoadTimeout) clearTimeout(_docLoadTimeout);
-    _docLoadTimeout = setTimeout(loadDocuments, 300);
+    _docLoadTimeout = setTimeout(() => loadDocuments(1), 300);
   }
 
-  async function loadDocuments() {
+  async function loadDocuments(page = 1) {
     const tbody = document.getElementById('documentTableBody');
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">로딩 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">로딩 중...</td></tr>';
 
+    docCurrentPage = Math.max(1, page);
     const params = new URLSearchParams();
     const docType = document.getElementById('filterDocType')?.value;
-    const status = document.getElementById('filterStatus')?.value;
-    const metaStatus = document.getElementById('filterMetaStatus')?.value;
     const search = document.getElementById('filterSearch')?.value;
 
     if (docType) params.append('document_type', docType);
-    if (status) params.append('status', status);
-    if (metaStatus) params.append('meta_status', metaStatus);
     if (search) params.append('search', search);
+    params.append('limit', DOC_PAGE_SIZE);
+    params.append('offset', (docCurrentPage - 1) * DOC_PAGE_SIZE);
 
     try {
       const data = await api(`/admin/documents?${params.toString()}`);
-      renderDocuments(data.documents || []);
+      const documents = data.documents || [];
+      docTotalCount = data.total || documents.length;
+      docTotalPages = Math.ceil(docTotalCount / DOC_PAGE_SIZE) || 1;
+      renderDocuments(documents);
+      updateDocPagination();
       loadDocumentStats();
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="9" class="empty" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="empty" style="color:var(--red)">${esc(e.message)}</td></tr>`;
     }
+  }
+
+  function updateDocPagination() {
+    const prevBtn = document.getElementById('docPrevBtn');
+    const nextBtn = document.getElementById('docNextBtn');
+    const pageInfo = document.getElementById('docPageInfo');
+    if (prevBtn) prevBtn.disabled = docCurrentPage <= 1;
+    if (nextBtn) nextBtn.disabled = docCurrentPage >= docTotalPages;
+    if (pageInfo) pageInfo.textContent = `${docCurrentPage} / ${docTotalPages} (총 ${docTotalCount}건)`;
+  }
+
+  async function deleteSelectedDocuments() {
+    const ids = selectedDocIds();
+    if (!ids.length) { alert('삭제할 문서를 선택하세요.'); return; }
+    const ok = await showConfirm({
+      icon: '🗑️',
+      title: '문서 삭제',
+      body: `선택한 ${ids.length}개 문서를 삭제합니다.<br><br><strong style="color:var(--red)">이 작업은 되돌릴 수 없습니다.</strong>`,
+      okLabel: '삭제',
+    });
+    if (!ok) return;
+    let successCount = 0;
+    let failCount = 0;
+    for (const id of ids) {
+      try {
+        await api(`/admin/documents/${id}`, { method: 'DELETE' });
+        successCount++;
+      } catch (e) {
+        failCount++;
+        console.error(`Failed to delete document ${id}:`, e);
+      }
+    }
+    if (failCount === 0) {
+      showToast(`${successCount}개 문서가 삭제되었습니다.`, 'success');
+    } else {
+      showToast(`${successCount}개 삭제, ${failCount}개 실패`, 'warning');
+    }
+    loadDocuments(docCurrentPage);
   }
 
   async function loadDocumentStats() {
     try {
       const data = await api('/admin/documents/stats');
       document.getElementById('docStatTotal').textContent = data.total ?? '-';
-      document.getElementById('docStatUnclassified').textContent = data.unclassified ?? '-';
-      document.getElementById('docStatConfirmed').textContent = data.confirmed ?? '-';
-      document.getElementById('docStatRagReady').textContent = data.rag_ready ?? '-';
-      // 메타 상태별 통계 (메타데이터 탭용)
-      if (data.by_meta_status) {
-        document.getElementById('metaStatPending').textContent = data.by_meta_status.pending ?? 0;
-        document.getElementById('metaStatAutoSuggested').textContent = data.by_meta_status.auto_suggested ?? 0;
-        document.getElementById('metaStatConfirmed').textContent = data.by_meta_status.confirmed ?? 0;
-      }
     } catch (e) {
       console.error('Stats load failed:', e);
     }
@@ -8608,46 +8631,78 @@ POST /api/admin/faiss/activate</code>
     return `<div style="display:flex;flex-wrap:wrap;gap:2px">${stepHtml}</div>`;
   }
 
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '-';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+
+  function extractDirectory(filePath) {
+    if (!filePath) return '-';
+    const parts = filePath.replace(/\\/g, '/').split('/');
+    if (parts.length <= 1) return '-';
+    return parts.slice(-2, -1)[0] || '-';
+  }
+
   function renderDocuments(documents) {
     const tbody = document.getElementById('documentTableBody');
     if (!documents.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="empty">문서가 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">문서가 없습니다.</td></tr>';
       return;
     }
     _selectedDocIds.clear();
     document.getElementById('selectAllDocs').checked = false;
     document.getElementById('headerCheckDoc').checked = false;
-    syncPipelineSelectionState();
 
     tbody.innerHTML = documents.map(doc => {
-      const typeColor = DOC_TYPE_COLORS[doc.document_type] || '#6b7280';
       const typeLabel = DOC_TYPE_LABELS[doc.document_type] || doc.document_type || '-';
-      const statusLabel = STATUS_LABELS[doc.status] || doc.status || '-';
-      const metaColor = META_STATUS_COLORS[doc.meta_status] || '#6b7280';
-      const metaLabel = META_STATUS_LABELS[doc.meta_status] || doc.meta_status || '-';
-      const pipelineStatus = renderPipelineStatus(doc);
+      const directory = extractDirectory(doc.file_path);
+      const fileSize = formatFileSize(doc.file_size);
+      const modDate = formatDate(doc.updated_at || doc.created_at);
       return `
         <tr>
           <td><input type="checkbox" class="doc-check" value="${doc.id}" onchange="toggleDocSelect(${doc.id})"></td>
-          <td style="max-width:250px;word-break:break-all;font-size:12px">${esc(doc.file_name || '-')}</td>
+          <td style="max-width:300px;word-break:break-all;font-size:12px" title="${esc(doc.file_path || '')}">${esc(doc.file_name || '-')}</td>
           <td><span class="badge badge-${doc.document_type || 'unknown'}">${typeLabel}</span></td>
-          <td style="max-width:200px;word-break:break-all;font-size:12px">${esc(doc.project_name || '-')}</td>
-          <td style="font-size:12px">${esc(doc.organization || '-')}</td>
-          <td><span class="chip">${statusLabel}</span></td>
-          <td><span style="background:${metaColor}20;color:${metaColor};padding:2px 6px;border-radius:4px;font-size:11px">${metaLabel}</span></td>
-          <td>${pipelineStatus}</td>
+          <td style="font-size:12px;color:var(--muted)">${esc(directory)}</td>
+          <td style="font-size:12px;text-align:right">${fileSize}</td>
+          <td style="font-size:12px">${modDate}</td>
           <td>
-            <button class="btn btn-outline btn-sm" onclick="openMetadataReviewModal(${doc.id})">검수</button>
-            <button class="btn btn-outline btn-sm" onclick="autoGenerateSingleMetadata(${doc.id})">✨</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSingleDocument(${doc.id})" title="삭제">🗑️</button>
           </td>
         </tr>`;
     }).join('');
   }
 
+  async function deleteSingleDocument(docId) {
+    const ok = await showConfirm({
+      icon: '🗑️',
+      title: '문서 삭제',
+      body: '이 문서를 삭제하시겠습니까?<br><br><strong style="color:var(--red)">이 작업은 되돌릴 수 없습니다.</strong>',
+      okLabel: '삭제',
+    });
+    if (!ok) return;
+    try {
+      await api(`/admin/documents/${docId}`, { method: 'DELETE' });
+      showToast('문서가 삭제되었습니다.', 'success');
+      loadDocuments(docCurrentPage);
+    } catch (e) {
+      showToast(`삭제 실패: ${e.message}`, 'error');
+    }
+  }
+
   function toggleDocSelect(id) {
     if (_selectedDocIds.has(id)) _selectedDocIds.delete(id);
     else _selectedDocIds.add(id);
-    syncPipelineSelectionState();
   }
 
   function toggleSelectAllDocs() {
@@ -8660,7 +8715,6 @@ POST /api/admin/faiss/activate</code>
       if (allChecked) _selectedDocIds.add(id);
       else _selectedDocIds.delete(id);
     });
-    syncPipelineSelectionState();
   }
 
   function selectedDocIds() {
