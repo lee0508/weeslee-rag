@@ -181,6 +181,11 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
                 "organization":             meta.get("organization", ""),
                 "organization_confidence":  meta.get("organization_confidence", 0.0),
                 "project_confidence":       meta.get("project_confidence", 0.0),
+                # ID 필드 추가 (2026-06-30)
+                "source_id":     row.get("source_id") or meta.get("source_id", ""),
+                "dataset_id":    row.get("dataset_id") or meta.get("dataset_id", ""),
+                "document_uid":  row.get("document_uid") or meta.get("document_uid", ""),
+                "relative_path": meta.get("relative_path", ""),
             })
     return docs
 
@@ -377,6 +382,11 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
                 "source_path":  doc["source_path"],
                 "extension":    doc["extension"],
                 "color":        CATEGORY_COLORS.get(doc["category"], "#6b7280"),
+                # ID 필드 추가 (2026-06-30)
+                "source_id":     doc.get("source_id", ""),
+                "dataset_id":    doc.get("dataset_id", ""),
+                "document_uid":  doc.get("document_uid", ""),
+                "relative_path": doc.get("relative_path", ""),
             })
             add_edge(proj_id, doc_id, "has_document")
             cat_node_id = f"cat:{doc['category']}"

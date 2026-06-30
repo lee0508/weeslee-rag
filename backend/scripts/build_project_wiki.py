@@ -395,6 +395,10 @@ def render_wiki(
 
     total_docs = sum(len(v) for v in cats.values())
 
+    # ID 필드 추출 (2026-06-30)
+    source_id = inv.get("source_id", meta.get("source_id", ""))
+    dataset_id = inv.get("dataset_id", meta.get("dataset_id", ""))
+
     # Evidence section per category
     evidence_sections = ""
     for cat in ["rfp", "proposal", "kickoff", "final_report", "presentation"]:
@@ -405,6 +409,13 @@ def render_wiki(
         evidence_sections += f"\n### {cat_label}\n\n"
         for s in snippets[:3]:
             evidence_sections += f"> {s[:250]}\n\n"
+
+    # ID 정보 행 (값이 있을 때만 표시)
+    id_rows = ""
+    if source_id:
+        id_rows += f"| Source ID | `{source_id}` |\n"
+    if dataset_id:
+        id_rows += f"| Dataset ID | `{dataset_id}` |\n"
 
     return f"""# {meta['display_name']}
 
@@ -417,6 +428,7 @@ def render_wiki(
 | 사업유형 | {meta['project_type']} |
 | 보유문서 | 총 {total_docs}건 |
 | 폴더명 | `{folder_name}` |
+{id_rows}
 
 ## 보유 문서 인벤토리
 
