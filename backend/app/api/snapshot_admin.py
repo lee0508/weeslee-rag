@@ -117,6 +117,14 @@ def _resolve_snapshot_ids(snapshot_id: str) -> tuple[Optional[str], Optional[str
     return _parse_snapshot_ids(snapshot_id)
 
 
+def _resolve_embedding_provider(snapshot: Optional[SnapshotManifest], fallback: Optional[str] = None) -> str:
+    """provider 이름을 반환한다. 모델명(bge-m3 등)을 provider로 저장하지 않는다."""
+    value = str(fallback or "").strip().lower()
+    if value in {"ollama", "openai", "gemini", "openrouter", "hashing"}:
+        return value
+    return "ollama"
+
+
 def _load_active_config() -> Optional[ActiveSnapshotConfig]:
     """활성 Snapshot 설정 로드.
 
@@ -153,7 +161,7 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
                 faiss_index_id=snap_id,  # faiss_index_id는 active_snapshot_id와 동일
                 index_file=(snapshot.rag_build.index_file if snapshot else None) or index_data.get("index_file"),
                 metadata_file=(snapshot.rag_build.metadata_file if snapshot else None) or index_data.get("metadata_file"),
-                embedding_provider=((snapshot.rag_build.embedding_model.split("/")[-1]) if snapshot and snapshot.rag_build.embedding_model else index_data.get("embedding_provider", "ollama")),
+                embedding_provider=_resolve_embedding_provider(snapshot, index_data.get("embedding_provider", "ollama")),
                 vector_count=(snapshot.rag_build.vector_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or index_data.get("vector_count", 0),
                 document_count=(snapshot.dataset.document_count if snapshot else 0) or int((faiss_manifest or {}).get("document_count") or 0) or index_data.get("document_count", 0),
                 chunk_count=(snapshot.rag_build.chunk_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or index_data.get("chunk_count", 0),
@@ -188,8 +196,7 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
             config.vector_count = snapshot.rag_build.vector_count or config.vector_count
             config.document_count = snapshot.dataset.document_count or config.document_count
             config.chunk_count = snapshot.rag_build.chunk_count or config.chunk_count
-            if snapshot.rag_build.embedding_model:
-                config.embedding_provider = snapshot.rag_build.embedding_model.split("/")[-1]
+            config.embedding_provider = _resolve_embedding_provider(snapshot, config.embedding_provider)
         if faiss_manifest:
             config.vector_count = int(faiss_manifest.get("vector_count") or config.vector_count or 0)
             config.document_count = int(faiss_manifest.get("document_count") or config.document_count or 0)
@@ -207,6 +214,10 @@ def _save_active_config(config: ActiveSnapshotConfig):
     - faiss/status와 snapshot/active가 동일한 snapshot ID 반환
     """
     _ensure_dirs()
+
+    # 저장 파일도 권장 계약을 그대로 유지한다.
+    config.faiss_index_id = config.active_snapshot_id
+    config.embedding_provider = _resolve_embedding_provider(None, config.embedding_provider)
 
     # 1. active_snapshot.json 저장 (확장 정보)
     with open(ACTIVE_SNAPSHOT_FILE, "w", encoding="utf-8") as f:
@@ -483,10 +494,10 @@ async def activate_snapshot(body: ActivateSnapshotRequest):
     # 활성 설정 저장
     new_config = ActiveSnapshotConfig(
         active_snapshot_id=snapshot.snapshot_id,
-        faiss_index_id=snapshot.rag_build.faiss_index_id,
+        faiss_index_id=snapshot.snapshot_id,
         index_file=snapshot.rag_build.index_file,
         metadata_file=snapshot.rag_build.metadata_file,
-        embedding_provider=snapshot.rag_build.embedding_model.split("/")[-1] if snapshot.rag_build.embedding_model else "ollama",
+        embedding_provider="ollama",
         vector_count=snapshot.rag_build.vector_count,
         document_count=snapshot.dataset.document_count,
         chunk_count=snapshot.rag_build.chunk_count,
