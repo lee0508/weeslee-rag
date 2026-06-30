@@ -449,23 +449,30 @@ async def update_final_metadata(
 
 
 @router.get("/stats")
-async def get_review_stats(db: Session = Depends(get_db)):
+async def get_review_stats(
+    source_id: Optional[str] = Query(None, description="필터: source_id"),
+    db: Session = Depends(get_db),
+):
     """
     Step 3: 검수 현황 통계
 
     - 상태별 문서 수
     - source_id별 검수 진행률
+    - source_id 파라미터로 특정 Source만 필터링 가능
     """
     try:
-        stats = document_metadata_service.get_review_stats(db)
+        from app.services.unified_document_service import unified_document_service
+
+        stats = unified_document_service.get_document_stats(source_id=source_id, db=db)
 
         return {
-            "status_counts": stats.get("status_counts", {}),
+            "status_counts": stats.get("by_meta_status", {}),
             "source_stats": stats.get("source_stats", {}),
+            "total": stats.get("total", 0),
             "total_documents": stats.get("total", 0),
-            "review_required": stats.get("status_counts", {}).get("review_required", 0),
-            "reviewed": stats.get("status_counts", {}).get("metadata_reviewed", 0),
-            "rejected": stats.get("status_counts", {}).get("rejected", 0),
+            "review_required": stats.get("by_meta_status", {}).get("review_required", 0),
+            "reviewed": stats.get("by_meta_status", {}).get("metadata_reviewed", 0),
+            "rejected": stats.get("by_meta_status", {}).get("rejected", 0),
         }
 
     except Exception as e:

@@ -782,6 +782,24 @@ POST /api/admin/wiki/build</code>
             <li>RAG/Graph/Wiki 포함 여부 설정</li>
           </ul>
         </div>
+        <!-- Snapshot 컨텍스트 바 -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--wr-surface);padding:12px 16px;border-radius:8px;border-left:3px solid var(--wr-primary)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--wr-muted)">Snapshot:</span>
+            <select id="metaReviewSnapshotFilter" onchange="onMetaReviewSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--wr-bg);border:1px solid var(--wr-border);color:var(--wr-text);font-size:12px;min-width:280px">
+              <option value="">로딩 중...</option>
+            </select>
+            <span id="metaReviewSnapshotActiveTag" style="display:none;font-size:10px;background:var(--wr-success);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--wr-muted)">Document Source:</span>
+            <span id="metaReviewSourceDisplay" style="font-size:12px;color:var(--wr-text);font-weight:500">-</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <div style="text-align:center"><div style="font-size:18px;font-weight:600" id="metaReviewStatTotal">-</div><div style="font-size:11px;color:var(--wr-muted)">전체 문서</div></div>
+          </div>
+        </div>
+
         <div class="wr-card" style="margin-top:20px">
           <h3 class="wr-card-title">상태값</h3>
           <div class="wr-summary-grid">
@@ -816,7 +834,7 @@ POST /api/admin/wiki/build</code>
                 <option value="review_required">review_required</option>
                 <option value="metadata_reviewed">metadata_reviewed</option>
               </select>
-              <select id="metaReviewSourceFilter" onchange="loadMetadataReviewDocuments()" style="padding:6px 12px;border-radius:4px;border:1px solid var(--wr-border)">
+              <select id="metaReviewSourceFilter" onchange="loadMetadataReviewDocuments()" style="display:none">
                 <option value="">전체 소스</option>
               </select>
               <button class="wr-btn wr-btn-sm" onclick="loadMetadataReviewDocuments()">새로고침</button>
@@ -18638,8 +18656,7 @@ LIMIT 10`;
         loadLpgOntologyTerms();
       }
       if (pageName === 'db-step-3') {
-        loadMetadataReviewStats();
-        loadMetadataReviewDocuments();
+        loadMetaReviewTabContext();
       }
     };
   }
@@ -18652,6 +18669,72 @@ LIMIT 10`;
   let metaReviewPageSize = 50;
   let metaReviewCurrentDocumentId = null;
   let metaReviewSelectedDocuments = new Set();
+  let metaReviewSnapshotsCache = [];
+
+  async function loadMetaReviewTabContext() {
+    const snapshotSelect = document.getElementById('metaReviewSnapshotFilter');
+    if (!snapshotSelect) return;
+
+    try {
+      const snapshots = await api('/admin/snapshots');
+      metaReviewSnapshotsCache = snapshots || [];
+
+      snapshotSelect.innerHTML = '<option value="">Snapshot 선택...</option>';
+
+      if (metaReviewSnapshotsCache.length === 0) {
+        snapshotSelect.innerHTML = '<option value="">등록된 Snapshot 없음</option>';
+        return;
+      }
+
+      let activeSnapshotId = '';
+      metaReviewSnapshotsCache.forEach(snap => {
+        const opt = document.createElement('option');
+        opt.value = snap.snapshot_id;
+        const label = snap.snapshot_id + (snap.is_active ? ' [ACTIVE]' : '');
+        opt.textContent = label;
+        snapshotSelect.appendChild(opt);
+        if (snap.is_active) activeSnapshotId = snap.snapshot_id;
+      });
+
+      if (activeSnapshotId) {
+        snapshotSelect.value = activeSnapshotId;
+      }
+
+      onMetaReviewSnapshotChange(true);
+    } catch (e) {
+      console.error('Failed to load meta review snapshots:', e);
+      snapshotSelect.innerHTML = '<option value="">로드 실패</option>';
+    }
+  }
+
+  function onMetaReviewSnapshotChange(reloadDocs = true) {
+    const snapshotSelect = document.getElementById('metaReviewSnapshotFilter');
+    const activeTag = document.getElementById('metaReviewSnapshotActiveTag');
+    const sourceDisplay = document.getElementById('metaReviewSourceDisplay');
+    const sourceFilter = document.getElementById('metaReviewSourceFilter');
+
+    const selectedId = snapshotSelect?.value || '';
+
+    const snap = metaReviewSnapshotsCache.find(s => s.snapshot_id === selectedId);
+
+    if (activeTag) {
+      activeTag.style.display = snap?.is_active ? 'inline-block' : 'none';
+    }
+
+    const sourceId = snap?.dataset?.source_id || '';
+    if (sourceDisplay) {
+      sourceDisplay.textContent = sourceId || '-';
+    }
+    if (sourceFilter) {
+      sourceFilter.value = sourceId;
+    }
+
+    if (reloadDocs) {
+      metaReviewCurrentPage = 0;
+      loadMetadataReviewStats();
+      loadMetadataReviewDocuments();
+    }
+  }
 
   function getTripleMetadataValue(doc, field) {
     const fieldMap = {
@@ -18703,7 +18786,9 @@ LIMIT 10`;
 
   async function loadMetadataReviewStats() {
     try {
-      const r = await fetch(apiUrl('/api/admin/metadata-review/stats'), {
+      const sourceId = document.getElementById('metaReviewSourceFilter')?.value || '';
+      const params = sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : '';
+      const r = await fetch(apiUrl('/api/admin/metadata-review/stats' + params), {
         method: 'GET',
         headers: { Authorization: 'Bearer ' + getToken() }
       });
@@ -18714,6 +18799,11 @@ LIMIT 10`;
         document.getElementById('metaReviewSuggested').textContent = data.status_counts['metadata_suggested'] || 0;
         document.getElementById('metaReviewRequired').textContent = data.status_counts['review_required'] || 0;
         document.getElementById('metaReviewReviewed').textContent = data.status_counts['metadata_reviewed'] || 0;
+      }
+
+      const totalEl = document.getElementById('metaReviewStatTotal');
+      if (totalEl) {
+        totalEl.textContent = data.total || '-';
       }
     } catch (e) {
       console.error('Failed to load metadata review stats:', e);
