@@ -156,7 +156,7 @@ class HybridRAGService:
 
         self.faiss_service = get_faiss_search_service(source_id)
         self.graph_agent = get_graphrag_agent(source_id) if enable_graph else None
-        self.wiki_service = get_wiki_search_service() if enable_wiki else None
+        self.wiki_service = get_wiki_search_service(source_id) if enable_wiki else None
         self.query_router = get_query_router() if use_query_router else None
 
     async def _search_faiss(
@@ -179,6 +179,7 @@ class HybridRAGService:
 
         results = []
         for r in response.results:
+            metadata = dict(r.metadata or {})
             results.append({
                 "document_id": r.document_id,
                 "chunk_id": r.chunk_id,
@@ -188,6 +189,13 @@ class HybridRAGService:
                 "organization": r.organization,
                 "file_name": r.file_name,
                 "text_preview": r.text_preview,
+                "source_path": r.source_path,
+                "source_id": metadata.get("source_id") or self.source_id,
+                "dataset_id": metadata.get("dataset_id"),
+                "snapshot_id": metadata.get("snapshot_id"),
+                "document_uid": metadata.get("document_uid"),
+                "relative_path": metadata.get("relative_path"),
+                "metadata": metadata,
                 "source": SearchSource.FAISS.value,
             })
 
@@ -318,6 +326,15 @@ class HybridRAGService:
                     file_name=r.get("file_name"),
                     text_preview=r.get("text_preview"),
                     chunk_id=r.get("chunk_id"),
+                    metadata={
+                        **(r.get("metadata") or {}),
+                        "source_id": r.get("source_id"),
+                        "dataset_id": r.get("dataset_id"),
+                        "snapshot_id": r.get("snapshot_id"),
+                        "document_uid": r.get("document_uid"),
+                        "relative_path": r.get("relative_path"),
+                        "source_path": r.get("source_path"),
+                    },
                 )
             else:
                 # 이미 있으면 점수 업데이트
@@ -341,6 +358,7 @@ class HybridRAGService:
                     metadata={
                         "node_type": r.get("node_type"),
                         "project_name": r.get("project_name"),
+                        "source_path": r.get("source_path"),
                     },
                 )
             else:

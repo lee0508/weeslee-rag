@@ -241,17 +241,19 @@ WIKI_TECH_DIR = PROJECT_ROOT / "data" / "wiki" / "technologies"
 
 
 @router.get("/stats")
-async def get_wiki_stats():
+async def get_wiki_stats(source_id: Optional[str] = None):
     """Wiki 현황 통계."""
-    WIKI_DIR.mkdir(parents=True, exist_ok=True)
+    project_wiki_dir = _get_wiki_dir(source_id)
+    project_wiki_dir.mkdir(parents=True, exist_ok=True)
     WIKI_ORG_DIR.mkdir(parents=True, exist_ok=True)
     WIKI_TECH_DIR.mkdir(parents=True, exist_ok=True)
 
-    project_count = len(list(WIKI_DIR.glob("*.md")))
+    project_count = len(list(project_wiki_dir.glob("*.md")))
     org_count = len(list(WIKI_ORG_DIR.glob("*.md")))
     tech_count = len(list(WIKI_TECH_DIR.glob("*.md")))
 
     return {
+        "source_id": source_id or "default",
         "project_count": project_count,
         "organization_count": org_count,
         "technology_count": tech_count,

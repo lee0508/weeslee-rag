@@ -1418,15 +1418,18 @@ async def hybrid_query_stats(source_id: Optional[str] = None):
         "loaded": graph_service._loaded,
     }
 
+    wiki_project_dir = PROJECT_ROOT / "data" / "wiki" / (source_id or "") / "projects" if source_id else WIKI_PROJECT_DIR
+    wiki_available = wiki_project_dir.exists() and any(wiki_project_dir.glob("*.md"))
+
     return {
         "source_id": source_id or "all",
         "faiss": faiss_stats,
         "graph": graph_stats,
-        "hybrid_ready": faiss_stats["loaded"] or graph_stats["loaded"],
+        "hybrid_ready": faiss_stats["loaded"] or graph_stats["loaded"] or wiki_available,
         "search_modes": {
             "faiss_available": faiss_stats["loaded"],
             "graph_available": graph_stats["loaded"],
-            "wiki_available": False,  # 향후 구현
+            "wiki_available": wiki_available,
         },
     }
 

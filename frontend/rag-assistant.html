@@ -3545,8 +3545,17 @@
         .find(Boolean);
       if (fromDocument) return fromDocument;
 
-      const match = (_activeSnapshot || '').match(/^snapshot_\d{8}_(.+?)(?:_v\d+)?$/);
+      const match = (_activeSnapshot || '').match(/^snapshot_\d{8}_(src_[^_]+_[^_]+_[^_]+)(?:_V\d+)?$/i);
       return match ? match[1] : '';
+    }
+
+    function resolveWikiSourceId() {
+      const selectedScopeId = getSelectedSearchScope();
+      const scopeMeta = (_searchScopes || []).find(item => item.scope_id === selectedScopeId);
+      if (scopeMeta?.source_ids?.length === 1) {
+        return scopeMeta.source_ids[0];
+      }
+      return resolveGraphSourceId(_lastData?.documents || []);
     }
 
     function getResultDocumentIds(documents = []) {
@@ -4405,7 +4414,11 @@
       if (!wikiResults) return;
 
       try {
-        const response = await fetch(`${API_BASE}/wiki/projects`);
+        const sourceId = resolveWikiSourceId();
+        const url = sourceId
+          ? `${API_BASE}/wiki/projects?source_id=${encodeURIComponent(sourceId)}`
+          : `${API_BASE}/wiki/projects`;
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Wiki API 오류');
         const data = await response.json();
 
@@ -4439,7 +4452,11 @@
       if (!wikiResults) return;
 
       try {
-        const response = await fetch(`${API_BASE}/wiki/projects/${encodeURIComponent(slug)}`);
+        const sourceId = resolveWikiSourceId();
+        const url = sourceId
+          ? `${API_BASE}/wiki/projects/${encodeURIComponent(slug)}?source_id=${encodeURIComponent(sourceId)}`
+          : `${API_BASE}/wiki/projects/${encodeURIComponent(slug)}`;
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Wiki 상세 조회 실패');
         const data = await response.json();
 
@@ -4951,6 +4968,12 @@
         file_path: r.file_path || r.source_path || '',
         project_name: r.metadata?.project_name || r.project_name || '',
         category: r.metadata?.category || r.category || '',
+        source_id: r.source_id || r.metadata?.source_id || '',
+        dataset_id: r.dataset_id || r.metadata?.dataset_id || '',
+        snapshot_id: r.snapshot_id || r.metadata?.snapshot_id || '',
+        document_uid: r.document_uid || r.metadata?.document_uid || '',
+        relative_path: r.relative_path || r.metadata?.relative_path || '',
+        source_path: r.source_path || r.metadata?.source_path || r.file_path || '',
         score: r.score || r.final_score || r.faiss_score || 0,
         faiss_score: r.faiss_score || 0,
         graph_score: r.graph_score || 0,
@@ -5852,7 +5875,7 @@
     }
 
     function normalizeGraphEdgeElement(edge) {
-      const d = edge?.data || {};
+      const d = edge?.data || edge || {};
       const relationLabel = formatGraphArrowLabel(d.relation_type, d.label || d.type);
       return { data: { ...d, label: relationLabel } };
     }
