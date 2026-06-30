@@ -339,7 +339,16 @@ def category_priority_score(category: str, intents: set[str]) -> float:
 def filter_by_category(hits: list[SearchHit], category: str) -> list[SearchHit]:
     if not category:
         return hits
-    return [h for h in hits if h.category == category]
+    normalized_target = _normalize_document_group(category)
+    filtered: list[SearchHit] = []
+    for hit in hits:
+        hit_category = getattr(hit, "category", "") or ""
+        if hit_category == category:
+            filtered.append(hit)
+            continue
+        if normalized_target and _normalize_document_group(hit_category) == normalized_target:
+            filtered.append(hit)
+    return filtered
 
 
 def filter_by_metadata(hits: list[SearchHit], organization: str, year: str) -> list[SearchHit]:
