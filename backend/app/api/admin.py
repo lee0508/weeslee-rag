@@ -3,6 +3,7 @@
 Admin API endpoints for document management and RAG pipeline
 """
 import os
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, UploadFile, File
