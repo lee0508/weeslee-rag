@@ -112,6 +112,20 @@ def _filter_documents_by_selected_ids(
     return filtered
 
 
+def _build_skip_reasons(skipped_snapshots: list[dict]) -> list[str]:
+    reasons: list[str] = []
+    for item in skipped_snapshots or []:
+        snapshot_id = str(item.get("snapshot") or "").strip()
+        error = str(item.get("error") or "").strip()
+        if snapshot_id and error:
+            reasons.append(f"{snapshot_id}: {error}")
+        elif snapshot_id:
+            reasons.append(snapshot_id)
+        elif error:
+            reasons.append(error)
+    return reasons
+
+
 def _search_wiki_projects(query: str, top_k: int) -> list[dict]:
     if not WIKI_PROJECT_DIR.exists():
         return []
@@ -536,12 +550,29 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
     payload["search_scope"] = resolved_scope.get("scope_id")
     payload["search_scope_label"] = resolved_scope.get("label")
     payload["search_scope_description"] = resolved_scope.get("description")
+    payload["resolved_search_scope"] = resolved_scope.get("scope_id")
+    payload["resolved_search_scope_label"] = resolved_scope.get("label")
+    payload["resolved_search_scope_description"] = resolved_scope.get("description")
     payload["resolved_snapshots"] = resolved_snapshots
+    payload["resolved_snapshot_ids"] = resolved_snapshots
+    payload["requested_snapshot_ids"] = request.snapshot_ids
+    payload["resolved_category_filter"] = payload.get("category_filter") or effective_category
     payload["resolved_source_ids"] = scope_source_ids
+    payload["skipped_snapshot_ids"] = [
+        str(item.get("snapshot") or "").strip()
+        for item in (payload.get("skipped_snapshots") or [])
+        if str(item.get("snapshot") or "").strip()
+    ]
+    payload["skip_reasons"] = _build_skip_reasons(payload.get("skipped_snapshots") or [])
     payload["evidence_documents"] = _answer_evidence_documents(payload.get("documents", []) or [])
     payload["retrieval_summary"] = {
         "found_documents": bool(payload.get("documents")),
         "document_count": len(payload.get("documents", []) or []),
+        "resolved_search_scope": resolved_scope.get("scope_id"),
+        "resolved_snapshot_count": len(resolved_snapshots),
+        "skipped_snapshot_count": len(payload.get("skipped_snapshots") or []),
+        "resolved_category_filter": payload.get("category_filter") or effective_category,
+        "no_result_reason": (payload.get("retrieval_diagnostics") or {}).get("no_result_reason"),
         "top_source_paths": [
             doc.get("source_path") or doc.get("original_source_path") or ""
             for doc in (payload.get("documents", []) or [])[:5]

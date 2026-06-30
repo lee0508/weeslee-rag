@@ -3128,6 +3128,29 @@
       hintEl.textContent = `선택 Snapshot ${selectedNodes.length}개: ${labels.join(', ')}${moreCount > 0 ? ` 외 ${moreCount}개` : ''}`;
     }
 
+    function formatNoResultReason(reason) {
+      const mapping = {
+        all_requested_snapshots_skipped: '선택한 Snapshot들이 모두 skip 되었습니다.',
+        index_search_returned_no_hits: '선택한 검색 범위에서 검색 히트가 없습니다.',
+        category_filter_removed_all_hits: '카테고리 조건 적용 후 결과가 0건입니다.',
+        metadata_filter_removed_all_hits: '메타데이터 조건 적용 후 결과가 0건입니다.',
+        document_aggregation_returned_empty: '문서 집계 단계에서 표시 가능한 결과가 남지 않았습니다.',
+      };
+      return mapping[reason] || reason || '';
+    }
+
+    function buildSearchExecutionSummary(data) {
+      const summary = data?.retrieval_summary || {};
+      const diagnostics = data?.retrieval_diagnostics || {};
+      return {
+        resolvedScopeLabel: data?.resolved_search_scope_label || data?.search_scope_label || '-',
+        resolvedSnapshotCount: data?.resolved_snapshot_ids?.length || summary.resolved_snapshot_count || 0,
+        skippedSnapshotCount: data?.skipped_snapshot_ids?.length || summary.skipped_snapshot_count || 0,
+        categoryFilter: data?.resolved_category_filter || summary.resolved_category_filter || '-',
+        noResultReason: formatNoResultReason(summary.no_result_reason || diagnostics.no_result_reason),
+      };
+    }
+
     function renderSnapshotMultiSelect(sources) {
       const listEl = document.getElementById('searchSnapshotMulti');
       if (!listEl) return;
@@ -3697,6 +3720,7 @@
       const docCount = data.documents?.length || 0;
       const topDocument = docCount ? (data.documents[0].project_name || data.documents[0].document_id) : '-';
       const answerLength = (data.draft_answer || '').length;
+      const execution = buildSearchExecutionSummary(data);
 
       resultSummary.innerHTML = `
         <div class="result-metric">
@@ -3715,10 +3739,28 @@
           <div class="label">${t('result_ans_size')}</div>
           <div class="value">${answerLength}</div>
         </div>
+        <div class="result-metric">
+          <div class="label">검색 범위</div>
+          <div class="value">${escapeHtml(execution.resolvedScopeLabel)}</div>
+        </div>
+        <div class="result-metric">
+          <div class="label">Snapshot</div>
+          <div class="value">${execution.resolvedSnapshotCount}${execution.skippedSnapshotCount ? ` / skip ${execution.skippedSnapshotCount}` : ''}</div>
+        </div>
+        <div class="result-metric">
+          <div class="label">Category</div>
+          <div class="value">${escapeHtml(execution.categoryFilter)}</div>
+        </div>
       `;
 
       if (!docCount) {
-        resultDocs.innerHTML = `<div class="result-json">${escapeHtml(data.error || t('no_docs'))}</div>`;
+        const skipDetail = (data.skip_reasons || []).length
+          ? `<div style="margin-top:8px;font-size:11px;color:#94a3b8;">skip: ${escapeHtml(data.skip_reasons.slice(0, 3).join(' | '))}</div>`
+          : '';
+        const diagDetail = execution.noResultReason
+          ? `<div style="margin-top:8px;font-size:11px;color:#fbbf24;">원인 추정: ${escapeHtml(execution.noResultReason)}</div>`
+          : '';
+        resultDocs.innerHTML = `<div class="result-json">${escapeHtml(data.error || t('no_docs'))}${diagDetail}${skipDetail}</div>`;
         return;
       }
 
@@ -4026,6 +4068,11 @@
       syncAnswerModeLabel();
 
       if (!query && !_rfpSelectedFile) { if (status) status.textContent = t('enter_query'); return; }
+      if (searchScope === 'selected_snapshots' && !selectedSnapshotIds.length) {
+        if (status) status.textContent = '선택 Snapshot 범위는 최소 1개 Snapshot을 선택해야 실행됩니다.';
+        showToast('선택 Snapshot 범위를 사용하려면 Snapshot을 1개 이상 선택하세요.', 'warning');
+        return;
+      }
 
       _queryRan = true;
       if (status) status.textContent = t('running');
@@ -4145,8 +4192,14 @@
 
         const expandedNote = data.expanded_query
           ? ` (${_lang === 'ko' ? '확장' : 'expanded'}: ${data.expanded_query.slice(0, 60)}...)` : '';
-        const scopeNote = data.search_scope_label ? ` [${data.search_scope_label}]` : '';
-        if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote + scopeNote;
+        const execution = buildSearchExecutionSummary(data);
+        const scopeNote = execution.resolvedScopeLabel ? ` [${execution.resolvedScopeLabel}]` : '';
+        const snapshotNote = execution.resolvedSnapshotCount ? ` · Snapshot ${execution.resolvedSnapshotCount}개` : '';
+        const skipNote = execution.skippedSnapshotCount ? ` · skip ${execution.skippedSnapshotCount}개` : '';
+        const noResultNote = !((data.documents || []).length) && execution.noResultReason
+          ? ` · ${execution.noResultReason}`
+          : '';
+        if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote + scopeNote + snapshotNote + skipNote + noResultNote;
         _hasAnswer = answerProvider === 'none';
         renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
         renderResultPanel(data);

@@ -334,7 +334,11 @@ def _build_hits_for_snapshot(
     return hits
 
 
-def _apply_structure_filters_with_fallback(assembler, hits: list[Any], args: SimpleNamespace) -> list[Any]:
+def _apply_structure_filters_with_fallback(
+    assembler,
+    hits: list[Any],
+    args: SimpleNamespace,
+) -> tuple[list[Any], dict[str, Any]]:
     has_structure_filters = any(
         [
             args.document_group,
@@ -344,7 +348,12 @@ def _apply_structure_filters_with_fallback(assembler, hits: list[Any], args: Sim
         ]
     )
     if not has_structure_filters:
-        return hits
+        return hits, {
+            "applied": False,
+            "strategy": "none",
+            "input_hits": len(hits),
+            "output_hits": len(hits),
+        }
 
     full_hits = assembler.filter_by_structure(
         hits,
@@ -354,7 +363,12 @@ def _apply_structure_filters_with_fallback(assembler, hits: list[Any], args: Sim
         args.relative_path_prefix,
     )
     if full_hits:
-        return full_hits
+        return full_hits, {
+            "applied": True,
+            "strategy": "full",
+            "input_hits": len(hits),
+            "output_hits": len(full_hits),
+        }
 
     if args.document_group and (args.document_category or args.section_type):
         group_only_hits = assembler.filter_by_structure(
@@ -365,7 +379,12 @@ def _apply_structure_filters_with_fallback(assembler, hits: list[Any], args: Sim
             args.relative_path_prefix,
         )
         if group_only_hits:
-            return group_only_hits
+            return group_only_hits, {
+                "applied": True,
+                "strategy": "group_only",
+                "input_hits": len(hits),
+                "output_hits": len(group_only_hits),
+            }
 
     if args.document_category or args.section_type:
         section_only_hits = assembler.filter_by_structure(
@@ -376,7 +395,12 @@ def _apply_structure_filters_with_fallback(assembler, hits: list[Any], args: Sim
             args.relative_path_prefix,
         )
         if section_only_hits:
-            return section_only_hits
+            return section_only_hits, {
+                "applied": True,
+                "strategy": "section_only",
+                "input_hits": len(hits),
+                "output_hits": len(section_only_hits),
+            }
 
     if args.relative_path_prefix:
         path_only_hits = assembler.filter_by_structure(
@@ -387,9 +411,19 @@ def _apply_structure_filters_with_fallback(assembler, hits: list[Any], args: Sim
             args.relative_path_prefix,
         )
         if path_only_hits:
-            return path_only_hits
+            return path_only_hits, {
+                "applied": True,
+                "strategy": "path_only",
+                "input_hits": len(hits),
+                "output_hits": len(path_only_hits),
+            }
 
-    return hits
+    return hits, {
+        "applied": True,
+        "strategy": "fallback_original_hits",
+        "input_hits": len(hits),
+        "output_hits": len(hits),
+    }
 
 
 def _build_payload(
@@ -497,16 +531,16 @@ def run_rag_query(
 
     bundle = _get_bundle(resolved_index, resolved_meta)
     chunk_map = _get_chunk_map(resolved_chunks)
-    hits = _build_hits_for_snapshot(resolved_snapshot, bundle, chunk_map, args)
-    hits = assembler.filter_by_category(hits, args.category)
-    hits = assembler.filter_by_metadata(hits, args.organization, args.year)
-    hits = _apply_structure_filters_with_fallback(assembler, hits, args)
+    raw_hits = _build_hits_for_snapshot(resolved_snapshot, bundle, chunk_map, args)
+    category_hits = assembler.filter_by_category(raw_hits, args.category)
+    metadata_hits = assembler.filter_by_metadata(category_hits, args.organization, args.year)
+    hits, structure_debug = _apply_structure_filters_with_fallback(assembler, metadata_hits, args)
     hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     display_query = original_query or query
     documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)
     prompt = assembler.build_prompt(display_query, documents)
     answer = assembler.generate_answer(prompt, args)
-    return _build_payload(
+    payload = _build_payload(
         display_query,
         query,
         mode,
@@ -516,6 +550,29 @@ def run_rag_query(
         snapshot=resolved_snapshot,
         snapshots=[resolved_snapshot],
     )
+    payload["retrieval_diagnostics"] = {
+        "requested_snapshot_count": 1,
+        "loaded_snapshot_count": 1,
+        "skipped_snapshot_count": 0,
+        "raw_hit_count": len(raw_hits),
+        "after_category_hit_count": len(category_hits),
+        "after_metadata_hit_count": len(metadata_hits),
+        "after_structure_hit_count": len(hits),
+        "document_count": len(documents),
+        "structure_filter": structure_debug,
+        "no_result_reason": (
+            "index_search_returned_no_hits"
+            if not raw_hits
+            else "category_filter_removed_all_hits"
+            if raw_hits and not category_hits
+            else "metadata_filter_removed_all_hits"
+            if category_hits and not metadata_hits
+            else "document_aggregation_returned_empty"
+            if hits and not documents
+            else None
+        ),
+    }
+    return payload
 
 
 def run_multi_rag_query(
@@ -601,9 +658,9 @@ def run_multi_rag_query(
         raise RuntimeError("선택한 검색 범위에 사용할 FAISS Snapshot 파일이 없습니다.")
 
     all_hits.sort(key=lambda hit: float(getattr(hit, "score", 0.0)), reverse=True)
-    hits = assembler.filter_by_category(all_hits, args.category)
-    hits = assembler.filter_by_metadata(hits, args.organization, args.year)
-    hits = _apply_structure_filters_with_fallback(assembler, hits, args)
+    category_hits = assembler.filter_by_category(all_hits, args.category)
+    metadata_hits = assembler.filter_by_metadata(category_hits, args.organization, args.year)
+    hits, structure_debug = _apply_structure_filters_with_fallback(assembler, metadata_hits, args)
     hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     display_query = original_query or query
     documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)
@@ -622,4 +679,28 @@ def run_multi_rag_query(
     payload["skipped_snapshots"] = skipped_snapshots
     payload["requested_snapshots"] = resolved_snapshots
     payload["resolved_index_ids"] = resolved_index_ids
+    payload["retrieval_diagnostics"] = {
+        "requested_snapshot_count": len(resolved_snapshots),
+        "loaded_snapshot_count": len(resolved_index_ids),
+        "skipped_snapshot_count": len(skipped_snapshots),
+        "raw_hit_count": len(all_hits),
+        "after_category_hit_count": len(category_hits),
+        "after_metadata_hit_count": len(metadata_hits),
+        "after_structure_hit_count": len(hits),
+        "document_count": len(documents),
+        "structure_filter": structure_debug,
+        "no_result_reason": (
+            "all_requested_snapshots_skipped"
+            if not resolved_index_ids
+            else "index_search_returned_no_hits"
+            if not all_hits
+            else "category_filter_removed_all_hits"
+            if all_hits and not category_hits
+            else "metadata_filter_removed_all_hits"
+            if category_hits and not metadata_hits
+            else "document_aggregation_returned_empty"
+            if hits and not documents
+            else None
+        ),
+    }
     return payload
