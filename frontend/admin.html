@@ -4980,7 +4980,7 @@ POST /api/admin/faiss/activate</code>
         <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:12px;color:var(--muted)">Snapshot:</span>
-            <select id="filterSnapshotId" onchange="onSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
+            <select id="filterSnapshotId" onchange="onDocumentSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
               <option value="">로딩 중...</option>
             </select>
             <span id="docSnapshotActiveTag" style="display:none;font-size:10px;background:var(--green);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
@@ -8717,7 +8717,7 @@ POST /api/admin/faiss/activate</code>
         });
       }
       // 선택된 Snapshot의 source_id로 Document Source 자동 선택 후 문서 로드
-      onSnapshotChange(true);
+      onDocumentSnapshotChange(true);
     } catch (e) {
       console.error('Failed to load document sources:', e);
       // Document Sources 로드 실패해도 문서는 로드
@@ -8725,7 +8725,7 @@ POST /api/admin/faiss/activate</code>
     }
   }
 
-  function onSnapshotChange(reloadDocs = true) {
+  function onDocumentSnapshotChange(reloadDocs = true) {
     const snapshotSelect = document.getElementById('filterSnapshotId');
     const sourceSelect = document.getElementById('filterSourceId');
     const activeTag = document.getElementById('docSnapshotActiveTag');
