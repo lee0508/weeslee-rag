@@ -538,19 +538,35 @@ async def rollback_snapshot():
 
 
 @router.delete("/{snapshot_id}")
-async def delete_snapshot(snapshot_id: str):
-    """Snapshot 삭제 (활성 Snapshot은 삭제 불가)"""
+async def delete_snapshot_endpoint(snapshot_id: str, force: bool = False):
+    """Snapshot 및 연관 데이터 삭제 (활성 Snapshot은 삭제 불가)
+
+    삭제 대상:
+    - Snapshot manifest
+    - FAISS Index 파일
+    - 청크 데이터 (staged/chunks/)
+    - 메타데이터 (staged/metadata/)
+    - 그래프 데이터 (graph/)
+    - Wiki 데이터 (wiki/)
+    """
+    from app.services.snapshot_manager import delete_snapshot as delete_snapshot_service
+
     snapshot = _load_snapshot(snapshot_id)
     if not snapshot:
         raise HTTPException(status_code=404, detail=f"Snapshot '{snapshot_id}' not found")
 
-    if snapshot.is_active:
-        raise HTTPException(status_code=400, detail="활성 Snapshot은 삭제할 수 없습니다.")
+    if snapshot.is_active and not force:
+        raise HTTPException(status_code=400, detail="활성 Snapshot은 삭제할 수 없습니다. force=true로 강제 삭제 가능합니다.")
 
-    snapshot_file = SNAPSHOT_DIR / f"{snapshot_id}.json"
-    snapshot_file.unlink()
+    try:
+        result = delete_snapshot_service(snapshot_id, force=force)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     return {
         "success": True,
-        "message": f"Snapshot '{snapshot_id}' 삭제 완료",
+        "message": f"Snapshot '{snapshot_id}' 및 연관 데이터 삭제 완료",
+        "deleted_files": result.get("deleted_files", []),
+        "deleted_dirs": result.get("deleted_dirs", []),
+        "deleted_count": result.get("deleted_count", 0),
     }

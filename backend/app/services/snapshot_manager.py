@@ -249,7 +249,15 @@ def get_snapshot_info(snapshot_id: str) -> Optional[dict[str, Any]]:
 
 def delete_snapshot(snapshot_id: str, force: bool = False) -> dict[str, Any]:
     """
-    Snapshot 삭제.
+    Snapshot 삭제 (연관 데이터 모두 삭제).
+
+    삭제 대상:
+    - FAISS Index 파일 (primary, category별)
+    - Snapshot manifest
+    - 청크 데이터 (staged/chunks/)
+    - 메타데이터 (staged/metadata/)
+    - 그래프 데이터 (graph/)
+    - Wiki 데이터 (wiki/)
 
     Args:
         snapshot_id: 삭제할 Snapshot ID
@@ -261,33 +269,99 @@ def delete_snapshot(snapshot_id: str, force: bool = False) -> dict[str, Any]:
     Raises:
         ValueError: 활성 Snapshot 삭제 시도 (force=False)
     """
+    import shutil
+
     if _is_active_snapshot(snapshot_id) and not force:
         raise ValueError(f"활성 Snapshot은 삭제할 수 없습니다: {snapshot_id}")
 
     deleted_files = []
-    patterns = [
+    deleted_dirs = []
+
+    # 1. FAISS Index 파일 삭제
+    faiss_patterns = [
         f"{snapshot_id}_ollama.index",
         f"{snapshot_id}_ollama_metadata.jsonl",
         f"{snapshot_id}_ollama.manifest.json",
         f"{snapshot_id}_admin_stats.json",
     ]
 
-    for pattern in patterns:
+    for pattern in faiss_patterns:
         file_path = FAISS_DIR / pattern
         if file_path.exists():
             file_path.unlink()
-            deleted_files.append(pattern)
+            deleted_files.append(f"faiss/{pattern}")
 
     # 카테고리 인덱스도 삭제
     for cat_file in FAISS_DIR.glob(f"{snapshot_id}_*_ollama.*"):
         cat_file.unlink()
-        deleted_files.append(cat_file.name)
+        deleted_files.append(f"faiss/{cat_file.name}")
+
+    # 2. Snapshot manifest 파일 삭제
+    snapshot_manifest = SNAPSHOT_DIR / f"{snapshot_id}.json"
+    if snapshot_manifest.exists():
+        snapshot_manifest.unlink()
+        deleted_files.append(f"snapshots/{snapshot_id}.json")
+
+    # 3. 청크 데이터 삭제 (staged/chunks/)
+    staged_chunks_dir = DATA_DIR / "staged" / "chunks"
+    if staged_chunks_dir.exists():
+        for chunk_file in staged_chunks_dir.glob(f"{snapshot_id}*"):
+            chunk_file.unlink()
+            deleted_files.append(f"staged/chunks/{chunk_file.name}")
+
+    # 4. 메타데이터 삭제 (staged/metadata/)
+    staged_metadata_dir = DATA_DIR / "staged" / "metadata"
+    if staged_metadata_dir.exists():
+        for meta_file in staged_metadata_dir.glob(f"{snapshot_id}*"):
+            meta_file.unlink()
+            deleted_files.append(f"staged/metadata/{meta_file.name}")
+
+    # 5. 파이프라인 상태 삭제 (staged/)
+    staged_dir = DATA_DIR / "staged"
+    if staged_dir.exists():
+        for state_file in staged_dir.glob(f"*{snapshot_id}*"):
+            if state_file.is_file():
+                state_file.unlink()
+                deleted_files.append(f"staged/{state_file.name}")
+
+    # 6. 그래프 데이터 삭제 (graph/)
+    graph_dir = DATA_DIR / "graph"
+    if graph_dir.exists():
+        for graph_file in graph_dir.glob(f"{snapshot_id}*"):
+            if graph_file.is_file():
+                graph_file.unlink()
+                deleted_files.append(f"graph/{graph_file.name}")
+            elif graph_file.is_dir():
+                shutil.rmtree(graph_file)
+                deleted_dirs.append(f"graph/{graph_file.name}")
+
+    # 7. Wiki 데이터 삭제 (wiki/)
+    wiki_dir = DATA_DIR / "wiki"
+    if wiki_dir.exists():
+        for wiki_file in wiki_dir.glob(f"{snapshot_id}*"):
+            if wiki_file.is_file():
+                wiki_file.unlink()
+                deleted_files.append(f"wiki/{wiki_file.name}")
+            elif wiki_file.is_dir():
+                shutil.rmtree(wiki_file)
+                deleted_dirs.append(f"wiki/{wiki_file.name}")
+
+    # 8. source_id 기반 wiki 폴더 삭제 (src_YYYYMMDD_HHMMSS_HASH 형식)
+    # snapshot_id에서 src_ 부분 추출
+    if "_src_" in snapshot_id:
+        src_part = snapshot_id.split("_src_")[1].rsplit("_V", 1)[0]
+        src_folder_name = f"src_{src_part}"
+        src_wiki_dir = wiki_dir / src_folder_name
+        if src_wiki_dir.exists() and src_wiki_dir.is_dir():
+            shutil.rmtree(src_wiki_dir)
+            deleted_dirs.append(f"wiki/{src_folder_name}")
 
     return {
         "snapshot_id": snapshot_id,
         "deleted": True,
         "deleted_files": deleted_files,
-        "deleted_count": len(deleted_files),
+        "deleted_dirs": deleted_dirs,
+        "deleted_count": len(deleted_files) + len(deleted_dirs),
     }
 
 
