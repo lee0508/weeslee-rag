@@ -4044,6 +4044,9 @@
       const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
       const searchScopeMeta = (_searchScopes || []).find(item => item.scope_id === searchScope) || null;
       const resolvedFilters = resolveQueryFilters(query, analysisData);
+      const effectiveDocumentGroup = resolvedFilters.document_group || documentGroup;
+      const inferredCategory = resolveDocumentGroupCategory(effectiveDocumentGroup);
+      const effectiveCategory = category || inferredCategory;
       if (_rfpSelectedFile && status) status.textContent = t('rfp_active_notice');
       const queryStart = performance.now();
       let searchMs = 0;
@@ -4059,9 +4062,9 @@
         wiki_weight: ww / wTotal,
         ...(searchScope   ? { search_scope: searchScope }         : {}),
         ...(selectedSnapshotIds.length ? { snapshot_ids: selectedSnapshotIds } : {}),
-        ...(category      ? { category }                         : {}),
+        ...(effectiveCategory ? { category: effectiveCategory }   : {}),
         ...(collection    ? { collection }                       : {}),
-        ...((resolvedFilters.document_group || documentGroup) ? { document_group: resolvedFilters.document_group || documentGroup } : {}),
+        ...(effectiveDocumentGroup ? { document_group: effectiveDocumentGroup } : {}),
         ...(resolvedFilters.document_category ? { document_category: resolvedFilters.document_category } : {}),
         ...(resolvedFilters.section_type ? { section_type: resolvedFilters.section_type } : {}),
         ...(filterOrg     ? { organization: filterOrg }          : {}),
@@ -4084,8 +4087,8 @@
           formData.append('max_chunks_per_doc', String(maxChunks));
           formData.append('answer_provider', answerProvider);
           formData.append('answer_model', answerProvider === 'none' ? '' : answerModel);
-          if (category) formData.append('category', category);
-          if (resolvedFilters.document_group || documentGroup) formData.append('document_group', resolvedFilters.document_group || documentGroup);
+          if (effectiveCategory) formData.append('category', effectiveCategory);
+          if (effectiveDocumentGroup) formData.append('document_group', effectiveDocumentGroup);
           if (resolvedFilters.document_category) formData.append('document_category', resolvedFilters.document_category);
           if (resolvedFilters.section_type) formData.append('section_type', resolvedFilters.section_type);
 
@@ -4432,6 +4435,12 @@
       if (normalized === 'proposal' || normalized === '제안서') return 'proposal';
       if (normalized === 'deliverable' || normalized === '산출물') return 'deliverable';
       return normalized;
+    }
+
+    function resolveDocumentGroupCategory(documentGroup) {
+      const normalized = mapDetectedDocumentGroup(documentGroup);
+      if (normalized === 'rfp' || normalized === 'proposal' || normalized === 'deliverable') return normalized;
+      return '';
     }
 
     function resolveQueryFilters(query, analysisData) {
