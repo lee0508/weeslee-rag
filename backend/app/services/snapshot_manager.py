@@ -370,13 +370,60 @@ def delete_snapshot(snapshot_id: str, force: bool = False) -> dict[str, Any]:
             shutil.rmtree(src_wiki_dir)
             deleted_dirs.append(f"wiki/{src_folder_name}")
 
+    # 11. DB 정리 (document_metadata.faiss_snapshot, collections.snapshot_id)
+    db_updates = _cleanup_db_references(snapshot_id)
+
     return {
         "snapshot_id": snapshot_id,
         "deleted": True,
         "deleted_files": deleted_files,
         "deleted_dirs": deleted_dirs,
         "deleted_count": len(deleted_files) + len(deleted_dirs),
+        "db_updates": db_updates,
     }
+
+
+def _cleanup_db_references(snapshot_id: str) -> dict[str, int]:
+    """Snapshot 삭제 시 DB 참조 정리."""
+    from app.core.database import SessionLocal
+    from sqlalchemy import text
+
+    db_updates = {
+        "document_metadata_cleared": 0,
+        "collections_cleared": 0,
+    }
+
+    try:
+        db = SessionLocal()
+
+        # document_metadata.faiss_snapshot 컬럼 NULL로 설정
+        result = db.execute(
+            text("UPDATE document_metadata SET faiss_snapshot = NULL WHERE faiss_snapshot = :snapshot_id"),
+            {"snapshot_id": snapshot_id}
+        )
+        db_updates["document_metadata_cleared"] = result.rowcount
+
+        # collections.snapshot_id 컬럼 NULL로 설정
+        result = db.execute(
+            text("UPDATE collections SET snapshot_id = NULL WHERE snapshot_id = :snapshot_id"),
+            {"snapshot_id": snapshot_id}
+        )
+        db_updates["collections_cleared"] = result.rowcount
+
+        db.commit()
+    except Exception as e:
+        db_updates["error"] = str(e)
+        try:
+            db.rollback()
+        except:
+            pass
+    finally:
+        try:
+            db.close()
+        except:
+            pass
+
+    return db_updates
 
 
 def _is_active_snapshot(snapshot_id: str) -> bool:

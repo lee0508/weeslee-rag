@@ -569,4 +569,5 @@ async def delete_snapshot_endpoint(snapshot_id: str, force: bool = False):
         "deleted_files": result.get("deleted_files", []),
         "deleted_dirs": result.get("deleted_dirs", []),
         "deleted_count": result.get("deleted_count", 0),
+        "db_updates": result.get("db_updates", {}),
     }
