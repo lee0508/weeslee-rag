@@ -24,9 +24,46 @@ from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 GRAPH_DIR = PROJECT_ROOT / "data" / "indexes" / "graph"
+_DOCUMENT_PREFIXES = ("document", "doc")
+_CATEGORY_PREFIXES = ("category", "cat")
+_ORGANIZATION_PREFIXES = ("organization", "org")
+_TECHNOLOGY_PREFIXES = ("technology", "tech")
+_METHODOLOGY_PREFIXES = ("methodology", "method")
 
 # 그래프 캐시 (mtime 기반 무효화)
 _cache: dict = {"nodes": [], "edges": [], "mtime": 0.0, "by_id": {}, "by_project": {}}
+
+
+def _prefixed_node_id(value: str, prefixes: tuple[str, ...]) -> str:
+    return f"{prefixes[0]}:{value}"
+
+
+def _prefixed_node_candidates(value: str, prefixes: tuple[str, ...]) -> list[str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return []
+    if ":" in raw:
+        head, tail = raw.split(":", 1)
+        if head in prefixes:
+            return [f"{prefix}:{tail}" for prefix in prefixes]
+        return [raw]
+    return [f"{prefix}:{raw}" for prefix in prefixes]
+
+
+def _resolve_existing_node_id(value: str, prefixes: tuple[str, ...]) -> str:
+    for candidate in _prefixed_node_candidates(value, prefixes):
+        if candidate in _cache["by_id"]:
+            return candidate
+    return _prefixed_node_id(value, prefixes)
+
+
+def _strip_known_prefix(value: str, prefixes: tuple[str, ...]) -> str:
+    raw = str(value or "")
+    for prefix in prefixes:
+        marker = f"{prefix}:"
+        if raw.startswith(marker):
+            return raw[len(marker):]
+    return raw
 
 
 def _load_graph() -> None:
@@ -467,7 +504,7 @@ def query_by_organization(org_name: str, category_filter: Optional[str] = None) 
 
     canonical = normalize_organization(org_name)
     synonyms = get_organization_synonyms(org_name)
-    org_id = f"org:{canonical}"
+    org_id = _resolve_existing_node_id(canonical, _ORGANIZATION_PREFIXES)
 
     # 발주 엣지를 통해 프로젝트 조회
     projects = []
@@ -535,7 +572,7 @@ def query_by_methodology(method_name: str) -> dict:
 
     canonical = normalize_methodology(method_name)
     synonyms = METHODOLOGY_SYNONYMS.get(canonical, [])
-    method_id = f"method:{canonical}"
+    method_id = _resolve_existing_node_id(canonical, _METHODOLOGY_PREFIXES)
 
     projects = []
     for edge in _cache["edges"]:
@@ -582,7 +619,7 @@ def query_by_technologies(tech_names: list[str], match_all: bool = True) -> dict
     _load_graph()
 
     normalized_techs = [normalize_technology(t) for t in tech_names]
-    tech_ids = [f"tech:{t}" for t in normalized_techs]
+    tech_ids = {_resolve_existing_node_id(t, _TECHNOLOGY_PREFIXES) for t in normalized_techs}
 
     # 프로젝트별 적용 기술 수집
     proj_techs: dict[str, set[str]] = {}
@@ -591,7 +628,7 @@ def query_by_technologies(tech_names: list[str], match_all: bool = True) -> dict
             proj_id = edge["source"]
             if proj_id not in proj_techs:
                 proj_techs[proj_id] = set()
-            proj_techs[proj_id].add(edge["target"].replace("tech:", ""))
+            proj_techs[proj_id].add(_strip_known_prefix(edge["target"], _TECHNOLOGY_PREFIXES))
 
     # 조건에 맞는 프로젝트 필터링
     projects = []
@@ -664,7 +701,7 @@ def query_similar_to_organization(org_name: str, top_k: int = 5) -> dict:
     _load_graph()
 
     canonical = normalize_organization(org_name)
-    org_id = f"org:{canonical}"
+    org_id = _resolve_existing_node_id(canonical, _ORGANIZATION_PREFIXES)
 
     # 해당 기관의 프로젝트 조회
     source_projects = []
@@ -719,7 +756,7 @@ def query_similar_to_organization(org_name: str, top_k: int = 5) -> dict:
                 elif edge.get("relation") == "관련도메인":
                     proj_domains.add(edge["target"])
             elif edge["target"] == proj_id and edge.get("relation") == "발주":
-                proj_org = edge["source"].replace("org:", "")
+                proj_org = _strip_known_prefix(edge["source"], _ORGANIZATION_PREFIXES)
 
         tech_overlap = len(source_techs & proj_techs)
         domain_overlap = len(source_domains & proj_domains)
@@ -728,7 +765,7 @@ def query_similar_to_organization(org_name: str, top_k: int = 5) -> dict:
         if score > 0:
             reasons = []
             if tech_overlap > 0:
-                common_techs = [t.replace("tech:", "") for t in (source_techs & proj_techs)]
+                common_techs = [_strip_known_prefix(t, _TECHNOLOGY_PREFIXES) for t in (source_techs & proj_techs)]
                 reasons.append(f"공통기술: {', '.join(common_techs[:3])}")
             if domain_overlap > 0:
                 common_domains = [d.replace("domain:", "") for d in (source_domains & proj_domains)]
@@ -776,7 +813,7 @@ def query_project_document_chain(org_name: str, project_name: Optional[str] = No
     _load_graph()
 
     canonical = normalize_organization(org_name)
-    org_id = f"org:{canonical}"
+    org_id = _resolve_existing_node_id(canonical, _ORGANIZATION_PREFIXES)
 
     result_projects = []
 

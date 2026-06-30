@@ -411,6 +411,12 @@ def render_wiki(
         for s in snippets[:3]:
             evidence_sections += f"> {s[:250]}\n\n"
 
+    # 전체 Document IDs 수집 (2026-06-30)
+    all_doc_ids: list[str] = []
+    for cat_docs in cats.values():
+        all_doc_ids.extend(cat_docs)
+    all_doc_ids = sorted(set(all_doc_ids))  # 중복 제거 및 정렬
+
     # ID 정보 행 (값이 있을 때만 표시)
     id_rows = ""
     if source_id:
@@ -419,6 +425,13 @@ def render_wiki(
         id_rows += f"| Dataset ID | `{dataset_id}` |\n"
     if snapshot_id:
         id_rows += f"| Snapshot ID | `{snapshot_id}` |\n"
+    if all_doc_ids:
+        # 10개 이하면 전체 표시, 초과하면 축약
+        if len(all_doc_ids) <= 10:
+            doc_ids_str = ", ".join(all_doc_ids)
+        else:
+            doc_ids_str = ", ".join(all_doc_ids[:5]) + f" ... (+{len(all_doc_ids) - 5}개)"
+        id_rows += f"| Document IDs | `[{doc_ids_str}]` |\n"
 
     return f"""# {meta['display_name']}
 

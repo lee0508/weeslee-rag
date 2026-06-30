@@ -80,6 +80,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 GRAPH_DIR = DATA_DIR / "indexes" / "graph"
 _BUILD_SCRIPT = PROJECT_ROOT / "backend" / "scripts" / "build_graph_jsonl.py"
+_DOCUMENT_PREFIXES = ("document", "doc")
+_CATEGORY_PREFIXES = ("category", "cat")
+_ORGANIZATION_PREFIXES = ("organization", "org")
+_TECHNOLOGY_PREFIXES = ("technology", "tech")
+_METHODOLOGY_PREFIXES = ("methodology", "method")
 
 
 def _get_graph_dir(source_id: Optional[str] = None) -> Path:
@@ -87,6 +92,29 @@ def _get_graph_dir(source_id: Optional[str] = None) -> Path:
     if source_id:
         return DATA_DIR / "indexes" / "graph" / source_id
     return GRAPH_DIR
+
+
+def _prefixed_node_id(value: str, prefixes: tuple[str, ...]) -> str:
+    return f"{prefixes[0]}:{value}"
+
+
+def _prefixed_node_candidates(value: str, prefixes: tuple[str, ...]) -> list[str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return []
+    if ":" in raw:
+        head, tail = raw.split(":", 1)
+        if head in prefixes:
+            return [f"{prefix}:{tail}" for prefix in prefixes]
+        return [raw]
+    return [f"{prefix}:{raw}" for prefix in prefixes]
+
+
+def _resolve_existing_node_id(node_by_id: dict[str, dict], value: str, prefixes: tuple[str, ...]) -> Optional[str]:
+    for candidate in _prefixed_node_candidates(value, prefixes):
+        if candidate in node_by_id:
+            return candidate
+    return None
 
 
 # ── File-based cache (invalidates when JSONL mtime changes) ──────────────────
@@ -259,7 +287,8 @@ async def get_project(project_name: str, source_id: Optional[str] = None):
 async def get_document(document_id: str, source_id: Optional[str] = None):
     """특정 문서 노드와 연결 엣지."""
     cache = _load_graph(source_id)
-    doc_id = f"doc:{document_id}"
+    node_by_id = {n.get("id"): n for n in cache["nodes"]}
+    doc_id = _resolve_existing_node_id(node_by_id, document_id, _DOCUMENT_PREFIXES) or _prefixed_node_id(document_id, _DOCUMENT_PREFIXES)
     doc_node = next((n for n in cache["nodes"] if n["id"] == doc_id), None)
     if not doc_node:
         raise HTTPException(status_code=404, detail=f"Document not found: {document_id}")
@@ -360,7 +389,7 @@ def _save_graph(source_id: Optional[str] = None) -> None:
 
 class NodeCreateRequest(BaseModel):
     node_type: str = Field(..., description="노드 타입: project, document, category")
-    node_id: str = Field(..., description="노드 ID (예: doc:uuid, project:name)")
+    node_id: str = Field(..., description="노드 ID (예: document:uuid, doc:uuid, project:name)")
     label: str = Field(..., description="표시 라벨")
     project_name: Optional[str] = None
     category: Optional[str] = None
@@ -715,8 +744,10 @@ def _find_document_nodes(cache: dict, document_ids: list[str]) -> tuple[list[dic
             continue
 
         node = node_by_id.get(document_id)
-        if not node and not document_id.startswith("doc:"):
-            node = node_by_id.get(f"doc:{document_id}")
+        if not node:
+            resolved_id = _resolve_existing_node_id(node_by_id, document_id, _DOCUMENT_PREFIXES)
+            if resolved_id:
+                node = node_by_id.get(resolved_id)
         if not node:
             node = node_by_document_id.get(document_id)
 
@@ -848,7 +879,8 @@ async def cytoscape_by_organization(
 
     cache = _load_graph(source_id)
     canonical = normalize_organization(org_name)
-    org_id = f"org:{canonical}"
+    node_by_id = {n.get("id"): n for n in cache["nodes"]}
+    org_id = _resolve_existing_node_id(node_by_id, canonical, _ORGANIZATION_PREFIXES) or _prefixed_node_id(canonical, _ORGANIZATION_PREFIXES)
 
     visited_nodes: set[str] = set()
     visited_edges: set[str] = set()
@@ -897,7 +929,8 @@ async def cytoscape_by_methodology(method_name: str, depth: int = 2, source_id: 
 
     cache = _load_graph(source_id)
     canonical = normalize_methodology(method_name)
-    method_id = f"method:{canonical}"
+    node_by_id = {n.get("id"): n for n in cache["nodes"]}
+    method_id = _resolve_existing_node_id(node_by_id, canonical, _METHODOLOGY_PREFIXES) or _prefixed_node_id(canonical, _METHODOLOGY_PREFIXES)
 
     visited_nodes: set[str] = set()
     visited_edges: set[str] = set()
@@ -943,7 +976,8 @@ async def cytoscape_by_technology(tech_name: str, depth: int = 2, source_id: Opt
 
     cache = _load_graph(source_id)
     canonical = normalize_technology(tech_name)
-    tech_id = f"tech:{canonical}"
+    node_by_id = {n.get("id"): n for n in cache["nodes"]}
+    tech_id = _resolve_existing_node_id(node_by_id, canonical, _TECHNOLOGY_PREFIXES) or _prefixed_node_id(canonical, _TECHNOLOGY_PREFIXES)
 
     visited_nodes: set[str] = set()
     visited_edges: set[str] = set()
@@ -1228,7 +1262,8 @@ async def get_document_relations(document_id: str, source_id: Optional[str] = No
     cache = _load_graph(source_id)
 
     # document_id 형식 정규화
-    doc_id = document_id if document_id.startswith("doc:") else f"doc:{document_id}"
+    node_by_id = {n.get("id"): n for n in cache["nodes"]}
+    doc_id = _resolve_existing_node_id(node_by_id, document_id, _DOCUMENT_PREFIXES) or _prefixed_node_id(document_id, _DOCUMENT_PREFIXES)
 
     # 문서 노드 찾기
     doc_node = next((n for n in cache["nodes"] if n["id"] == doc_id), None)
@@ -1883,9 +1918,11 @@ async def lpg_document_context(doc_id: str):
     if not graph:
         raise HTTPException(status_code=503, detail="LPG graph not initialized")
 
-    # doc: 프리픽스 처리
-    if not doc_id.startswith("doc:"):
-        doc_id = f"doc:{doc_id}"
+    resolved_doc_id = _resolve_existing_node_id(graph.nodes, doc_id, _DOCUMENT_PREFIXES)
+    if resolved_doc_id:
+        doc_id = resolved_doc_id
+    else:
+        doc_id = _prefixed_node_id(doc_id, _DOCUMENT_PREFIXES)
 
     context = graph.get_document_context(doc_id)
     if not context.get("document"):
@@ -1906,8 +1943,11 @@ async def lpg_related_documents(request: LPGRelatedDocsRequest):
         raise HTTPException(status_code=503, detail="LPG graph not initialized")
 
     doc_id = request.document_id
-    if not doc_id.startswith("doc:"):
-        doc_id = f"doc:{doc_id}"
+    resolved_doc_id = _resolve_existing_node_id(graph.nodes, doc_id, _DOCUMENT_PREFIXES)
+    if resolved_doc_id:
+        doc_id = resolved_doc_id
+    else:
+        doc_id = _prefixed_node_id(doc_id, _DOCUMENT_PREFIXES)
 
     if doc_id not in graph.nodes:
         raise HTTPException(status_code=404, detail=f"Document not found: {doc_id}")

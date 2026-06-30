@@ -331,7 +331,7 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
     # Static category nodes
     for cat in CATEGORY_ORDER:
         add_node({
-            "id":    f"cat:{cat}",
+            "id":    f"category:{cat}",
             "type":  "category",
             "label": CATEGORY_LABELS.get(cat, cat),
             "color": CATEGORY_COLORS.get(cat, "#6b7280"),
@@ -359,18 +359,22 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
             (d["organization"] for d in proj_docs if d.get("organization")), ""
         )
 
+        # Document IDs 수집 (2026-06-30)
+        document_ids = sorted([d["document_id"] for d in proj_docs if d.get("document_id")])
+
         add_node({
             "id":           proj_id,
             "type":         "project",
             "label":        project_name,
             "doc_count":    len(proj_docs),
+            "document_ids": document_ids,  # 프로젝트 내 문서 ID 목록
             "year":         year,
             "organization": organization,
         })
 
         # Document nodes + project→doc edges
         for doc in proj_docs:
-            doc_id = f"doc:{doc['document_id']}"
+            doc_id = f"document:{doc['document_id']}"
             filename = Path(doc["source_path"]).name
             add_node({
                 "id":           doc_id,
@@ -391,7 +395,7 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
                 "relative_path": doc.get("relative_path", ""),
             })
             add_edge(proj_id, doc_id, "has_document")
-            cat_node_id = f"cat:{doc['category']}"
+            cat_node_id = f"category:{doc['category']}"
             if cat_node_id in node_ids:
                 add_edge(doc_id, cat_node_id, "has_category")
 
@@ -400,8 +404,8 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
         for cat in CATEGORY_ORDER:
             ordered.extend(d for d in proj_docs if d["category"] == cat)
         for i in range(len(ordered) - 1):
-            src = f"doc:{ordered[i]['document_id']}"
-            tgt = f"doc:{ordered[i + 1]['document_id']}"
+            src = f"document:{ordered[i]['document_id']}"
+            tgt = f"document:{ordered[i + 1]['document_id']}"
             label = f"{ordered[i]['category']} → {ordered[i + 1]['category']}"
             add_edge(src, tgt, "related_sequence", label=label)
 
@@ -449,7 +453,7 @@ def _add_knowledge_graph_nodes(
     # 1. Organization 노드 생성 및 동의어 엣지
     org_nodes_created: set[str] = set()
     for canonical, synonyms in ORGANIZATION_SYNONYMS.items():
-        org_id = f"org:{canonical}"
+        org_id = f"organization:{canonical}"
         if add_node({
             "id": org_id,
             "type": "organization",
@@ -479,13 +483,13 @@ def _add_knowledge_graph_nodes(
         })
         # 기관 → 기관유형 엣지
         for member in members:
-            member_org_id = f"org:{member}"
+            member_org_id = f"organization:{member}"
             if member_org_id in node_ids:
                 add_edge(member_org_id, org_type_id, "소속유형")
 
     # 2. Technology 노드 생성 및 계층 엣지
     for tech_name, info in TECHNOLOGY_HIERARCHY.items():
-        tech_id = f"tech:{tech_name}"
+        tech_id = f"technology:{tech_name}"
         add_node({
             "id": tech_id,
             "type": "technology",
@@ -496,11 +500,11 @@ def _add_knowledge_graph_nodes(
 
         # 부모-자식 관계
         if info.get("parent"):
-            parent_id = f"tech:{info['parent']}"
+            parent_id = f"technology:{info['parent']}"
             add_edge(parent_id, tech_id, "유사기술", label="상위기술")
 
         for child in info.get("children", []):
-            child_id = f"tech:{child}"
+            child_id = f"technology:{child}"
             # 자식 노드가 없으면 먼저 생성
             add_node({
                 "id": child_id,
@@ -513,7 +517,7 @@ def _add_knowledge_graph_nodes(
 
     # 3. Methodology 노드 생성
     for method_name, synonyms in METHODOLOGY_SYNONYMS.items():
-        method_id = f"method:{method_name}"
+        method_id = f"methodology:{method_name}"
         add_node({
             "id": method_id,
             "type": "methodology",
@@ -613,8 +617,8 @@ def _add_knowledge_graph_nodes(
         org_from_meta = next((d.get("organization") for d in proj_docs if d.get("organization")), "")
         if org_from_meta:
             canonical_org = normalize_organization(org_from_meta)
-            org_id = f"org:{canonical_org}"
-            if org_id.replace("org:", "") in org_nodes_created or canonical_org in ORGANIZATION_SYNONYMS:
+            org_id = f"organization:{canonical_org}"
+            if canonical_org in org_nodes_created or canonical_org in ORGANIZATION_SYNONYMS:
                 add_edge(org_id, proj_id, "발주")
 
             # 기관유형 연결
@@ -626,13 +630,13 @@ def _add_knowledge_graph_nodes(
         # Technology 추출 및 연결
         techs = extract_technologies(text_for_extraction)
         for tech in techs:
-            tech_id = f"tech:{tech}"
+            tech_id = f"technology:{tech}"
             add_edge(proj_id, tech_id, "적용기술")
 
         # Methodology 추출 및 연결
         methods = extract_methodologies(text_for_extraction)
         for method in methods:
-            method_id = f"method:{method}"
+            method_id = f"methodology:{method}"
             add_edge(proj_id, method_id, "사용방법론")
 
         # Domain 추출 및 연결
@@ -650,7 +654,7 @@ def _add_knowledge_graph_nodes(
     # 9. 문서별 섹션/키워드 연결 (source_path 기반)
     for project_name, proj_docs in by_project.items():
         for doc in proj_docs:
-            doc_id = f"doc:{doc['document_id']}"
+            doc_id = f"document:{doc['document_id']}"
             if doc_id not in node_ids:
                 continue
 
@@ -730,7 +734,7 @@ def _add_document_section_nodes_and_edges(
     }
 
     for doc_id, chunks_list in doc_chunks.items():
-        doc_node_id = f"doc:{doc_id}"
+        doc_node_id = f"document:{doc_id}"
 
         # 문서 노드가 그래프에 없으면 스킵
         if doc_node_id not in node_ids:
@@ -854,7 +858,7 @@ def _add_chunk_section_nodes_and_edges(
     }
 
     for doc_id, chunks_list in doc_chunks.items():
-        doc_node_id = f"doc:{doc_id}"
+        doc_node_id = f"document:{doc_id}"
 
         # 문서 노드가 그래프에 없으면 스킵
         if doc_node_id not in node_ids:
