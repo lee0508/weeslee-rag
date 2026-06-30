@@ -53,6 +53,8 @@ class SearchHit:
     chunk_text: str
     organization: str = ""
     folder_year: str = ""
+    document_group: str = ""
+    document_category: str = ""
     root_group: str = ""
     sub_group: str = ""
     section_label: str = ""
@@ -391,6 +393,7 @@ def filter_by_structure(
     def matches(hit: SearchHit) -> bool:
         if normalized_group:
             group_candidates = {
+                _normalize_document_group(hit.document_group),
                 _normalize_document_group(hit.category),
                 _normalize_document_group(hit.collection_key),
                 _normalize_document_group(hit.root_group),
@@ -400,6 +403,7 @@ def filter_by_structure(
 
         if normalized_category:
             category_candidates = {
+                _normalize_structure_label(hit.document_category),
                 _normalize_structure_label(hit.section_label),
                 _normalize_structure_label(hit.proposal_section),
                 _normalize_structure_label(hit.deliverable_section),
@@ -410,6 +414,7 @@ def filter_by_structure(
 
         if normalized_section:
             section_candidates = {
+                _normalize_structure_label(hit.document_category),
                 _normalize_structure_label(hit.section_label),
                 _normalize_structure_label(hit.proposal_section),
                 _normalize_structure_label(hit.deliverable_section),
@@ -431,6 +436,14 @@ def filter_by_structure(
         return True
 
     return [hit for hit in hits if matches(hit)]
+
+
+def _effective_document_group(*values: str) -> str:
+    for value in values:
+        normalized = _normalize_document_group(value)
+        if normalized and normalized != "unknown":
+            return normalized
+    return ""
 
 
 def limit_chunks_per_doc(hits: list[SearchHit], max_per_doc: int) -> list[SearchHit]:
@@ -506,12 +519,12 @@ def reason_list(query: str, group: dict) -> list[str]:
     if matched_terms:
         reasons.append("질의 핵심어와 일치: " + ", ".join(sorted(matched_terms)[:5]))
     if group.get("category_intent_match"):
-        reasons.append(f"질의 의도와 문서 유형 일치: {group['category']}")
+        reasons.append(f"질의 의도와 문서 유형 일치: {group.get('document_group') or group['category']}")
     if group.get("structure_match_terms"):
         reasons.append("폴더 구조 키와 일치: " + ", ".join(group["structure_match_terms"][:4]))
     if group.get("source_path_match"):
         reasons.append("파일명/경로에 질의 핵심 문자열이 포함됨")
-    reasons.append(f"문서 유형: {group['category'] or 'unknown'}")
+    reasons.append(f"문서 유형: {group.get('document_group') or group['category'] or 'unknown'}")
     if group.get("root_group"):
         reasons.append(f"대분류: {group['root_group']}")
     if group.get("sub_group"):
@@ -536,6 +549,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "source_id": hit.source_id,
                 "snapshot": hit.snapshot,
                 "category": hit.category,
+                "document_group": hit.document_group,
+                "document_category": hit.document_category,
                 "source_path": hit.source_path,
                 "input_path": hit.input_path,
                 "best_score": hit.score,
@@ -578,7 +593,8 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
             )
         if compact_query and compact_query in compact_text(hit.source_path):
             group["source_path_match"] = True
-        if intents and hit.category in intents:
+        effective_group = _effective_document_group(hit.document_group, hit.collection_key, hit.category, hit.root_group)
+        if intents and effective_group in intents:
             group["category_intent_match"] = True
         searchable_structure = [
             hit.root_group,
@@ -600,6 +616,16 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
     for group in grouped.values():
         project_name = extract_project_name(group["source_path"])
         group["project_name"] = project_name
+        effective_group = _effective_document_group(
+            group.get("document_group", ""),
+            group.get("collection_key", ""),
+            group.get("category", ""),
+            group.get("root_group", ""),
+        )
+        if effective_group:
+            group["document_group"] = effective_group
+            if not group.get("category") or group.get("category") == "unknown":
+                group["category"] = effective_group
         lexical = lexical_match_score(
             query,
             term_list,
@@ -608,6 +634,7 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 group["relative_path"],
                 group["root_group"],
                 group["sub_group"],
+                group.get("document_category", ""),
                 group["section_label"],
                 *group["search_keywords"],
                 *group["sections"],
@@ -615,6 +642,15 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
             ],
         )
         category_bonus = 2.0 if group["category_intent_match"] else 0.0
+        if intents:
+            effective_group = _effective_document_group(
+                group.get("document_group", ""),
+                group.get("collection_key", ""),
+                group.get("category", ""),
+                group.get("root_group", ""),
+            )
+            if effective_group and effective_group not in intents:
+                category_bonus -= 1.5
         path_bonus = 2.5 if group["source_path_match"] else 0.0
         hit_bonus = min(group["hit_count"], 5) * 0.15
         structure_bonus = 0.0
@@ -623,6 +659,7 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
             structure_values = {
                 group["root_group"],
                 group["sub_group"],
+                group.get("document_category", ""),
                 group["section_label"],
                 *group["search_keywords"],
             }
@@ -665,6 +702,7 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "rank": rank,
                 "document_id": group["document_id"],
                 "category": group["category"],
+                "document_group": group.get("document_group", "") or group["category"],
                 "project_name": group.get("project_name", ""),
                 "organization": group["organization"],
                 "organization_name": group["organization"],
@@ -676,6 +714,7 @@ def aggregate_hits(query: str, hits: list[SearchHit], top_docs: int, mode: str =
                 "root_group": group["root_group"],
                 "sub_group": group["sub_group"],
                 "section_label": group["section_label"],
+                "document_category": group.get("document_category", "") or group["section_label"],
                 "proposal_section": group["proposal_section"],
                 "deliverable_section": group["deliverable_section"],
                 "collection_key": group["collection_key"],
