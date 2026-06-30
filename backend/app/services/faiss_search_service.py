@@ -26,6 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 INDEXES_DIR = DATA_DIR / "indexes" / "faiss"
 ACTIVE_INDEX_PATH = DATA_DIR / "active_index.json"
+_CATEGORY_SUFFIXES = ("rfp", "proposal", "deliverable")
 
 TOKEN_PATTERN = re.compile(r"[0-9A-Za-z가-힣_]+")
 
@@ -66,6 +67,27 @@ class FaissSearchResponse:
 def _tokenize(text: str) -> list[str]:
     """텍스트를 토큰화."""
     return TOKEN_PATTERN.findall(text.lower())
+
+
+def _resolve_snapshot_index_files(snapshot: Optional[str]) -> tuple[Optional[Path], Optional[Path], Optional[Path], Optional[str]]:
+    snapshot = str(snapshot or "").strip()
+    if not snapshot:
+        return None, None, None, None
+
+    primary_index = INDEXES_DIR / f"{snapshot}_ollama.index"
+    primary_meta = INDEXES_DIR / f"{snapshot}_ollama_metadata.jsonl"
+    primary_manifest = INDEXES_DIR / f"{snapshot}_ollama.manifest.json"
+    if primary_index.exists() and primary_meta.exists():
+        return primary_index, primary_meta, primary_manifest, None
+
+    for category in _CATEGORY_SUFFIXES:
+        cat_index = INDEXES_DIR / f"{snapshot}_{category}_ollama.index"
+        cat_meta = INDEXES_DIR / f"{snapshot}_{category}_ollama_metadata.jsonl"
+        cat_manifest = INDEXES_DIR / f"{snapshot}_{category}_ollama.manifest.json"
+        if cat_index.exists() and cat_meta.exists():
+            return cat_index, cat_meta, cat_manifest, category
+
+    return primary_index, primary_meta, primary_manifest, None
 
 
 def _normalize_vector(vector: np.ndarray) -> np.ndarray:
@@ -192,13 +214,12 @@ class FaissSearchService:
         metadata_path = None
         manifest_path = None
 
+        selected_category = None
+
         # 1. active_index.json에서 snapshot 읽기
         snapshot = self._get_active_snapshot()
         if snapshot:
-            # 새 파일명 규칙: {snapshot}_ollama.index
-            index_path = INDEXES_DIR / f"{snapshot}_ollama.index"
-            metadata_path = INDEXES_DIR / f"{snapshot}_ollama_metadata.jsonl"
-            manifest_path = INDEXES_DIR / f"{snapshot}_ollama.manifest.json"
+            index_path, metadata_path, manifest_path, selected_category = _resolve_snapshot_index_files(snapshot)
 
         # 2. 새 규칙 파일이 없으면 legacy 파일명 시도
         if not index_path or not index_path.exists():
@@ -251,6 +272,9 @@ class FaissSearchService:
                 # ollama 인덱스면 embedding_provider 업데이트
                 if "_ollama" in str(index_path):
                     self.embedding_provider = "ollama"
+                if selected_category:
+                    for row in self._metadata:
+                        row.setdefault("category", selected_category)
 
             # 청크 텍스트 로드 (있으면)
             chunks_path = index_dir / "chunks.jsonl"
@@ -422,6 +446,14 @@ class FaissSearchService:
             "embedding_provider": self.embedding_provider,
             "source_id": self.source_id,
             "active_snapshot": self._get_active_snapshot(),
+            "fallback_category": next(
+                (
+                    category for category in _CATEGORY_SUFFIXES
+                    if (INDEXES_DIR / f"{self._get_active_snapshot()}_{category}_ollama.index").exists()
+                    and not (INDEXES_DIR / f"{self._get_active_snapshot()}_ollama.index").exists()
+                ),
+                None,
+            ),
         }
 
 

@@ -52,25 +52,56 @@ CHUNKS_DIR = Path(settings.staged_chunks_dir).expanduser().resolve()
 SNAPSHOT_DIR = DATA_DIR / "snapshots"
 
 _TIMESTAMP_RE = re.compile(r"_\d{8}_\d{6}$")
+_CATEGORY_SUFFIXES = [
+    "rfp", "proposal", "deliverable",
+]
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+def _snapshot_index_files(snapshot: str) -> list[tuple[Optional[str], Path, Path]]:
+    files: list[tuple[Optional[str], Path, Path]] = [
+        (
+            None,
+            FAISS_DIR / f"{snapshot}_ollama.index",
+            FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl",
+        )
+    ]
+    files.extend(
+        (
+            cat,
+            FAISS_DIR / f"{snapshot}_{cat}_ollama.index",
+            FAISS_DIR / f"{snapshot}_{cat}_ollama_metadata.jsonl",
+        )
+        for cat in _CATEGORY_SUFFIXES
+    )
+    return files
 
 def _index_stats(snapshot: str) -> dict:
     """Return size / existence info for a snapshot's index files."""
     index_file = FAISS_DIR / f"{snapshot}_ollama.index"
     meta_file  = FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl"
+    available_categories: list[str] = []
+    existing_pairs = 0
     chunk_count = 0
-    if meta_file.exists():
+    for category, idx_file, md_file in _snapshot_index_files(snapshot):
+        if not (idx_file.exists() and md_file.exists()):
+            continue
+        existing_pairs += 1
+        if category:
+            available_categories.append(category)
         try:
-            chunk_count = sum(
-                1 for line in meta_file.read_text(encoding="utf-8").splitlines() if line.strip()
+            chunk_count += sum(
+                1 for line in md_file.read_text(encoding="utf-8").splitlines() if line.strip()
             )
         except Exception:
             pass
     return {
-        "index_exists":    index_file.exists(),
-        "metadata_exists": meta_file.exists(),
+        "index_exists":    existing_pairs > 0,
+        "metadata_exists": existing_pairs > 0,
+        "has_primary_index": index_file.exists() and meta_file.exists(),
+        "available_categories": available_categories,
+        "index_file_count": existing_pairs,
         "index_size_mb":   round(index_file.stat().st_size / 1_048_576, 2) if index_file.exists() else 0,
         "chunk_count":     chunk_count,
     }
@@ -84,9 +115,10 @@ def _list_snapshots() -> list[str]:
     for f in FAISS_DIR.glob("*_ollama.index"):
         # strip trailing _ollama.index
         stem = f.name[: -len("_ollama.index")]
-        # exclude category sub-indexes (they contain an extra underscore segment after snapshot)
+        # category 서브 인덱스도 snapshot 후보로 포함한다.
         parts = stem.rsplit("_", 1)
         if len(parts) == 2 and parts[1] in {"rfp", "proposal", "deliverable"}:
+            names.add(parts[0])
             continue
         names.add(stem)
     return sorted(names, reverse=True)
@@ -241,12 +273,6 @@ async def list_indexes():
             for s in snapshots
         ]
     }
-
-
-_CATEGORY_SUFFIXES = [
-    "rfp", "proposal", "deliverable",
-]
-
 
 # 작성일: 2026-05-12 | 기능: 특정 스냅샷의 카테고리 서브-인덱스 상세 정보 반환
 @router.get("/indexes/{snapshot}/categories")

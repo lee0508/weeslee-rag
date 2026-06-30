@@ -24,6 +24,7 @@ _active_snapshot_cache: dict[str, Any] = {"path": None, "mtime": None, "snapshot
 _bundle_cache: dict[tuple[str, str], dict[str, Any]] = {}
 _chunk_cache: dict[str, dict[str, Any]] = {}
 _snapshot_manifest_cache: dict[str, dict[str, Any]] = {}
+_CATEGORY_SUFFIXES = ("rfp", "proposal", "deliverable")
 
 
 def _resolve_setting_path(path_value: str) -> Path:
@@ -141,10 +142,16 @@ def default_index_paths(snapshot: str, category: Optional[str] = None) -> tuple[
         cat_meta = faiss_dir / f"{snapshot}_{category}_ollama_metadata.jsonl"
         if cat_index.exists() and cat_meta.exists():
             return cat_index, cat_meta
-    return (
-        faiss_dir / f"{snapshot}_ollama.index",
-        faiss_dir / f"{snapshot}_ollama_metadata.jsonl",
-    )
+    primary_index = faiss_dir / f"{snapshot}_ollama.index"
+    primary_meta = faiss_dir / f"{snapshot}_ollama_metadata.jsonl"
+    if primary_index.exists() and primary_meta.exists():
+        return primary_index, primary_meta
+    for fallback_category in _CATEGORY_SUFFIXES:
+        cat_index = faiss_dir / f"{snapshot}_{fallback_category}_ollama.index"
+        cat_meta = faiss_dir / f"{snapshot}_{fallback_category}_ollama_metadata.jsonl"
+        if cat_index.exists() and cat_meta.exists():
+            return cat_index, cat_meta
+    return primary_index, primary_meta
 
 
 def default_chunks_path(snapshot: str) -> Path:
