@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-index", required=True)
     parser.add_argument("--output-metadata", required=True)
     parser.add_argument("--output-manifest", default="")
+    parser.add_argument("--snapshot-id", default="", help="Snapshot identifier for metadata")
     parser.add_argument("--embedding-provider", choices=["hashing", "ollama"], default="hashing")
     parser.add_argument("--embedding-dim", type=int, default=768)
     parser.add_argument("--max-embed-chars", type=int, default=1800)
@@ -182,13 +183,16 @@ def main() -> int:
             vector = hashing_embedding(embedding_text, args.embedding_dim)
         embeddings.append(vector.astype(np.float32))
 
-        # 메타데이터 추출 (source_id 최상위 레벨에 포함)
+        # 메타데이터 추출 (source_id, dataset_id, snapshot_id, document_uid 최상위 레벨에 포함)
         meta = row.get("metadata", {}) or {}
         metadata_rows.append(
             {
                 "chunk_id": row.get("chunk_id"),
                 "document_id": row.get("document_id"),
                 "source_id": meta.get("source_id", ""),
+                "dataset_id": meta.get("dataset_id", ""),
+                "snapshot_id": args.snapshot_id,
+                "document_uid": meta.get("document_uid", ""),
                 "category": row.get("category"),
                 "section_heading": row.get("section_heading"),
                 "char_count": row.get("char_count"),

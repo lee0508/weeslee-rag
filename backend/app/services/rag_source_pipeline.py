@@ -24,6 +24,7 @@ MAIN_COLLECTION_NAME = "weeslee_rag_main"
 MANIFEST_FIELDS = [
     "document_id",
     "source_id",
+    "dataset_id",
     "source_name",
     "category",
     "collection_name",
@@ -137,6 +138,7 @@ def build_manifest_row(
     snapshot_name: str,
     source_id: str,
     source_name: str,
+    dataset_id: str = "",
 ) -> dict[str, Any]:
     rules = _rules()
     source_path = Path(str(doc.get("file_path") or "")).resolve()
@@ -155,6 +157,7 @@ def build_manifest_row(
     return {
         "document_id": str(doc.get("id")),
         "source_id": source_id,
+        "dataset_id": dataset_id,
         "source_name": source_name,
         "category": document_group,
         "collection_name": MAIN_COLLECTION_NAME,
@@ -205,6 +208,7 @@ def build_manifest(
 ) -> dict[str, Any]:
     source_record = get_record("document_sources", "source_id", source_id) or {}
     source_name = source_record.get("source_name") or source_record.get("name") or source_id
+    dataset_id = source_record.get("dataset_id") or ""
     source_root = resolve_source_path(source_id)
     docs = iter_source_documents(source_root, limit=limit)
     MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
@@ -229,7 +233,7 @@ def build_manifest(
         )
 
     rows = [
-        build_manifest_row(doc, source_root, snapshot_name, source_id, source_name)
+        build_manifest_row(doc, source_root, snapshot_name, source_id, source_name, dataset_id)
         for doc in docs
     ]
     category_counts = {"rfp": 0, "proposal": 0, "deliverable": 0, "unknown": 0}

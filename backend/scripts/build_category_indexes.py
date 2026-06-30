@@ -162,6 +162,7 @@ def main() -> int:
             "--chunks-jsonl", tmp_path,
             "--output-index", str(index_out),
             "--output-metadata", str(meta_out),
+            "--snapshot-id", args.snapshot,
             "--embedding-provider", args.embedding_provider,
             "--ollama-model", args.ollama_model,
             "--ollama-url", args.ollama_url,

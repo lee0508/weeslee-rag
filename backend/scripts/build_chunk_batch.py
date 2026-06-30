@@ -32,6 +32,7 @@ from app.services.document_structure_extractor import (
     DocumentStructure,
     ExtractedPage,
 )
+from app.services.document_uid import make_document_uid
 
 
 HEADING_PATTERNS = [
@@ -253,6 +254,11 @@ def build_chunks_for_document(
                     metadata={
                         "document_id": document_id,
                         "source_id": metadata.get("source_id", ""),
+                        "dataset_id": metadata.get("dataset_id", ""),
+                        "document_uid": make_document_uid(
+                            metadata.get("source_id", ""),
+                            metadata.get("relative_path", "")
+                        ) if metadata.get("source_id") and metadata.get("relative_path") else "",
                         "source_name": metadata.get("source_name", ""),
                         "category": metadata.get("category", ""),
                         "collection_name": metadata.get("collection_name", "weeslee_rag_main"),

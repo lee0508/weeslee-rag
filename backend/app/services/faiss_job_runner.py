@@ -357,6 +357,7 @@ async def run_pipeline(job_id: str) -> None:
                     "--chunks-jsonl", str(p["chunks_jsonl"]),
                     "--output-index", str(p["index_path"]),
                     "--output-metadata", str(p["meta_path"]),
+                    "--snapshot-id", snapshot,
                     "--embedding-provider", "ollama",
                     "--ollama-model", settings.ollama_embed_model,
                 ],

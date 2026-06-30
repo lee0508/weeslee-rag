@@ -158,6 +158,7 @@ def _merge_existing_metadata(metadata_path: Path, row: dict[str, str], input_pat
     metadata.update({
         "document_id": row.get("document_id", metadata.get("document_id", "")),
         "source_id": row.get("source_id", metadata.get("source_id", "")),
+        "dataset_id": row.get("dataset_id", metadata.get("dataset_id", "")),
         "source_name": row.get("source_name", metadata.get("source_name", "")),
         "category": row.get("category", metadata.get("category", "")),
         "collection_name": row.get("collection_name", metadata.get("collection_name", "weeslee_rag_main")),
@@ -170,11 +171,17 @@ def _merge_existing_metadata(metadata_path: Path, row: dict[str, str], input_pat
         "source_path": str(source_path),
         "input_path": str(input_path),
         "snapshot_path": row.get("snapshot_path", metadata.get("snapshot_path", "")),
+        "relative_path": row.get("relative_path", metadata.get("relative_path", "")),
         "extension": extension,
         "project_name": row.get("project_name", metadata.get("project_name", "")),
         "organization": row.get("organization", metadata.get("organization", "")),
         "folder_year": row.get("project_year", metadata.get("folder_year", "")),
         "folder_name": row.get("folder_name", metadata.get("folder_name", "")),
+        "root_group": row.get("root_group", metadata.get("root_group", "")),
+        "root_group_key": row.get("root_group_key", metadata.get("root_group_key", "")),
+        "sub_group": row.get("sub_group", metadata.get("sub_group", "")),
+        "sub_group_key": row.get("sub_group_key", metadata.get("sub_group_key", "")),
+        "section_label": row.get("section_label", metadata.get("section_label", "")),
     })
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     return metadata
@@ -282,6 +289,7 @@ async def run_batch(args: argparse.Namespace) -> int:
             metadata = {
                 "document_id": document_id,
                 "source_id": row.get("source_id", ""),
+                "dataset_id": row.get("dataset_id", ""),
                 "source_name": row.get("source_name", ""),
                 "category": category,
                 "collection_name": row.get("collection_name", "weeslee_rag_main"),
@@ -294,6 +302,7 @@ async def run_batch(args: argparse.Namespace) -> int:
                 "source_path": str(source_path),
                 "input_path": str(input_path),
                 "snapshot_path": row.get("snapshot_path", ""),
+                "relative_path": row.get("relative_path", ""),
                 "extension": extension,
                 "project_name": project_name,
                 "project_confidence": project_meta["project_confidence"],
@@ -301,6 +310,11 @@ async def run_batch(args: argparse.Namespace) -> int:
                 "organization_confidence": project_meta["organization_confidence"],
                 "folder_year": folder_year,
                 "folder_name": row.get("folder_name", project_meta["folder_name"]),
+                "root_group": row.get("root_group", ""),
+                "root_group_key": row.get("root_group_key", ""),
+                "sub_group": row.get("sub_group", ""),
+                "sub_group_key": row.get("sub_group_key", ""),
+                "section_label": row.get("section_label", ""),
                 "extraction_method": result.get("method", ""),
                 "is_scanned": res_meta.get("is_scanned", False),
                 "content_length": len(content),
