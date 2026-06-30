@@ -138,6 +138,20 @@ async def full_health_check():
     faiss_index = _FAISS_DIR / f"{snapshot}_ollama.index" if snapshot else None
     faiss_meta  = _FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl" if snapshot else None
 
+    # 카테고리별 인덱스 fallback (메인 인덱스 없을 때)
+    _CATEGORY_SUFFIXES = ("rfp", "proposal", "deliverable")
+    available_categories = []
+    if snapshot and (not faiss_index or not faiss_index.exists()):
+        for cat in _CATEGORY_SUFFIXES:
+            cat_index = _FAISS_DIR / f"{snapshot}_{cat}_ollama.index"
+            cat_meta = _FAISS_DIR / f"{snapshot}_{cat}_ollama_metadata.jsonl"
+            if cat_index.exists() and cat_meta.exists():
+                available_categories.append(cat)
+                # 첫 번째 카테고리 인덱스를 fallback으로 사용
+                if faiss_index is None or not faiss_index.exists():
+                    faiss_index = cat_index
+                    faiss_meta = cat_meta
+
     chunk_count = 0
     if faiss_meta and faiss_meta.exists():
         try:
@@ -146,6 +160,19 @@ async def full_health_check():
             )
         except Exception:
             pass
+
+    # 카테고리별 인덱스가 있으면 전체 청크 수 합산
+    if available_categories:
+        chunk_count = 0
+        for cat in available_categories:
+            cat_meta = _FAISS_DIR / f"{snapshot}_{cat}_ollama_metadata.jsonl"
+            if cat_meta.exists():
+                try:
+                    chunk_count += sum(
+                        1 for line in cat_meta.read_text(encoding="utf-8").splitlines() if line.strip()
+                    )
+                except Exception:
+                    pass
 
     faiss_ok = bool(faiss_index and faiss_index.exists())
     if not faiss_ok:
@@ -156,6 +183,7 @@ async def full_health_check():
         "snapshot":     snapshot or "(none)",
         "index_exists": faiss_ok,
         "chunk_count":  chunk_count,
+        "available_categories": available_categories if available_categories else None,
     }
 
     return results
