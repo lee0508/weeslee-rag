@@ -4874,14 +4874,24 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
 
-        <!-- 문서 현황 요약 -->
-        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-          <div class="bm-stat"><div class="val" id="docStatTotal">-</div><div class="lbl">전체 문서</div></div>
+        <!-- 컨텍스트 정보: Active Snapshot / Document Source -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Active Snapshot:</span>
+            <span id="docActiveSnapshotId" style="font-size:12px;font-weight:600;color:var(--navy);font-family:monospace">-</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Document Source:</span>
+            <select id="filterSourceId" onchange="loadDocuments(1)" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:180px">
+              <option value="">전체 Source</option>
+            </select>
+          </div>
+          <div class="bm-stat" style="margin-left:auto"><div class="val" id="docStatTotal">-</div><div class="lbl">전체 문서</div></div>
         </div>
 
         <!-- 필터 -->
         <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-          <select id="filterDocType" onchange="loadDocuments()" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+          <select id="filterDocType" onchange="loadDocuments(1)" style="padding:6px 10px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
             <option value="">전체 유형</option>
             <optgroup label="컨설팅/SI 문서">
               <option value="rfp">RFP</option>
@@ -6899,7 +6909,7 @@ POST /api/admin/faiss/activate</code>
     if (name === 'wizard') renderWizardProgressBar();
     if (name === 'docsource') loadDocSources();
     if (name === 'querylogs') loadQueryLogsDashboard();
-    if (name === 'documents') loadDocuments();
+    if (name === 'documents') { loadDocTabContext(); loadDocuments(); }
     if (name === 'wiki') loadWikiStats();
     if (name === 'pipeline') syncPipelineSelectionState();
   }
@@ -8511,9 +8521,11 @@ POST /api/admin/faiss/activate</code>
     const params = new URLSearchParams();
     const docType = document.getElementById('filterDocType')?.value;
     const search = document.getElementById('filterSearch')?.value;
+    const sourceId = document.getElementById('filterSourceId')?.value;
 
     if (docType) params.append('document_type', docType);
     if (search) params.append('search', search);
+    if (sourceId) params.append('source_id', sourceId);
     params.append('limit', DOC_PAGE_SIZE);
     params.append('offset', (docCurrentPage - 1) * DOC_PAGE_SIZE);
 
@@ -8527,6 +8539,37 @@ POST /api/admin/faiss/activate</code>
       loadDocumentStats();
     } catch (e) {
       tbody.innerHTML = `<tr><td colspan="7" class="empty" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  async function loadDocTabContext() {
+    // Active Snapshot 로드 (collections API에서)
+    try {
+      const collections = await api('/collections');
+      const mainCollection = collections.find(c => c.collection_key === 'weeslee_rag_main');
+      const snapshotEl = document.getElementById('docActiveSnapshotId');
+      if (snapshotEl && mainCollection?.snapshot_id) {
+        snapshotEl.textContent = mainCollection.snapshot_id;
+      }
+    } catch (e) {
+      console.error('Failed to load active snapshot:', e);
+    }
+
+    // Document Sources 목록 로드
+    try {
+      const sources = await api('/admin/document-sources');
+      const select = document.getElementById('filterSourceId');
+      if (select && sources?.length) {
+        select.innerHTML = '<option value="">전체 Source</option>';
+        sources.forEach(src => {
+          const opt = document.createElement('option');
+          opt.value = src.source_id;
+          opt.textContent = src.source_name || src.source_id;
+          select.appendChild(opt);
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load document sources:', e);
     }
   }
 

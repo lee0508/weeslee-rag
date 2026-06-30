@@ -68,6 +68,7 @@ class UnifiedDocumentService:
         organization: Optional[str] = None,
         project_year: Optional[str] = None,
         search: Optional[str] = None,
+        source_id: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
         db: Optional[Session] = None,
@@ -81,6 +82,8 @@ class UnifiedDocumentService:
         try:
             query = db.query(DocumentMetadata)
 
+            if source_id:
+                query = query.filter(DocumentMetadata.source_id == source_id)
             if document_type:
                 query = query.filter(DocumentMetadata.document_type == document_type)
             if status:
@@ -110,6 +113,7 @@ class UnifiedDocumentService:
         document_type: Optional[str] = None,
         status: Optional[str] = None,
         meta_status: Optional[str] = None,
+        source_id: Optional[str] = None,
         db: Optional[Session] = None,
     ) -> int:
         """문서 수 카운트."""
@@ -121,6 +125,8 @@ class UnifiedDocumentService:
         try:
             query = db.query(func.count(DocumentMetadata.id))
 
+            if source_id:
+                query = query.filter(DocumentMetadata.source_id == source_id)
             if document_type:
                 query = query.filter(DocumentMetadata.document_type == document_type)
             if status:

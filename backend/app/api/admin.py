@@ -710,6 +710,7 @@ async def list_documents_mysql(
     organization: Optional[str] = Query(None),
     project_year: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    source_id: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
@@ -721,6 +722,7 @@ async def list_documents_mysql(
         organization=organization,
         project_year=project_year,
         search=search,
+        source_id=source_id,
         limit=limit,
         offset=offset,
     )
@@ -728,6 +730,7 @@ async def list_documents_mysql(
         document_type=document_type,
         status=status,
         meta_status=meta_status,
+        source_id=source_id,
     )
     return {"documents": documents, "count": len(documents), "total": total}
 
