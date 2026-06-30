@@ -406,11 +406,20 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
         )
         resolved_snapshots = payload.get("resolved_snapshots") or [snapshot]
     else:
-        resolved_snapshots = [
-            str(value).strip()
-            for value in (resolved_scope.get("snapshot_ids") or [])
-            if str(value).strip()
-        ]
+        # request.snapshot_ids가 명시적으로 지정되면 우선 사용
+        if request.snapshot_ids:
+            resolved_snapshots = [
+                str(value).strip()
+                for value in request.snapshot_ids
+                if str(value).strip()
+            ]
+        else:
+            # search_scope에서 snapshot_ids 가져오기
+            resolved_snapshots = [
+                str(value).strip()
+                for value in (resolved_scope.get("snapshot_ids") or [])
+                if str(value).strip()
+            ]
         if not resolved_snapshots:
             fallback_snapshot = _active_snapshot()
             if fallback_snapshot:
@@ -670,11 +679,19 @@ async def search_documents(request: SearchRequest, http_request: Request):
         return result
 
     resolved_scope = resolve_search_scope(request.search_scope)
-    resolved_snapshots = [
-        str(value).strip()
-        for value in (resolved_scope.get("snapshot_ids") or [])
-        if str(value).strip()
-    ]
+    # request.snapshot_ids가 명시적으로 지정되면 우선 사용
+    if request.snapshot_ids:
+        resolved_snapshots = [
+            str(value).strip()
+            for value in request.snapshot_ids
+            if str(value).strip()
+        ]
+    else:
+        resolved_snapshots = [
+            str(value).strip()
+            for value in (resolved_scope.get("snapshot_ids") or [])
+            if str(value).strip()
+        ]
     if not resolved_snapshots:
         fallback_snapshot = _active_snapshot()
         if fallback_snapshot:
