@@ -6127,7 +6127,21 @@ POST /api/admin/faiss/activate</code>
       el.innerHTML = '<div class="empty">인덱스 없음 (파이프라인 실행 후 생성됩니다)</div>';
       return;
     }
-    el.innerHTML = indexes.map(idx => `
+    const formatCreatedAt = (iso) => {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+      } catch { return ''; }
+    };
+    el.innerHTML = indexes.map(idx => {
+      const createdAtStr = formatCreatedAt(idx.created_at);
+      return `
       <div class="index-item ${idx.is_active ? 'active-idx' : ''}">
         <div class="index-name">${esc(idx.snapshot)}</div>
         <div class="index-chips">
@@ -6141,6 +6155,7 @@ POST /api/admin/faiss/activate</code>
           </span>
           ${!idx.index_exists && idx.chunks_exist ? '<span class="chip" style="color:var(--amber)">청크 준비됨</span>' : ''}
           ${!idx.index_exists && !idx.chunks_exist ? '<span class="chip" style="color:var(--muted)">청킹 전</span>' : ''}
+          ${createdAtStr ? `<span class="chip" style="color:var(--muted)" title="생성일시">${createdAtStr}</span>` : ''}
         </div>
         ${idx.manifest_file ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">${esc(idx.manifest_file)}</div>` : ''}
         ${!idx.is_active && idx.index_exists ? `
@@ -6159,7 +6174,7 @@ POST /api/admin/faiss/activate</code>
           <button class="btn btn-outline btn-sm" onclick="fillPipelineSnapshot('${esc(idx.snapshot)}')">→ Dataset Builder에서 사용</button>
         </div>` : ''}
       </div>
-    `).join('');
+    `}).join('');
   }
 
   // 작성일: 2026-05-12 | 기능: 인덱스 카드 accordion — 카테고리별 크기·청크 수 표시

@@ -79,11 +79,14 @@ def _snapshot_index_files(snapshot: str) -> list[tuple[Optional[str], Path, Path
 
 def _index_stats(snapshot: str) -> dict:
     """Return size / existence info for a snapshot's index files."""
+    from datetime import datetime, timezone
     index_file = FAISS_DIR / f"{snapshot}_ollama.index"
     meta_file  = FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl"
     available_categories: list[str] = []
     existing_pairs = 0
     chunk_count = 0
+    total_size_bytes = 0
+    oldest_mtime: float | None = None
     for category, idx_file, md_file in _snapshot_index_files(snapshot):
         if not (idx_file.exists() and md_file.exists()):
             continue
@@ -96,14 +99,36 @@ def _index_stats(snapshot: str) -> dict:
             )
         except Exception:
             pass
+        # 인덱스 파일 크기 합산
+        try:
+            total_size_bytes += idx_file.stat().st_size
+        except Exception:
+            pass
+        # 인덱스 파일 중 가장 오래된 mtime을 생성일로 사용
+        try:
+            mtime = idx_file.stat().st_mtime
+            if oldest_mtime is None or mtime < oldest_mtime:
+                oldest_mtime = mtime
+        except Exception:
+            pass
+    # primary index 파일의 mtime 도 확인
+    if index_file.exists() and (oldest_mtime is None):
+        try:
+            oldest_mtime = index_file.stat().st_mtime
+        except Exception:
+            pass
+    created_at = None
+    if oldest_mtime is not None:
+        created_at = datetime.fromtimestamp(oldest_mtime, tz=timezone.utc).isoformat()
     return {
         "index_exists":    existing_pairs > 0,
         "metadata_exists": existing_pairs > 0,
         "has_primary_index": index_file.exists() and meta_file.exists(),
         "available_categories": available_categories,
         "index_file_count": existing_pairs,
-        "index_size_mb":   round(index_file.stat().st_size / 1_048_576, 2) if index_file.exists() else 0,
+        "index_size_mb":   round(total_size_bytes / 1_048_576, 2),
         "chunk_count":     chunk_count,
+        "created_at":      created_at,
     }
 
 
