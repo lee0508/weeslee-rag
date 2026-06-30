@@ -1504,6 +1504,7 @@ async def get_dataset_status_summary(source_id: Optional[str] = None):
 @router.get("/snapshots")
 async def list_snapshots():
     """생성된 Snapshot 목록 조회. active_snapshot.json과 개별 snapshot JSON 파일들을 읽어 반환."""
+    project_root = Path(__file__).resolve().parents[3]
     snapshots_dir = project_root / "data" / "snapshots"
     active_snapshot_path = snapshots_dir / "active_snapshot.json"
 
