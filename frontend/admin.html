@@ -6912,7 +6912,7 @@ POST /api/admin/faiss/activate</code>
     if (name === 'wizard') renderWizardProgressBar();
     if (name === 'docsource') loadDocSources();
     if (name === 'querylogs') loadQueryLogsDashboard();
-    if (name === 'documents') { loadDocTabContext(); loadDocuments(); }
+    if (name === 'documents') { loadDocTabContext(); }
     if (name === 'wiki') loadWikiStats();
     if (name === 'pipeline') syncPipelineSelectionState();
   }
@@ -8598,10 +8598,12 @@ POST /api/admin/faiss/activate</code>
           select.appendChild(opt);
         });
       }
-      // 선택된 Snapshot의 source_id로 Document Source 자동 선택
-      onSnapshotChange(false);
+      // 선택된 Snapshot의 source_id로 Document Source 자동 선택 후 문서 로드
+      onSnapshotChange(true);
     } catch (e) {
       console.error('Failed to load document sources:', e);
+      // Document Sources 로드 실패해도 문서는 로드
+      loadDocuments(1);
     }
   }
 
