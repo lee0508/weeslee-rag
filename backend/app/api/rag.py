@@ -61,6 +61,22 @@ def _default_chunks_path() -> Path:
     return _rag_runtime().default_chunks_path(_active_snapshot())
 
 
+def _normalize_document_group_to_category(value: Optional[str]) -> Optional[str]:
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return None
+    mapping = {
+        "rfp": "rfp",
+        "제안요청서": "rfp",
+        "과업지시서": "rfp",
+        "proposal": "proposal",
+        "제안서": "proposal",
+        "deliverable": "deliverable",
+        "산출물": "deliverable",
+    }
+    return mapping.get(normalized)
+
+
 def _normalize_selected_document_ids(selected_document_ids: Optional[list[str]]) -> list[str]:
     normalized = []
     for item in selected_document_ids or []:
@@ -387,10 +403,11 @@ def _resolve_query_request(request: RagQueryRequest) -> tuple[str, str, Optional
 def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str) -> tuple[dict, str, Optional[dict]]:
     effective_mode, effective_query, mode_detection = _resolve_query_request(request)
     resolved_scope = resolve_search_scope(request.search_scope)
+    effective_category = request.category or _normalize_document_group_to_category(request.document_group)
 
     if request.index_path or request.metadata_path or request.chunks_jsonl:
         snapshot = _active_snapshot()
-        default_index, default_meta = _index_paths(snapshot, request.category)
+        default_index, default_meta = _index_paths(snapshot, effective_category)
         payload = _rag_runtime().run_rag_query(
             query=effective_query,
             original_query=request.query,
@@ -398,7 +415,7 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
             top_docs=request.top_docs,
             answer_provider=answer_provider,
             answer_model=answer_model,
-            category=request.category,
+            category=effective_category,
             organization=request.organization,
             year=request.year,
             document_group=request.document_group,
@@ -441,7 +458,7 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
                 top_docs=request.top_docs,
                 answer_provider=answer_provider,
                 answer_model=answer_model,
-                category=request.category,
+                category=effective_category,
                 organization=request.organization,
                 year=request.year,
                 document_group=request.document_group,
@@ -462,7 +479,7 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
                 top_docs=request.top_docs,
                 answer_provider=answer_provider,
                 answer_model=answer_model,
-                category=request.category,
+                category=effective_category,
                 organization=request.organization,
                 year=request.year,
                 document_group=request.document_group,
@@ -482,6 +499,8 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
     if mode_detection:
         payload["mode_detection"] = mode_detection
     payload["effective_mode"] = effective_mode
+    if effective_category and not payload.get("category_filter"):
+        payload["category_filter"] = effective_category
     # 실제 적용된 가중치를 응답에 포함
     payload["effective_weights"] = normalize_retrieval_weights(
         request.vector_weight, request.graph_weight, request.wiki_weight
