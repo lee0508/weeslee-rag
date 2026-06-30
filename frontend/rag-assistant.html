@@ -3298,6 +3298,7 @@
         renderSnapshotMultiSelect(data.sources || []);
 
         const currentValue = selectEl.value;
+        const hasInitialized = selectEl.dataset.initialized === '1';
         selectEl.innerHTML = '';
         if (!_searchScopes.length) {
           const option = document.createElement('option');
@@ -3321,10 +3322,11 @@
         }
 
         const preferredValue = data.default_scope_id || _searchScopes[0]?.scope_id || 'active_snapshot';
-        const nextValue = _searchScopes.some(scope => scope.scope_id === currentValue)
+        const nextValue = hasInitialized && _searchScopes.some(scope => scope.scope_id === currentValue)
           ? currentValue
           : preferredValue;
         selectEl.value = nextValue;
+        selectEl.dataset.initialized = '1';
         updateSearchScopeHint();
       } catch (error) {
         console.error('loadSearchScopes error:', error);
@@ -3337,6 +3339,7 @@
         }];
         selectEl.innerHTML = '<option value="active_snapshot">현재 Active Snapshot</option>';
         renderSnapshotMultiSelect([]);
+        selectEl.dataset.initialized = '1';
         if (hintEl) hintEl.textContent = '검색 범위 목록을 가져오지 못해 현재 Active Snapshot 기준으로 고정합니다.';
       }
     }
