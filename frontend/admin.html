@@ -6982,6 +6982,7 @@ POST /api/admin/faiss/activate</code>
   }
 
   async function saveColManager() {
+    const editId = document.getElementById('cmEditId').value;
     const body = {
       name: document.getElementById('cmName').value.trim(),
       display_name: document.getElementById('cmDisplayName').value.trim(),
@@ -6989,8 +6990,14 @@ POST /api/admin/faiss/activate</code>
       folder_mapping: document.getElementById('cmFolderMap').value.trim(),
       description: document.getElementById('cmDesc').value.trim(),
     };
+    // 신규 생성 시 현재 컨텍스트의 ID 계약관계 추가
+    if (!editId) {
+      body.source_id = getCurrentSourceId();
+      body.client_id = getCurrentClientId();
+      body.snapshot_id = getCurrentSnapshotId();
+      body.dataset_id = getCurrentDatasetId();
+    }
     try {
-      const editId = document.getElementById('cmEditId').value;
       if (editId) {
         await platformFetch(`/collections/${editId}`, { method: 'PUT', body: JSON.stringify(body) });
       } else {
@@ -13820,6 +13827,10 @@ LIMIT 10`;
 
   function getCurrentDatasetId() {
     return document.getElementById('ctxDataset')?.value?.trim() || '';
+  }
+
+  function getCurrentSnapshotId() {
+    return document.getElementById('ctxSnapshot')?.value?.trim() || '';
   }
 
   function getCurrentSourceOption() {

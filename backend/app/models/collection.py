@@ -23,6 +23,12 @@ class Collection(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # ID 계약관계 필드
+    source_id = Column(String(64), nullable=True, index=True, comment="Document Source ID")
+    client_id = Column(String(64), nullable=True, index=True, comment="Client ID")
+    snapshot_id = Column(String(128), nullable=True, comment="Active Snapshot ID")
+    dataset_id = Column(String(128), nullable=True, comment="Dataset ID")
+
     # Relationships
     documents = relationship("Document", back_populates="collection", cascade="all, delete-orphan")
 

@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.collection import Collection
 from app.services.platform_store import create_record, get_record, update_record
+from app.services.rag_runtime import get_active_snapshot
 from app.services.vectordb import get_vectordb, VectorDBService
 
 router = APIRouter()
@@ -21,10 +22,16 @@ MAIN_COLLECTION_NAME = "weeslee_rag_main"
 class CollectionCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    source_id: Optional[str] = None
+    client_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    dataset_id: Optional[str] = None
 
 
 class CollectionUpdate(BaseModel):
     description: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    dataset_id: Optional[str] = None
 
 
 class CollectionResponse(BaseModel):
@@ -35,6 +42,10 @@ class CollectionResponse(BaseModel):
     document_count: int
     vector_count: int
     storage_size: int
+    source_id: Optional[str] = None
+    client_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    dataset_id: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -62,11 +73,14 @@ def _get_source_mount_path(source_id: str) -> str:
 
 def bootstrap_collection_config(client_id: str, source_id: str, overwrite: bool = False) -> dict:
     mount_path = _get_source_mount_path(source_id)
+    active_snapshot = get_active_snapshot()
     coll_key = MAIN_COLLECTION_NAME
     record = {
         "collection_key": coll_key,
         "collection_name": MAIN_COLLECTION_NAME,
         "client_id": client_id,
+        "source_id": source_id,
+        "snapshot_id": active_snapshot,
         "name": MAIN_COLLECTION_NAME,
         "description": f"{settings.rag_source_folder} 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
         "source_root": settings.rag_source_folder,
@@ -89,6 +103,7 @@ def bootstrap_collection_config(client_id: str, source_id: str, overwrite: bool 
         "success": True,
         "client_id": client_id,
         "source_id": source_id,
+        "snapshot_id": active_snapshot,
         "created": created,
         "skipped": skipped,
         "items": [{"collection_key": coll_key, "name": MAIN_COLLECTION_NAME}],
@@ -122,7 +137,11 @@ async def create_collection(
     # Create in database
     collection = Collection(
         name=data.name,
-        description=data.description
+        description=data.description,
+        source_id=data.source_id,
+        client_id=data.client_id,
+        snapshot_id=data.snapshot_id,
+        dataset_id=data.dataset_id,
     )
     db.add(collection)
     db.commit()
@@ -168,6 +187,10 @@ async def update_collection(
 
     if data.description is not None:
         collection.description = data.description
+    if data.snapshot_id is not None:
+        collection.snapshot_id = data.snapshot_id
+    if data.dataset_id is not None:
+        collection.dataset_id = data.dataset_id
 
     db.commit()
     db.refresh(collection)
