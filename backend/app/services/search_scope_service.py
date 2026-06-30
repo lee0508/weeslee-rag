@@ -101,9 +101,18 @@ def _faiss_index_exists(snapshot: SnapshotManifest) -> bool:
     faiss_id = (snapshot.rag_build.faiss_index_id or snapshot.snapshot_id or "").strip()
     if not faiss_id:
         return False
+    # 메인 인덱스 확인
     index_path = FAISS_DIR / f"{faiss_id}_ollama.index"
     meta_path = FAISS_DIR / f"{faiss_id}_ollama_metadata.jsonl"
-    return index_path.exists() and meta_path.exists()
+    if index_path.exists() and meta_path.exists():
+        return True
+    # 카테고리별 인덱스 fallback (rfp, proposal, deliverable)
+    for cat in _CATEGORY_SUFFIXES:
+        cat_index = FAISS_DIR / f"{faiss_id}_{cat}_ollama.index"
+        cat_meta = FAISS_DIR / f"{faiss_id}_{cat}_ollama_metadata.jsonl"
+        if cat_index.exists() and cat_meta.exists():
+            return True
+    return False
 
 
 def _snapshot_sort_key(snapshot: SnapshotManifest) -> tuple:
@@ -148,9 +157,11 @@ def _list_faiss_snapshot_names() -> list[str]:
     for path in FAISS_DIR.glob("*_ollama.index"):
         stem = path.name[: -len("_ollama.index")]
         parts = stem.rsplit("_", 1)
+        # 카테고리 인덱스면 base snapshot ID 추출
         if len(parts) == 2 and parts[1] in _CATEGORY_SUFFIXES:
-            continue
-        names.add(stem)
+            names.add(parts[0])
+        else:
+            names.add(stem)
     return sorted(names, reverse=True)
 
 
