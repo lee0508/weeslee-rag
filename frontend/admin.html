@@ -3113,17 +3113,79 @@ POST /api/admin/dataset-builder/inventory/build-from-ocr</code>
         <div class="wr-eyebrow">Publish</div>
         <h1 class="wr-page-title" data-wr-anchor>Publish Search Quality</h1>
         <p class="wr-page-lead">운영 반영 전에 검색 품질을 검증합니다. 이 검증을 통과한 Snapshot만 사용자 검색 화면에 반영됩니다.</p>
-        <div class="wr-inline-actions" style="margin-bottom:20px">
-          <!-- TODO: 2차 작업에서 Publish 전용 API로 분리 -->
-          <button class="wr-btn wr-btn-primary" type="button" onclick="runPublishSearchQuality()">검증 실행</button>
-          <button class="wr-btn" type="button" onclick="viewPublishQualityReport()">이전 리포트 보기</button>
+
+        <!-- Snapshot 컨텍스트 바 -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--wr-surface);padding:12px 16px;border-radius:8px;border-left:3px solid var(--wr-primary)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--wr-muted)">Snapshot:</span>
+            <select id="searchQualitySnapshotFilter" onchange="onSearchQualitySnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--wr-bg);border:1px solid var(--wr-border);color:var(--wr-text);font-size:12px;min-width:280px">
+              <option value="">로딩 중...</option>
+            </select>
+            <span id="searchQualitySnapshotActiveTag" style="display:none;font-size:10px;background:var(--wr-success);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--wr-muted)">Document Source:</span>
+            <span id="searchQualitySourceDisplay" style="font-size:12px;color:var(--wr-text);font-weight:500">-</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+            <div style="text-align:center"><div style="font-size:18px;font-weight:600" id="searchQualityStatDocs">-</div><div style="font-size:11px;color:var(--wr-muted)">문서</div></div>
+            <div style="text-align:center"><div style="font-size:18px;font-weight:600" id="searchQualityStatChunks">-</div><div style="font-size:11px;color:var(--wr-muted)">청크</div></div>
+          </div>
         </div>
+
         <div class="wr-callout wr-callout-warning" style="margin-bottom:20px">
           <strong>주의사항:</strong> Search Quality 검증 없이 Activate하지 않습니다. 검증 완료된 Snapshot만 운영에 반영하세요.
         </div>
 
+        <!-- RAG 검색 테스트 -->
         <div class="wr-card" style="margin-bottom:20px">
-          <h3 class="wr-card-title">Search Quality 검증</h3>
+          <h3 class="wr-card-title">RAG 검색 테스트</h3>
+          <div class="wr-callout wr-callout-info" style="margin-bottom:16px">
+            선택한 Snapshot의 FAISS 인덱스를 대상으로 RAG 검색을 실행하고 결과 품질을 확인합니다.
+          </div>
+          <div class="wr-form-grid">
+            <div class="wr-field" style="grid-column:1/-1">
+              <label>검색 질의</label>
+              <textarea id="searchQualityQuery" rows="2" placeholder="예: ISP 사업에서 정보화 전략 수립 방법론은?" style="width:100%;resize:vertical"></textarea>
+            </div>
+            <div class="wr-field">
+              <label>Top-K (청크)</label>
+              <input id="searchQualityTopK" type="number" value="20" min="1" max="100">
+            </div>
+            <div class="wr-field">
+              <label>Top Docs</label>
+              <input id="searchQualityTopDocs" type="number" value="5" min="1" max="20">
+            </div>
+            <div class="wr-field">
+              <label>문서당 최대 청크</label>
+              <input id="searchQualityMaxChunks" type="number" value="3" min="1" max="10">
+            </div>
+            <div class="wr-field">
+              <label>검색 모드</label>
+              <select id="searchQualityMode">
+                <option value="general">일반 검색</option>
+                <option value="hybrid_rag">Hybrid RAG</option>
+                <option value="graph_rag">Graph RAG</option>
+              </select>
+            </div>
+          </div>
+          <div class="wr-inline-actions" style="margin-top:16px">
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runSearchQualityQuery()">검색 실행</button>
+            <span id="searchQualityStatus" style="margin-left:12px;font-size:13px;color:var(--wr-muted)"></span>
+          </div>
+        </div>
+
+        <!-- 검색 결과 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">검색 결과</h3>
+          <div id="searchQualityResults" style="min-height:100px;">
+            <div class="wr-callout wr-callout-info">검색을 실행하면 결과가 여기에 표시됩니다.</div>
+          </div>
+        </div>
+
+        <!-- 배치 검증 -->
+        <div class="wr-card" style="margin-bottom:20px">
+          <h3 class="wr-card-title">배치 검증</h3>
           <div class="wr-callout wr-callout-info">
             테스트 질문별 Top-K 검색 결과, source_id/category_id 필터 동작, RFP→제안서 유사 검색, Knowledge Graph 관계 검색, Wiki 검색 품질 검사
           </div>
@@ -3138,25 +3200,27 @@ POST /api/admin/dataset-builder/inventory/build-from-ocr</code>
             </div>
             <div class="wr-field">
               <label>Top-K</label>
-              <input id="publishQualityTopK" type="number" value="5" min="1" max="20">
+              <input id="publishQualityTopKBatch" type="number" value="5" min="1" max="20">
             </div>
           </div>
           <div class="wr-inline-actions" style="margin-top:16px">
-            <button class="wr-btn wr-btn-primary" type="button" onclick="runPublishSearchQuality()">검증 실행</button>
+            <button class="wr-btn wr-btn-primary" type="button" onclick="runPublishSearchQuality()">배치 검증 실행</button>
+            <button class="wr-btn" type="button" onclick="viewPublishQualityReport()">이전 리포트 보기</button>
           </div>
         </div>
 
         <!-- 검증 결과 -->
         <div class="wr-card">
-          <h3 class="wr-card-title">검증 결과</h3>
+          <h3 class="wr-card-title">배치 검증 결과</h3>
           <div id="publishQualityResult" style="min-height:100px;">
-            <div class="wr-callout wr-callout-info">검증을 실행하면 결과가 여기에 표시됩니다.</div>
+            <div class="wr-callout wr-callout-info">배치 검증을 실행하면 결과가 여기에 표시됩니다.</div>
           </div>
         </div>
 
         <h2 class="wr-section-title" style="margin-top:24px">Execution API</h2>
         <code class="wr-code-block">GET /api/admin/publish/quality/sample-queries
-POST /api/admin/publish/quality/test</code>
+POST /api/admin/publish/quality/test
+POST /api/rag/query</code>
       </section>
 
       <!-- Publish: Active Snapshot -->
@@ -17337,9 +17401,10 @@ LIMIT 10`;
       showWrPage('publish-activate');
       loadPublishStatus();
     });
-    // Publish Quality 페이지 진입 시 (정적 페이지지만 일관성을 위해 등록)
+    // Publish Quality 페이지 진입 시 Snapshot 컨텍스트 로드
     document.querySelector('[data-wr-page="publish-quality"]')?.addEventListener('click', function() {
       showWrPage('publish-quality');
+      loadSearchQualityTabContext();
     });
   });
 
@@ -18742,6 +18807,207 @@ LIMIT 10`;
   // Step 3: Metadata Review Functions
   // ────────────────────────────────────────────────────────────────────────
 
+  // ═══ Search Quality Tab Snapshot 컨텍스트 ═══
+  let searchQualitySnapshotsCache = [];
+  let searchQualityCurrentSourceId = '';
+  let searchQualityCurrentSnapshotId = '';
+
+  async function loadSearchQualityTabContext() {
+    const snapshotSelect = document.getElementById('searchQualitySnapshotFilter');
+    if (!snapshotSelect) return;
+
+    try {
+      const snapshots = await api('/admin/snapshots');
+      searchQualitySnapshotsCache = snapshots || [];
+      snapshotSelect.innerHTML = '<option value="">Snapshot 선택...</option>';
+      if (searchQualitySnapshotsCache.length === 0) {
+        snapshotSelect.innerHTML = '<option value="">등록된 Snapshot 없음</option>';
+        return;
+      }
+      let activeSnapshotId = '';
+      searchQualitySnapshotsCache.forEach(snap => {
+        const opt = document.createElement('option');
+        opt.value = snap.snapshot_id;
+        const label = snap.snapshot_id + (snap.is_active ? ' [ACTIVE]' : '');
+        opt.textContent = label;
+        snapshotSelect.appendChild(opt);
+        if (snap.is_active) activeSnapshotId = snap.snapshot_id;
+      });
+      if (activeSnapshotId) {
+        snapshotSelect.value = activeSnapshotId;
+      }
+      onSearchQualitySnapshotChange();
+    } catch (e) {
+      console.error('Failed to load search quality snapshots:', e);
+      snapshotSelect.innerHTML = '<option value="">로드 실패</option>';
+    }
+  }
+
+  function onSearchQualitySnapshotChange() {
+    const snapshotSelect = document.getElementById('searchQualitySnapshotFilter');
+    const activeTag = document.getElementById('searchQualitySnapshotActiveTag');
+    const sourceDisplay = document.getElementById('searchQualitySourceDisplay');
+    const selectedId = snapshotSelect?.value || '';
+    const snap = searchQualitySnapshotsCache.find(s => s.snapshot_id === selectedId);
+    if (activeTag) {
+      activeTag.style.display = snap?.is_active ? 'inline-block' : 'none';
+    }
+    searchQualityCurrentSourceId = snap?.dataset?.source_id || '';
+    searchQualityCurrentSnapshotId = selectedId;
+    if (sourceDisplay) {
+      sourceDisplay.textContent = searchQualityCurrentSourceId || '-';
+    }
+    // 문서/청크 통계 업데이트
+    loadSearchQualityStats();
+  }
+
+  async function loadSearchQualityStats() {
+    const statDocsEl = document.getElementById('searchQualityStatDocs');
+    const statChunksEl = document.getElementById('searchQualityStatChunks');
+    if (!searchQualityCurrentSnapshotId) {
+      if (statDocsEl) statDocsEl.textContent = '-';
+      if (statChunksEl) statChunksEl.textContent = '-';
+      return;
+    }
+    try {
+      const snap = searchQualitySnapshotsCache.find(s => s.snapshot_id === searchQualityCurrentSnapshotId);
+      if (snap?.dataset) {
+        if (statDocsEl) statDocsEl.textContent = (snap.dataset.document_count || 0).toLocaleString();
+        if (statChunksEl) statChunksEl.textContent = (snap.dataset.chunk_count || 0).toLocaleString();
+      } else {
+        if (statDocsEl) statDocsEl.textContent = '-';
+        if (statChunksEl) statChunksEl.textContent = '-';
+      }
+    } catch (e) {
+      console.error('Failed to load search quality stats:', e);
+    }
+  }
+
+  async function runSearchQualityQuery() {
+    const query = document.getElementById('searchQualityQuery')?.value?.trim();
+    const topK = parseInt(document.getElementById('searchQualityTopK')?.value || '20', 10);
+    const topDocs = parseInt(document.getElementById('searchQualityTopDocs')?.value || '5', 10);
+    const maxChunks = parseInt(document.getElementById('searchQualityMaxChunks')?.value || '3', 10);
+    const mode = document.getElementById('searchQualityMode')?.value || 'general';
+    const status = document.getElementById('searchQualityStatus');
+    const resultsEl = document.getElementById('searchQualityResults');
+
+    if (!query) {
+      if (status) status.textContent = '검색어를 입력하세요.';
+      return;
+    }
+    if (!searchQualityCurrentSnapshotId) {
+      if (status) status.textContent = 'Snapshot을 선택하세요.';
+      return;
+    }
+
+    if (status) status.textContent = '검색 중...';
+    if (resultsEl) resultsEl.innerHTML = '<div class="wr-callout wr-callout-info">검색 중...</div>';
+
+    const searchPayload = {
+      query: query,
+      top_k: topK,
+      top_docs: topDocs,
+      max_chunks_per_doc: maxChunks,
+      mode: mode,
+      answer_provider: 'none',
+      answer_model: '',
+      snapshot_ids: [searchQualityCurrentSnapshotId]
+    };
+
+    try {
+      const response = await fetch(`${API_BASE}/rag/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify(searchPayload)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      if (!data.success) {
+        if (status) status.textContent = `실패: ${data.error || 'unknown error'}`;
+        if (resultsEl) resultsEl.innerHTML = `<div class="wr-callout wr-callout-error">${data.error || '검색 실패'}</div>`;
+        return;
+      }
+      if (status) status.textContent = `완료: ${data.documents?.length || 0}건 검색됨`;
+      renderSearchQualityResults(data, resultsEl);
+    } catch (e) {
+      console.error('Search quality query failed:', e);
+      if (status) status.textContent = `오류: ${e.message}`;
+      if (resultsEl) resultsEl.innerHTML = `<div class="wr-callout wr-callout-error">${e.message}</div>`;
+    }
+  }
+
+  function renderSearchQualityResults(data, container) {
+    if (!container) return;
+    const docs = data.documents || [];
+    if (docs.length === 0) {
+      container.innerHTML = '<div class="wr-callout wr-callout-warning">검색 결과가 없습니다.</div>';
+      return;
+    }
+
+    // 요약 정보
+    let html = `
+      <div style="margin-bottom:16px;padding:12px;background:var(--wr-surface);border-radius:8px;display:flex;gap:24px;flex-wrap:wrap">
+        <div><strong>검색 결과:</strong> ${docs.length}건</div>
+        <div><strong>검색 시간:</strong> ${data.search_time_ms ? data.search_time_ms.toFixed(0) + 'ms' : '-'}</div>
+        <div><strong>모드:</strong> ${data.mode || '-'}</div>
+        ${data.expanded_query ? `<div><strong>확장 쿼리:</strong> ${data.expanded_query.slice(0, 80)}...</div>` : ''}
+      </div>
+    `;
+
+    // 문서별 결과
+    html += '<div style="display:flex;flex-direction:column;gap:12px">';
+    docs.forEach((doc, idx) => {
+      const score = doc.score || doc.similarity || 0;
+      const scorePercent = (score * 100).toFixed(1);
+      const chunks = doc.chunks || [];
+      html += `
+        <div style="border:1px solid var(--wr-border);border-radius:8px;overflow:hidden">
+          <div style="padding:12px 16px;background:var(--wr-surface);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--wr-border)">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="background:var(--wr-primary);color:white;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600">#${idx + 1}</span>
+              <span style="font-weight:500">${doc.file_name || doc.document_id || '-'}</span>
+              <span style="font-size:12px;color:var(--wr-muted)">${doc.document_type || ''}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:14px;font-weight:600;color:${score > 0.7 ? 'var(--wr-success)' : score > 0.4 ? 'var(--wr-warning)' : 'var(--wr-error)'}">${scorePercent}%</span>
+              <div style="width:60px;height:6px;background:var(--wr-border);border-radius:3px;overflow:hidden">
+                <div style="width:${scorePercent}%;height:100%;background:${score > 0.7 ? 'var(--wr-success)' : score > 0.4 ? 'var(--wr-warning)' : 'var(--wr-error)'}"></div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:12px 16px;font-size:13px;color:var(--wr-muted)">
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">
+              <span><strong>조직:</strong> ${doc.organization || '-'}</span>
+              <span><strong>프로젝트:</strong> ${doc.project_name || '-'}</span>
+              <span><strong>연도:</strong> ${doc.year || '-'}</span>
+            </div>
+            ${chunks.length > 0 ? `
+              <div style="margin-top:12px">
+                <div style="font-weight:500;margin-bottom:8px;color:var(--wr-text)">청크 (${chunks.length}개)</div>
+                ${chunks.slice(0, 3).map((chunk, ci) => `
+                  <div style="background:var(--wr-bg);padding:8px 12px;border-radius:4px;margin-bottom:6px;border-left:3px solid var(--wr-primary)">
+                    <div style="font-size:11px;color:var(--wr-muted);margin-bottom:4px">청크 #${chunk.chunk_index || ci + 1} · 유사도: ${((chunk.score || chunk.similarity || 0) * 100).toFixed(1)}%</div>
+                    <div style="font-size:12px;line-height:1.5;color:var(--wr-text)">${(chunk.text || chunk.content || '').slice(0, 300)}${(chunk.text || chunk.content || '').length > 300 ? '...' : ''}</div>
+                  </div>
+                `).join('')}
+                ${chunks.length > 3 ? `<div style="font-size:12px;color:var(--wr-muted);text-align:center">... 외 ${chunks.length - 3}개 청크</div>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ═══ Metadata Review Snapshot 컨텍스트 ═══
   let metaReviewCurrentPage = 0;
   let metaReviewPageSize = 50;
   let metaReviewCurrentDocumentId = null;
