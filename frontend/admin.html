@@ -4874,11 +4874,14 @@ POST /api/admin/faiss/activate</code>
           </div>
         </div>
 
-        <!-- 컨텍스트 정보: Active Snapshot / Document Source -->
+        <!-- 컨텍스트 정보: Snapshot 선택 / Document Source -->
         <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:12px;color:var(--muted)">Active Snapshot:</span>
-            <span id="docActiveSnapshotId" style="font-size:12px;font-weight:600;color:var(--navy);font-family:monospace">-</span>
+            <span style="font-size:12px;color:var(--muted)">Snapshot:</span>
+            <select id="filterSnapshotId" onchange="onSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
+              <option value="">로딩 중...</option>
+            </select>
+            <span id="docSnapshotActiveTag" style="display:none;font-size:10px;background:var(--green);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:12px;color:var(--muted)">Document Source:</span>
@@ -8542,17 +8545,44 @@ POST /api/admin/faiss/activate</code>
     }
   }
 
+  // Snapshot 데이터 캐시
+  let _docSnapshots = [];
+  let _docActiveSnapshotId = null;
+
   async function loadDocTabContext() {
-    // Active Snapshot 로드 (collections API에서)
+    // Snapshot 목록 로드
     try {
-      const collections = await api('/collections');
-      const mainCollection = collections.find(c => c.collection_key === 'weeslee_rag_main');
-      const snapshotEl = document.getElementById('docActiveSnapshotId');
-      if (snapshotEl && mainCollection?.snapshot_id) {
-        snapshotEl.textContent = mainCollection.snapshot_id;
+      const data = await api('/admin/snapshots');
+      _docSnapshots = data.snapshots || [];
+      _docActiveSnapshotId = data.active_snapshot_id;
+
+      const select = document.getElementById('filterSnapshotId');
+      const activeTag = document.getElementById('docSnapshotActiveTag');
+      if (select && _docSnapshots.length) {
+        select.innerHTML = '';
+        _docSnapshots.forEach(snap => {
+          const opt = document.createElement('option');
+          opt.value = snap.snapshot_id;
+          const label = snap.is_active ? `★ ${snap.snapshot_name || snap.snapshot_id}` : (snap.snapshot_name || snap.snapshot_id);
+          opt.textContent = label;
+          opt.dataset.sourceId = snap.source_id || '';
+          opt.dataset.isActive = snap.is_active ? 'true' : 'false';
+          select.appendChild(opt);
+        });
+        // Active Snapshot 기본 선택
+        if (_docActiveSnapshotId) {
+          select.value = _docActiveSnapshotId;
+        }
+        // ACTIVE 태그 표시
+        const selectedOpt = select.options[select.selectedIndex];
+        if (activeTag) {
+          activeTag.style.display = selectedOpt?.dataset.isActive === 'true' ? 'inline' : 'none';
+        }
       }
     } catch (e) {
-      console.error('Failed to load active snapshot:', e);
+      console.error('Failed to load snapshots:', e);
+      const select = document.getElementById('filterSnapshotId');
+      if (select) select.innerHTML = '<option value="">Snapshot 로드 실패</option>';
     }
 
     // Document Sources 목록 로드
@@ -8568,8 +8598,43 @@ POST /api/admin/faiss/activate</code>
           select.appendChild(opt);
         });
       }
+      // 선택된 Snapshot의 source_id로 Document Source 자동 선택
+      onSnapshotChange(false);
     } catch (e) {
       console.error('Failed to load document sources:', e);
+    }
+  }
+
+  function onSnapshotChange(reloadDocs = true) {
+    const snapshotSelect = document.getElementById('filterSnapshotId');
+    const sourceSelect = document.getElementById('filterSourceId');
+    const activeTag = document.getElementById('docSnapshotActiveTag');
+
+    if (!snapshotSelect) return;
+
+    const selectedOpt = snapshotSelect.options[snapshotSelect.selectedIndex];
+    const sourceId = selectedOpt?.dataset.sourceId || '';
+    const isActive = selectedOpt?.dataset.isActive === 'true';
+
+    // ACTIVE 태그 표시/숨김
+    if (activeTag) {
+      activeTag.style.display = isActive ? 'inline' : 'none';
+    }
+
+    // Document Source 드롭다운에서 해당 source_id 선택
+    if (sourceSelect && sourceId) {
+      // source_id가 있는 경우에만 자동 선택
+      for (let i = 0; i < sourceSelect.options.length; i++) {
+        if (sourceSelect.options[i].value === sourceId) {
+          sourceSelect.selectedIndex = i;
+          break;
+        }
+      }
+    }
+
+    // 문서 목록 다시 로드
+    if (reloadDocs) {
+      loadDocuments(1);
     }
   }
 
