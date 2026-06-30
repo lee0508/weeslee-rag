@@ -154,6 +154,13 @@ def default_index_paths(snapshot: str, category: Optional[str] = None) -> tuple[
     return primary_index, primary_meta
 
 
+def category_index_paths(snapshot: str, category: str) -> tuple[Path, Path]:
+    faiss_dir = _faiss_dir()
+    cat_index = faiss_dir / f"{snapshot}_{category}_ollama.index"
+    cat_meta = faiss_dir / f"{snapshot}_{category}_ollama_metadata.jsonl"
+    return cat_index, cat_meta
+
+
 def default_chunks_path(snapshot: str) -> Path:
     return _chunks_dir() / f"{snapshot}_chunks.jsonl"
 
@@ -461,6 +468,10 @@ def run_rag_query(
     resolved_snapshot = snapshot or get_active_snapshot()
     resolved_index_id = _resolve_faiss_index_id(resolved_snapshot)
     default_index, default_meta = default_index_paths(resolved_index_id, category)
+    if category and not index_path and not metadata_path:
+        strict_index, strict_meta = category_index_paths(resolved_index_id, category)
+        if strict_index.exists() and strict_meta.exists():
+            default_index, default_meta = strict_index, strict_meta
     resolved_index = Path(index_path).resolve() if index_path else default_index.resolve()
     resolved_meta = Path(metadata_path).resolve() if metadata_path else default_meta.resolve()
     resolved_chunks = (
@@ -554,7 +565,15 @@ def run_multi_rag_query(
     for snapshot_id in resolved_snapshots:
         try:
             faiss_index_id = _resolve_faiss_index_id(snapshot_id)
-            index_path, meta_path = default_index_paths(faiss_index_id, category)
+            if category:
+                index_path, meta_path = category_index_paths(faiss_index_id, category)
+                if not (index_path.exists() and meta_path.exists()):
+                    skipped_snapshots.append(
+                        {"snapshot": snapshot_id, "faiss_index_id": faiss_index_id, "error": f"missing category index: {category}"}
+                    )
+                    continue
+            else:
+                index_path, meta_path = default_index_paths(faiss_index_id, category)
             chunks_path = default_chunks_path(faiss_index_id)
             if not (index_path.exists() and meta_path.exists() and chunks_path.exists()):
                 skipped_snapshots.append(
