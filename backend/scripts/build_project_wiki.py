@@ -398,6 +398,7 @@ def render_wiki(
     # ID 필드 추출 (2026-06-30)
     source_id = inv.get("source_id", meta.get("source_id", ""))
     dataset_id = inv.get("dataset_id", meta.get("dataset_id", ""))
+    snapshot_id = inv.get("snapshot_id", meta.get("snapshot_id", snapshot))
 
     # Evidence section per category
     evidence_sections = ""
@@ -416,6 +417,8 @@ def render_wiki(
         id_rows += f"| Source ID | `{source_id}` |\n"
     if dataset_id:
         id_rows += f"| Dataset ID | `{dataset_id}` |\n"
+    if snapshot_id:
+        id_rows += f"| Snapshot ID | `{snapshot_id}` |\n"
 
     return f"""# {meta['display_name']}
 

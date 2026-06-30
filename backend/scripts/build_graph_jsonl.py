@@ -184,6 +184,7 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
                 # ID 필드 추가 (2026-06-30)
                 "source_id":     row.get("source_id") or meta.get("source_id", ""),
                 "dataset_id":    row.get("dataset_id") or meta.get("dataset_id", ""),
+                "snapshot_id":   row.get("snapshot_id") or meta.get("snapshot_id", ""),
                 "document_uid":  row.get("document_uid") or meta.get("document_uid", ""),
                 "relative_path": meta.get("relative_path", ""),
             })
@@ -385,6 +386,7 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
                 # ID 필드 추가 (2026-06-30)
                 "source_id":     doc.get("source_id", ""),
                 "dataset_id":    doc.get("dataset_id", ""),
+                "snapshot_id":   doc.get("snapshot_id", ""),
                 "document_uid":  doc.get("document_uid", ""),
                 "relative_path": doc.get("relative_path", ""),
             })
