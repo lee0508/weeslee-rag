@@ -220,6 +220,10 @@ def _build_args(
     top_docs: int,
     max_chunks_per_doc: int,
     mode: str,
+    document_group: str = "",
+    document_category: str = "",
+    section_type: str = "",
+    relative_path_prefix: str = "",
 ) -> SimpleNamespace:
     assembler = _assembler()
     args = SimpleNamespace(
@@ -245,6 +249,10 @@ def _build_args(
         original_query="",
         organization=organization or "",
         year=year or "",
+        document_group=document_group or "",
+        document_category=document_category or "",
+        section_type=section_type or "",
+        relative_path_prefix=relative_path_prefix or "",
     )
     assembler.load_env_file(Path(args.env_file))
     assembler.apply_env_defaults(args)
@@ -384,6 +392,10 @@ def run_rag_query(
     index_path: Optional[str] = None,
     metadata_path: Optional[str] = None,
     chunks_jsonl: Optional[str] = None,
+    document_group: Optional[str] = None,
+    document_category: Optional[str] = None,
+    section_type: Optional[str] = None,
+    relative_path_prefix: Optional[str] = None,
 ) -> dict:
     assembler = _assembler()
     resolved_snapshot = snapshot or get_active_snapshot()
@@ -402,6 +414,10 @@ def run_rag_query(
         category=category or "",
         organization=organization or "",
         year=year or "",
+        document_group=document_group or "",
+        document_category=document_category or "",
+        section_type=section_type or "",
+        relative_path_prefix=relative_path_prefix or "",
         top_k=top_k,
         top_docs=top_docs,
         max_chunks_per_doc=max_chunks_per_doc,
@@ -413,6 +429,13 @@ def run_rag_query(
     hits = _build_hits_for_snapshot(resolved_snapshot, bundle, chunk_map, args)
     hits = assembler.filter_by_category(hits, args.category)
     hits = assembler.filter_by_metadata(hits, args.organization, args.year)
+    hits = assembler.filter_by_structure(
+        hits,
+        args.document_group,
+        args.document_category,
+        args.section_type,
+        args.relative_path_prefix,
+    )
     hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     display_query = original_query or query
     documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)
@@ -444,6 +467,10 @@ def run_multi_rag_query(
     mode: str,
     snapshots: list[str],
     original_query: Optional[str] = None,
+    document_group: Optional[str] = None,
+    document_category: Optional[str] = None,
+    section_type: Optional[str] = None,
+    relative_path_prefix: Optional[str] = None,
 ) -> dict:
     assembler = _assembler()
     resolved_snapshots = [str(value).strip() for value in snapshots if str(value).strip()]
@@ -457,6 +484,10 @@ def run_multi_rag_query(
         category=category or "",
         organization=organization or "",
         year=year or "",
+        document_group=document_group or "",
+        document_category=document_category or "",
+        section_type=section_type or "",
+        relative_path_prefix=relative_path_prefix or "",
         top_k=top_k,
         top_docs=top_docs,
         max_chunks_per_doc=max_chunks_per_doc,
@@ -499,6 +530,13 @@ def run_multi_rag_query(
     all_hits.sort(key=lambda hit: float(getattr(hit, "score", 0.0)), reverse=True)
     hits = assembler.filter_by_category(all_hits, args.category)
     hits = assembler.filter_by_metadata(hits, args.organization, args.year)
+    hits = assembler.filter_by_structure(
+        hits,
+        args.document_group,
+        args.document_category,
+        args.section_type,
+        args.relative_path_prefix,
+    )
     hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     display_query = original_query or query
     documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)

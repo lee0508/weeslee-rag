@@ -4031,8 +4031,8 @@
       const ragAnswerEl = document.getElementById('ragAnswerSection'); if (ragAnswerEl) ragAnswerEl.innerHTML = `<div class="answer-note">${t('generating')}</div>`;
       const resultsEl = document.getElementById('results'); if (resultsEl) resultsEl.innerHTML = '';
 
-      // Agent 탭에 쿼리 분석 결과 표시 (비동기, 메인 검색과 병렬)
-      analyzeAndRenderAgent(query);
+      // Agent 탭에 표시한 분석 결과를 실제 검색 필터에도 재사용한다.
+      const analysisData = await analyzeAndRenderAgent(query);
 
       const runBtn = document.querySelector('button[onclick="runQuery()"]');
       runBtn.disabled = true;
@@ -4042,6 +4042,7 @@
       const effectiveQuery = query;
       const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
       const searchScopeMeta = (_searchScopes || []).find(item => item.scope_id === searchScope) || null;
+      const resolvedFilters = resolveQueryFilters(query, analysisData);
       if (_rfpSelectedFile && status) status.textContent = t('rfp_active_notice');
       const queryStart = performance.now();
       let searchMs = 0;
@@ -4059,7 +4060,9 @@
         ...(selectedSnapshotIds.length ? { snapshot_ids: selectedSnapshotIds } : {}),
         ...(category      ? { category }                         : {}),
         ...(collection    ? { collection }                       : {}),
-        ...(documentGroup ? { document_group: documentGroup }    : {}),
+        ...((resolvedFilters.document_group || documentGroup) ? { document_group: resolvedFilters.document_group || documentGroup } : {}),
+        ...(resolvedFilters.document_category ? { document_category: resolvedFilters.document_category } : {}),
+        ...(resolvedFilters.section_type ? { section_type: resolvedFilters.section_type } : {}),
         ...(filterOrg     ? { organization: filterOrg }          : {}),
         ...(filterYear    ? { year: filterYear }                 : {})
       };
@@ -4081,6 +4084,9 @@
           formData.append('answer_provider', answerProvider);
           formData.append('answer_model', answerProvider === 'none' ? '' : answerModel);
           if (category) formData.append('category', category);
+          if (resolvedFilters.document_group || documentGroup) formData.append('document_group', resolvedFilters.document_group || documentGroup);
+          if (resolvedFilters.document_category) formData.append('document_category', resolvedFilters.document_category);
+          if (resolvedFilters.section_type) formData.append('section_type', resolvedFilters.section_type);
 
           const response = await fetch(`${API_BASE}/rag/query-with-rfp`, {
             method: 'POST',
@@ -4418,18 +4424,62 @@
     // ── Agent 탭 쿼리 분석 결과 렌더링 ──────────────────────────────────
     let _lastAnalysis = null;
 
-    async function analyzeAndRenderAgent(query) {
+    function mapDetectedDocumentGroup(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) return '';
+      if (normalized === 'rfp' || normalized === '제안요청서' || normalized === '과업지시서') return 'rfp';
+      if (normalized === 'proposal' || normalized === '제안서') return 'proposal';
+      if (normalized === 'deliverable' || normalized === '산출물') return 'deliverable';
+      return normalized;
+    }
+
+    function resolveQueryFilters(query, analysisData) {
+      const documentGroupEl = document.getElementById('documentGroup');
+      const manualDocumentGroup = documentGroupEl?.value || '';
+      const resolved = {
+        document_group: manualDocumentGroup,
+        document_category: '',
+        section_type: '',
+      };
+
+      const detectedGroup = mapDetectedDocumentGroup(analysisData?.detected_document_group);
+      if (!resolved.document_group && detectedGroup) {
+        resolved.document_group = detectedGroup;
+        if (documentGroupEl && Array.from(documentGroupEl.options || []).some(opt => opt.value === detectedGroup)) {
+          documentGroupEl.value = detectedGroup;
+        }
+      }
+
+      const detectedCategory = String(analysisData?.detected_document_category || '').trim();
+      if (detectedCategory) {
+        resolved.document_category = detectedCategory;
+        resolved.section_type = detectedCategory;
+      }
+
+      return resolved;
+    }
+
+    async function fetchPromptAnalysis(query, { render = false } = {}) {
       const agentEmpty = document.querySelector('.agent-empty');
       const agentResults = document.getElementById('agentResults');
-      if (!agentResults || !agentEmpty) return;
+      if (!agentResults || !agentEmpty) return null;
 
       if (!query || query.trim().length < 2) {
         agentEmpty.style.display = 'block';
         agentResults.style.display = 'none';
-        return;
+        return null;
       }
 
       try {
+        if (_lastAnalysis && _lastAnalysis.original_query === query) {
+          if (render) {
+            agentEmpty.style.display = 'none';
+            agentResults.style.display = 'block';
+            agentResults.innerHTML = renderAgentAnalysis(_lastAnalysis);
+          }
+          return _lastAnalysis;
+        }
+
         const response = await fetch(`${API_BASE}/rag/analyze-prompt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4439,15 +4489,22 @@
         const data = await response.json();
         _lastAnalysis = data;
 
-        agentEmpty.style.display = 'none';
-        agentResults.style.display = 'block';
-        agentResults.innerHTML = renderAgentAnalysis(data);
+        if (render) {
+          agentEmpty.style.display = 'none';
+          agentResults.style.display = 'block';
+          agentResults.innerHTML = renderAgentAnalysis(data);
+        }
+        return data;
       } catch (error) {
         console.error('쿼리 분석 오류:', error);
-        if (agentEmpty) { agentEmpty.textContent = '쿼리 분석 실패'; agentEmpty.style.display = 'block'; }
-        
+        if (render && agentEmpty) { agentEmpty.textContent = '쿼리 분석 실패'; agentEmpty.style.display = 'block'; }
         if (agentResults) agentResults.style.display = 'none';
+        return null;
       }
+    }
+
+    async function analyzeAndRenderAgent(query) {
+      return fetchPromptAnalysis(query, { render: true });
     }
 
     function renderAgentAnalysis(data) {

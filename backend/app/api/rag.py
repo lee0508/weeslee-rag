@@ -218,6 +218,10 @@ class RagQueryRequest(BaseModel):
     mode: str = "auto"
     # 확장 필드 — 기존 클라이언트 하위 호환성 유지 (모두 Optional 또는 기본값)
     collection: Optional[str] = None
+    document_group: Optional[str] = None
+    document_category: Optional[str] = None
+    section_type: Optional[str] = None
+    relative_path_prefix: Optional[str] = None
     search_scope: Optional[str] = None
     snapshot_ids: list[str] = Field(default_factory=list)
     temperature: float = Field(0.2, ge=0.0, le=2.0)
@@ -397,6 +401,10 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
             category=request.category,
             organization=request.organization,
             year=request.year,
+            document_group=request.document_group,
+            document_category=request.document_category,
+            section_type=request.section_type,
+            relative_path_prefix=request.relative_path_prefix,
             max_chunks_per_doc=request.max_chunks_per_doc,
             mode=effective_mode,
             snapshot=snapshot,
@@ -436,6 +444,10 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
                 category=request.category,
                 organization=request.organization,
                 year=request.year,
+                document_group=request.document_group,
+                document_category=request.document_category,
+                section_type=request.section_type,
+                relative_path_prefix=request.relative_path_prefix,
                 max_chunks_per_doc=request.max_chunks_per_doc,
                 mode=effective_mode,
                 snapshots=resolved_snapshots,
@@ -453,6 +465,10 @@ def _run_query(request: RagQueryRequest, answer_provider: str, answer_model: str
                 category=request.category,
                 organization=request.organization,
                 year=request.year,
+                document_group=request.document_group,
+                document_category=request.document_category,
+                section_type=request.section_type,
+                relative_path_prefix=request.relative_path_prefix,
                 max_chunks_per_doc=request.max_chunks_per_doc,
                 mode=effective_mode,
                 snapshot=snapshot,

@@ -134,6 +134,10 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="연도 필터 (폴더 연도 기준). 예: 2023",
     )
+    parser.add_argument("--document-group", default="", help="문서 그룹 필터. 예: rfp, proposal, deliverable")
+    parser.add_argument("--document-category", default="", help="문서 카테고리/섹션 필터. 예: 기술및기능")
+    parser.add_argument("--section-type", default="", help="섹션 유형 필터. 예: 프로젝트관리")
+    parser.add_argument("--relative-path-prefix", default="", help="relative_path prefix 또는 포함 경로 필터")
     return parser.parse_args()
 
 
@@ -344,6 +348,89 @@ def filter_by_metadata(hits: list[SearchHit], organization: str, year: str) -> l
     if year:
         hits = [h for h in hits if h.folder_year == year]
     return hits
+
+
+def _normalize_document_group(value: str) -> str:
+    lowered = (value or "").strip().lower()
+    if not lowered:
+        return ""
+    mapping = {
+        "rfp": "rfp",
+        "제안요청서": "rfp",
+        "과업지시서": "rfp",
+        "proposal": "proposal",
+        "제안서": "proposal",
+        "deliverable": "deliverable",
+        "산출물": "deliverable",
+    }
+    return mapping.get(lowered, lowered)
+
+
+def _normalize_structure_label(value: str) -> str:
+    cleaned = re.sub(r"\s+", "", (value or "").strip().lower())
+    aliases = {
+        "기술기능": "기술및기능",
+        "strategy": "전략및방법론",
+        "projectmanagement": "프로젝트관리",
+    }
+    return aliases.get(cleaned, cleaned)
+
+
+def filter_by_structure(
+    hits: list[SearchHit],
+    document_group: str = "",
+    document_category: str = "",
+    section_type: str = "",
+    relative_path_prefix: str = "",
+) -> list[SearchHit]:
+    normalized_group = _normalize_document_group(document_group)
+    normalized_category = _normalize_structure_label(document_category)
+    normalized_section = _normalize_structure_label(section_type)
+    normalized_path = relative_path_prefix.replace("\\", "/").strip().lower()
+
+    def matches(hit: SearchHit) -> bool:
+        if normalized_group:
+            group_candidates = {
+                _normalize_document_group(hit.category),
+                _normalize_document_group(hit.collection_key),
+                _normalize_document_group(hit.root_group),
+            }
+            if normalized_group not in group_candidates:
+                return False
+
+        if normalized_category:
+            category_candidates = {
+                _normalize_structure_label(hit.section_label),
+                _normalize_structure_label(hit.proposal_section),
+                _normalize_structure_label(hit.deliverable_section),
+                _normalize_structure_label(hit.sub_group),
+            }
+            if normalized_category not in category_candidates:
+                return False
+
+        if normalized_section:
+            section_candidates = {
+                _normalize_structure_label(hit.section_label),
+                _normalize_structure_label(hit.proposal_section),
+                _normalize_structure_label(hit.deliverable_section),
+                _normalize_structure_label(hit.sub_group),
+            }
+            if normalized_section not in section_candidates:
+                return False
+
+        if normalized_path:
+            relative_path = (hit.relative_path or "").replace("\\", "/").lower()
+            source_path = (hit.source_path or "").replace("\\", "/").lower()
+            if not (
+                relative_path.startswith(normalized_path)
+                or normalized_path in relative_path
+                or normalized_path in source_path
+            ):
+                return False
+
+        return True
+
+    return [hit for hit in hits if matches(hit)]
 
 
 def limit_chunks_per_doc(hits: list[SearchHit], max_per_doc: int) -> list[SearchHit]:
@@ -828,6 +915,13 @@ def main() -> int:
     hits = build_hits(index_path, metadata_path, chunks_path, args)
     hits = filter_by_category(hits, args.category)
     hits = filter_by_metadata(hits, args.organization, args.year)
+    hits = filter_by_structure(
+        hits,
+        getattr(args, "document_group", ""),
+        getattr(args, "document_category", ""),
+        getattr(args, "section_type", ""),
+        getattr(args, "relative_path_prefix", ""),
+    )
     hits = limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     documents = aggregate_hits(args.query, hits, args.top_docs, args.mode)
     display_query = args.original_query or args.query
