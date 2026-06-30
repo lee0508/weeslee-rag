@@ -4445,9 +4445,6 @@
       const detectedGroup = mapDetectedDocumentGroup(analysisData?.detected_document_group);
       if (!resolved.document_group && detectedGroup) {
         resolved.document_group = detectedGroup;
-        if (documentGroupEl && Array.from(documentGroupEl.options || []).some(opt => opt.value === detectedGroup)) {
-          documentGroupEl.value = detectedGroup;
-        }
       }
 
       const detectedCategory = String(analysisData?.detected_document_category || '').trim();

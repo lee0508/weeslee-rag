@@ -325,6 +325,64 @@ def _build_hits_for_snapshot(
     return hits
 
 
+def _apply_structure_filters_with_fallback(assembler, hits: list[Any], args: SimpleNamespace) -> list[Any]:
+    has_structure_filters = any(
+        [
+            args.document_group,
+            args.document_category,
+            args.section_type,
+            args.relative_path_prefix,
+        ]
+    )
+    if not has_structure_filters:
+        return hits
+
+    full_hits = assembler.filter_by_structure(
+        hits,
+        args.document_group,
+        args.document_category,
+        args.section_type,
+        args.relative_path_prefix,
+    )
+    if full_hits:
+        return full_hits
+
+    if args.document_group and (args.document_category or args.section_type):
+        group_only_hits = assembler.filter_by_structure(
+            hits,
+            args.document_group,
+            "",
+            "",
+            args.relative_path_prefix,
+        )
+        if group_only_hits:
+            return group_only_hits
+
+    if args.document_category or args.section_type:
+        section_only_hits = assembler.filter_by_structure(
+            hits,
+            "",
+            args.document_category,
+            args.section_type,
+            args.relative_path_prefix,
+        )
+        if section_only_hits:
+            return section_only_hits
+
+    if args.relative_path_prefix:
+        path_only_hits = assembler.filter_by_structure(
+            hits,
+            "",
+            "",
+            "",
+            args.relative_path_prefix,
+        )
+        if path_only_hits:
+            return path_only_hits
+
+    return hits
+
+
 def _build_payload(
     display_query: str,
     expanded_query: str,
@@ -429,13 +487,7 @@ def run_rag_query(
     hits = _build_hits_for_snapshot(resolved_snapshot, bundle, chunk_map, args)
     hits = assembler.filter_by_category(hits, args.category)
     hits = assembler.filter_by_metadata(hits, args.organization, args.year)
-    hits = assembler.filter_by_structure(
-        hits,
-        args.document_group,
-        args.document_category,
-        args.section_type,
-        args.relative_path_prefix,
-    )
+    hits = _apply_structure_filters_with_fallback(assembler, hits, args)
     hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     display_query = original_query or query
     documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)
@@ -530,13 +582,7 @@ def run_multi_rag_query(
     all_hits.sort(key=lambda hit: float(getattr(hit, "score", 0.0)), reverse=True)
     hits = assembler.filter_by_category(all_hits, args.category)
     hits = assembler.filter_by_metadata(hits, args.organization, args.year)
-    hits = assembler.filter_by_structure(
-        hits,
-        args.document_group,
-        args.document_category,
-        args.section_type,
-        args.relative_path_prefix,
-    )
+    hits = _apply_structure_filters_with_fallback(assembler, hits, args)
     hits = assembler.limit_chunks_per_doc(hits, args.max_chunks_per_doc)
     display_query = original_query or query
     documents = assembler.aggregate_hits(query, hits, args.top_docs, mode)
