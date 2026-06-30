@@ -174,18 +174,25 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
             total_excluded += excluded
 
             for file_info in files:
-                # documents 테이블에 레코드 생성 또는 업데이트
-                existing_doc = db.query(Document).filter(
-                    Document.file_path == file_info["filepath"]
+                # file_path + source_id 조합으로 중복 체크
+                existing_meta = db.query(DocumentMetadata).filter(
+                    DocumentMetadata.file_path == file_info["filepath"],
+                    DocumentMetadata.source_id == request.source_id
                 ).first()
 
-                if existing_doc:
+                if existing_meta:
                     if request.overwrite:
-                        existing_doc.filename = file_info["filename"]
-                        existing_doc.file_size = file_info["size"]
-                        existing_doc.file_extension = file_info["extension"]
-                        existing_doc.updated_at = datetime.utcnow()
+                        # 기존 Document 레코드 업데이트
+                        existing_doc = db.query(Document).filter(
+                            Document.id == existing_meta.document_id
+                        ).first()
+                        if existing_doc:
+                            existing_doc.filename = file_info["filename"]
+                            existing_doc.file_size = file_info["size"]
+                            existing_doc.file_extension = file_info["extension"]
+                            existing_doc.updated_at = datetime.utcnow()
                 else:
+                    # 새로운 Document + DocumentMetadata 생성
                     new_doc = Document(
                         filename=file_info["filename"],
                         file_path=file_info["filepath"],
@@ -199,7 +206,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     # document_metadata 레코드 생성
                     new_meta = DocumentMetadata(
                         document_id=new_doc.id,
-                        source_id="src_rfp",
+                        source_id=request.source_id,
                         file_path=file_info["filepath"],
                         category_id="cat_rfp",
                         meta_status=MetaStatus.REGISTERED.value,
@@ -226,17 +233,25 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                 total_excluded += excluded
 
                 for file_info in files:
-                    existing_doc = db.query(Document).filter(
-                        Document.file_path == file_info["filepath"]
+                    # file_path + source_id 조합으로 중복 체크
+                    existing_meta = db.query(DocumentMetadata).filter(
+                        DocumentMetadata.file_path == file_info["filepath"],
+                        DocumentMetadata.source_id == request.source_id
                     ).first()
 
-                    if existing_doc:
+                    if existing_meta:
                         if request.overwrite:
-                            existing_doc.filename = file_info["filename"]
-                            existing_doc.file_size = file_info["size"]
-                            existing_doc.file_extension = file_info["extension"]
-                            existing_doc.updated_at = datetime.utcnow()
+                            # 기존 Document 레코드 업데이트
+                            existing_doc = db.query(Document).filter(
+                                Document.id == existing_meta.document_id
+                            ).first()
+                            if existing_doc:
+                                existing_doc.filename = file_info["filename"]
+                                existing_doc.file_size = file_info["size"]
+                                existing_doc.file_extension = file_info["extension"]
+                                existing_doc.updated_at = datetime.utcnow()
                     else:
+                        # 새로운 Document + DocumentMetadata 생성
                         new_doc = Document(
                             filename=file_info["filename"],
                             file_path=file_info["filepath"],
@@ -249,7 +264,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
                         new_meta = DocumentMetadata(
                             document_id=new_doc.id,
-                            source_id="src_proposal",
+                            source_id=request.source_id,
                             file_path=file_info["filepath"],
                             category_id=category_id,
                             meta_status=MetaStatus.REGISTERED.value,
@@ -276,17 +291,25 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                 total_excluded += excluded
 
                 for file_info in files:
-                    existing_doc = db.query(Document).filter(
-                        Document.file_path == file_info["filepath"]
+                    # file_path + source_id 조합으로 중복 체크
+                    existing_meta = db.query(DocumentMetadata).filter(
+                        DocumentMetadata.file_path == file_info["filepath"],
+                        DocumentMetadata.source_id == request.source_id
                     ).first()
 
-                    if existing_doc:
+                    if existing_meta:
                         if request.overwrite:
-                            existing_doc.filename = file_info["filename"]
-                            existing_doc.file_size = file_info["size"]
-                            existing_doc.file_extension = file_info["extension"]
-                            existing_doc.updated_at = datetime.utcnow()
+                            # 기존 Document 레코드 업데이트
+                            existing_doc = db.query(Document).filter(
+                                Document.id == existing_meta.document_id
+                            ).first()
+                            if existing_doc:
+                                existing_doc.filename = file_info["filename"]
+                                existing_doc.file_size = file_info["size"]
+                                existing_doc.file_extension = file_info["extension"]
+                                existing_doc.updated_at = datetime.utcnow()
                     else:
+                        # 새로운 Document + DocumentMetadata 생성
                         new_doc = Document(
                             filename=file_info["filename"],
                             file_path=file_info["filepath"],
@@ -299,7 +322,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
                         new_meta = DocumentMetadata(
                             document_id=new_doc.id,
-                            source_id="src_output",
+                            source_id=request.source_id,
                             file_path=file_info["filepath"],
                             category_id=category_id,
                             meta_status=MetaStatus.REGISTERED.value,

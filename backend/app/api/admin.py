@@ -698,9 +698,9 @@ async def get_admin_stats():
 # ────────────────────────────────────────────────────────────────────────────
 
 @router.get("/documents/stats")
-async def get_document_stats():
+async def get_document_stats(source_id: Optional[str] = Query(None)):
     """문서 현황 통계 반환 (MySQL document_metadata 기준)."""
-    return unified_document_service.get_document_stats()
+    return unified_document_service.get_document_stats(source_id=source_id)
 
 
 @router.get("/documents")

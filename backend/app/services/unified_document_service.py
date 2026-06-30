@@ -139,8 +139,12 @@ class UnifiedDocumentService:
             if close_db:
                 db.close()
 
-    def get_document_stats(self, db: Optional[Session] = None) -> Dict[str, Any]:
-        """문서 현황 통계 반환."""
+    def get_document_stats(
+        self,
+        source_id: Optional[str] = None,
+        db: Optional[Session] = None,
+    ) -> Dict[str, Any]:
+        """문서 현황 통계 반환. source_id가 지정되면 해당 Source의 통계만 반환."""
         close_db = False
         if db is None:
             db = SessionLocal()
@@ -149,45 +153,72 @@ class UnifiedDocumentService:
         try:
             stats = {}
 
+            # 기본 쿼리 (source_id 필터 적용)
+            base_query = db.query(func.count(DocumentMetadata.id))
+            if source_id:
+                base_query = base_query.filter(DocumentMetadata.source_id == source_id)
+
             # 전체 문서 수
-            stats["total"] = db.query(func.count(DocumentMetadata.id)).scalar() or 0
+            stats["total"] = base_query.scalar() or 0
 
             # 미분류 문서 수 (document_type이 없거나 unknown인 경우)
-            stats["unclassified"] = db.query(func.count(DocumentMetadata.id)).filter(
+            unclassified_query = db.query(func.count(DocumentMetadata.id)).filter(
                 (DocumentMetadata.document_type == None) |
                 (DocumentMetadata.document_type == "unknown")
-            ).scalar() or 0
+            )
+            if source_id:
+                unclassified_query = unclassified_query.filter(DocumentMetadata.source_id == source_id)
+            stats["unclassified"] = unclassified_query.scalar() or 0
 
             # 메타 확정 문서 수
-            stats["confirmed"] = db.query(func.count(DocumentMetadata.id)).filter(
+            confirmed_query = db.query(func.count(DocumentMetadata.id)).filter(
                 DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value
-            ).scalar() or 0
+            )
+            if source_id:
+                confirmed_query = confirmed_query.filter(DocumentMetadata.source_id == source_id)
+            stats["confirmed"] = confirmed_query.scalar() or 0
 
             # RAG 준비 문서 수
-            stats["rag_ready"] = db.query(func.count(DocumentMetadata.id)).filter(
+            rag_ready_query = db.query(func.count(DocumentMetadata.id)).filter(
                 DocumentMetadata.status == ProcessingStatus.RAG_READY.value
-            ).scalar() or 0
+            )
+            if source_id:
+                rag_ready_query = rag_ready_query.filter(DocumentMetadata.source_id == source_id)
+            stats["rag_ready"] = rag_ready_query.scalar() or 0
 
             # 상태별 문서 수
-            status_stats = db.query(
+            status_query = db.query(
                 DocumentMetadata.status,
                 func.count(DocumentMetadata.id).label('count')
-            ).group_by(DocumentMetadata.status).all()
+            )
+            if source_id:
+                status_query = status_query.filter(DocumentMetadata.source_id == source_id)
+            status_stats = status_query.group_by(DocumentMetadata.status).all()
             stats["by_status"] = {s or "registered": c for s, c in status_stats}
 
             # 문서 유형별 수
-            type_stats = db.query(
+            type_query = db.query(
                 DocumentMetadata.document_type,
                 func.count(DocumentMetadata.id).label('count')
-            ).group_by(DocumentMetadata.document_type).all()
+            )
+            if source_id:
+                type_query = type_query.filter(DocumentMetadata.source_id == source_id)
+            type_stats = type_query.group_by(DocumentMetadata.document_type).all()
             stats["by_type"] = {t or "unknown": c for t, c in type_stats}
 
             # 메타 상태별 수
-            meta_stats = db.query(
+            meta_query = db.query(
                 DocumentMetadata.meta_status,
                 func.count(DocumentMetadata.id).label('count')
-            ).group_by(DocumentMetadata.meta_status).all()
+            )
+            if source_id:
+                meta_query = meta_query.filter(DocumentMetadata.source_id == source_id)
+            meta_stats = meta_query.group_by(DocumentMetadata.meta_status).all()
             stats["by_meta_status"] = {m or "registered": c for m, c in meta_stats}
+
+            # source_id 정보 추가
+            if source_id:
+                stats["source_id"] = source_id
 
             return stats
         finally:
