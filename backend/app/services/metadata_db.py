@@ -12,9 +12,22 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
+from app.services.unified_document_service import unified_document_service
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DB_PATH = PROJECT_ROOT / "data" / "metadata.db"
+_LEGACY_TO_MYSQL_META_STATUS = {
+    "pending": "registered",
+    "auto_suggested": "metadata_suggested",
+    "confirmed": "metadata_reviewed",
+}
+_MYSQL_TO_LEGACY_META_STATUS = {
+    "registered": "pending",
+    "metadata_suggested": "auto_suggested",
+    "review_required": "auto_suggested",
+    "metadata_reviewed": "confirmed",
+}
 
 
 @contextmanager
@@ -36,12 +49,37 @@ def dict_from_row(row: sqlite3.Row) -> Dict[str, Any]:
 class MetadataDBService:
     """문서 메타데이터 DB 서비스."""
 
+    def _normalize_mysql_document(self, doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """MySQL document_metadata 결과를 기존 metadata_db 응답 형태에 맞춘다."""
+        if not doc:
+            return None
+
+        normalized = dict(doc)
+        if normalized.get("id") is None and normalized.get("document_id") is not None:
+            normalized["id"] = normalized["document_id"]
+        if normalized.get("project_year") is None and normalized.get("year") is not None:
+            normalized["project_year"] = normalized.get("year")
+        meta_status = str(normalized.get("meta_status") or "").strip()
+        if meta_status:
+            normalized["meta_status"] = _MYSQL_TO_LEGACY_META_STATUS.get(meta_status, meta_status)
+        return normalized
+
+    def _map_meta_status_to_mysql(self, value: Optional[str]) -> Optional[str]:
+        raw = str(value or "").strip()
+        if not raw:
+            return None
+        return _LEGACY_TO_MYSQL_META_STATUS.get(raw, raw)
+
     # ────────────────────────────────────────────────────────────────────────
     # Documents CRUD
     # ────────────────────────────────────────────────────────────────────────
 
     def get_document(self, document_id: int) -> Optional[Dict]:
         """문서 ID로 조회한다."""
+        mysql_doc = self._normalize_mysql_document(unified_document_service.get_document(document_id))
+        if mysql_doc:
+            return mysql_doc
+
         with get_db_connection() as conn:
             cursor = conn.execute(
                 "SELECT * FROM documents WHERE id = ?", (document_id,)
@@ -51,6 +89,11 @@ class MetadataDBService:
 
     def get_document_by_filename(self, file_name: str) -> Optional[Dict]:
         """파일명으로 조회한다."""
+        mysql_docs = unified_document_service.list_documents(search=file_name, limit=20, offset=0)
+        for doc in mysql_docs:
+            if (doc.get("file_name") or "") == file_name:
+                return self._normalize_mysql_document(doc)
+
         with get_db_connection() as conn:
             cursor = conn.execute(
                 "SELECT * FROM documents WHERE file_name = ?", (file_name,)
@@ -66,10 +109,24 @@ class MetadataDBService:
         organization: Optional[str] = None,
         project_year: Optional[str] = None,
         search: Optional[str] = None,
+        source_id: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> List[Dict]:
         """문서 목록을 조회한다."""
+        mysql_docs = unified_document_service.list_documents(
+            document_type=document_type,
+            status=status,
+            meta_status=self._map_meta_status_to_mysql(meta_status),
+            organization=organization,
+            project_year=project_year,
+            search=search,
+            source_id=source_id,
+            limit=limit,
+            offset=offset,
+        )
+        return [self._normalize_mysql_document(doc) for doc in mysql_docs]
+
         query = "SELECT * FROM documents WHERE 1=1"
         params = []
 
@@ -97,6 +154,10 @@ class MetadataDBService:
             query += " AND (file_name LIKE ? OR project_name LIKE ?)"
             params.extend([f"%{search}%", f"%{search}%"])
 
+        if source_id:
+            query += " AND source_id = ?"
+            params.append(source_id)
+
         query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
@@ -109,8 +170,17 @@ class MetadataDBService:
         document_type: Optional[str] = None,
         status: Optional[str] = None,
         meta_status: Optional[str] = None,
+        source_id: Optional[str] = None,
     ) -> int:
         """문서 수를 센다."""
+        mysql_total = unified_document_service.count_documents(
+            document_type=document_type,
+            status=status,
+            meta_status=self._map_meta_status_to_mysql(meta_status),
+            source_id=source_id,
+        )
+        return mysql_total
+
         query = "SELECT COUNT(*) FROM documents WHERE 1=1"
         params = []
 
@@ -126,12 +196,19 @@ class MetadataDBService:
             query += " AND meta_status = ?"
             params.append(meta_status)
 
+        if source_id:
+            query += " AND source_id = ?"
+            params.append(source_id)
+
         with get_db_connection() as conn:
             cursor = conn.execute(query, params)
             return cursor.fetchone()[0]
 
     def get_document_stats(self) -> Dict[str, int]:
         """문서 현황 통계를 반환한다."""
+        mysql_stats = unified_document_service.get_document_stats()
+        return mysql_stats
+
         with get_db_connection() as conn:
             stats = {}
 
@@ -215,6 +292,14 @@ class MetadataDBService:
 
     def update_document(self, document_id: int, data: Dict) -> bool:
         """문서를 업데이트한다."""
+        mysql_data = dict(data)
+        if "project_year" in mysql_data and "year" not in mysql_data:
+            mysql_data["year"] = mysql_data["project_year"]
+        if "meta_status" in mysql_data:
+            mysql_data["meta_status"] = self._map_meta_status_to_mysql(mysql_data["meta_status"])
+        if unified_document_service.update_document(document_id, mysql_data):
+            return True
+
         allowed_fields = [
             "file_name", "file_path", "file_type", "file_size",
             "document_type", "project_name", "organization", "project_year",
@@ -244,6 +329,9 @@ class MetadataDBService:
 
     def delete_document(self, document_id: int) -> bool:
         """문서를 삭제한다."""
+        if unified_document_service.delete_document(document_id):
+            return True
+
         with get_db_connection() as conn:
             cursor = conn.execute("DELETE FROM documents WHERE id = ?", (document_id,))
             conn.commit()
@@ -304,6 +392,20 @@ class MetadataDBService:
 
     def confirm_suggestion(self, document_id: int, data: Dict) -> bool:
         """자동 생성 메타데이터를 확정하고 documents 테이블에 반영한다."""
+        mysql_data = dict(data)
+        if "project_year" in mysql_data and "year" not in mysql_data:
+            mysql_data["year"] = mysql_data["project_year"]
+        mysql_data["meta_status"] = self._map_meta_status_to_mysql("confirmed")
+        if unified_document_service.update_document(document_id, mysql_data):
+            with get_db_connection() as conn:
+                conn.execute("""
+                    UPDATE document_metadata_suggestions
+                    SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP
+                    WHERE document_id = ?
+                """, (document_id,))
+                conn.commit()
+            return True
+
         with get_db_connection() as conn:
             # suggestion 상태 업데이트
             conn.execute("""
@@ -415,6 +517,14 @@ class MetadataDBService:
         offset: int = 0,
     ) -> List[Dict]:
         """검수 대기 문서 목록을 조회한다."""
+        mysql_docs = unified_document_service.get_documents_for_review(
+            status=self._map_meta_status_to_mysql(status),
+            source_id=source_id,
+            limit=limit,
+            offset=offset,
+        )
+        return [self._normalize_mysql_document(doc) for doc in mysql_docs]
+
         query = "SELECT * FROM documents WHERE 1=1"
         params = []
 
@@ -463,6 +573,10 @@ class MetadataDBService:
 
     def get_document_by_id(self, document_id: str) -> Optional[Dict]:
         """문서 ID로 상세 조회한다 (Step 3)."""
+        mysql_doc = self._normalize_mysql_document(unified_document_service.get_document(int(document_id)))
+        if mysql_doc:
+            return mysql_doc
+
         with get_db_connection() as conn:
             cursor = conn.execute(
                 "SELECT * FROM documents WHERE document_id = ?", (document_id,)
@@ -502,6 +616,12 @@ class MetadataDBService:
         self, document_id: str, updates: Dict[str, Any]
     ) -> bool:
         """문서 메타데이터를 업데이트한다 (Step 3)."""
+        mysql_updates = dict(updates)
+        if "meta_status" in mysql_updates:
+            mysql_updates["meta_status"] = self._map_meta_status_to_mysql(mysql_updates["meta_status"])
+        if unified_document_service.update_document(int(document_id), mysql_updates):
+            return True
+
         allowed_fields = [
             "project_name",
             "organization",
@@ -542,6 +662,9 @@ class MetadataDBService:
 
     def approve_document_metadata(self, document_id: str, reviewer: str) -> bool:
         """메타데이터를 승인한다 (Step 3)."""
+        if unified_document_service.approve_document_metadata(int(document_id), reviewer):
+            return True
+
         with get_db_connection() as conn:
             cursor = conn.execute("""
                 UPDATE documents
@@ -558,6 +681,9 @@ class MetadataDBService:
         self, document_id: str, reviewer: str, reason: Optional[str] = None
     ) -> bool:
         """메타데이터를 반려한다 (Step 3)."""
+        if unified_document_service.reject_document_metadata(int(document_id), reviewer, reason):
+            return True
+
         with get_db_connection() as conn:
             cursor = conn.execute("""
                 UPDATE documents
@@ -573,6 +699,12 @@ class MetadataDBService:
 
     def get_status_counts(self) -> Dict[str, int]:
         """메타 상태별 문서 수를 집계한다 (Step 3)."""
+        mysql_counts = unified_document_service.get_status_counts()
+        return {
+            _MYSQL_TO_LEGACY_META_STATUS.get(str(key or "").strip(), str(key or "pending")): value
+            for key, value in mysql_counts.items()
+        }
+
         with get_db_connection() as conn:
             cursor = conn.execute("""
                 SELECT meta_status, COUNT(*) as count
@@ -583,6 +715,13 @@ class MetadataDBService:
 
     def get_review_stats(self) -> Dict[str, Any]:
         """검수 현황 통계를 반환한다 (Step 3)."""
+        mysql_stats = unified_document_service.get_review_stats()
+        mysql_stats["status_counts"] = {
+            _MYSQL_TO_LEGACY_META_STATUS.get(str(key or "").strip(), str(key or "pending")): value
+            for key, value in (mysql_stats.get("status_counts") or {}).items()
+        }
+        return mysql_stats
+
         with get_db_connection() as conn:
             stats = {}
 
