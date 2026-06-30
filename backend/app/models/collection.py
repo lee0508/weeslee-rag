@@ -29,6 +29,12 @@ class Collection(Base):
     snapshot_id = Column(String(128), nullable=True, comment="Active Snapshot ID")
     dataset_id = Column(String(128), nullable=True, comment="Dataset ID")
 
+    # Collection 관리 필드 (bootstrap_collection_config 용)
+    collection_key = Column(String(100), nullable=True, index=True, comment="Collection Key for API reference")
+    source_root = Column(String(512), nullable=True, comment="Source root path")
+    mount_path = Column(String(512), nullable=True, comment="Mount path")
+    enabled = Column(Boolean, default=True, comment="Is enabled")
+
     # Relationships
     documents = relationship("Document", back_populates="collection", cascade="all, delete-orphan")
 

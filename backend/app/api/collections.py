@@ -8,9 +8,9 @@ from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import get_db, SessionLocal
 from app.models.collection import Collection
-from app.services.platform_store import create_record, get_record, update_record
+from app.services.platform_store import get_record
 from app.services.rag_runtime import get_active_snapshot
 from app.services.vectordb import get_vectordb, VectorDBService
 
@@ -46,6 +46,10 @@ class CollectionResponse(BaseModel):
     client_id: Optional[str] = None
     snapshot_id: Optional[str] = None
     dataset_id: Optional[str] = None
+    collection_key: Optional[str] = None
+    source_root: Optional[str] = None
+    mount_path: Optional[str] = None
+    enabled: Optional[bool] = True
 
     class Config:
         from_attributes = True
@@ -72,42 +76,56 @@ def _get_source_mount_path(source_id: str) -> str:
 
 
 def bootstrap_collection_config(client_id: str, source_id: str, overwrite: bool = False) -> dict:
+    """기본 Collection을 MySQL에 생성/갱신한다."""
     mount_path = _get_source_mount_path(source_id)
     active_snapshot = get_active_snapshot()
     coll_key = MAIN_COLLECTION_NAME
-    record = {
-        "collection_key": coll_key,
-        "collection_name": MAIN_COLLECTION_NAME,
-        "client_id": client_id,
-        "source_id": source_id,
-        "snapshot_id": active_snapshot,
-        "name": MAIN_COLLECTION_NAME,
-        "description": f"{settings.rag_source_folder} 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
-        "source_root": settings.rag_source_folder,
-        "mount_path": mount_path,
-        "enabled": True,
-    }
-    existing = get_record("collections_active", "collection_key", coll_key)
-    created = skipped = 0
-    if existing:
-        if overwrite:
-            update_record("collections_active", "collection_key", coll_key, record)
-            created = 1
-        else:
-            skipped = 1
-    else:
-        create_record("collections_active", record, id_field="collection_key")
-        created = 1
 
-    return {
-        "success": True,
-        "client_id": client_id,
-        "source_id": source_id,
-        "snapshot_id": active_snapshot,
-        "created": created,
-        "skipped": skipped,
-        "items": [{"collection_key": coll_key, "name": MAIN_COLLECTION_NAME}],
-    }
+    db = SessionLocal()
+    try:
+        existing = db.query(Collection).filter(Collection.collection_key == coll_key).first()
+        created = skipped = 0
+
+        if existing:
+            if overwrite:
+                existing.client_id = client_id
+                existing.source_id = source_id
+                existing.snapshot_id = active_snapshot
+                existing.description = f"{settings.rag_source_folder} 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리"
+                existing.source_root = settings.rag_source_folder
+                existing.mount_path = mount_path
+                existing.enabled = True
+                db.commit()
+                created = 1
+            else:
+                skipped = 1
+        else:
+            new_collection = Collection(
+                name=MAIN_COLLECTION_NAME,
+                collection_key=coll_key,
+                client_id=client_id,
+                source_id=source_id,
+                snapshot_id=active_snapshot,
+                description=f"{settings.rag_source_folder} 통합 컬렉션. 문서 그룹과 문서 카테고리는 metadata filter로 처리",
+                source_root=settings.rag_source_folder,
+                mount_path=mount_path,
+                enabled=True,
+            )
+            db.add(new_collection)
+            db.commit()
+            created = 1
+
+        return {
+            "success": True,
+            "client_id": client_id,
+            "source_id": source_id,
+            "snapshot_id": active_snapshot,
+            "created": created,
+            "skipped": skipped,
+            "items": [{"collection_key": coll_key, "name": MAIN_COLLECTION_NAME}],
+        }
+    finally:
+        db.close()
 
 
 @router.get("/collections", response_model=List[CollectionResponse])

@@ -32,7 +32,6 @@ JSON_STORE_FILES = [
     "keywords.json",
     "collection_templates.json",
     "metadata_templates.json",
-    "collections_active.json",
 ]
 
 
