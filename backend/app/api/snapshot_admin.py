@@ -118,8 +118,57 @@ def _resolve_snapshot_ids(snapshot_id: str) -> tuple[Optional[str], Optional[str
 
 
 def _load_active_config() -> Optional[ActiveSnapshotConfig]:
-    """활성 Snapshot 설정 로드 - data/active_index.json에서 읽기"""
-    # 1. 새 active_snapshot.json 파일이 있으면 우선 사용
+    """활성 Snapshot 설정 로드.
+
+    권장 계약:
+    - active_snapshot_id: 현재 운영 Snapshot ID (snapshot_20260629_src_...V1 형식)
+    - faiss_index_id: 참조하는 FAISS Index ID (active_snapshot_id와 동일)
+
+    우선순위:
+    1. active_index.json (faiss/status와 동일한 소스) - 권장
+    2. active_snapshot.json (확장 정보)
+    """
+    # 1. active_index.json에서 읽기 (faiss/status와 동일한 소스 - 권장)
+    if ACTIVE_INDEX_FILE.exists():
+        with open(ACTIVE_INDEX_FILE, "r", encoding="utf-8") as f:
+            index_data = json.load(f)
+        # snapshot 또는 active_snapshot 키 지원 (snapshot 우선 - faiss/status 형식)
+        snap_id = index_data.get("snapshot") or index_data.get("active_snapshot", "")
+        if snap_id:
+            snapshot = _load_snapshot(snap_id)
+            faiss_manifest = _load_faiss_manifest(snap_id)
+            src_id, ds_id = _resolve_snapshot_ids(snap_id)
+
+            # active_snapshot.json에서 추가 정보 병합 (있으면)
+            extra_data = {}
+            if ACTIVE_SNAPSHOT_FILE.exists():
+                try:
+                    with open(ACTIVE_SNAPSHOT_FILE, "r", encoding="utf-8") as f:
+                        extra_data = json.load(f)
+                except Exception:
+                    pass
+
+            return ActiveSnapshotConfig(
+                active_snapshot_id=snap_id,
+                faiss_index_id=snap_id,  # faiss_index_id는 active_snapshot_id와 동일
+                index_file=(snapshot.rag_build.index_file if snapshot else None) or index_data.get("index_file"),
+                metadata_file=(snapshot.rag_build.metadata_file if snapshot else None) or index_data.get("metadata_file"),
+                embedding_provider=((snapshot.rag_build.embedding_model.split("/")[-1]) if snapshot and snapshot.rag_build.embedding_model else index_data.get("embedding_provider", "ollama")),
+                vector_count=(snapshot.rag_build.vector_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or index_data.get("vector_count", 0),
+                document_count=(snapshot.dataset.document_count if snapshot else 0) or int((faiss_manifest or {}).get("document_count") or 0) or index_data.get("document_count", 0),
+                chunk_count=(snapshot.rag_build.chunk_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or index_data.get("chunk_count", 0),
+                activated_at=datetime.fromisoformat(index_data["activated_at"]) if index_data.get("activated_at") else None,
+                source_id=src_id or extra_data.get("source_id"),
+                dataset_id=ds_id or extra_data.get("dataset_id"),
+                tag_keyword_build_id=extra_data.get("tag_keyword_build_id"),
+                graph_build_id=extra_data.get("graph_build_id"),
+                ontology_id=extra_data.get("ontology_id"),
+                wiki_build_id=extra_data.get("wiki_build_id"),
+                previous_snapshot_id=extra_data.get("previous_snapshot_id"),
+                rollback_available=extra_data.get("rollback_available", False),
+            )
+
+    # 2. active_snapshot.json만 있는 경우 (fallback)
     if ACTIVE_SNAPSHOT_FILE.exists():
         with open(ACTIVE_SNAPSHOT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -131,8 +180,9 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
             config.source_id = src_id
         if ds_id:
             config.dataset_id = ds_id
+        # faiss_index_id를 active_snapshot_id와 동일하게 설정
+        config.faiss_index_id = config.active_snapshot_id
         if snapshot:
-            config.faiss_index_id = snapshot.rag_build.faiss_index_id or config.faiss_index_id or snapshot.snapshot_id
             config.index_file = snapshot.rag_build.index_file or config.index_file
             config.metadata_file = snapshot.rag_build.metadata_file or config.metadata_file
             config.vector_count = snapshot.rag_build.vector_count or config.vector_count
@@ -144,47 +194,28 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
             config.vector_count = int(faiss_manifest.get("vector_count") or config.vector_count or 0)
             config.document_count = int(faiss_manifest.get("document_count") or config.document_count or 0)
             config.chunk_count = int(faiss_manifest.get("vector_count") or config.chunk_count or 0)
-            config.faiss_index_id = config.faiss_index_id or config.active_snapshot_id
         return config
-
-    # 2. 기존 active_index.json에서 읽기 (RAG 검색이 사용하는 파일)
-    if ACTIVE_INDEX_FILE.exists():
-        with open(ACTIVE_INDEX_FILE, "r", encoding="utf-8") as f:
-            old_data = json.load(f)
-        # active_snapshot 또는 snapshot 키 지원 (하위 호환성)
-        snap_id = old_data.get("active_snapshot") or old_data.get("snapshot", "")
-        snapshot = _load_snapshot(snap_id) if snap_id else None
-        faiss_manifest = _load_faiss_manifest(snap_id)
-        src_id, ds_id = _resolve_snapshot_ids(snap_id)
-        return ActiveSnapshotConfig(
-            active_snapshot_id=snap_id,
-            faiss_index_id=(snapshot.rag_build.faiss_index_id if snapshot else None) or snap_id,
-            index_file=(snapshot.rag_build.index_file if snapshot else None) or old_data.get("index_file"),
-            metadata_file=(snapshot.rag_build.metadata_file if snapshot else None) or old_data.get("metadata_file"),
-            embedding_provider=((snapshot.rag_build.embedding_model.split("/")[-1]) if snapshot and snapshot.rag_build.embedding_model else old_data.get("embedding_provider", "ollama")),
-            vector_count=(snapshot.rag_build.vector_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or old_data.get("vector_count", 0),
-            document_count=(snapshot.dataset.document_count if snapshot else 0) or int((faiss_manifest or {}).get("document_count") or 0) or old_data.get("document_count", 0),
-            chunk_count=(snapshot.rag_build.chunk_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or old_data.get("chunk_count", 0),
-            activated_at=datetime.fromisoformat(old_data["activated_at"]) if old_data.get("activated_at") else None,
-            source_id=src_id,
-            dataset_id=ds_id,
-        )
 
     return None
 
 
 def _save_active_config(config: ActiveSnapshotConfig):
-    """활성 Snapshot 설정 저장 - 두 파일 모두 업데이트"""
+    """활성 Snapshot 설정 저장 - 두 파일 모두 업데이트.
+
+    권장 계약:
+    - active_index.json의 snapshot 키: snapshot_20260629_src_...V1 형식 사용
+    - faiss/status와 snapshot/active가 동일한 snapshot ID 반환
+    """
     _ensure_dirs()
 
-    # 1. 새 active_snapshot.json 저장 (확장 정보)
+    # 1. active_snapshot.json 저장 (확장 정보)
     with open(ACTIVE_SNAPSHOT_FILE, "w", encoding="utf-8") as f:
         json.dump(config.dict(), f, ensure_ascii=False, indent=2, default=str)
 
-    # 2. 기존 active_index.json 업데이트 (RAG 검색 호환성 - 필수)
-    # RAG 검색이 이 파일을 읽으므로 반드시 업데이트해야 함
-    old_format = {
-        "active_snapshot": config.faiss_index_id or config.active_snapshot_id,
+    # 2. active_index.json 업데이트 (RAG 검색 + faiss/status 공용)
+    # snapshot 키 사용 (faiss/status 형식과 일치)
+    index_format = {
+        "snapshot": config.active_snapshot_id,  # 권장 계약: snapshot 키 사용
         "index_file": config.index_file,
         "metadata_file": config.metadata_file,
         "embedding_provider": config.embedding_provider,
@@ -194,7 +225,7 @@ def _save_active_config(config: ActiveSnapshotConfig):
         "activated_at": config.activated_at.isoformat() if config.activated_at else None,
     }
     with open(ACTIVE_INDEX_FILE, "w", encoding="utf-8") as f:
-        json.dump(old_format, f, ensure_ascii=False, indent=2)
+        json.dump(index_format, f, ensure_ascii=False, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
