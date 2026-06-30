@@ -2051,7 +2051,7 @@
           <div>
             <label for="searchScope">검색 범위</label>
             <select id="searchScope" onchange="updateSearchScopeHint()">
-              <option value="all_sources" selected>전체 데이터셋</option>
+              <option value="active_snapshot" selected>현재 Active Snapshot</option>
             </select>
             <div id="searchScopeHint" style="margin-top:4px;font-size:11px;color:var(--gray-400);line-height:1.5;">
               검색 범위를 불러오는 중입니다.
@@ -3093,7 +3093,7 @@
     let _searchScopes = [];
 
     function getSelectedSearchScope() {
-      return document.getElementById('searchScope')?.value || 'all_sources';
+      return document.getElementById('searchScope')?.value || 'active_snapshot';
     }
 
     function getSnapshotCheckboxNodes() {
@@ -3301,13 +3301,13 @@
         selectEl.innerHTML = '';
         if (!_searchScopes.length) {
           const option = document.createElement('option');
-          option.value = 'all_sources';
-          option.textContent = '전체 데이터셋';
+          option.value = 'active_snapshot';
+          option.textContent = '현재 Active Snapshot';
           selectEl.appendChild(option);
           _searchScopes = [{
-            scope_id: 'all_sources',
-            label: '전체 데이터셋',
-            description: '사용 가능한 전체 Source의 최신 Snapshot을 검색합니다.',
+            scope_id: 'active_snapshot',
+            label: '현재 Active Snapshot',
+            description: '현재 활성 스냅샷 1개만 검색합니다.',
             snapshot_count: 0,
             source_count: 0,
           }];
@@ -3320,9 +3320,7 @@
           });
         }
 
-        const preferredValue = _searchScopes.some(scope => scope.scope_id === 'all_sources')
-          ? 'all_sources'
-          : (data.default_scope_id || _searchScopes[0]?.scope_id || 'active_snapshot');
+        const preferredValue = data.default_scope_id || _searchScopes[0]?.scope_id || 'active_snapshot';
         const nextValue = _searchScopes.some(scope => scope.scope_id === currentValue)
           ? currentValue
           : preferredValue;
@@ -3331,15 +3329,15 @@
       } catch (error) {
         console.error('loadSearchScopes error:', error);
         _searchScopes = [{
-          scope_id: 'all_sources',
-          label: '전체 데이터셋',
-          description: '기본 검색 범위를 사용합니다.',
+          scope_id: 'active_snapshot',
+          label: '현재 Active Snapshot',
+          description: '현재 활성 스냅샷만 검색합니다.',
           snapshot_count: 0,
           source_count: 0,
         }];
-        selectEl.innerHTML = '<option value="all_sources">전체 데이터셋</option>';
+        selectEl.innerHTML = '<option value="active_snapshot">현재 Active Snapshot</option>';
         renderSnapshotMultiSelect([]);
-        if (hintEl) hintEl.textContent = '검색 범위 목록을 가져오지 못해 기본 전체 데이터셋으로 고정합니다.';
+        if (hintEl) hintEl.textContent = '검색 범위 목록을 가져오지 못해 현재 Active Snapshot 기준으로 고정합니다.';
       }
     }
 
