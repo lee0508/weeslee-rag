@@ -6275,13 +6275,14 @@ POST /api/admin/faiss/activate</code>
     const ok = await showConfirm({
       icon: '🗑️',
       title: '스냅샷 삭제',
-      body: `<strong>${esc(snapshot)}</strong><br>의 모든 인덱스 파일을 영구 삭제합니다.<br><span style="color:var(--red)">이 작업은 되돌릴 수 없습니다.</span>`,
+      body: `<strong>${esc(snapshot)}</strong><br>의 FAISS 인덱스, category 인덱스, manifest, staged 산출물, graph/wiki 관련 파일을 함께 삭제합니다.<br><span style="color:var(--red)">이 작업은 되돌릴 수 없습니다.</span>`,
       okLabel: '삭제',
     });
     if (!ok) return;
     try {
-      await api(`/admin/faiss/indexes/${encodeURIComponent(snapshot)}`, { method: 'DELETE' });
-      showToast('스냅샷 삭제 완료', 'success');
+      const result = await api(`/admin/faiss/indexes/${encodeURIComponent(snapshot)}`, { method: 'DELETE' });
+      const deletedCount = Number(result?.deleted_count || 0);
+      showToast(`스냅샷 삭제 완료 (${deletedCount}건 정리)`, 'success');
       loadIndexes();
     } catch (e) {
       showToast('삭제 실패: ' + e.message, 'error');

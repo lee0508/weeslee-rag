@@ -36,6 +36,7 @@ from app.services.dataset_context import generate_dataset_id, get_source_dataset
 from app.services.incremental_rag_service import add_documents_to_active_snapshot
 from app.models.snapshot_manifest import SnapshotManifest
 from app.services.rag_runtime import run_rag_query, get_active_snapshot
+from app.services.snapshot_manager import delete_snapshot as delete_snapshot_service
 
 router = APIRouter(
     prefix="/admin/faiss",
@@ -321,38 +322,32 @@ async def snapshot_categories(snapshot: str):
 
 @router.delete("/indexes/{snapshot}")
 async def delete_snapshot(snapshot: str):
-    """스냅샷과 관련 파일을 모두 삭제한다. 활성 인덱스는 삭제 불가."""
+    """스냅샷과 관련 산출물을 모두 삭제한다. 활성 인덱스는 삭제 불가."""
     active = runner.read_active_index()
-    if (active or {}).get("snapshot", "") == snapshot:
+    active_snapshot = (active or {}).get("snapshot", "") or (active or {}).get("active_snapshot", "")
+    if active_snapshot == snapshot:
         raise HTTPException(
             status_code=400,
             detail="활성 인덱스는 삭제할 수 없습니다. 다른 인덱스를 활성화한 후 삭제하세요.",
         )
-    if not FAISS_DIR.exists():
-        raise HTTPException(status_code=404, detail="FAISS 디렉토리가 없습니다.")
 
-    targets = [
-        FAISS_DIR / f"{snapshot}_ollama.index",
-        FAISS_DIR / f"{snapshot}_ollama_metadata.jsonl",
-    ] + [
-        FAISS_DIR / f"{snapshot}_{cat}_ollama.index" for cat in _CATEGORY_SUFFIXES
-    ] + [
-        FAISS_DIR / f"{snapshot}_{cat}_ollama_metadata.jsonl" for cat in _CATEGORY_SUFFIXES
-    ]
+    try:
+        result = delete_snapshot_service(snapshot, force=False)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"삭제 실패: {exc}")
 
-    deleted: list[str] = []
-    for f in targets:
-        if f.exists():
-            try:
-                f.unlink()
-                deleted.append(f.name)
-            except OSError as exc:
-                raise HTTPException(status_code=500, detail=f"삭제 실패: {f.name} — {exc}")
+    if not result.get("deleted_count"):
+        raise HTTPException(status_code=404, detail=f"삭제할 스냅샷 산출물이 없습니다: {snapshot}")
 
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"스냅샷 파일 없음: {snapshot}")
-
-    return {"deleted": deleted, "snapshot": snapshot}
+    return {
+        "success": True,
+        "snapshot": snapshot,
+        "deleted_files": result.get("deleted_files", []),
+        "deleted_dirs": result.get("deleted_dirs", []),
+        "deleted_count": result.get("deleted_count", 0),
+    }
 
 
 class StartJobRequest(BaseModel):

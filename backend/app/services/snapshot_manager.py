@@ -316,7 +316,21 @@ def delete_snapshot(snapshot_id: str, force: bool = False) -> dict[str, Any]:
             meta_file.unlink()
             deleted_files.append(f"staged/metadata/{meta_file.name}")
 
-    # 5. 파이프라인 상태 삭제 (staged/)
+    # 5. 텍스트 산출물 삭제 (staged/text/)
+    staged_text_dir = DATA_DIR / "staged" / "text"
+    if staged_text_dir.exists():
+        for text_file in staged_text_dir.glob(f"{snapshot_id}*"):
+            text_file.unlink()
+            deleted_files.append(f"staged/text/{text_file.name}")
+
+    # 6. manifest 삭제 (staged/manifest/)
+    staged_manifest_dir = DATA_DIR / "staged" / "manifest"
+    if staged_manifest_dir.exists():
+        for manifest_file in staged_manifest_dir.glob(f"{snapshot_id}*"):
+            manifest_file.unlink()
+            deleted_files.append(f"staged/manifest/{manifest_file.name}")
+
+    # 7. 파이프라인 상태 삭제 (staged/)
     staged_dir = DATA_DIR / "staged"
     if staged_dir.exists():
         for state_file in staged_dir.glob(f"*{snapshot_id}*"):
@@ -324,7 +338,7 @@ def delete_snapshot(snapshot_id: str, force: bool = False) -> dict[str, Any]:
                 state_file.unlink()
                 deleted_files.append(f"staged/{state_file.name}")
 
-    # 6. 그래프 데이터 삭제 (graph/)
+    # 8. 그래프 데이터 삭제 (graph/)
     graph_dir = DATA_DIR / "graph"
     if graph_dir.exists():
         for graph_file in graph_dir.glob(f"{snapshot_id}*"):
@@ -335,7 +349,7 @@ def delete_snapshot(snapshot_id: str, force: bool = False) -> dict[str, Any]:
                 shutil.rmtree(graph_file)
                 deleted_dirs.append(f"graph/{graph_file.name}")
 
-    # 7. Wiki 데이터 삭제 (wiki/)
+    # 9. Wiki 데이터 삭제 (wiki/)
     wiki_dir = DATA_DIR / "wiki"
     if wiki_dir.exists():
         for wiki_file in wiki_dir.glob(f"{snapshot_id}*"):
@@ -346,7 +360,7 @@ def delete_snapshot(snapshot_id: str, force: bool = False) -> dict[str, Any]:
                 shutil.rmtree(wiki_file)
                 deleted_dirs.append(f"wiki/{wiki_file.name}")
 
-    # 8. source_id 기반 wiki 폴더 삭제 (src_YYYYMMDD_HHMMSS_HASH 형식)
+    # 10. source_id 기반 wiki 폴더 삭제 (src_YYYYMMDD_HHMMSS_HASH 형식)
     # snapshot_id에서 src_ 부분 추출
     if "_src_" in snapshot_id:
         src_part = snapshot_id.split("_src_")[1].rsplit("_V", 1)[0]
