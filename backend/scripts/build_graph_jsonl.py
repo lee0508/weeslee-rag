@@ -1308,6 +1308,17 @@ def main() -> int:
     }
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    # ── 빌드 단계별 생성 파일 경로 로그 ─────────────────────────────────────────
+    print("\n" + "=" * 60, flush=True)
+    print("[BUILD OUTPUT] 생성된 파일 목록", flush=True)
+    print("=" * 60, flush=True)
+    print(f"  [NODES]     {nodes_path}", flush=True)
+    print(f"  [EDGES]     {edges_path}", flush=True)
+    print(f"  [MANIFEST]  {manifest_path}", flush=True)
+    print(f"              - 노드: {len(nodes)}개 (프로젝트: {project_count}, 문서: {document_count})", flush=True)
+    print(f"              - 엣지: {len(edges)}개", flush=True)
+    print("=" * 60 + "\n", flush=True)
+
     print(json.dumps({"graph_complete": True, **manifest}, ensure_ascii=False))
     return 0
 

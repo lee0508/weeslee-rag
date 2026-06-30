@@ -681,10 +681,14 @@ def main() -> None:
             import traceback
             traceback.print_exc()
 
-    print(f"\n{'='*60}")
-    print(f"Generated {len(generated)} wiki pages:")
+    # ── 빌드 단계별 생성 파일 경로 로그 ─────────────────────────────────────────
+    print("\n" + "=" * 60)
+    print("[BUILD OUTPUT] 생성된 파일 목록")
+    print("=" * 60)
     for p in generated:
-        print(f"  {p}")
+        print(f"  [WIKI] {p}")
+    print(f"              - 총 {len(generated)}개 Wiki 페이지 생성")
+    print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":

@@ -4,11 +4,17 @@ Build a FAISS index from chunk JSONL.
 Embedding providers:
 - hashing: deterministic fallback for pipeline validation only
 - ollama: uses the local/server Ollama embedding endpoint
+
+추가 기능 (v2):
+- Snapshot 생성 시 source_id별 inventory.json 자동 생성
+- 빌드 단계별 생성 파일 경로 로그 표시
 """
 
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
+from datetime import datetime
 import hashlib
 import json
 import math
@@ -107,6 +113,102 @@ def load_chunks(path: Path) -> list[dict]:
             if line.strip():
                 rows.append(json.loads(line))
     return rows
+
+
+# ── 카테고리 매핑 (document_group → category) ──────────────────────────────────
+CATEGORY_MAP = {
+    "RFP": "rfp",
+    "rfp": "rfp",
+    "제안서": "proposal",
+    "proposal": "proposal",
+    "산출물": "deliverable",
+    "deliverable": "deliverable",
+    "착수보고": "kickoff",
+    "kickoff": "kickoff",
+    "최종보고": "final_report",
+    "final_report": "final_report",
+    "발표자료": "presentation",
+    "presentation": "presentation",
+}
+
+
+def _normalize_category(raw: str) -> str:
+    """document_group을 표준 category로 변환."""
+    return CATEGORY_MAP.get(raw, "unknown")
+
+
+def _extract_folder_name(file_path: str) -> str:
+    """파일 경로에서 프로젝트 폴더명을 추출."""
+    normalized = file_path.replace("\\", "/")
+    parts = normalized.split("/")
+    for i, part in enumerate(parts):
+        if "프로젝트폴더" in part or "RAG" in part.upper():
+            for j in range(i + 1, min(i + 4, len(parts))):
+                candidate = parts[j]
+                if re.match(r"^\d{6}\.", candidate) or re.match(r"^\d+\.\s*", candidate):
+                    return candidate
+    if len(parts) >= 2:
+        return parts[-2]
+    return "unknown"
+
+
+def build_inventory_from_metadata(metadata_rows: list[dict], snapshot_id: str, source_id: str) -> dict:
+    """메타데이터 행으로부터 inventory.json 데이터를 생성."""
+    inventory: dict[str, dict] = {}
+    seen_doc_ids: dict[str, set] = defaultdict(set)
+
+    for row in metadata_rows:
+        source_path = row.get("source_path") or row.get("original_source_path") or ""
+        folder_name = row.get("metadata", {}).get("folder_name") or _extract_folder_name(source_path)
+        doc_id = row.get("document_id") or ""
+        raw_category = row.get("category") or row.get("metadata", {}).get("document_group") or "unknown"
+        category = _normalize_category(raw_category)
+
+        if not folder_name or folder_name == "unknown":
+            continue
+
+        if folder_name not in inventory:
+            inventory[folder_name] = {
+                "folder_name": folder_name,
+                "organization": row.get("organization") or "",
+                "folder_year": row.get("folder_year") or "",
+                "doc_count": 0,
+                "categories": defaultdict(list),
+            }
+
+        if doc_id and doc_id not in seen_doc_ids[folder_name]:
+            seen_doc_ids[folder_name].add(doc_id)
+            inventory[folder_name]["doc_count"] += 1
+            inventory[folder_name]["categories"][category].append(str(doc_id))
+
+        if not inventory[folder_name]["organization"] and row.get("organization"):
+            inventory[folder_name]["organization"] = row["organization"]
+        if not inventory[folder_name]["folder_year"] and row.get("folder_year"):
+            inventory[folder_name]["folder_year"] = row["folder_year"]
+
+    for folder_name in inventory:
+        inventory[folder_name]["categories"] = dict(inventory[folder_name]["categories"])
+
+    return {
+        "source": "faiss_build",
+        "source_id": source_id,
+        "snapshot": snapshot_id,
+        "generated_at": datetime.now().isoformat(),
+        "total_folders": len(inventory),
+        "total_documents": sum(inv["doc_count"] for inv in inventory.values()),
+        "inventory": inventory,
+    }
+
+
+def save_inventory(data: dict, output_path: Path) -> None:
+    """inventory를 JSON 파일로 저장."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    inventory_only = data.get("inventory", data)
+    output_path.write_text(json.dumps(inventory_only, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    meta_path = output_path.with_suffix(".meta.json")
+    meta_data = {k: v for k, v in data.items() if k != "inventory"}
+    meta_path.write_text(json.dumps(meta_data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _is_faiss_gpu_requested() -> bool:
@@ -259,6 +361,42 @@ def main() -> int:
         ],
     }
     output_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # ── 빌드 단계별 생성 파일 경로 로그 ─────────────────────────────────────────
+    print("\n" + "=" * 60, flush=True)
+    print("[BUILD OUTPUT] 생성된 파일 목록", flush=True)
+    print("=" * 60, flush=True)
+    print(f"  [INDEX]     {output_index}", flush=True)
+    print(f"  [METADATA]  {output_metadata}", flush=True)
+    print(f"  [MANIFEST]  {output_manifest}", flush=True)
+
+    # ── source_id별 inventory.json 자동 생성 ──────────────────────────────────
+    primary_source_id = list(by_source.keys())[0] if by_source else "unknown"
+    if primary_source_id and primary_source_id != "unknown":
+        staged_dir = chunks_jsonl.parent.parent  # data/staged/chunks → data/staged
+        inventory_path = staged_dir / f"{primary_source_id}_inventory.json"
+
+        inventory_data = build_inventory_from_metadata(
+            metadata_rows,
+            snapshot_id=args.snapshot_id,
+            source_id=primary_source_id,
+        )
+        save_inventory(inventory_data, inventory_path)
+
+        manifest["inventory_path"] = str(inventory_path)
+        manifest["inventory_folders"] = inventory_data["total_folders"]
+        manifest["inventory_documents"] = inventory_data["total_documents"]
+
+        print(f"  [INVENTORY] {inventory_path}", flush=True)
+        print(f"              - 폴더: {inventory_data['total_folders']}개", flush=True)
+        print(f"              - 문서: {inventory_data['total_documents']}개", flush=True)
+
+        # manifest 재저장 (inventory 정보 포함)
+        output_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    else:
+        print("  [INVENTORY] (source_id 없음 - 생성 생략)", flush=True)
+
+    print("=" * 60 + "\n", flush=True)
 
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     return 0
