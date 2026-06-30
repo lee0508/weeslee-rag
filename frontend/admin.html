@@ -2780,6 +2780,26 @@ POST /api/admin/knowledge-graph/ontology</code>
         <div class="wr-eyebrow">Knowledge Graph</div>
         <h1 class="wr-page-title" data-wr-anchor>Graph View 미리보기</h1>
         <p class="wr-page-lead">Knowledge Graph 노드, 엣지, 스키마 현황을 한눈에 확인합니다.</p>
+
+        <!-- Snapshot 컨텍스트 바 -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--wr-surface);padding:12px 16px;border-radius:8px;border-left:3px solid var(--wr-primary)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--wr-muted)">Snapshot:</span>
+            <select id="kgViewSnapshotFilter" onchange="onKgViewSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--wr-bg);border:1px solid var(--wr-border);color:var(--wr-text);font-size:12px;min-width:280px">
+              <option value="">로딩 중...</option>
+            </select>
+            <span id="kgViewSnapshotActiveTag" style="display:none;font-size:10px;background:var(--wr-success);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--wr-muted)">Document Source:</span>
+            <span id="kgViewSourceDisplay" style="font-size:12px;color:var(--wr-text);font-weight:500">-</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+            <div style="text-align:center"><div style="font-size:18px;font-weight:600" id="kgViewStatNodes">-</div><div style="font-size:11px;color:var(--wr-muted)">노드</div></div>
+            <div style="text-align:center"><div style="font-size:18px;font-weight:600" id="kgViewStatEdges">-</div><div style="font-size:11px;color:var(--wr-muted)">엣지</div></div>
+          </div>
+        </div>
+
         <div class="wr-inline-actions" style="margin-bottom:20px">
           <!-- TODO: 2차 작업에서 Knowledge Graph 전용 API로 분리 -->
           <button class="wr-btn" type="button" onclick="loadKgGraphView()">🔄 새로고침</button>
@@ -12344,15 +12364,72 @@ LIMIT 10`;
     }
   }
 
+  // ═══ Knowledge Graph View Snapshot 컨텍스트 ═══
+  let kgViewSnapshotsCache = [];
+  let kgViewCurrentSourceId = '';
+
+  async function loadKgViewTabContext() {
+    const snapshotSelect = document.getElementById('kgViewSnapshotFilter');
+    if (!snapshotSelect) return;
+    try {
+      const snapshots = await api('/admin/snapshots');
+      kgViewSnapshotsCache = snapshots || [];
+      snapshotSelect.innerHTML = '<option value="">Snapshot 선택...</option>';
+      if (kgViewSnapshotsCache.length === 0) {
+        snapshotSelect.innerHTML = '<option value="">등록된 Snapshot 없음</option>';
+        return;
+      }
+      let activeSnapshotId = '';
+      kgViewSnapshotsCache.forEach(snap => {
+        const opt = document.createElement('option');
+        opt.value = snap.snapshot_id;
+        const label = snap.snapshot_id + (snap.is_active ? ' [ACTIVE]' : '');
+        opt.textContent = label;
+        snapshotSelect.appendChild(opt);
+        if (snap.is_active) activeSnapshotId = snap.snapshot_id;
+      });
+      if (activeSnapshotId) {
+        snapshotSelect.value = activeSnapshotId;
+      }
+      onKgViewSnapshotChange();
+    } catch (e) {
+      console.error('Failed to load kg-view snapshots:', e);
+      snapshotSelect.innerHTML = '<option value="">로드 실패</option>';
+    }
+  }
+
+  function onKgViewSnapshotChange() {
+    const snapshotSelect = document.getElementById('kgViewSnapshotFilter');
+    const activeTag = document.getElementById('kgViewSnapshotActiveTag');
+    const sourceDisplay = document.getElementById('kgViewSourceDisplay');
+    const selectedId = snapshotSelect?.value || '';
+    const snap = kgViewSnapshotsCache.find(s => s.snapshot_id === selectedId);
+    if (activeTag) {
+      activeTag.style.display = snap?.is_active ? 'inline-block' : 'none';
+    }
+    kgViewCurrentSourceId = snap?.dataset?.source_id || '';
+    if (sourceDisplay) {
+      sourceDisplay.textContent = kgViewCurrentSourceId || '-';
+    }
+    loadKgGraphView();
+  }
+
   // Knowledge Graph View 로드
   async function loadKgGraphView() {
     try {
-      const response = await fetch(`${API_BASE}/admin/knowledge-graph/preview?limit=100`, {
+      const sourceIdParam = kgViewCurrentSourceId ? `&source_id=${encodeURIComponent(kgViewCurrentSourceId)}` : '';
+      const response = await fetch(`${API_BASE}/admin/knowledge-graph/preview?limit=100${sourceIdParam}`, {
         headers: authHeaders()
       });
       const data = await response.json();
       if (data.success) {
         console.log('Graph preview loaded:', data.node_count, 'nodes,', data.edge_count, 'edges');
+
+        // 컨텍스트 바 노드/엣지 수 업데이트
+        const statNodesEl = document.getElementById('kgViewStatNodes');
+        if (statNodesEl) statNodesEl.textContent = (data.node_count || 0).toLocaleString();
+        const statEdgesEl = document.getElementById('kgViewStatEdges');
+        if (statEdgesEl) statEdgesEl.textContent = (data.edge_count || 0).toLocaleString();
 
         // Summary 카드 업데이트
         const totalNodesEl = document.getElementById('kgViewTotalNodes');
@@ -17233,7 +17310,7 @@ LIMIT 10`;
     // Knowledge Graph 미리보기 페이지 진입 시
     document.querySelector('[data-wr-page="kg-view"]')?.addEventListener('click', function() {
       showWrPage('kg-view');
-      loadKgGraphView();
+      loadKgViewTabContext();  // Snapshot 컨텍스트 로드 후 loadKgGraphView 자동 호출
     });
     // Graph 검증 페이지 진입 시
     document.querySelector('[data-wr-page="kg-validation"]')?.addEventListener('click', function() {
