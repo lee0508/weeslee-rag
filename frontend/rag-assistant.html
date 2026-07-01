@@ -4353,7 +4353,8 @@
     function renderAnswerPanel(payload, answerText, searchOnly = false) {
       const answerPanel = document.getElementById('ragAnswerSection');
       if (!answerPanel) return;
-      const evidenceDocs = payload?.evidence_documents || payload?.documents || [];
+      const evidenceDocsRaw = payload?.evidence_documents || payload?.documents || [];
+      const evidenceDocs = evidenceDocsRaw.map((doc, idx) => normalizeDocumentForUI(doc, idx));
       const answerBody = answerText
         ? `<div class="answer-body">${escapeHtml(answerText)}</div>`
         : `<div class="answer-note">${t(searchOnly ? 'answer_search_only' : 'no_answer')}</div>`;
@@ -5000,42 +5001,7 @@
       // merged_documents 또는 results에서 문서 추출
       const rawDocs = hybridData.merged_documents || hybridData.results || [];
 
-      // documents 변환: HybridResult -> 기존 document 형식
-      const documents = rawDocs.map((r, idx) => {
-        const baseScore = r.score || r.final_score || r.faiss_score || 0;
-        const faissScore = r.faiss_score || 0;
-        const graphScore = r.graph_score || 0;
-        const rankingScore = r.ranking_score || (baseScore * 5.0 + (r.source === 'graph' ? 1.5 : 1.0));
-        return {
-          document_id: r.document_id || `hybrid_${idx}`,
-          file_name: r.file_name || r.title || r.document_id || '-',
-          file_path: r.file_path || r.source_path || '',
-          project_name: r.metadata?.project_name || r.project_name || '',
-          category: r.metadata?.category || r.category || '',
-          document_group: r.document_group || r.metadata?.document_group || '',
-          document_category: r.document_category || r.metadata?.document_category || '',
-          source_id: r.source_id || r.metadata?.source_id || '',
-          dataset_id: r.dataset_id || r.metadata?.dataset_id || '',
-          snapshot_id: r.snapshot_id || r.metadata?.snapshot_id || '',
-          document_uid: r.document_uid || r.metadata?.document_uid || '',
-          relative_path: r.relative_path || r.metadata?.relative_path || '',
-          source_path: r.source_path || r.metadata?.source_path || r.file_path || '',
-          page_no: r.page_no || r.metadata?.page_no || '',
-          slide_no: r.slide_no || r.metadata?.slide_no || '',
-          section_title: r.section_title || r.metadata?.section_title || r.metadata?.section_heading || '',
-          section_id: r.section_id || r.metadata?.section_id || '',
-          score: baseScore,
-          best_score: baseScore,
-          ranking_score: rankingScore,
-          faiss_score: faissScore,
-          graph_score: graphScore,
-          source: r.source || 'hybrid',
-          snippet: r.text_preview || r.evidence || r.snippet || r.metadata?.section_heading || '',
-          chunks: r.chunks || [],
-          metadata: r.metadata || {},
-          graph_relations: r.graph_relations || []
-        };
-      });
+      const documents = rawDocs.map((r, idx) => normalizeDocumentForUI(r, idx));
 
       // graph_context 변환: GraphRAG 관련 정보 추출
       const cypherQueries = hybridData.graph_cypher || [];
@@ -5122,6 +5088,70 @@
     function shortSnapshotId(snapshotId) {
       if (!snapshotId) return '';
       return snapshotId.replace(/^snapshot_/, '');
+    }
+
+    function normalizeDocGroupLabel(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) return '';
+      if (normalized === 'proposal') return '제안서';
+      if (normalized === 'rfp') return 'RFP';
+      if (normalized === 'deliverable') return '산출물';
+      return String(value || '').trim();
+    }
+
+    function normalizeDocumentForUI(r, idx = 0) {
+      const metadata = r?.metadata || {};
+      const baseScore = r?.score || r?.final_score || r?.faiss_score || 0;
+      const faissScore = r?.faiss_score || 0;
+      const graphScore = r?.graph_score || 0;
+      const rankingScore = r?.ranking_score || (baseScore * 5.0 + (r?.source === 'graph' ? 1.5 : 1.0));
+      const documentGroupRaw = r?.document_group || metadata?.document_group || r?.category || metadata?.category || '';
+      const documentGroup = normalizeDocGroupLabel(documentGroupRaw);
+      const documentCategory = r?.document_category || metadata?.document_category || metadata?.section_label || '';
+      const categoryRaw = metadata?.category || r?.category || '';
+      const category = normalizeDocGroupLabel(categoryRaw);
+
+      return {
+        document_id: r?.document_id || `hybrid_${idx}`,
+        file_name: r?.file_name || r?.title || r?.document_id || '-',
+        file_path: r?.file_path || r?.source_path || metadata?.source_path || '',
+        project_name: metadata?.project_name || r?.project_name || '',
+        category,
+        document_group: documentGroup,
+        document_category: documentCategory,
+        source_id: r?.source_id || metadata?.source_id || '',
+        dataset_id: r?.dataset_id || metadata?.dataset_id || '',
+        snapshot_id: r?.snapshot_id || metadata?.snapshot_id || '',
+        document_uid: r?.document_uid || metadata?.document_uid || '',
+        relative_path: r?.relative_path || metadata?.relative_path || '',
+        source_path: r?.source_path || metadata?.source_path || r?.file_path || '',
+        original_source_path: r?.original_source_path || metadata?.original_source_path || '',
+        input_path: r?.input_path || metadata?.input_path || '',
+        page_no: r?.page_no || metadata?.page_no || '',
+        slide_no: r?.slide_no || metadata?.slide_no || '',
+        section_title: r?.section_title || metadata?.section_title || metadata?.section_heading || '',
+        section_id: r?.section_id || metadata?.section_id || '',
+        proposal_section: r?.proposal_section || metadata?.proposal_section || '',
+        deliverable_section: r?.deliverable_section || metadata?.deliverable_section || '',
+        collection_key: r?.collection_key || metadata?.collection_key || '',
+        collection: r?.collection || metadata?.collection_name || '',
+        organization: r?.organization || metadata?.organization || '',
+        project_year: r?.project_year || metadata?.folder_year || metadata?.year || '',
+        score: baseScore,
+        best_score: baseScore,
+        ranking_score: rankingScore,
+        faiss_score: faissScore,
+        graph_score: graphScore,
+        source: r?.source || 'hybrid',
+        snippet: r?.text_preview || r?.evidence || r?.snippet || metadata?.section_heading || '',
+        chunks: r?.chunks || [],
+        evidence_snippets: r?.evidence_snippets || [],
+        summary: r?.summary || '',
+        summary_available: r?.summary_available || false,
+        metadata,
+        graph_relations: r?.graph_relations || [],
+        graph_context: r?.graph_context || r?.relations || []
+      };
     }
 
     // ── Main tab switching ────────────────────────────────────────────
