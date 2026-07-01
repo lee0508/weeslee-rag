@@ -16759,8 +16759,8 @@ LIMIT 10`;
     { name: 'Collection 메타 동기화', api: '/api/admin/collections/bootstrap',                  method: 'POST', body: { overwrite: false }, injectClientId: true },
     { name: 'Metadata 생성',       api: '/api/admin/dataset-builder/step2/metadata-auto', method: 'POST', body: { only_missing: true, overwrite: false } },
     { name: 'Tag/Keyword 생성',    api: '/api/admin/dataset-builder/tag-keyword/generate',   method: 'POST', special: 'tag_keyword_bootstrap' },
-    { name: '텍스트→Chunk',        api: '/api/admin/faiss/jobs',                             method: 'POST', special: 'faiss_start' },
-    { name: 'FAISS 생성',          api: null,                                                method: null,   special: 'faiss_poll' },
+    { name: '텍스트→Chunk',        api: '/api/admin/dataset-builder/step4/parse/stream',     method: 'POST', special: 'ocr_parse_stream' },
+    { name: 'FAISS 생성',          api: null,                                                method: null,   special: 'chunk_embed_faiss' },
     { name: 'Graph RAG 생성',      api: '/api/admin/knowledge-graph/build',                  method: 'POST', body: { rebuild: false, use_ontology: true }, injectSourceId: true, injectSnapshotId: true },
     { name: 'LLM Wiki 생성',       api: '/api/admin/llm-wiki/build',                         method: 'POST', body: { wiki_type: 'project', max_wikis: 0 } },
     { name: '검색 테스트',         api: null,                                                method: null,   special: 'interactive' },
@@ -16777,8 +16777,8 @@ LIMIT 10`;
       const desc = step5.querySelector('div[style="font-size:11px;color:var(--muted)"]');
       const api = step5.querySelector('.api-hint-body');
       if (title) title.textContent = 'Step 1 실행: OCR/파싱';
-      if (desc) desc.textContent = 'PDF/HWP/HWPX/DOCX/PPTX/XLSX 텍스트 추출, OCR fallback, 청킹 작업을 현재 FAISS job 파이프라인으로 시작합니다.';
-      if (api) api.innerHTML = 'POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs/{job_id}/stream';
+      if (desc) desc.textContent = 'PDF/HWP/HWPX/DOCX/PPTX/XLSX 텍스트 추출과 OCR fallback을 현재 Source 기준으로 직접 실행합니다.';
+      if (api) api.innerHTML = 'POST /api/admin/dataset-builder/step4/parse/stream<br>GET /api/admin/dataset-builder/step4/parse/stream/{job_id}';
     }
     const step6 = document.querySelector('.wizard-step[data-step="6"]');
     if (step6) {
@@ -16786,8 +16786,8 @@ LIMIT 10`;
       const desc = step6.querySelector('div[style="font-size:11px;color:var(--muted)"]');
       const api = step6.querySelector('.api-hint-body');
       if (title) title.textContent = 'Step 2 실행: 청킹/임베딩';
-      if (desc) desc.textContent = 'Chunk를 임베딩하고 FAISS index와 category index를 이어서 생성합니다.';
-      if (api) api.innerHTML = 'POST /api/admin/faiss/jobs<br>GET /api/admin/faiss/jobs<br>GET /api/admin/faiss/status';
+      if (desc) desc.textContent = '청킹, 임베딩, FAISS 인덱스 생성을 현재 Source 기준으로 순차 실행합니다.';
+      if (api) api.innerHTML = 'POST /api/admin/dataset-builder/step5/chunk<br>POST /api/admin/dataset-builder/step6/embed<br>POST /api/admin/dataset-builder/step7/build';
     }
   }
 
@@ -18754,6 +18754,51 @@ LIMIT 10`;
     });
   }
 
+  function _wizardStep4SseStream(step, jobId) {
+    return new Promise((resolve, reject) => {
+      const url = `${API_BASE}/admin/dataset-builder/step4/parse/stream/${jobId}?token=${encodeURIComponent(getToken() || '')}`;
+      const sse = new EventSource(url);
+      let lastStage = '';
+      let settled = false;
+      let lastResult = null;
+
+      const finishResolve = () => {
+        if (settled) return;
+        settled = true;
+        sse.close();
+        resolve(lastResult || {});
+      };
+
+      const finishReject = (error) => {
+        if (settled) return;
+        settled = true;
+        sse.close();
+        reject(error);
+      };
+
+      sse.onmessage = (e) => {
+        try {
+          const ev = JSON.parse(e.data);
+          if (ev.log) _wizardAppendJobLog(step, ev.log);
+          if (ev.stage && ev.stage !== lastStage) {
+            lastStage = ev.stage;
+            _wizardAppendLog(step, `[${ev.progress || 0}%] ${ev.stage}`);
+          }
+          if (ev.result) lastResult = ev.result;
+          if (ev.done) {
+            if (ev.error) finishReject(new Error(ev.error));
+            else finishResolve();
+          }
+        } catch (_) {}
+      };
+
+      sse.onerror = () => {
+        if (settled) return;
+        finishReject(new Error('Step 4 SSE 연결 오류'));
+      };
+    });
+  }
+
   async function wizardRun(step) {
     const cfg    = WIZARD_STEPS[step];
     const stepEl = document.querySelector(`.wizard-step[data-step="${step}"]`);
@@ -18784,109 +18829,119 @@ LIMIT 10`;
       }
     }
 
-    // ── faiss_start: OCR/텍스트 추출 + 청킹 잡 시작 (Step 5) ────────────────
-    if (cfg?.special === 'faiss_start') {
+    // ── ocr_parse_stream: 실제 Step 4 OCR/파싱 실행 (Step 5) ────────────────
+    if (cfg?.special === 'ocr_parse_stream') {
       _wizardSetStatus(step, '잡 시작...', 'running');
       try {
         const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
-
-        // 기존 스냅샷이 선택되었는지 확인
-        const existingSnapshot = getSelectedSnapshot();
-        const recommendedStage = existingSnapshot ? getRecommendedStartStage() : 1;
-        // Force 재처리 모드가 아니고, 기존 스냅샷의 OCR/청킹이 완료된 경우 스킵
-        if (existingSnapshot && recommendedStage > 3 && !_wizardForceRebuild) {
-          _wizardAppendLog(step, `기존 스냅샷은 OCR/청킹 단계가 이미 완료된 상태입니다. recommended_start=${recommendedStage}`);
-          _wizardMarkDone(step, stepStartTime);
-          _wizardSetRunSummary(_wizardBuildSummary(step, `스냅샷 ${existingSnapshot}의 OCR/청킹 완료가 확인됐습니다.`), 'ok');
-          return true;
-        }
-        // Force 재처리 모드이면 Stage 1부터 시작
-        const startFromStage = _wizardForceRebuild ? 1 : Math.max(1, recommendedStage);
-
-        if (existingSnapshot && !_wizardForceRebuild) {
-          _wizardFaissSnapshot = existingSnapshot;
-          _wizardAppendLog(step, `기존 스냅샷 재사용: ${_wizardFaissSnapshot}`);
-          _wizardAppendLog(step, `Document Source: ${sourceId}`);
-          _wizardAppendLog(step, `Stage ${startFromStage}부터 시작`);
-        } else {
-          // Force 재처리 모드이거나 기존 스냅샷이 없으면 새 스냅샷 생성
-          _wizardFaissSnapshot = createNewSnapshotId();
-          _wizardAppendLog(step, `Document Source: ${sourceId}`);
-          if (_wizardForceRebuild) {
-            _wizardAppendLog(step, `[Force 재처리] 새 스냅샷 강제 생성: ${_wizardFaissSnapshot}`);
-          } else {
-            _wizardAppendLog(step, `새 스냅샷: ${_wizardFaissSnapshot}`);
-          }
-        }
-
-        _wizardAppendLog(step, 'POST /api/admin/faiss/jobs ...');
-        const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
+        _wizardAppendLog(step, `POST /api/admin/dataset-builder/step4/parse/stream`);
+        _wizardAppendLog(step, `Document Source: ${sourceId}`);
+        _wizardAppendLog(step, `force_reparse: ${_wizardForceRebuild ? 'true' : 'false'}`);
+        const r = await fetch(`${API_BASE}/admin/dataset-builder/step4/parse/stream`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            snapshot: _wizardFaissSnapshot,
             source_id: sourceId,
-            start_from_stage: startFromStage,
-            end_stage: 3,
+            document_ids: null,
+            force_reparse: _wizardForceRebuild || false,
           }),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-        _wizardFaissJobId = d.job_id;
-        _wizardSetStatus(step, 'OCR/청킹 실행 중...', 'running');
-        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage} | end_stage: 3`);
-        await _wizardSseStream(step, _wizardFaissJobId);
+        const jobId = d.job_id;
+        _wizardSetStatus(step, 'OCR/파싱 실행 중...', 'running');
+        _wizardAppendLog(step, `Job ID: ${jobId}`);
+        const result = await _wizardStep4SseStream(step, jobId);
         _wizardMarkDone(step, stepStartTime);
-        const resumeMsg = startFromStage > 1 ? ` (Stage ${startFromStage}부터 재개)` : '';
-        _wizardSetRunSummary(_wizardBuildSummary(step, `OCR/청킹 잡 ${_wizardFaissJobId} 실행 완료.${resumeMsg}`), 'ok');
-        await loadSnapshotList({ preferredSnapshot: _wizardFaissSnapshot });
+        _wizardSetRunSummary(
+          _wizardBuildSummary(
+            step,
+            `OCR/파싱 완료. 처리 ${result.processed || 0}개, 실패 ${result.failed || 0}개, 건너뜀 ${result.skipped || 0}개`
+          ),
+          'ok'
+        );
         return true;
-      } catch (e) { _wizardMarkJobError(step, 'OCR/청킹', e); return false; }
+      } catch (e) { _wizardMarkJobError(step, 'OCR/파싱', e); return false; }
     }
 
-    // ── faiss_poll: 임베딩 + Vector + FAISS 생성 (Step 6) ──────────────────
-    if (cfg?.special === 'faiss_poll') {
-      // Step 5에서 생성된 스냅샷 우선, 없으면 드롭다운 선택값 사용
-      const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
-      if (!snapshot) {
-        _wizardMarkError(step, 'FAISS 스냅샷이 없습니다. Step 5 (OCR/청킹)를 먼저 실행하세요.');
-        return false;
-      }
-      _wizardFaissSnapshot = snapshot;
+    // ── chunk_embed_faiss: Step 5/6/7 실제 API 순차 실행 (Step 6) ─────────
+    if (cfg?.special === 'chunk_embed_faiss') {
       try {
         const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
-        const recommendedStage = getSelectedSnapshot() ? getRecommendedStartStage() : 4;
-        const startFromStage = Math.max(4, Math.min(recommendedStage || 4, 5));
+        const datasetId = getCurrentDatasetId?.() || '';
+        const model = document.getElementById('dbStep6EmbedModel')?.value || 'nomic-embed-text';
+        const batchSize = parseInt(document.getElementById('dbStep6BatchSize')?.value || '32', 10) || 32;
+        const retryCount = parseInt(document.getElementById('dbStep6RetryCount')?.value || '3', 10) || 3;
+        const existingSnapshot = _wizardFaissSnapshot || getSelectedSnapshot?.() || '';
+        const snapshotBelongsToSource = existingSnapshot && existingSnapshot.includes(sourceId);
+        const snapshotId = snapshotBelongsToSource ? existingSnapshot : createNewSnapshotId();
+        _wizardFaissSnapshot = snapshotId;
+        if (typeof updateSnapshotUI === 'function') updateSnapshotUI();
+
         _wizardSetStatus(step, '잡 시작...', 'running');
-        _wizardAppendLog(step, `POST /api/admin/faiss/jobs\n스냅샷: ${snapshot}\nDocument Source: ${sourceId}`);
-        _wizardAppendLog(step, `실행 범위: Stage ${startFromStage} ~ 5`);
-        if (startFromStage === 4) {
-          _wizardAppendLog(step, `이번 실행 내용: 임베딩 생성 → FAISS 인덱스 → 카테고리 인덱스`);
-        } else {
-          _wizardAppendLog(step, `이번 실행 내용: 카테고리 인덱스만 재생성`);
-          _wizardAppendLog(step, `Stage 4(임베딩/FAISS)는 기존 결과를 재사용합니다.`);
+        _wizardAppendLog(step, `Document Source: ${sourceId}`);
+        _wizardAppendLog(step, `Dataset ID: ${datasetId || '-'}`);
+        _wizardAppendLog(step, `Snapshot ID: ${snapshotId}`);
+
+        _wizardAppendLog(step, 'POST /api/admin/dataset-builder/step5/chunk');
+        const chunkResponse = await fetch(`${API_BASE}/admin/dataset-builder/step5/chunk`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_id: sourceId, force_rebuild: _wizardForceRebuild || false }),
+        });
+        const chunkData = await chunkResponse.json().catch(() => ({}));
+        if (!chunkResponse.ok || chunkData.success === false) {
+          throw new Error(chunkData.detail || chunkData.message || `HTTP ${chunkResponse.status}`);
         }
-        const r = await fetch(`${API_BASE}/admin/faiss/jobs`, {
+        _wizardAppendLog(step, `청킹 완료: 처리 ${chunkData.processed || 0}개, 건너뜀 ${chunkData.skipped || 0}개, 청크 ${chunkData.total_chunks || 0}개`);
+
+        _wizardAppendLog(step, 'POST /api/admin/dataset-builder/step6/embed');
+        const embedResponse = await fetch(`${API_BASE}/admin/dataset-builder/step6/embed`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            snapshot,
             source_id: sourceId,
-            start_from_stage: startFromStage,
-            end_stage: 5,
+            model,
+            batch_size: batchSize,
+            retry_count: retryCount,
+            force_rebuild: _wizardForceRebuild || false,
           }),
         });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-        _wizardFaissJobId = d.job_id;
-        _wizardSetStatus(step, 'FAISS 생성 중...', 'running');
-        _wizardAppendLog(step, `Job ID: ${_wizardFaissJobId} | start_from_stage: ${startFromStage} | end_stage: 5`);
-        await _wizardSseStream(step, _wizardFaissJobId);
+        const embedData = await embedResponse.json().catch(() => ({}));
+        if (!embedResponse.ok || embedData.success === false) {
+          throw new Error(embedData.detail || embedData.message || `HTTP ${embedResponse.status}`);
+        }
+        _wizardAppendLog(step, `임베딩 완료: 처리 ${embedData.processed || 0}개, 건너뜀 ${embedData.skipped || 0}개, 벡터 ${embedData.total_embeddings || 0}개`);
+
+        _wizardAppendLog(step, 'POST /api/admin/dataset-builder/step7/build');
+        const faissResponse = await fetch(`${API_BASE}/admin/dataset-builder/step7/build`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            collection_name: 'weeslee_rag_main',
+            source_id: sourceId,
+            snapshot_id: snapshotId,
+            index_type: 'flat',
+            metric: 'l2',
+            normalize: true,
+          }),
+        });
+        const faissData = await faissResponse.json().catch(() => ({}));
+        if (!faissResponse.ok || faissData.success === false) {
+          throw new Error(faissData.detail || faissData.message || `HTTP ${faissResponse.status}`);
+        }
+        _wizardAppendLog(step, `FAISS 완료: vectors=${faissData.total_vectors || 0}, mode=${faissData.gpu_used ? 'GPU' : 'CPU'}`);
         _wizardMarkDone(step, stepStartTime);
-        _wizardSetRunSummary(_wizardBuildSummary(step, `FAISS 잡 ${_wizardFaissJobId} 실행 완료.`), 'ok');
-        await loadSnapshotList({ preferredSnapshot: snapshot });
+        _wizardSetRunSummary(
+          _wizardBuildSummary(
+            step,
+            `청킹/임베딩/FAISS 완료. Source ${sourceId}, Dataset ${datasetId || '-'}, Snapshot ${snapshotId}`
+          ),
+          'ok'
+        );
+        await loadSnapshotList({ preferredSnapshot: snapshotId });
         return true;
-      } catch (e) { _wizardMarkJobError(step, '임베딩/FAISS', e); return false; }
+      } catch (e) { _wizardMarkJobError(step, '청킹/임베딩/FAISS', e); return false; }
     }
 
     // ── interactive: 건너뜀 (Step 9) ───────────────────────────────────────
