@@ -400,6 +400,7 @@ class HybridRAGService:
         faiss_results: list[dict],
         graph_results: list[dict],
         wiki_results: list[dict],
+        question: str = "",
         max_results: int = 20,
     ) -> list[MergedDocument]:
         """결과 병합 및 중복 제거."""
@@ -493,13 +494,47 @@ class HybridRAGService:
         # 병합 전략에 따라 정렬
         merged = list(doc_map.values())
 
+        query_lower = question.lower()
+        prefers_proposal = "제안서" in query_lower or "proposal" in query_lower
+        prefers_slide = any(token in query_lower for token in ("장표", "슬라이드", "slide", "ppt", "pptx"))
+        prefers_security = any(token in query_lower for token in ("보안", "누출금지", "정보보호"))
+
         # ranking_score 계산 (assemble_rag_response.py와 유사한 가중치 적용)
         for doc in merged:
+            metadata = doc.metadata or {}
             base_score = doc.score * 5.0
             source_bonus = 1.0 if doc.source == SearchSource.FAISS else 1.5 if doc.source == SearchSource.GRAPH else 0.5
             relation_bonus = len(doc.graph_relations) * 0.3
             hybrid_bonus = 1.0 if (doc.faiss_score > 0 and doc.graph_score > 0) else 0.0
-            doc.ranking_score = base_score + source_bonus + relation_bonus + hybrid_bonus
+            intent_bonus = 0.0
+
+            document_group = str(metadata.get("document_group") or "").strip().lower()
+            extension = str(metadata.get("extension") or "").strip().lower()
+            section_text = " ".join(
+                str(value or "")
+                for value in (
+                    metadata.get("section_title"),
+                    metadata.get("section_heading"),
+                    metadata.get("section_label"),
+                    doc.file_name,
+                    metadata.get("file_name"),
+                )
+            ).lower()
+
+            if prefers_proposal and document_group == "제안서":
+                intent_bonus += 2.5
+            elif prefers_proposal and document_group == "rfp":
+                intent_bonus -= 1.5
+
+            if prefers_slide and extension in (".ppt", ".pptx"):
+                intent_bonus += 2.0
+            elif prefers_slide and extension in (".hwp", ".hwpx", ".doc", ".docx"):
+                intent_bonus -= 0.8
+
+            if prefers_security and any(token in section_text for token in ("보안", "누출금지", "정보보호")):
+                intent_bonus += 1.2
+
+            doc.ranking_score = base_score + source_bonus + relation_bonus + hybrid_bonus + intent_bonus
 
         if self.merge_strategy == MergeStrategy.SCORE_BASED:
             merged.sort(key=lambda x: x.ranking_score, reverse=True)
@@ -606,6 +641,11 @@ class HybridRAGService:
             faiss_results, faiss_time = [], 0
             graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = [], [], 0, 0, ""
             wiki_results, wiki_time = [], 0
+            query_lower = question.lower()
+            prefers_document_recall = (
+                (query_analysis and query_analysis.intent == QueryIntent.FIND_DOCUMENT)
+                or any(token in query_lower for token in ("장표", "슬라이드", "slide", "ppt", "pptx", "제안서"))
+            )
 
             # 필터 추출 (Query Router에서)
             filters = query_analysis.filters if query_analysis else {}
@@ -645,7 +685,7 @@ class HybridRAGService:
                     max(top_k * 5, top_k) if graph_doc_ids else top_k,
                     category_filter=category,
                     organization_filter=faiss_org_filter,
-                    allowed_document_ids=graph_doc_ids or None,
+                    allowed_document_ids=None if prefers_document_recall else (graph_doc_ids or None),
                     metadata_filters=metadata_filters,
                 )
 
@@ -708,7 +748,11 @@ class HybridRAGService:
             # 3. 결과 병합
             merge_start = time.time()
             merged_docs = self._merge_results(
-                faiss_results, graph_results, wiki_results, max_results
+                faiss_results,
+                graph_results,
+                wiki_results,
+                question=question,
+                max_results=max_results,
             )
             merge_time = int((time.time() - merge_start) * 1000)
 
