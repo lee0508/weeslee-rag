@@ -18852,6 +18852,9 @@ LIMIT 10`;
         _wizardSetStatus(step, 'OCR/파싱 실행 중...', 'running');
         _wizardAppendLog(step, `Job ID: ${jobId}`);
         const result = await _wizardStep4SseStream(step, jobId);
+        if (_wizardForceRebuild && Number(result.skipped || 0) > 0) {
+          throw new Error(`Force 재처리인데 OCR 단계에서 ${result.skipped}건이 skip되었습니다. Step 4 조건을 확인해야 합니다.`);
+        }
         _wizardMarkDone(step, stepStartTime);
         _wizardSetRunSummary(
           _wizardBuildSummary(
@@ -19175,18 +19178,18 @@ LIMIT 10`;
     await new Promise(r => setTimeout(r, 500));
 
     const autoPipeline = [
-      { step: 1, label: '문서 소스 스캔' },
+      { step: 1, label: '문서 소스 스캔(사전 준비)' },
       { step: 5, label: 'Step 1 실행: OCR/파싱' },
+      { step: 3, label: '메타데이터 자동 생성' },
+      { step: 4, label: 'Tag/Keyword 생성' },
       { step: 6, label: 'Step 2 실행: 청킹/임베딩' },
       { step: 7, label: 'Knowledge Graph 실행' },
       { step: 8, label: 'LLM Wiki 생성' },
+      { step: 9, label: '검색, 답변, 관리자 검수' },
       { step: 10, label: 'FAISS 인덱스 활성화' },
     ];
     const skippedSteps = {
       2: 'Collection 메타 동기화는 전체 순차 실행에서 자동 패스됩니다.',
-      3: 'Metadata 생성은 전체 순차 실행에서 자동 패스됩니다.',
-      4: 'Tag/Keyword 생성은 전체 순차 실행에서 자동 패스됩니다.',
-      9: '검색 테스트는 전체 순차 실행에서 자동 패스됩니다.',
     };
 
     Object.entries(skippedSteps).forEach(([step, reason]) => {
