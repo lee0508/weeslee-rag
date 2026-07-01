@@ -11,6 +11,7 @@ from typing import Optional, List
 from pathlib import Path
 import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
@@ -30,6 +31,9 @@ from app.services.runtime_compute_settings import (
     get_runtime_compute_settings,
     is_stage_gpu_enabled,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(
@@ -109,9 +113,27 @@ async def parse_document(
     try:
         # 이미 처리된 문서는 건너뛰기 (force=False인 경우)
         if not force and processed_text_store.exists(str(document_id)):
+            logger.info(
+                "[Step4] skip existing OCR result: document_id=%s force=%s source_id=%s dataset_id=%s relative_path=%s",
+                document_id,
+                force,
+                str((metadata_ctx or {}).get("source_id") or ""),
+                str((metadata_ctx or {}).get("dataset_id") or ""),
+                str((metadata_ctx or {}).get("relative_path") or ""),
+            )
             result["success"] = True
             result["error"] = "already_processed"
             return result
+
+        logger.info(
+            "[Step4] parse_document start: document_id=%s force=%s source_id=%s dataset_id=%s relative_path=%s file=%s",
+            document_id,
+            force,
+            str((metadata_ctx or {}).get("source_id") or ""),
+            str((metadata_ctx or {}).get("dataset_id") or ""),
+            str((metadata_ctx or {}).get("relative_path") or ""),
+            file_path,
+        )
 
         # 파일 존재 확인
         if not Path(file_path).exists():
@@ -375,6 +397,13 @@ async def parse_documents(
             request.document_ids,
             request.source_id,
         )
+        logger.info(
+            "[Step4] parse request: source_id=%s force_reparse=%s document_ids=%s target_count=%s",
+            request.source_id,
+            request.force_reparse,
+            request.document_ids,
+            len(documents),
+        )
 
         if not documents:
             return ParseResponse(
@@ -453,6 +482,12 @@ async def parse_documents(
         )
 
     except Exception as e:
+        logger.exception(
+            "[Step4] parse request failed: source_id=%s force_reparse=%s document_ids=%s",
+            request.source_id,
+            request.force_reparse,
+            request.document_ids,
+        )
         raise HTTPException(status_code=500, detail=f"Parse failed: {str(e)}")
 
 
@@ -810,6 +845,14 @@ async def parse_documents_streaming(
         # 단, 명시적인 document_ids 재처리는 개별 진단/복구 목적이므로 meta_status 제한을 두지 않는다.
         documents = _get_step4_target_documents(db, document_ids, source_id)
         total = len(documents)
+        logger.info(
+            "[Step4] stream start: job_id=%s source_id=%s force_reparse=%s document_ids=%s target_count=%s",
+            job_id,
+            source_id,
+            force_reparse,
+            document_ids,
+            total,
+        )
 
         await emit_parse_event(job_id, {
             "stage": "초기화",
@@ -869,6 +912,14 @@ async def parse_documents_streaming(
 
             if result["success"]:
                 if result.get("error") == "already_processed":
+                    logger.warning(
+                        "[Step4] stream skip detected: job_id=%s document_id=%s source_id=%s force_reparse=%s relative_path=%s",
+                        job_id,
+                        doc.document_id,
+                        doc.source_id,
+                        force_reparse,
+                        doc.relative_path,
+                    )
                     await emit_parse_event(job_id, {
                         "log": f"[{idx}/{total}] {Path(doc.file_path).name}: 이미 처리됨 (skip)",
                         "progress": int((idx / total) * 100),
@@ -902,6 +953,17 @@ async def parse_documents_streaming(
             db.rollback()
             raise exc
 
+        logger.info(
+            "[Step4] stream complete: job_id=%s source_id=%s force_reparse=%s total=%s processed=%s failed=%s skipped=%s",
+            job_id,
+            source_id,
+            force_reparse,
+            total,
+            processed,
+            failed,
+            skipped,
+        )
+
         # 완료
         await emit_parse_event(job_id, {
             "stage": "완료",
@@ -917,6 +979,13 @@ async def parse_documents_streaming(
         })
 
     except Exception as e:
+        logger.exception(
+            "[Step4] stream failed: job_id=%s source_id=%s force_reparse=%s document_ids=%s",
+            job_id,
+            source_id,
+            force_reparse,
+            document_ids,
+        )
         await emit_parse_event(job_id, {
             "stage": "오류",
             "level": "error",
