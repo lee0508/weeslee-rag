@@ -111,10 +111,9 @@ def get_text_store() -> ProcessedTextStore:
 
 
 def _eligible_documents_query(db: Session, source_id: Optional[str] = None):
-    from app.models.document_metadata import DocumentMetadata, MetaStatus
+    from app.models.document_metadata import DocumentMetadata
 
     query = db.query(DocumentMetadata).filter(
-        DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
         DocumentMetadata.include_in_rag == True,
         DocumentMetadata.is_excluded == False,
         DocumentMetadata.removed_at.is_(None),
@@ -486,11 +485,10 @@ async def build_embeddings(
         if not health.get("connected"):
             raise HTTPException(status_code=503, detail="Ollama service not available")
 
-        # 처리할 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
-        from app.models.document_metadata import DocumentMetadata, MetaStatus
+        # 처리할 문서 조회 (RAG 포함 + 제외/삭제되지 않은 문서)
+        from app.models.document_metadata import DocumentMetadata, ProcessingStatus
 
         query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
             DocumentMetadata.is_excluded == False,
             DocumentMetadata.removed_at.is_(None),
@@ -559,6 +557,8 @@ async def build_embeddings(
                     total_embeddings += result["embeddings_count"]
                     if embedding_dim == 0:
                         embedding_dim = result["embedding_dim"]
+                    doc.status = ProcessingStatus.EMBEDDED.value
+                    doc.updated_at = datetime.utcnow()
 
                     results.append(EmbeddingBuildResult(
                         document_id=document_id,
@@ -592,6 +592,8 @@ async def build_embeddings(
                     error=str(e)
                 ))
 
+        db.commit()
+
         return EmbeddingBuildResponse(
             success=True,
             processed=processed,
@@ -614,7 +616,7 @@ async def get_embedding_status(db: Session = Depends(get_db)):
     """
     임베딩 상태 조회
     """
-    from app.models.document_metadata import DocumentMetadata, MetaStatus
+    from app.models.document_metadata import DocumentMetadata
     text_store = get_text_store()
 
     try:

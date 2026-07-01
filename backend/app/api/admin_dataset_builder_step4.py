@@ -44,6 +44,7 @@ router = APIRouter(
 
 class ParseRequest(BaseModel):
     """파싱 실행 요청"""
+    source_id: Optional[str] = None
     document_ids: Optional[List[int]] = None  # None이면 모든 검수 완료 문서
     force_reparse: bool = False  # True면 이미 처리된 문서도 재처리
 
@@ -287,7 +288,11 @@ def _save_ocr_metadata(db: Session, doc: DocumentMetadata, document_id: int) -> 
         # ocr_* 저장 실패는 파싱 성공 여부에 영향 없음
 
 
-def _get_step4_target_documents(db: Session, document_ids: Optional[List[int]]) -> List[DocumentMetadata]:
+def _get_step4_target_documents(
+    db: Session,
+    document_ids: Optional[List[int]],
+    source_id: Optional[str] = None,
+) -> List[DocumentMetadata]:
     """Step 4 대상 문서를 조회한다."""
     query = db.query(DocumentMetadata).filter(
         DocumentMetadata.include_in_rag == True,
@@ -295,12 +300,11 @@ def _get_step4_target_documents(db: Session, document_ids: Optional[List[int]]) 
         DocumentMetadata.removed_at.is_(None),
     )
 
+    if source_id:
+        query = query.filter(DocumentMetadata.source_id == source_id)
+
     if document_ids:
         query = query.filter(DocumentMetadata.document_id.in_(document_ids))
-    else:
-        query = query.filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-        )
 
     return query.all()
 
@@ -359,18 +363,20 @@ async def parse_documents(
     db: Session = Depends(get_db)
 ):
     """
-    검수 완료된 문서들에 대해 OCR/파싱을 실행합니다.
+    Document Source 문서들에 대해 OCR/파싱을 실행합니다.
 
-    - document_ids가 없으면 모든 검수 완료(metadata_reviewed) 문서를 처리
+    - source_id가 있으면 해당 Source의 모든 활성 문서를 처리
+    - document_ids가 있으면 지정 문서만 처리
     - force_reparse=True이면 이미 처리된 문서도 재처리
     """
     start_time = datetime.now()
 
     try:
-        # 기본적으로는 검수 완료 문서만 일괄 처리한다.
-        # 단, 명시적으로 document_ids를 지정한 경우에는 개별 재파싱/진단 목적이므로
-        # meta_status 제한 없이 선택된 문서만 처리할 수 있게 한다.
-        documents = _get_step4_target_documents(db, request.document_ids)
+        documents = _get_step4_target_documents(
+            db,
+            request.document_ids,
+            request.source_id,
+        )
 
         if not documents:
             return ParseResponse(
@@ -418,6 +424,8 @@ async def parse_documents(
                     processed += 1
                     # OCR 추출 텍스트로 ocr_* 메타데이터 추출 및 DB 저장
                     _save_ocr_metadata(db, doc, result["document_id"])
+                    doc.status = "text_extracted"
+                    doc.updated_at = datetime.utcnow()
             else:
                 failed += 1
                 failures.append({
@@ -464,7 +472,11 @@ async def refresh_ocr_metadata(
     start_time = datetime.now()
 
     try:
-        documents = _get_step4_target_documents(db, request.document_ids)
+        documents = _get_step4_target_documents(
+            db,
+            request.document_ids,
+            request.source_id,
+        )
 
         if not documents:
             return ParseResponse(
@@ -502,6 +514,7 @@ async def refresh_ocr_metadata(
 
             if doc.ocr_metadata_status == "success":
                 processed += 1
+                doc.status = "text_extracted"
             elif doc.ocr_metadata_status == "skipped":
                 skipped += 1
             else:

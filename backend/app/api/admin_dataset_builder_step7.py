@@ -454,8 +454,8 @@ async def build_faiss_index(
     faiss_dir = get_faiss_dir()
 
     try:
-        # 처리할 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
-        from app.models.document_metadata import DocumentMetadata, MetaStatus
+        # 처리할 문서 조회 (RAG 포함 + 제외/삭제되지 않은 문서)
+        from app.models.document_metadata import DocumentMetadata, ProcessingStatus
 
         source_id = str(req.source_id or "").strip()
         if not source_id:
@@ -464,7 +464,6 @@ async def build_faiss_index(
         dataset_id, snapshot_id = _resolve_source_dataset_snapshot(source_id, req.snapshot_id)
 
         query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
             DocumentMetadata.is_excluded == False,
             DocumentMetadata.removed_at.is_(None),
@@ -573,6 +572,10 @@ async def build_faiss_index(
                     chunks_indexed=valid_count,
                     status="success"
                 ))
+                doc.status = ProcessingStatus.FAISS_INDEXED.value
+                doc.faiss_snapshot = snapshot_id
+                doc.chunk_count = max(int(doc.chunk_count or 0), valid_count)
+                doc.updated_at = datetime.utcnow()
 
             except Exception:
                 document_infos.append(DocumentIndexInfo(
@@ -638,6 +641,8 @@ async def build_faiss_index(
         with chunks_jsonl_path.open("w", encoding="utf-8") as handle:
             for row in preview_chunk_rows:
                 handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+        db.commit()
 
         return FAISSBuildResponse(
             success=True,

@@ -172,11 +172,10 @@ async def build_chunks(
     total_chunks = 0
 
     try:
-        # 처리할 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
-        from app.models.document_metadata import DocumentMetadata, MetaStatus
+        # 처리할 문서 조회 (RAG 포함 + 제외/삭제되지 않은 문서)
+        from app.models.document_metadata import DocumentMetadata, ProcessingStatus
 
         query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
             DocumentMetadata.is_excluded == False,
             DocumentMetadata.removed_at.is_(None),
@@ -224,8 +223,9 @@ async def build_chunks(
                     ))
                     continue
 
-                # Step 4에서 추출된 텍스트 로드
+                # Step 4에서 추출된 텍스트/페이지 결과 로드
                 extracted_text = processed_text_store.get_text(str(document_id), format="txt")
+                extraction_result = processed_text_store.get_result(str(document_id))
 
                 # 텍스트 없으면 스킵
                 if not extracted_text:
@@ -240,8 +240,31 @@ async def build_chunks(
                     ))
                     continue
 
+                page_rows = []
+                for page in (extraction_result.pages if extraction_result else []):
+                    page_number = page.get("page_number") or page.get("page_num")
+                    content = page.get("content") or page.get("text") or ""
+                    if page_number is None or not str(content).strip():
+                        continue
+                    page_rows.append({
+                        "page_number": page_number,
+                        "content": content,
+                    })
+
+                chunk_meta = {
+                    "document_id": document_id,
+                    "file_name": file_name,
+                    "source_id": doc.source_id,
+                    "dataset_id": doc.dataset_id,
+                    "document_uid": doc.document_uid,
+                    "relative_path": doc.relative_path,
+                }
+
                 # 청킹 실행
-                chunks = chunking_service.chunk_text(extracted_text)
+                if page_rows:
+                    chunks = chunking_service.chunk_pages(page_rows, metadata=chunk_meta)
+                else:
+                    chunks = chunking_service.chunk_text(extracted_text, metadata=chunk_meta)
 
                 # 저장
                 save_result = save_chunks_to_store(document_id, chunks, text_store)
@@ -249,6 +272,9 @@ async def build_chunks(
                 if save_result["success"]:
                     processed += 1
                     total_chunks += save_result["chunks_count"]
+                    doc.status = ProcessingStatus.CHUNKED.value
+                    doc.chunk_count = save_result["chunks_count"]
+                    doc.updated_at = datetime.utcnow()
                     results.append(ChunkBuildResult(
                         document_id=document_id,
                         file_name=file_name,
@@ -278,6 +304,8 @@ async def build_chunks(
                     error=str(e)
                 ))
 
+        db.commit()
+
         return ChunkBuildResponse(
             success=True,
             processed=processed,
@@ -302,9 +330,8 @@ async def get_chunk_status(db: Session = Depends(get_db)):
     text_store = get_text_store()
 
     try:
-        # 전체 문서 수 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
+        # 전체 문서 수 (RAG 포함 + 제외/삭제되지 않은 문서)
         total_documents = db.query(DocumentMetadata).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
             DocumentMetadata.is_excluded == False,
             DocumentMetadata.removed_at.is_(None),
@@ -315,7 +342,6 @@ async def get_chunk_status(db: Session = Depends(get_db)):
         total_chunks = 0
 
         docs = db.query(DocumentMetadata).filter(
-            DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
             DocumentMetadata.is_excluded == False,
             DocumentMetadata.removed_at.is_(None),

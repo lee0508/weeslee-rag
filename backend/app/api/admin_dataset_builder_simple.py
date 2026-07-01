@@ -30,6 +30,8 @@ from app.services.dataset_context import get_source_dataset_context, ensure_sour
 from app.services.category_service import detect_categories_from_directory
 from app.services.metadata_auto_generator import MetadataAutoGenerator
 from app.services.metadata_enricher import enrich_confidence
+from app.services.processed_text_store import ProcessedTextStore
+import app.services.processed_text_store_extensions
 from app.core.config import settings
 from app.core.mappings import mappings
 from app.services.ollama import OllamaService, get_ollama
@@ -48,6 +50,7 @@ SUPPORTED_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
 CATEGORY_ID_MAP = mappings.CATEGORY_ID_MAP
 DOCUMENT_GROUP_MAP = mappings.DOCUMENT_GROUP_MAP
 PATH_METADATA_GENERATOR = MetadataAutoGenerator()
+PROCESSED_TEXT_STORE = ProcessedTextStore()
 
 
 def normalize_numbered_name(name: str) -> str:
@@ -380,6 +383,44 @@ def _coerce_year_int(value: Any) -> Optional[int]:
         return None
 
 
+def _build_metadata_source_text(metadata: DocumentMetadata) -> str:
+    """OCR/청킹 산출물을 우선 사용해 메타데이터 생성용 텍스트를 구성한다."""
+    parts: List[str] = []
+
+    if metadata.file_name:
+        parts.append(metadata.file_name)
+    if metadata.relative_path:
+        parts.append(metadata.relative_path)
+
+    chunk_file = PROCESSED_TEXT_STORE.load_chunk_file(metadata.document_id)
+    if chunk_file:
+        for chunk in (chunk_file.get("chunks") or [])[:8]:
+            section = str((chunk.get("metadata") or {}).get("section_title") or "").strip()
+            content = str(chunk.get("content") or "").strip()
+            if section:
+                parts.append(section)
+            if content:
+                parts.append(content[:800])
+
+    chunk_pages = PROCESSED_TEXT_STORE.load_chunk_pages(metadata.document_id)
+    for page in chunk_pages[:5]:
+        page_no = page.get("page_number")
+        page_chunks = page.get("chunks") or []
+        if page_no is not None:
+            parts.append(f"[PAGE {page_no}]")
+        for chunk in page_chunks[:2]:
+            content = str(chunk.get("content") or "").strip()
+            if content:
+                parts.append(content[:800])
+
+    if len(parts) <= 2:
+        full_text = PROCESSED_TEXT_STORE.get_text(str(metadata.document_id), format="txt") or ""
+        if full_text.strip():
+            parts.append(full_text[:6000])
+
+    return "\n".join(part for part in parts if part).strip()
+
+
 @router.post("/step1/scan", response_model=ScanResponse)
 async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db)):
     """
@@ -679,7 +720,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 
         # 8. next_action 결정
         if new_count or changed_count or restored_count:
-            next_action = "Metadata Auto를 실행하세요."
+            next_action = "Step 4 OCR/Parse를 먼저 실행하세요."
         elif removed_count:
             next_action = f"{removed_count}개 파일이 삭제되었습니다. Metadata Review에서 확인하세요."
         else:
@@ -727,7 +768,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 @router.post("/step2/metadata-auto", response_model=MetadataAutoResponse)
 async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depends(get_db)):
     """
-    Step 2: Metadata Auto - 경로/파일명 기반 기본 메타데이터 생성
+    Step 2: Metadata Auto - OCR/청킹 산출물 기반 메타데이터 생성
     """
     try:
         query = db.query(DocumentMetadata)
@@ -763,7 +804,8 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
                 continue
 
             scan_meta = extract_scan_metadata(filename, relative_path)
-            auto_meta = PATH_METADATA_GENERATOR.extract_metadata(relative_path)
+            artifact_text = _build_metadata_source_text(metadata)
+            auto_meta = PATH_METADATA_GENERATOR.extract_metadata(relative_path, artifact_text)
             confidence_meta = enrich_confidence(relative_path, scan_meta["scan_project_name"] or "")
 
             if request.overwrite or not metadata.scan_project_name:
@@ -786,7 +828,12 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
                 or confidence_meta.get("organization")
             )
             year_value = _coerce_year_int(scan_meta["scan_year"] or auto_meta.get("project_year"))
-            document_type = metadata.document_group or auto_meta.get("document_type") or metadata.category_id
+            document_type = (
+                metadata.document_group
+                or auto_meta.get("document_type")
+                or metadata.section_type
+                or metadata.category_id
+            )
 
             if request.overwrite or not metadata.project_name:
                 metadata.project_name = project_name
@@ -849,7 +896,7 @@ async def run_step2_chunk_embed_faiss(
     """
     Dataset Builder UI용 Step 2 일괄 실행.
 
-    검수 완료 문서를 source_id 기준으로 좁힌 뒤
+    OCR/청킹이 준비된 문서를 source_id 기준으로 좁힌 뒤
     Chunk -> Embedding -> FAISS를 순차 실행한다.
     """
     source_id = (request.source_id or "").strip()
@@ -857,7 +904,6 @@ async def run_step2_chunk_embed_faiss(
         raise HTTPException(status_code=400, detail="source_id는 필수입니다.")
 
     query = db.query(DocumentMetadata).filter(
-        DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
         DocumentMetadata.include_in_rag == True,
         DocumentMetadata.is_excluded == False,
         DocumentMetadata.removed_at.is_(None),
