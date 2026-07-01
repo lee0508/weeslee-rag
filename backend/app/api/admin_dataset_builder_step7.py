@@ -29,6 +29,7 @@ router = APIRouter(prefix="/admin/dataset-builder/step7")
 class FAISSBuildRequest(BaseModel):
     """FAISS 인덱스 생성 요청"""
     collection_name: str = Field("weeslee_rag_main", description="컬렉션 이름")
+    source_id: Optional[str] = Field(None, description="Document Source ID (특정 소스만 빌드)")
     document_ids: Optional[List[int]] = Field(None, description="처리할 문서 ID 목록 (비어있으면 전체)")
     index_type: str = Field("flat", description="인덱스 타입 (flat, ivf, hnsw)")
     metric: str = Field("l2", description="거리 메트릭 (l2, ip)")
@@ -47,6 +48,7 @@ class FAISSBuildResponse(BaseModel):
     """FAISS 빌드 결과"""
     success: bool
     collection_name: str
+    source_id: Optional[str] = None
     index_path: str
     total_vectors: int
     embedding_dim: int
@@ -219,6 +221,8 @@ async def build_faiss_index(
             DocumentMetadata.removed_at.is_(None),
         ).order_by(DocumentMetadata.document_id)
 
+        if req.source_id:
+            query = query.filter(DocumentMetadata.source_id == req.source_id)
         if req.document_ids:
             query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
 
@@ -267,7 +271,13 @@ async def build_faiss_index(
                     vector_to_doc_map.append({
                         "document_id": document_id,
                         "chunk_index": chunk_idx,
-                        "file_name": file_name
+                        "file_name": file_name,
+                        "source_id": doc.source_id or "",
+                        "dataset_id": doc.dataset_id or "",
+                        "document_uid": doc.document_uid or "",
+                        "category": doc.category_id or "",
+                        "organization": doc.organization or "",
+                        "project_name": doc.project_name or "",
                     })
 
                 document_infos.append(DocumentIndexInfo(
@@ -303,6 +313,7 @@ async def build_faiss_index(
         # 메타데이터 준비
         metadata = {
             "collection_name": req.collection_name,
+            "source_id": req.source_id or "",
             "total_vectors": len(vectors),
             "embedding_dim": vectors.shape[1],
             "documents_count": len([d for d in document_infos if d.status == "success"]),
@@ -324,6 +335,7 @@ async def build_faiss_index(
         return FAISSBuildResponse(
             success=True,
             collection_name=req.collection_name,
+            source_id=req.source_id,
             index_path=index_path,
             total_vectors=len(vectors),
             embedding_dim=vectors.shape[1],
