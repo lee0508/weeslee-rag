@@ -28,6 +28,8 @@ from app.services.platform_store import get_record, list_records, update_record
 from app.services.tag_keyword_generator import TagKeywordGenerator
 from app.services.dataset_context import get_source_dataset_context, ensure_source_dataset_context
 from app.services.category_service import detect_categories_from_directory
+from app.services.metadata_auto_generator import MetadataAutoGenerator
+from app.services.metadata_enricher import enrich_confidence
 from app.core.config import settings
 from app.core.mappings import mappings
 from app.services.ollama import OllamaService, get_ollama
@@ -45,6 +47,7 @@ router = APIRouter(
 SUPPORTED_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
 CATEGORY_ID_MAP = mappings.CATEGORY_ID_MAP
 DOCUMENT_GROUP_MAP = mappings.DOCUMENT_GROUP_MAP
+PATH_METADATA_GENERATOR = MetadataAutoGenerator()
 
 
 def normalize_numbered_name(name: str) -> str:
@@ -313,16 +316,31 @@ def extract_scan_metadata(filename: str, relative_path: str) -> Dict[str, Any]:
     """파일명과 상대 경로에서 scan_* 메타데이터를 추출한다."""
     import re
 
-    project_name = extract_project_name(filename) or None
+    path_text = f"{relative_path}/{filename}".replace("\\", "/")
+    auto_meta = PATH_METADATA_GENERATOR.extract_metadata(path_text)
+
+    project_name = extract_project_name(filename) or auto_meta.get("project_name") or None
+    confidence_meta = enrich_confidence(relative_path, project_name or "")
+    organization = (
+        auto_meta.get("organization")
+        or confidence_meta.get("organization")
+        or None
+    )
 
     # 연도 추출: 파일명 또는 경로에서 20XX 패턴 (2000-2029)
     year = None
-    year_match = re.search(r'\b(20[012]\d)\b', filename + "/" + relative_path)
+    year_match = re.search(r'\b(20[012]\d)\b', path_text)
     if year_match:
         year = int(year_match.group(1))
+    elif auto_meta.get("project_year"):
+        try:
+            year = int(str(auto_meta["project_year"]).strip())
+        except Exception:
+            year = None
 
     return {
         "scan_project_name": project_name,
+        "scan_organization": organization,
         "scan_year": str(year) if year is not None else None,
     }
 
@@ -348,6 +366,18 @@ def generate_tag_keyword_for_source(body: TagKeywordGenerateRequest) -> dict:
         }
     finally:
         db.close()
+
+
+def _coerce_year_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
 
 
 @router.post("/step1/scan", response_model=ScanResponse)
@@ -552,10 +582,13 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     metadata_backfilled = True
 
                 # scan_* 필드 보정 (없으면 추가)
-                if not existing.scan_project_name or not existing.scan_year:
+                if not existing.scan_project_name or not existing.scan_organization or not existing.scan_year:
                     scan_meta = extract_scan_metadata(file_info["filename"], rel_path)
                     if not existing.scan_project_name and scan_meta["scan_project_name"]:
                         existing.scan_project_name = scan_meta["scan_project_name"]
+                        metadata_backfilled = True
+                    if not existing.scan_organization and scan_meta["scan_organization"]:
+                        existing.scan_organization = scan_meta["scan_organization"]
                         metadata_backfilled = True
                     if not existing.scan_year and scan_meta["scan_year"]:
                         existing.scan_year = scan_meta["scan_year"]
@@ -599,6 +632,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     section_type=file_info.get("section_type", ""),
                     dataset_id=_source_dataset_id,
                     scan_project_name=scan_meta["scan_project_name"],
+                    scan_organization=scan_meta["scan_organization"],
                     scan_year=scan_meta["scan_year"],
                     scan_document_category=document_group or None,
                     status=ProcessingStatus.REGISTERED.value,
@@ -693,7 +727,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
 @router.post("/step2/metadata-auto", response_model=MetadataAutoResponse)
 async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depends(get_db)):
     """
-    Step 2: Metadata Auto - 파일명에서 프로젝트명 추출
+    Step 2: Metadata Auto - 경로/파일명 기반 기본 메타데이터 생성
     """
     try:
         query = db.query(DocumentMetadata)
@@ -712,20 +746,67 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
         skipped = 0
 
         for metadata in metadata_list:
-            if metadata.project_name and not request.overwrite:
+            if (
+                not request.overwrite
+                and metadata.project_name
+                and metadata.organization
+                and metadata.year
+                and metadata.document_type
+            ):
                 skipped += 1
                 continue
 
-            # file_path에서 파일명 추출
-            filename = Path(metadata.file_path).name if metadata.file_path else ""
+            filename = metadata.file_name or (Path(metadata.file_path).name if metadata.file_path else "")
+            relative_path = metadata.relative_path or filename
             if not filename:
                 skipped += 1
                 continue
 
-            project_name = extract_project_name(filename)
+            scan_meta = extract_scan_metadata(filename, relative_path)
+            auto_meta = PATH_METADATA_GENERATOR.extract_metadata(relative_path)
+            confidence_meta = enrich_confidence(relative_path, scan_meta["scan_project_name"] or "")
 
-            metadata.project_name = project_name
-            metadata.project_name_confidence = 0.5
+            if request.overwrite or not metadata.scan_project_name:
+                metadata.scan_project_name = scan_meta["scan_project_name"]
+            if request.overwrite or not metadata.scan_organization:
+                metadata.scan_organization = scan_meta["scan_organization"]
+            if request.overwrite or not metadata.scan_year:
+                metadata.scan_year = scan_meta["scan_year"]
+            if request.overwrite or not metadata.scan_document_category:
+                metadata.scan_document_category = metadata.document_group or metadata.category_id
+
+            project_name = (
+                scan_meta["scan_project_name"]
+                or auto_meta.get("project_name")
+                or extract_project_name(filename)
+            )
+            organization = (
+                scan_meta["scan_organization"]
+                or auto_meta.get("organization")
+                or confidence_meta.get("organization")
+            )
+            year_value = _coerce_year_int(scan_meta["scan_year"] or auto_meta.get("project_year"))
+            document_type = metadata.document_group or auto_meta.get("document_type") or metadata.category_id
+
+            if request.overwrite or not metadata.project_name:
+                metadata.project_name = project_name
+            if request.overwrite or not metadata.project_name_confidence:
+                metadata.project_name_confidence = confidence_meta.get("project_confidence") or 0.5
+            if request.overwrite or not metadata.organization:
+                metadata.organization = organization
+            if request.overwrite or not metadata.organization_confidence:
+                metadata.organization_confidence = (
+                    confidence_meta.get("organization_confidence")
+                    if organization == confidence_meta.get("organization")
+                    else (0.6 if organization else None)
+                )
+            if request.overwrite or not metadata.year:
+                metadata.year = year_value
+            if request.overwrite or not metadata.document_type:
+                metadata.document_type = document_type
+            if request.overwrite or not metadata.document_type_confidence:
+                metadata.document_type_confidence = 0.9 if metadata.document_group else (0.6 if document_type else None)
+
             metadata.meta_status = MetaStatus.METADATA_SUGGESTED.value
             metadata.updated_at = datetime.utcnow()
 

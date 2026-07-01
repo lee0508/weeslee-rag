@@ -19,6 +19,7 @@ from sqlalchemy import func
 
 from app.core.database import get_db, SessionLocal
 from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
+from app.services.metadata_fallback import resolve_review_final_metadata
 
 
 class UnifiedDocumentService:
@@ -340,6 +341,18 @@ class UnifiedDocumentService:
             if not doc:
                 return False
 
+            final_payload = resolve_review_final_metadata(doc.to_dict())
+            if not doc.final_project_name and final_payload.get("final_project_name"):
+                doc.final_project_name = final_payload["final_project_name"]
+            if not doc.final_organization and final_payload.get("final_organization"):
+                doc.final_organization = final_payload["final_organization"]
+            if not doc.final_year and final_payload.get("final_year"):
+                doc.final_year = final_payload["final_year"]
+            if not doc.final_document_category and final_payload.get("final_document_category"):
+                doc.final_document_category = final_payload["final_document_category"]
+
+            doc.final_confirmed_by = reviewer
+            doc.final_confirmed_at = datetime.utcnow()
             doc.meta_status = MetaStatus.METADATA_REVIEWED.value
             doc.reviewed_by = reviewer
             doc.reviewed_at = datetime.utcnow()

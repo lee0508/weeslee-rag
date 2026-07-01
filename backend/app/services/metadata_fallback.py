@@ -86,6 +86,33 @@ def get_effective_value(
     return None, None
 
 
+def get_review_final_value(
+    meta: Dict[str, Any],
+    field: str,
+    review_prefixes: Optional[List[str]] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    """
+    Step 3 승인 시 final_*로 승격할 값을 고른다.
+
+    검수 화면의 기본값(project_name, organization, year)을 우선 사용하고,
+    값이 비어 있으면 OCR, Scan 순으로 fallback 한다.
+    """
+    if review_prefixes is None:
+        review_prefixes = ["ocr_", "scan_"]
+
+    value = meta.get(field)
+    if value is not None and str(value).strip():
+        return str(value).strip(), "base"
+
+    for prefix in review_prefixes:
+        key = f"{prefix}{field}"
+        value = meta.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip(), prefix
+
+    return None, None
+
+
 def resolve_metadata(meta: Dict[str, Any]) -> ResolvedMetadata:
     """
     메타데이터 딕셔너리에서 Fallback 체인을 적용하여 유효 값을 해결한다.
@@ -115,6 +142,23 @@ def resolve_metadata(meta: Dict[str, Any]) -> ResolvedMetadata:
         year_source=year_source,
         document_category_source=dc_source,
     )
+
+
+def resolve_review_final_metadata(meta: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    """
+    Step 3 승인 시 final_*에 저장할 값을 계산한다.
+    """
+    project_name, _ = get_review_final_value(meta, "project_name")
+    organization, _ = get_review_final_value(meta, "organization")
+    year, _ = get_review_final_value(meta, "year")
+    document_category, _ = get_review_final_value(meta, "document_category")
+
+    return {
+        "final_project_name": project_name,
+        "final_organization": organization,
+        "final_year": year,
+        "final_document_category": document_category or meta.get("document_type") or meta.get("document_group"),
+    }
 
 
 def merge_metadata_for_faiss(

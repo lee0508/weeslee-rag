@@ -9,6 +9,7 @@ from sqlalchemy import func, case
 
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus
+from app.services.metadata_fallback import resolve_review_final_metadata
 
 
 class DocumentMetadataService:
@@ -67,6 +68,18 @@ class DocumentMetadataService:
         if not metadata:
             return False
 
+        final_payload = resolve_review_final_metadata(metadata.to_dict())
+        if not metadata.final_project_name and final_payload.get("final_project_name"):
+            metadata.final_project_name = final_payload["final_project_name"]
+        if not metadata.final_organization and final_payload.get("final_organization"):
+            metadata.final_organization = final_payload["final_organization"]
+        if not metadata.final_year and final_payload.get("final_year"):
+            metadata.final_year = final_payload["final_year"]
+        if not metadata.final_document_category and final_payload.get("final_document_category"):
+            metadata.final_document_category = final_payload["final_document_category"]
+
+        metadata.final_confirmed_by = reviewer
+        metadata.final_confirmed_at = datetime.utcnow()
         metadata.meta_status = MetaStatus.METADATA_REVIEWED.value
         metadata.reviewed_by = reviewer
         metadata.reviewed_at = datetime.utcnow()
