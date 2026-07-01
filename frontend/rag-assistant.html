@@ -934,6 +934,16 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    .doc-card-context {
+      font-size: 11px;
+      color: var(--navy);
+      margin-top: 8px;
+      line-height: 1.45;
+      padding: 7px 9px;
+      background: rgba(30, 64, 175, .06);
+      border: 1px solid rgba(30, 64, 175, .12);
+      border-radius: 8px;
+    }
     /* 질문 키워드 하이라이트 */
     .query-highlight {
       background: linear-gradient(135deg, rgba(232,151,31,.3) 0%, rgba(232,151,31,.15) 100%);
@@ -4814,6 +4824,7 @@
         if (doc.organization) metaChips.push(`<span class="doc-card-chip org">${escapeHtml(doc.organization)}</span>`);
         if (doc.project_year) metaChips.push(`<span class="doc-card-chip year">${escapeHtml(doc.project_year)}</span>`);
         if (doc.document_group) metaChips.push(`<span class="doc-card-chip">${escapeHtml(doc.document_group)}</span>`);
+        if (doc.document_category) metaChips.push(`<span class="doc-card-chip">${escapeHtml(doc.document_category)}</span>`);
         if (doc.source_id) metaChips.push(`<span class="doc-card-chip">${escapeHtml(doc.source_id)}</span>`);
         if (doc.proposal_section) metaChips.push(`<span class="doc-card-chip">제안서/${escapeHtml(doc.proposal_section)}</span>`);
         if (doc.deliverable_section) metaChips.push(`<span class="doc-card-chip">산출물/${escapeHtml(doc.deliverable_section)}</span>`);
@@ -4822,7 +4833,13 @@
         const chunkPreview = (doc.chunks && doc.chunks[0]?.text)
           ? doc.chunks[0].text.slice(0, 120) + (doc.chunks[0].text.length > 120 ? '...' : '')
           : '';
-        const preview = chunkPreview || evidencePreview?.slice(0, 120) || '';
+        const preview = chunkPreview || evidencePreview?.slice(0, 120) || String(doc.snippet || '').slice(0, 120) || '';
+        const locationSummary = docLocationSummary(doc);
+        const snapshotSummary = shortSnapshotId(doc.snapshot_id);
+        const contextParts = [];
+        if (locationSummary) contextParts.push(`근거 위치: ${locationSummary}`);
+        if (snapshotSummary) contextParts.push(`Snapshot: ${snapshotSummary}`);
+        const contextSummary = contextParts.join(' | ');
 
         // Graph 관계 요약 생성
         let graphSummary = '';
@@ -4873,6 +4890,7 @@
           ${projectName !== '-' ? `<div class="doc-card-file">${escapeHtml(fileName)}</div>` : ''}
           <div class="doc-card-meta">${metaChips.join('')}</div>
           <div class="doc-card-path">${escapeHtml(docSourcePath(doc) || '-')}</div>
+          ${contextSummary ? `<div class="doc-card-context">${highlightQueryTerms(contextSummary, highlightQuery)}</div>` : ''}
           ${preview ? `<div class="doc-card-preview">${highlightQueryTerms(preview, highlightQuery)}</div>` : ''}
           ${graphSummary}
           ${viewActions}
@@ -4994,19 +5012,25 @@
           file_path: r.file_path || r.source_path || '',
           project_name: r.metadata?.project_name || r.project_name || '',
           category: r.metadata?.category || r.category || '',
+          document_group: r.document_group || r.metadata?.document_group || '',
+          document_category: r.document_category || r.metadata?.document_category || '',
           source_id: r.source_id || r.metadata?.source_id || '',
           dataset_id: r.dataset_id || r.metadata?.dataset_id || '',
           snapshot_id: r.snapshot_id || r.metadata?.snapshot_id || '',
           document_uid: r.document_uid || r.metadata?.document_uid || '',
           relative_path: r.relative_path || r.metadata?.relative_path || '',
           source_path: r.source_path || r.metadata?.source_path || r.file_path || '',
+          page_no: r.page_no || r.metadata?.page_no || '',
+          slide_no: r.slide_no || r.metadata?.slide_no || '',
+          section_title: r.section_title || r.metadata?.section_title || r.metadata?.section_heading || '',
+          section_id: r.section_id || r.metadata?.section_id || '',
           score: baseScore,
           best_score: baseScore,
           ranking_score: rankingScore,
           faiss_score: faissScore,
           graph_score: graphScore,
           source: r.source || 'hybrid',
-          snippet: r.text_preview || r.evidence || r.snippet || '',
+          snippet: r.text_preview || r.evidence || r.snippet || r.metadata?.section_heading || '',
           chunks: r.chunks || [],
           metadata: r.metadata || {},
           graph_relations: r.graph_relations || []
@@ -5085,6 +5109,19 @@
       if (!snippet) return '';
       if (typeof snippet === 'object') return String(snippet.text || snippet.content || '');
       return String(snippet);
+    }
+
+    function docLocationSummary(doc) {
+      const parts = [];
+      if (doc.slide_no) parts.push(`슬라이드 ${doc.slide_no}`);
+      else if (doc.page_no) parts.push(`페이지 ${doc.page_no}`);
+      if (doc.section_title) parts.push(doc.section_title);
+      return parts.join(' | ');
+    }
+
+    function shortSnapshotId(snapshotId) {
+      if (!snapshotId) return '';
+      return snapshotId.replace(/^snapshot_/, '');
     }
 
     // ── Main tab switching ────────────────────────────────────────────
@@ -5707,7 +5744,7 @@
             : format === 'md'
               ? (data.markdown || '')
               : (data.text || '');
-          body.innerHTML = `<div class="preview-text">${escapeHtml(_previewState.content)}</div>`;
+          body.innerHTML = `<div class="preview-text">${highlightQueryTerms(_previewState.content, _currentSearchQuery || document.getElementById('query')?.value || '')}</div>`;
         }
         printBtn.style.display = '';
       } catch (err) {
@@ -5781,9 +5818,14 @@
         <div style="display:grid;gap:8px;font-size:12px">
           <div><strong>문서 ID:</strong> ${escapeHtml(doc.document_id || '-')}</div>
           <div><strong>Source ID:</strong> ${escapeHtml(doc.source_id || '-')}</div>
+          <div><strong>Dataset ID:</strong> ${escapeHtml(doc.dataset_id || '-')}</div>
+          <div><strong>Snapshot ID:</strong> ${escapeHtml(doc.snapshot_id || '-')}</div>
           <div><strong>프로젝트:</strong> ${escapeHtml(doc.project_name || '-')}</div>
           <div><strong>파일명:</strong> ${escapeHtml(doc.file_name || '-')}</div>
           <div><strong>문서 그룹:</strong> ${escapeHtml(doc.document_group || '-')}</div>
+          <div><strong>문서 분류:</strong> ${escapeHtml(doc.document_category || '-')}</div>
+          <div><strong>근거 위치:</strong> ${escapeHtml(docLocationSummary(doc) || '-')}</div>
+          <div><strong>섹션 ID:</strong> ${escapeHtml(doc.section_id || '-')}</div>
           ${doc.proposal_section ? `<div><strong>제안서 섹션:</strong> ${escapeHtml(doc.proposal_section)}</div>` : ''}
           ${doc.deliverable_section ? `<div><strong>산출물 섹션:</strong> ${escapeHtml(doc.deliverable_section)}</div>` : ''}
           <div><strong>Best Score:</strong> ${Number(doc.best_score || 0).toFixed(4)}</div>
@@ -5826,13 +5868,13 @@
           content = `<div style="font-size:12px;color:var(--text-s);margin-bottom:8px">원문 버튼 클릭 시 파일 속성(PDF, PPTX, DOCX, HWP 등)을 확인해 팝업 미리보기로 연결합니다.</div>`;
         } else if (viewMode === 'summary') {
           content = doc.summary
-            ? `<div class="doc-detail-chunk"><div>${escapeHtml(doc.summary)}</div></div>`
+            ? `<div class="doc-detail-chunk"><div>${highlightQueryTerms(doc.summary, _currentSearchQuery || document.getElementById('query')?.value || '')}</div></div>`
             : `<div style="font-size:12px;color:var(--muted)">요약 정보를 불러오는 중...</div>`;
           if (!doc.summary && doc.document_id) {
             // 요약 로드
             loadDocSummary(doc.document_id).then(summary => {
               if (summary && _currentDocDetailViewMode === 'summary') {
-                docDetailChunks.innerHTML = tabs + `<div class="doc-detail-chunk"><div>${escapeHtml(summary)}</div></div>`;
+                docDetailChunks.innerHTML = tabs + `<div class="doc-detail-chunk"><div>${highlightQueryTerms(summary, _currentSearchQuery || document.getElementById('query')?.value || '')}</div></div>`;
               }
             });
           }
@@ -5845,7 +5887,7 @@
                     <span>청크 #${i + 1}</span>
                     <span>Score: ${Number(chunk.score || 0).toFixed(4)}</span>
                   </div>
-                  <div>${escapeHtml(chunk.text || chunk.content || '')}</div>
+                  <div>${highlightQueryTerms(chunk.text || chunk.content || '', _currentSearchQuery || document.getElementById('query')?.value || '')}</div>
                 </div>
               `).join('')
             : '<div style="color:var(--gray-400);font-size:12px">청크 정보 없음</div>';
@@ -5855,7 +5897,7 @@
             ? snippets.map((snippet, i) => `
                 <div class="doc-detail-chunk">
                   <div class="doc-detail-chunk-header"><span>근거 스니펫 #${i + 1}</span></div>
-                  <div>${escapeHtml(snippetText(snippet))}</div>
+                  <div>${highlightQueryTerms(snippetText(snippet), _currentSearchQuery || document.getElementById('query')?.value || '')}</div>
                 </div>
               `).join('')
             : '<div style="color:var(--gray-400);font-size:12px">근거 정보 없음</div>';
