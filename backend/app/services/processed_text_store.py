@@ -37,6 +37,15 @@ class ProcessingResult:
     file_name: str
     source_path: str = ""
     file_extension: str = ""
+    source_id: str = ""
+    dataset_id: str = ""
+    document_uid: str = ""
+    relative_path: str = ""
+    project_name: str = ""
+    organization: str = ""
+    organization_type: str = ""
+    client_type: str = ""
+    project_type: str = ""
 
     # 처리 정보
     parser_type: str = ""          # hwp5txt, python-pptx, pdfplumber, tesseract, etc.
@@ -73,6 +82,15 @@ class ProcessingResult:
             "file_name": self.file_name,
             "source_path": self.source_path,
             "file_extension": self.file_extension,
+            "source_id": self.source_id,
+            "dataset_id": self.dataset_id,
+            "document_uid": self.document_uid,
+            "relative_path": self.relative_path,
+            "project_name": self.project_name,
+            "organization": self.organization,
+            "organization_type": self.organization_type,
+            "client_type": self.client_type,
+            "project_type": self.project_type,
             "parser_type": self.parser_type,
             "ocr_required": self.ocr_required,
             "ocr_engine": self.ocr_engine,
@@ -95,6 +113,15 @@ class ProcessingResult:
             file_name=data.get("file_name", ""),
             source_path=data.get("source_path", ""),
             file_extension=data.get("file_extension", ""),
+            source_id=data.get("source_id", ""),
+            dataset_id=data.get("dataset_id", ""),
+            document_uid=data.get("document_uid", ""),
+            relative_path=data.get("relative_path", ""),
+            project_name=data.get("project_name", ""),
+            organization=data.get("organization", ""),
+            organization_type=data.get("organization_type", ""),
+            client_type=data.get("client_type", ""),
+            project_type=data.get("project_type", ""),
             parser_type=data.get("parser_type", ""),
             ocr_required=data.get("ocr_required", False),
             ocr_engine=data.get("ocr_engine", ""),

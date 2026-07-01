@@ -1294,9 +1294,16 @@ class HybridQueryRequest(BaseModel):
     source_id: Optional[str] = Field(None, description="Document Source ID")
     top_k: int = Field(10, ge=1, le=50, description="각 소스별 최대 결과 수")
     max_results: int = Field(20, ge=1, le=100, description="병합 후 최대 결과 수")
+    category: Optional[str] = Field(None, description="문서 카테고리 필터")
+    organization: Optional[str] = Field(None, description="기관명 필터")
+    year: Optional[str] = Field(None, description="연도 필터")
+    document_group: Optional[str] = Field(None, description="문서 그룹 필터")
+    document_category: Optional[str] = Field(None, description="문서 세부 분류 필터")
+    section_type: Optional[str] = Field(None, description="섹션/목차 필터")
     enable_graph: bool = Field(True, description="GraphRAG 활성화")
     enable_wiki: bool = Field(False, description="Wiki 검색 활성화")
     merge_strategy: str = Field("score_based", description="결과 병합 전략: score_based, faiss_first, graph_first, interleave")
+    force_search_order: Optional[str] = Field(None, description="검색 순서 강제값")
     generate_answer: bool = Field(False, description="LLM 답변 생성 여부")
 
 
@@ -1348,6 +1355,13 @@ async def hybrid_query(request: HybridQueryRequest):
         top_k=request.top_k,
         max_results=request.max_results,
         generate_answer=request.generate_answer,
+        category=request.category,
+        organization=request.organization,
+        year=request.year,
+        document_group=request.document_group,
+        document_category=request.document_category,
+        section_type=request.section_type,
+        force_search_order=request.force_search_order,
     )
 
     return {
@@ -1378,6 +1392,8 @@ async def hybrid_query(request: HybridQueryRequest):
             "wiki_count": response.wiki_count,
             "merged_count": response.merged_count,
         },
+        "search_order": response.search_order,
+        "sources_used": response.sources_used,
 
         # 타이밍
         "timing": {
@@ -1391,6 +1407,14 @@ async def hybrid_query(request: HybridQueryRequest):
         "error": response.error,
         "source_id": request.source_id or "all",
         "merge_strategy": request.merge_strategy,
+        "applied_filters": {
+            "category": request.category,
+            "organization": request.organization,
+            "year": request.year,
+            "document_group": request.document_group,
+            "document_category": request.document_category,
+            "section_type": request.section_type,
+        },
         "timestamp": response.timestamp,
     }
 

@@ -83,7 +83,12 @@ def _calculate_quality_score(text_length: int) -> float:
     return 1.0
 
 
-async def parse_document(document_id: int, file_path: str, force: bool = False) -> dict:
+async def parse_document(
+    document_id: int,
+    file_path: str,
+    force: bool = False,
+    metadata_ctx: Optional[dict] = None,
+) -> dict:
     """
     단일 문서 파싱 처리 (Strategy Pattern 적용)
 
@@ -115,11 +120,37 @@ async def parse_document(document_id: int, file_path: str, force: bool = False) 
         file_name = Path(file_path).name
 
         # ProcessingResult 초기화
+        metadata_ctx = metadata_ctx or {}
+        try:
+            from app.services.knowledge_graph import classify_project_type, get_organization_type
+            inferred_org_type = get_organization_type(str(metadata_ctx.get("organization") or ""))
+            inferred_project_types = classify_project_type(
+                " ".join(
+                    part for part in [
+                        str(metadata_ctx.get("project_name") or ""),
+                        str(file_name or ""),
+                        str(file_path or ""),
+                    ] if part
+                )
+            )
+        except Exception:
+            inferred_org_type = None
+            inferred_project_types = []
+
         processing_result = ProcessingResult(
             document_id=str(document_id),
             file_name=file_name,
             source_path=file_path,
             file_extension=file_ext,
+            source_id=str(metadata_ctx.get("source_id") or ""),
+            dataset_id=str(metadata_ctx.get("dataset_id") or ""),
+            document_uid=str(metadata_ctx.get("document_uid") or ""),
+            relative_path=str(metadata_ctx.get("relative_path") or ""),
+            project_name=str(metadata_ctx.get("project_name") or ""),
+            organization=str(metadata_ctx.get("organization") or ""),
+            organization_type=str(metadata_ctx.get("organization_type") or metadata_ctx.get("client_type") or inferred_org_type or ""),
+            client_type=str(metadata_ctx.get("client_type") or metadata_ctx.get("organization_type") or inferred_org_type or ""),
+            project_type=str(metadata_ctx.get("project_type") or (inferred_project_types[0] if inferred_project_types else "")),
             status="processing",
         )
 
@@ -204,6 +235,15 @@ async def parse_document(document_id: int, file_path: str, force: bool = False) 
             file_name=Path(file_path).name,
             source_path=file_path,
             file_extension=Path(file_path).suffix.lower(),
+            source_id=str((metadata_ctx or {}).get("source_id") or ""),
+            dataset_id=str((metadata_ctx or {}).get("dataset_id") or ""),
+            document_uid=str((metadata_ctx or {}).get("document_uid") or ""),
+            relative_path=str((metadata_ctx or {}).get("relative_path") or ""),
+            project_name=str((metadata_ctx or {}).get("project_name") or ""),
+            organization=str((metadata_ctx or {}).get("organization") or ""),
+            organization_type=str((metadata_ctx or {}).get("organization_type") or (metadata_ctx or {}).get("client_type") or ""),
+            client_type=str((metadata_ctx or {}).get("client_type") or (metadata_ctx or {}).get("organization_type") or ""),
+            project_type=str((metadata_ctx or {}).get("project_type") or ""),
             status="failed",
             error_message=str(e),
         )
@@ -277,6 +317,38 @@ def _fill_dataset_id_if_needed(doc: DocumentMetadata, dataset_id_cache: dict) ->
     doc.dataset_id = dataset_id_cache[doc.source_id]
 
 
+def _build_processing_metadata_ctx(doc: DocumentMetadata, dataset_id_cache: dict) -> dict:
+    """Step 4 산출물에 저장할 문서 컨텍스트를 정규화한다."""
+    _fill_dataset_id_if_needed(doc, dataset_id_cache)
+
+    project_name = (
+        doc.final_project_name
+        or doc.ocr_project_name
+        or doc.project_name
+        or doc.scan_project_name
+        or ""
+    )
+    organization = (
+        doc.final_organization
+        or doc.ocr_organization
+        or doc.organization
+        or doc.scan_organization
+        or ""
+    )
+
+    return {
+        "source_id": doc.source_id,
+        "dataset_id": doc.dataset_id,
+        "document_uid": doc.document_uid,
+        "relative_path": doc.relative_path,
+        "project_name": project_name,
+        "organization": organization,
+        "organization_type": None,
+        "client_type": None,
+        "project_type": None,
+    }
+
+
 # ── API Endpoints ───────────────────────────────────────────────────────────
 
 
@@ -331,10 +403,12 @@ async def parse_documents(
                 failed += 1
                 continue
 
+            metadata_ctx = _build_processing_metadata_ctx(doc, _dataset_id_cache)
             result = await parse_document(
                 document_id=doc.document_id,
                 file_path=doc.file_path,
-                force=request.force_reparse
+                force=request.force_reparse,
+                metadata_ctx=metadata_ctx,
             )
 
             if result["success"]:
@@ -342,8 +416,6 @@ async def parse_documents(
                     skipped += 1
                 else:
                     processed += 1
-                    # dataset_id 저장 (source 설정에서 조회, 없으면 스킵)
-                    _fill_dataset_id_if_needed(doc, _dataset_id_cache)
                     # OCR 추출 텍스트로 ocr_* 메타데이터 추출 및 DB 저장
                     _save_ocr_metadata(db, doc, result["document_id"])
             else:
@@ -757,6 +829,7 @@ async def parse_documents_streaming(
         processed = 0
         failed = 0
         skipped = 0
+        dataset_id_cache: dict = {}
 
         for idx, doc in enumerate(documents, 1):
             if not doc.file_path:
@@ -774,10 +847,12 @@ async def parse_documents_streaming(
                 "progress": int(((idx - 1) / total) * 100),
             })
 
+            metadata_ctx = _build_processing_metadata_ctx(doc, dataset_id_cache)
             result = await parse_document(
                 document_id=doc.document_id,
                 file_path=doc.file_path,
-                force=force_reparse
+                force=force_reparse,
+                metadata_ctx=metadata_ctx,
             )
 
             if result["success"]:

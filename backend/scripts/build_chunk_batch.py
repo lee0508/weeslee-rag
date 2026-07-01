@@ -33,6 +33,7 @@ from app.services.document_structure_extractor import (
     ExtractedPage,
 )
 from app.services.document_uid import make_document_uid
+from app.services.knowledge_graph import classify_project_type, get_organization_type
 
 
 HEADING_PATTERNS = [
@@ -50,6 +51,10 @@ CHUNKABLE_EXTRACTION_STATUSES = {"success", "skipped_existing"}
 class ChunkRow:
     chunk_id: str
     document_id: str
+    source_id: str
+    dataset_id: str
+    snapshot_id: str
+    document_uid: str
     category: str
     source_path: str
     input_path: str
@@ -57,6 +62,12 @@ class ChunkRow:
     chunk_index: int
     char_count: int
     section_heading: str
+    section_title: str
+    section_id: str
+    file_name: str
+    project_type: str
+    organization_type: str
+    client_type: str
     text: str
     metadata: dict
     # Phase 2: 페이지/슬라이드 정보
@@ -213,14 +224,40 @@ def build_chunks_for_document(
     rows: list[ChunkRow] = []
     chunk_index = 0
     current_char_pos = 0  # 현재 문자 위치 추적
+    source_id = metadata.get("source_id", "")
+    relative_path = metadata.get("relative_path", "")
+    document_uid = metadata.get("document_uid") or (
+        make_document_uid(source_id, relative_path) if source_id and relative_path else ""
+    )
+    organization = metadata.get("organization", "") or metadata.get("organization_client", "")
+    organization_type = (
+        metadata.get("organization_type")
+        or metadata.get("client_type")
+        or get_organization_type(organization)
+        or ""
+    )
+    project_type = metadata.get("project_type", "")
+    if not project_type:
+        project_type_candidates = classify_project_type(
+            " ".join(
+                part for part in [
+                    metadata.get("project_name", ""),
+                    metadata.get("source_path", ""),
+                    text[:400],
+                ] if part
+            )
+        )
+        project_type = project_type_candidates[0] if project_type_candidates else ""
 
-    for heading, section_text in sections:
+    for section_index, (heading, section_text) in enumerate(sections):
         section_start = current_char_pos
 
         for chunk_text in chunk_section(section_text, max_chars, overlap_chars, min_chars):
             chunk_len = len(chunk_text)
             chunk_start = current_char_pos
             chunk_end = chunk_start + chunk_len
+            section_title = heading.strip()
+            section_id = f"{document_id}-section-{section_index:02d}" if section_title else ""
 
             # Phase 2: 청크가 속하는 페이지 찾기
             page_no = None
@@ -240,6 +277,10 @@ def build_chunks_for_document(
                 ChunkRow(
                     chunk_id=f"{document_id}-chunk-{chunk_index:04d}",
                     document_id=document_id,
+                    source_id=source_id,
+                    dataset_id=metadata.get("dataset_id", ""),
+                    snapshot_id=metadata.get("snapshot_id", ""),
+                    document_uid=document_uid,
                     category=metadata.get("category", ""),
                     source_path=metadata.get("source_path", ""),
                     input_path=metadata.get("input_path", metadata.get("source_path", "")),
@@ -247,18 +288,22 @@ def build_chunks_for_document(
                     chunk_index=chunk_index,
                     char_count=chunk_len,
                     section_heading=heading,
+                    section_title=section_title,
+                    section_id=section_id,
+                    file_name=metadata.get("file_name", Path(metadata.get("source_path", "")).name),
+                    project_type=project_type,
+                    organization_type=organization_type,
+                    client_type=organization_type,
                     text=chunk_text,
                     page_no=page_no,
                     slide_no=slide_no,
                     start_char=chunk_start,
                     metadata={
                         "document_id": document_id,
-                        "source_id": metadata.get("source_id", ""),
+                        "source_id": source_id,
                         "dataset_id": metadata.get("dataset_id", ""),
-                        "document_uid": make_document_uid(
-                            metadata.get("source_id", ""),
-                            metadata.get("relative_path", "")
-                        ) if metadata.get("source_id") and metadata.get("relative_path") else "",
+                        "snapshot_id": metadata.get("snapshot_id", ""),
+                        "document_uid": document_uid,
                         "source_name": metadata.get("source_name", ""),
                         "category": metadata.get("category", ""),
                         "collection_name": metadata.get("collection_name", "weeslee_rag_main"),
@@ -267,9 +312,14 @@ def build_chunks_for_document(
                         "document_type": metadata.get("document_type", ""),
                         "extension": metadata.get("extension", ""),
                         "section_heading": heading,
+                        "section_title": section_title,
+                        "section_id": section_id,
                         "project_name": metadata.get("project_name", ""),
+                        "project_type": project_type,
                         "project_confidence": metadata.get("project_confidence", 0.0),
-                        "organization": metadata.get("organization", ""),
+                        "organization": organization,
+                        "organization_type": organization_type,
+                        "client_type": organization_type,
                         "organization_confidence": metadata.get("organization_confidence", 0.0),
                         "organization_client": metadata.get("organization_client", ""),
                         "source_root": metadata.get("source_root", ""),
@@ -301,6 +351,9 @@ def build_chunks_for_document(
                         "slide_no": slide_no,
                         "start_char": chunk_start,
                         "total_pages": doc_structure.total_pages,
+                        # 질문 하이라이트 후처리를 위한 예약 필드
+                        "matched_terms": [],
+                        "highlight_offsets": [],
                     },
                 )
             )
