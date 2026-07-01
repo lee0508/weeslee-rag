@@ -9,6 +9,24 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 
+def _extract_id_contract_from_chunks(chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    keys = ["source_id", "dataset_id", "document_uid", "relative_path", "snapshot_id"]
+    contract: Dict[str, Any] = {key: "" for key in keys}
+
+    for chunk in chunks:
+        meta = chunk.get("metadata") or {}
+        for key in keys:
+            if contract[key]:
+                continue
+            value = chunk.get(key)
+            if value is None or str(value).strip() == "":
+                value = meta.get(key)
+            if value is not None and str(value).strip():
+                contract[key] = value
+
+    return contract
+
+
 def _group_chunks_by_page(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     page_map: Dict[str, Dict[str, Any]] = {}
 
@@ -63,8 +81,10 @@ def save_chunks(self, document_id: int, chunks: List[Dict[str, Any]]) -> bool:
         chunk_file_path = doc_dir / "chunk_file.json"
         chunk_pages_path = doc_dir / "chunk_pages.json"
         page_groups = _group_chunks_by_page(chunks)
+        id_contract = _extract_id_contract_from_chunks(chunks)
         payload = {
             "document_id": document_id,
+            **id_contract,
             "chunks_count": len(chunks),
             "pages_count": len(page_groups),
             "chunks": chunks,
@@ -80,6 +100,7 @@ def save_chunks(self, document_id: int, chunks: List[Dict[str, Any]]) -> bool:
         with open(chunk_pages_path, "w", encoding="utf-8") as f:
             json.dump({
                 "document_id": document_id,
+                **id_contract,
                 "pages_count": len(page_groups),
                 "pages": page_groups,
                 "created_at": payload["created_at"],
@@ -149,7 +170,8 @@ def save_embeddings(
     self,
     document_id: int,
     embeddings: List[List[float]],
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     문서의 임베딩 저장 (pickle 형식)
@@ -177,6 +199,11 @@ def save_embeddings(
             "embeddings_count": len(embeddings),
             "embedding_dim": len(embeddings[0]) if embeddings and len(embeddings[0]) > 0 else 0,
             "model": model,
+            "source_id": str((metadata or {}).get("source_id") or ""),
+            "dataset_id": str((metadata or {}).get("dataset_id") or ""),
+            "document_uid": str((metadata or {}).get("document_uid") or ""),
+            "relative_path": str((metadata or {}).get("relative_path") or ""),
+            "snapshot_id": str((metadata or {}).get("snapshot_id") or ""),
             "created_at": datetime.now().isoformat()
         }
 

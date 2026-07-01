@@ -394,6 +394,7 @@ def _compute_pca_3d(matrix: np.ndarray) -> tuple[np.ndarray, list[float]]:
 async def generate_embeddings_for_document(
     document_id: int,
     chunks: list,
+    doc_meta: dict,
     model: str,
     batch_size: int,
     retry_count: int,
@@ -441,7 +442,12 @@ async def generate_embeddings_for_document(
         embedding_dim = len(valid_embeddings[0])
 
         # 임베딩 저장
-        text_store.save_embeddings(document_id, all_embeddings, model=model)
+        text_store.save_embeddings(
+            document_id,
+            all_embeddings,
+            model=model,
+            metadata=doc_meta,
+        )
 
         return {
             "success": True,
@@ -545,6 +551,13 @@ async def build_embeddings(
                 result = await generate_embeddings_for_document(
                     document_id=document_id,
                     chunks=chunks,
+                    doc_meta={
+                        "source_id": doc.source_id or "",
+                        "dataset_id": doc.dataset_id or "",
+                        "document_uid": doc.document_uid or "",
+                        "relative_path": doc.relative_path or "",
+                        "snapshot_id": "",
+                    },
                     model=req.model,
                     batch_size=req.batch_size,
                     retry_count=req.retry_count,
