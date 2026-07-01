@@ -18794,9 +18794,64 @@ LIMIT 10`;
 
       sse.onerror = () => {
         if (settled) return;
-        finishReject(new Error('Step 4 SSE 연결 오류'));
+        sse.close();
+        (async () => {
+          try {
+            _wizardAppendLog(step, 'Step 4 SSE 연결이 끊겨 상태 조회 폴백으로 전환합니다.');
+            const result = await _wizardPollStep4JobUntilDone(step, jobId);
+            finishResolve(result || {});
+          } catch (pollError) {
+            finishReject(new Error(pollError?.message || 'Step 4 SSE 연결 오류'));
+          }
+        })();
       };
     });
+  }
+
+  async function _wizardGetStep4Job(jobId) {
+    const response = await fetch(apiUrl(`/api/admin/dataset-builder/step4/parse/jobs/${jobId}`), {
+      headers: { Authorization: 'Bearer ' + getToken() }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json().catch(() => ({}));
+  }
+
+  async function _wizardPollStep4JobUntilDone(step, jobId, options = {}) {
+    const intervalMs = Number(options.intervalMs || 3000);
+    const timeoutMs = Number(options.timeoutMs || 60 * 60 * 1000);
+    const startedAt = Date.now();
+    let lastStage = '';
+    let seenDoneMessage = false;
+
+    while (Date.now() - startedAt < timeoutMs) {
+      const data = await _wizardGetStep4Job(jobId);
+      const lastEvent = data.last_event || {};
+      const stage = String(lastEvent.stage || '');
+      const progress = Number(lastEvent.progress || 0);
+
+      if (stage && stage !== lastStage) {
+        lastStage = stage;
+        _wizardAppendLog(step, `[poll ${progress}%] ${stage}`);
+      }
+      if (lastEvent.log) {
+        _wizardAppendJobLog(step, `[poll] ${lastEvent.log}`);
+      }
+
+      if (data.status === 'completed') {
+        if (!seenDoneMessage) {
+          _wizardAppendLog(step, 'Step 4 작업 완료를 상태 조회로 확인했습니다.');
+          seenDoneMessage = true;
+        }
+        return data.result || {};
+      }
+      if (data.status === 'failed') {
+        throw new Error(data.error || 'Step 4 작업 실패');
+      }
+
+      await _wizardSleep(intervalMs);
+    }
+
+    throw new Error('Step 4 상태 조회 타임아웃');
   }
 
   async function wizardRun(step) {

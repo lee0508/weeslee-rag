@@ -815,6 +815,9 @@ def create_parse_job(job_id: str) -> dict:
         "queue": asyncio.Queue(),
         "status": "running",
         "created_at": datetime.now().isoformat(),
+        "last_event": None,
+        "result": None,
+        "error": None,
     }
     _parse_jobs[job_id] = job
     return job
@@ -828,7 +831,19 @@ def get_parse_job(job_id: str) -> Optional[dict]:
 async def emit_parse_event(job_id: str, event: dict):
     """파싱 이벤트 전송."""
     job = get_parse_job(job_id)
-    if job and job["queue"]:
+    if not job:
+        return
+
+    job["last_event"] = event
+    if event.get("done"):
+        if event.get("error"):
+            job["status"] = "failed"
+            job["error"] = event.get("error")
+        else:
+            job["status"] = "completed"
+            job["result"] = event.get("result")
+
+    if job["queue"]:
         await job["queue"].put(event)
 
 
@@ -1035,6 +1050,24 @@ async def start_parse_stream(
         "success": True,
         "job_id": job_id,
         "message": "Parsing job started. Connect to /parse/stream/{job_id} for progress updates."
+    }
+
+
+@router.get("/parse/jobs/{job_id}")
+async def get_parse_job_status(job_id: str):
+    """Step 4 파싱 작업 상태 조회. SSE 연결 실패 시 폴링 폴백 용도."""
+    job = get_parse_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+    return {
+        "success": True,
+        "job_id": job["job_id"],
+        "status": job.get("status", "unknown"),
+        "created_at": job.get("created_at"),
+        "last_event": job.get("last_event"),
+        "result": job.get("result"),
+        "error": job.get("error"),
     }
 
 
