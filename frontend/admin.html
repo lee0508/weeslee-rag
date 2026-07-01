@@ -4916,6 +4916,25 @@ POST /api/admin/faiss/activate</code>
 
 <!-- Graph View tab -->
 <div id="tab-graph" class="tab-panel">
+  <!-- Snapshot/Source 컨텍스트 바 -->
+  <div style="display:flex;gap:16px;margin:0 16px 16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">Snapshot:</span>
+      <select id="graphSnapshotSelect" onchange="onGraphSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
+        <option value="">전체 Snapshot</option>
+      </select>
+      <span id="graphSnapshotActiveTag" style="display:none;font-size:10px;background:var(--green);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">Document Source:</span>
+      <select id="graphSourceSelect" onchange="onGraphSourceChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:180px">
+        <option value="">전체 Source</option>
+      </select>
+    </div>
+    <div class="bm-stat" style="margin-left:auto"><div class="val" id="graphStatNodes">-</div><div class="lbl">노드</div></div>
+    <div class="bm-stat"><div class="val" id="graphStatEdges">-</div><div class="lbl">엣지</div></div>
+  </div>
+
   <div class="graph-layout">
 
     <!-- Left: project list -->
@@ -5062,9 +5081,31 @@ POST /api/admin/faiss/activate</code>
 <!-- 🏷️ 메타데이터 탭 -->
 <div id="tab-metadata" class="tab-panel">
   <div class="layout" style="grid-template-columns: 1fr;">
-    <main class="main" style="max-width:1200px;margin:0 auto">
+    <main class="main" style="max-width:1400px;margin:0 auto">
       <div class="card">
-        <div class="card-title">🏷️ 메타데이터 관리</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>🏷️ 메타데이터 관리</span>
+          <button class="btn btn-outline" onclick="loadMetadataTab()">↻ 새로고침</button>
+        </div>
+
+        <!-- Snapshot/Source 컨텍스트 바 -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Snapshot:</span>
+            <select id="metaSnapshotSelect" onchange="onMetaSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
+              <option value="">전체 Snapshot</option>
+            </select>
+            <span id="metaSnapshotActiveTag" style="display:none;font-size:10px;background:var(--green);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Document Source:</span>
+            <select id="metaSourceSelect" onchange="onMetaSourceChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:180px">
+              <option value="">전체 Source</option>
+            </select>
+          </div>
+          <div class="bm-stat" style="margin-left:auto"><div class="val" id="metaStatTotal">-</div><div class="lbl">전체 문서</div></div>
+        </div>
+
         <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
           문서의 메타데이터(문서 유형, 사업명, 태그 등)를 자동 생성하고 검수합니다.
         </p>
@@ -5073,8 +5114,31 @@ POST /api/admin/faiss/activate</code>
           <div class="bm-stat"><div class="val" id="metaStatAutoSuggested">-</div><div class="lbl">자동 생성됨</div></div>
           <div class="bm-stat"><div class="val" id="metaStatConfirmed">-</div><div class="lbl">확정됨</div></div>
         </div>
-        <div style="margin-top:20px;color:var(--muted);font-size:12px">
-          자세한 메타데이터 작업은 "문서 관리" 탭에서 개별 문서의 "검수" 버튼을 사용하세요.
+
+        <!-- 메타데이터 목록 테이블 -->
+        <div style="margin-top:20px;overflow-x:auto">
+          <table class="bm-table" style="min-width:800px">
+            <thead>
+              <tr>
+                <th>파일명</th>
+                <th style="width:100px">문서 유형</th>
+                <th style="width:150px">프로젝트명</th>
+                <th style="width:100px">기관명</th>
+                <th style="width:80px">상태</th>
+                <th style="width:100px">작업</th>
+              </tr>
+            </thead>
+            <tbody id="metadataTableBody">
+              <tr><td colspan="6" class="empty">Snapshot을 선택하면 메타데이터 목록이 로드됩니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 페이지네이션 -->
+        <div id="metaPagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:16px">
+          <button class="btn btn-outline btn-sm" onclick="loadMetadataPage(metaCurrentPage - 1)" id="metaPrevBtn" disabled>◀ 이전</button>
+          <span id="metaPageInfo" style="font-size:13px;color:var(--muted)">1 / 1</span>
+          <button class="btn btn-outline btn-sm" onclick="loadMetadataPage(metaCurrentPage + 1)" id="metaNextBtn" disabled>다음 ▶</button>
         </div>
       </div>
     </main>
@@ -5084,18 +5148,41 @@ POST /api/admin/faiss/activate</code>
 <!-- ⚙️ RAG 처리 탭 -->
 <div id="tab-pipeline" class="tab-panel">
   <div class="layout" style="grid-template-columns: 1fr;">
-    <main class="main" style="max-width:1200px;margin:0 auto">
+    <main class="main" style="max-width:1400px;margin:0 auto">
       <div class="card">
-        <div class="card-title">⚙️ RAG 처리 파이프라인</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>⚙️ RAG 처리 파이프라인</span>
+          <button class="btn btn-outline" onclick="loadPipelineTab()">↻ 새로고침</button>
+        </div>
+
+        <!-- Snapshot/Source 컨텍스트 바 -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Snapshot:</span>
+            <select id="pipelineSnapshotSelect" onchange="onPipelineSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
+              <option value="">전체 Snapshot</option>
+            </select>
+            <span id="pipelineSnapshotActiveTag" style="display:none;font-size:10px;background:var(--green);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Document Source:</span>
+            <select id="pipelineSourceSelect" onchange="onPipelineSourceChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:180px">
+              <option value="">전체 Source</option>
+            </select>
+          </div>
+          <div class="bm-stat" style="margin-left:auto"><div class="val" id="pipelineStatChunks">-</div><div class="lbl">전체 Chunk</div></div>
+          <div class="bm-stat"><div class="val" id="pipelineStatEmbedded">-</div><div class="lbl">임베딩 완료</div></div>
+        </div>
+
         <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
           선택한 문서를 기존 active snapshot에 증분 추가합니다. 전처리, 청킹, 임베이딩, FAISS 반영까지 순서대로 진행됩니다.
         </p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-          <div style="background:var(--surface2);padding:14px;border-radius:8px">
+          <div style="background:var(--surface1);padding:14px;border-radius:8px">
             <div style="font-size:11px;color:var(--muted);margin-bottom:4px">선택 문서 수</div>
             <div id="pipelineSelectedDocs" style="font-size:22px;font-weight:700">0건</div>
           </div>
-          <div style="background:var(--surface2);padding:14px;border-radius:8px">
+          <div style="background:var(--surface1);padding:14px;border-radius:8px">
             <div style="font-size:11px;color:var(--muted);margin-bottom:4px">현재 active snapshot</div>
             <div id="pipelineActiveSnapshot" style="font-size:14px;font-weight:700;word-break:break-all">-</div>
           </div>
@@ -5163,9 +5250,31 @@ POST /api/admin/faiss/activate</code>
 <!-- 📚 LLM-Wiki 탭 -->
 <div id="tab-wiki" class="tab-panel">
   <div class="layout" style="grid-template-columns: 1fr;">
-    <main class="main" style="max-width:1200px;margin:0 auto">
+    <main class="main" style="max-width:1400px;margin:0 auto">
       <div class="card">
-        <div class="card-title">📚 LLM-Wiki 관리</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📚 LLM-Wiki 관리</span>
+          <button class="btn btn-outline" onclick="loadWikiTab()">↻ 새로고침</button>
+        </div>
+
+        <!-- Snapshot/Source 컨텍스트 바 -->
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Snapshot:</span>
+            <select id="wikiSnapshotSelect" onchange="onWikiSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
+              <option value="">전체 Snapshot</option>
+            </select>
+            <span id="wikiSnapshotActiveTag" style="display:none;font-size:10px;background:var(--green);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Document Source:</span>
+            <select id="wikiSourceSelect" onchange="onWikiSourceChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:180px">
+              <option value="">전체 Source</option>
+            </select>
+          </div>
+          <div class="bm-stat" style="margin-left:auto"><div class="val" id="wikiStatTotal">-</div><div class="lbl">전체 Wiki</div></div>
+        </div>
+
         <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
           문서를 사람이 이해할 수 있는 지식 구조로 정리합니다.
         </p>
@@ -5180,6 +5289,26 @@ POST /api/admin/faiss/activate</code>
           <button class="btn btn-secondary" onclick="generateWikiByTechnology()">기술별 Wiki 생성</button>
           <button class="btn btn-outline" onclick="runGraphify()">Graph RAG 7단계 열기</button>
         </div>
+
+        <!-- Wiki 목록 테이블 -->
+        <div style="margin-top:20px;overflow-x:auto">
+          <table class="bm-table" style="min-width:800px">
+            <thead>
+              <tr>
+                <th>Wiki ID</th>
+                <th style="width:100px">유형</th>
+                <th style="width:200px">제목</th>
+                <th style="width:100px">문서 수</th>
+                <th style="width:120px">생성일</th>
+                <th style="width:100px">작업</th>
+              </tr>
+            </thead>
+            <tbody id="wikiTableBody">
+              <tr><td colspan="6" class="empty">Snapshot을 선택하면 Wiki 목록이 로드됩니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
         <div id="wikiList" style="margin-top:20px"></div>
       </div>
     </main>
@@ -5358,6 +5487,25 @@ POST /api/admin/faiss/activate</code>
 <!-- 🏷️ Tag / Keyword Manager 탭 -->
 <!-- ───────────────────────────────────────────────────────────── -->
 <div id="tab-tagkeyword" class="tab-panel">
+  <!-- Snapshot/Source 컨텍스트 바 -->
+  <div style="display:flex;gap:16px;margin:0 16px 16px;flex-wrap:wrap;align-items:center;background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--navy)">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">Snapshot:</span>
+      <select id="tagSnapshotSelect" onchange="onTagSnapshotChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:280px">
+        <option value="">전체 Snapshot</option>
+      </select>
+      <span id="tagSnapshotActiveTag" style="display:none;font-size:10px;background:var(--green);color:white;padding:2px 6px;border-radius:4px">ACTIVE</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">Document Source:</span>
+      <select id="tagSourceSelect" onchange="onTagSourceChange()" style="padding:4px 8px;border-radius:4px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;min-width:180px">
+        <option value="">전체 Source</option>
+      </select>
+    </div>
+    <div class="bm-stat" style="margin-left:auto"><div class="val" id="tagStatTotal">-</div><div class="lbl">전체 Tag</div></div>
+    <div class="bm-stat"><div class="val" id="keywordStatTotal">-</div><div class="lbl">전체 Keyword</div></div>
+  </div>
+
   <div class="layout" style="grid-template-columns:200px 1fr">
 
     <!-- 좌측: Tag Type 목록 -->
@@ -7013,9 +7161,13 @@ POST /api/admin/faiss/activate</code>
       if (!cy) initCytoscape();
       else cy.resize();
       loadGraphSummary();
+      loadGraphTabContext();  // Snapshot/Source 컨텍스트 로드
     }
     if (name === 'metadata' || name === 'documents') {
       loadDocumentStats();
+    }
+    if (name === 'metadata') {
+      loadMetadataTabContext();  // 메타데이터 탭 Snapshot/Source 로드
     }
     if (name === 'platform') {
       if (typeof loadClients === 'function') loadClients();
@@ -7025,14 +7177,356 @@ POST /api/admin/faiss/activate</code>
       if (typeof loadPlatformDefaultModels === 'function') loadPlatformDefaultModels();
     }
     if (name === 'collection') loadCollections();
-    if (name === 'tagkeyword') { loadTags(); _currentTagType = 'document_group'; }
+    if (name === 'tagkeyword') { loadTags(); _currentTagType = 'document_group'; loadTagTabContext(); }
     if (name === 'dashboard') loadDashboard();
     if (name === 'wizard') renderWizardProgressBar();
     if (name === 'docsource') loadDocSources();
     if (name === 'querylogs') loadQueryLogsDashboard();
     if (name === 'documents') { loadDocTabContext(); }
-    if (name === 'wiki') loadWikiStats();
-    if (name === 'pipeline') syncPipelineSelectionState();
+    if (name === 'wiki') { loadWikiStats(); loadWikiTabContext(); }
+    if (name === 'pipeline') { syncPipelineSelectionState(); loadPipelineTabContext(); }
+  }
+
+  // ═══ 공용 Snapshot/Source 로더 (각 탭용) ═══════════════════════════════════
+  // 캐시된 Snapshot/Source 데이터
+  let _cachedSnapshots = null;
+  let _cachedSources = null;
+  let _cachedActiveSnapshotId = null;
+
+  async function fetchSnapshotsAndSources() {
+    // 캐시가 있으면 재사용 (5초 TTL)
+    if (_cachedSnapshots && _cachedSources) {
+      return { snapshots: _cachedSnapshots, sources: _cachedSources, activeSnapshotId: _cachedActiveSnapshotId };
+    }
+    const [snapData, srcData] = await Promise.all([
+      api('/admin/snapshots').catch(() => ({ snapshots: [] })),
+      api('/admin/document-sources').catch(() => [])
+    ]);
+    _cachedSnapshots = snapData.snapshots || [];
+    _cachedActiveSnapshotId = snapData.active_snapshot_id || null;
+    _cachedSources = Array.isArray(srcData) ? srcData : [];
+    // 5초 후 캐시 만료
+    setTimeout(() => { _cachedSnapshots = null; _cachedSources = null; }, 5000);
+    return { snapshots: _cachedSnapshots, sources: _cachedSources, activeSnapshotId: _cachedActiveSnapshotId };
+  }
+
+  function populateSnapshotSelect(selectId, snapshots, activeSnapshotId, activeTagId) {
+    const select = document.getElementById(selectId);
+    const activeTag = activeTagId ? document.getElementById(activeTagId) : null;
+    if (!select) return;
+    select.innerHTML = '<option value="">전체 Snapshot</option>';
+    snapshots.forEach(snap => {
+      const opt = document.createElement('option');
+      opt.value = snap.snapshot_id;
+      const label = snap.is_active ? `★ ${snap.snapshot_name || snap.snapshot_id}` : (snap.snapshot_name || snap.snapshot_id);
+      opt.textContent = label;
+      opt.dataset.sourceId = snap.source_id || '';
+      opt.dataset.isActive = snap.is_active ? 'true' : 'false';
+      select.appendChild(opt);
+    });
+    if (activeSnapshotId) select.value = activeSnapshotId;
+    if (activeTag) {
+      const selectedOpt = select.options[select.selectedIndex];
+      activeTag.style.display = selectedOpt?.dataset.isActive === 'true' ? 'inline' : 'none';
+    }
+  }
+
+  function populateSourceSelect(selectId, sources) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '<option value="">전체 Source</option>';
+    sources.forEach(src => {
+      const opt = document.createElement('option');
+      opt.value = src.source_id;
+      opt.textContent = src.source_name || src.source_id;
+      select.appendChild(opt);
+    });
+  }
+
+  // ── 메타데이터 탭 컨텍스트 ─────────────────────────────────────────────────
+  let metaCurrentPage = 1;
+  let metaTotalPages = 1;
+
+  async function loadMetadataTabContext() {
+    try {
+      const { snapshots, sources, activeSnapshotId } = await fetchSnapshotsAndSources();
+      populateSnapshotSelect('metaSnapshotSelect', snapshots, activeSnapshotId, 'metaSnapshotActiveTag');
+      populateSourceSelect('metaSourceSelect', sources);
+      onMetaSnapshotChange();
+    } catch (e) {
+      console.error('loadMetadataTabContext error:', e);
+    }
+  }
+
+  function loadMetadataTab() { loadMetadataTabContext(); }
+
+  async function onMetaSnapshotChange() {
+    const select = document.getElementById('metaSnapshotSelect');
+    const activeTag = document.getElementById('metaSnapshotActiveTag');
+    const sourceSelect = document.getElementById('metaSourceSelect');
+    if (!select) return;
+    const selectedOpt = select.options[select.selectedIndex];
+    const sourceId = selectedOpt?.dataset.sourceId || '';
+    const isActive = selectedOpt?.dataset.isActive === 'true';
+    if (activeTag) activeTag.style.display = isActive ? 'inline' : 'none';
+    if (sourceSelect && sourceId) {
+      for (let i = 0; i < sourceSelect.options.length; i++) {
+        if (sourceSelect.options[i].value === sourceId) { sourceSelect.selectedIndex = i; break; }
+      }
+    }
+    await loadMetadataList();
+  }
+
+  function onMetaSourceChange() { loadMetadataList(); }
+
+  async function loadMetadataList() {
+    const snapshotId = document.getElementById('metaSnapshotSelect')?.value || '';
+    const sourceId = document.getElementById('metaSourceSelect')?.value || '';
+    const tbody = document.getElementById('metadataTableBody');
+    const statTotal = document.getElementById('metaStatTotal');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">로딩 중...</td></tr>';
+    try {
+      const params = new URLSearchParams();
+      if (snapshotId) params.append('snapshot_id', snapshotId);
+      if (sourceId) params.append('source_id', sourceId);
+      params.append('page', metaCurrentPage);
+      params.append('limit', 20);
+      const data = await api(`/admin/documents?${params.toString()}`);
+      const docs = data.documents || data.items || [];
+      if (statTotal) statTotal.textContent = data.total || docs.length;
+      if (!docs.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">문서가 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = docs.map(d => `
+        <tr>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(d.file_name)}">${esc(d.file_name)}</td>
+          <td>${esc(d.document_type || d.doc_type || '-')}</td>
+          <td>${esc(d.project_name || '-')}</td>
+          <td>${esc(d.organization || '-')}</td>
+          <td><span class="badge badge-${d.meta_status === 'confirmed' ? 'success' : 'outline'}">${d.meta_status || '-'}</span></td>
+          <td><button class="btn btn-outline btn-sm" onclick="openDocInspector('${d.id || d.document_id}')">검수</button></td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty err">로드 실패: ${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  function loadMetadataPage(page) {
+    if (page < 1) return;
+    metaCurrentPage = page;
+    loadMetadataList();
+  }
+
+  // ── Tag/Keyword 탭 컨텍스트 ────────────────────────────────────────────────
+  async function loadTagTabContext() {
+    try {
+      const { snapshots, sources, activeSnapshotId } = await fetchSnapshotsAndSources();
+      populateSnapshotSelect('tagSnapshotSelect', snapshots, activeSnapshotId, 'tagSnapshotActiveTag');
+      populateSourceSelect('tagSourceSelect', sources);
+      updateTagStats();
+    } catch (e) {
+      console.error('loadTagTabContext error:', e);
+    }
+  }
+
+  function onTagSnapshotChange() {
+    const select = document.getElementById('tagSnapshotSelect');
+    const activeTag = document.getElementById('tagSnapshotActiveTag');
+    const sourceSelect = document.getElementById('tagSourceSelect');
+    if (!select) return;
+    const selectedOpt = select.options[select.selectedIndex];
+    const sourceId = selectedOpt?.dataset.sourceId || '';
+    const isActive = selectedOpt?.dataset.isActive === 'true';
+    if (activeTag) activeTag.style.display = isActive ? 'inline' : 'none';
+    if (sourceSelect && sourceId) {
+      for (let i = 0; i < sourceSelect.options.length; i++) {
+        if (sourceSelect.options[i].value === sourceId) { sourceSelect.selectedIndex = i; break; }
+      }
+    }
+    loadTags();
+    updateTagStats();
+  }
+
+  function onTagSourceChange() { loadTags(); updateTagStats(); }
+
+  async function updateTagStats() {
+    const sourceId = document.getElementById('tagSourceSelect')?.value || '';
+    try {
+      const params = sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : '';
+      const [tagData, kwData] = await Promise.all([
+        api(`/admin/tags${params}`).catch(() => ({ total: 0 })),
+        api(`/admin/keywords${params}`).catch(() => ({ total: 0 }))
+      ]);
+      const tags = tagData.tags || tagData.items || tagData;
+      const keywords = kwData.keywords || kwData.items || kwData;
+      document.getElementById('tagStatTotal').textContent = Array.isArray(tags) ? tags.length : (tagData.total || '-');
+      document.getElementById('keywordStatTotal').textContent = Array.isArray(keywords) ? keywords.length : (kwData.total || '-');
+    } catch (e) {
+      console.error('updateTagStats error:', e);
+    }
+  }
+
+  // ── LLM Wiki 탭 컨텍스트 ───────────────────────────────────────────────────
+  async function loadWikiTabContext() {
+    try {
+      const { snapshots, sources, activeSnapshotId } = await fetchSnapshotsAndSources();
+      populateSnapshotSelect('wikiSnapshotSelect', snapshots, activeSnapshotId, 'wikiSnapshotActiveTag');
+      populateSourceSelect('wikiSourceSelect', sources);
+      loadWikiList();
+    } catch (e) {
+      console.error('loadWikiTabContext error:', e);
+    }
+  }
+
+  function loadWikiTab() { loadWikiTabContext(); }
+
+  function onWikiSnapshotChange() {
+    const select = document.getElementById('wikiSnapshotSelect');
+    const activeTag = document.getElementById('wikiSnapshotActiveTag');
+    const sourceSelect = document.getElementById('wikiSourceSelect');
+    if (!select) return;
+    const selectedOpt = select.options[select.selectedIndex];
+    const sourceId = selectedOpt?.dataset.sourceId || '';
+    const isActive = selectedOpt?.dataset.isActive === 'true';
+    if (activeTag) activeTag.style.display = isActive ? 'inline' : 'none';
+    if (sourceSelect && sourceId) {
+      for (let i = 0; i < sourceSelect.options.length; i++) {
+        if (sourceSelect.options[i].value === sourceId) { sourceSelect.selectedIndex = i; break; }
+      }
+    }
+    loadWikiList();
+  }
+
+  function onWikiSourceChange() { loadWikiList(); }
+
+  async function loadWikiList() {
+    const snapshotId = document.getElementById('wikiSnapshotSelect')?.value || '';
+    const sourceId = document.getElementById('wikiSourceSelect')?.value || '';
+    const tbody = document.getElementById('wikiTableBody');
+    const statTotal = document.getElementById('wikiStatTotal');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">로딩 중...</td></tr>';
+    try {
+      const params = new URLSearchParams();
+      if (snapshotId) params.append('snapshot_id', snapshotId);
+      if (sourceId) params.append('source_id', sourceId);
+      const data = await api(`/admin/wiki/list?${params.toString()}`).catch(() => ({ wikis: [] }));
+      const wikis = data.wikis || data.items || [];
+      if (statTotal) statTotal.textContent = wikis.length;
+      if (!wikis.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Wiki가 없습니다. 위 버튼으로 생성하세요.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = wikis.map(w => `
+        <tr>
+          <td>${esc(w.wiki_id || w.id || '-')}</td>
+          <td>${esc(w.wiki_type || w.type || '-')}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(w.title || '-')}</td>
+          <td>${w.document_count || '-'}</td>
+          <td>${w.created_at ? new Date(w.created_at).toLocaleDateString() : '-'}</td>
+          <td><button class="btn btn-outline btn-sm" onclick="viewWiki('${w.wiki_id || w.id}')">보기</button></td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty err">로드 실패: ${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  // ── Graph View 탭 컨텍스트 ─────────────────────────────────────────────────
+  async function loadGraphTabContext() {
+    try {
+      const { snapshots, sources, activeSnapshotId } = await fetchSnapshotsAndSources();
+      populateSnapshotSelect('graphSnapshotSelect', snapshots, activeSnapshotId, 'graphSnapshotActiveTag');
+      populateSourceSelect('graphSourceSelect', sources);
+      updateGraphStats();
+    } catch (e) {
+      console.error('loadGraphTabContext error:', e);
+    }
+  }
+
+  function onGraphSnapshotChange() {
+    const select = document.getElementById('graphSnapshotSelect');
+    const activeTag = document.getElementById('graphSnapshotActiveTag');
+    const sourceSelect = document.getElementById('graphSourceSelect');
+    if (!select) return;
+    const selectedOpt = select.options[select.selectedIndex];
+    const sourceId = selectedOpt?.dataset.sourceId || '';
+    const isActive = selectedOpt?.dataset.isActive === 'true';
+    if (activeTag) activeTag.style.display = isActive ? 'inline' : 'none';
+    if (sourceSelect && sourceId) {
+      for (let i = 0; i < sourceSelect.options.length; i++) {
+        if (sourceSelect.options[i].value === sourceId) { sourceSelect.selectedIndex = i; break; }
+      }
+    }
+    loadGraphSummary();
+    updateGraphStats();
+  }
+
+  function onGraphSourceChange() { loadGraphSummary(); updateGraphStats(); }
+
+  async function updateGraphStats() {
+    const sourceId = document.getElementById('graphSourceSelect')?.value || '';
+    try {
+      const params = sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : '';
+      const data = await api(`/admin/knowledge-graph/status${params}`).catch(() => ({}));
+      document.getElementById('graphStatNodes').textContent = data.node_count || '-';
+      document.getElementById('graphStatEdges').textContent = data.edge_count || '-';
+    } catch (e) {
+      console.error('updateGraphStats error:', e);
+    }
+  }
+
+  // ── RAG 처리(Pipeline) 탭 컨텍스트 ─────────────────────────────────────────
+  async function loadPipelineTabContext() {
+    try {
+      const { snapshots, sources, activeSnapshotId } = await fetchSnapshotsAndSources();
+      populateSnapshotSelect('pipelineSnapshotSelect', snapshots, activeSnapshotId, 'pipelineSnapshotActiveTag');
+      populateSourceSelect('pipelineSourceSelect', sources);
+      updatePipelineStats();
+    } catch (e) {
+      console.error('loadPipelineTabContext error:', e);
+    }
+  }
+
+  function loadPipelineTab() { loadPipelineTabContext(); syncPipelineSelectionState(); }
+
+  function onPipelineSnapshotChange() {
+    const select = document.getElementById('pipelineSnapshotSelect');
+    const activeTag = document.getElementById('pipelineSnapshotActiveTag');
+    const sourceSelect = document.getElementById('pipelineSourceSelect');
+    if (!select) return;
+    const selectedOpt = select.options[select.selectedIndex];
+    const sourceId = selectedOpt?.dataset.sourceId || '';
+    const isActive = selectedOpt?.dataset.isActive === 'true';
+    if (activeTag) activeTag.style.display = isActive ? 'inline' : 'none';
+    if (sourceSelect && sourceId) {
+      for (let i = 0; i < sourceSelect.options.length; i++) {
+        if (sourceSelect.options[i].value === sourceId) { sourceSelect.selectedIndex = i; break; }
+      }
+    }
+    updatePipelineStats();
+  }
+
+  function onPipelineSourceChange() { updatePipelineStats(); }
+
+  async function updatePipelineStats() {
+    const snapshotId = document.getElementById('pipelineSnapshotSelect')?.value || '';
+    const sourceId = document.getElementById('pipelineSourceSelect')?.value || '';
+    try {
+      const params = new URLSearchParams();
+      if (snapshotId) params.append('snapshot_id', snapshotId);
+      if (sourceId) params.append('source_id', sourceId);
+      const data = await api(`/admin/faiss/status?${params.toString()}`).catch(() => ({}));
+      const chunks = data.active?.total_chunks || data.total_chunks || '-';
+      const embedded = data.active?.embedded_chunks || data.embedded_count || '-';
+      document.getElementById('pipelineStatChunks').textContent = chunks;
+      document.getElementById('pipelineStatEmbedded').textContent = embedded;
+    } catch (e) {
+      console.error('updatePipelineStats error:', e);
+    }
   }
 
   // ── Collection Manager 탭 ────────────────────────────────────────────────
