@@ -4123,6 +4123,8 @@
       const inferredDocumentGroup = resolvedFilters.document_group || '';
       const usesHybridSearch = effectiveMode === 'hybrid_rag' || effectiveMode === 'graph_rag';
       const effectiveDocumentGroup = manualDocumentGroup || (!usesHybridSearch ? inferredDocumentGroup : '');
+      const effectiveDocumentCategory = !usesHybridSearch ? resolvedFilters.document_category : '';
+      const effectiveSectionType = !usesHybridSearch ? resolvedFilters.section_type : '';
       const inferredCategory = resolveDocumentGroupCategory(inferredDocumentGroup);
       const effectiveCategory = category || (!usesHybridSearch ? inferredCategory : '');
       if (_rfpSelectedFile && status) status.textContent = t('rfp_active_notice');
@@ -4143,8 +4145,8 @@
         ...(effectiveCategory ? { category: effectiveCategory }   : {}),
         ...(collection    ? { collection }                       : {}),
         ...(effectiveDocumentGroup ? { document_group: effectiveDocumentGroup } : {}),
-        ...(resolvedFilters.document_category ? { document_category: resolvedFilters.document_category } : {}),
-        ...(resolvedFilters.section_type ? { section_type: resolvedFilters.section_type } : {}),
+        ...(effectiveDocumentCategory ? { document_category: effectiveDocumentCategory } : {}),
+        ...(effectiveSectionType ? { section_type: effectiveSectionType } : {}),
         ...(filterOrg     ? { organization: filterOrg }          : {}),
         ...(filterYear    ? { year: filterYear }                 : {})
       };
@@ -4167,8 +4169,8 @@
           formData.append('answer_model', answerProvider === 'none' ? '' : answerModel);
           if (effectiveCategory) formData.append('category', effectiveCategory);
           if (effectiveDocumentGroup) formData.append('document_group', effectiveDocumentGroup);
-          if (resolvedFilters.document_category) formData.append('document_category', resolvedFilters.document_category);
-          if (resolvedFilters.section_type) formData.append('section_type', resolvedFilters.section_type);
+          if (effectiveDocumentCategory) formData.append('document_category', effectiveDocumentCategory);
+          if (effectiveSectionType) formData.append('section_type', effectiveSectionType);
 
           const response = await fetch(`${API_BASE}/rag/query-with-rfp`, {
             method: 'POST',
@@ -4197,8 +4199,8 @@
             ...(!selectedSnapshotIds.length && searchScopeMeta?.source_ids?.length === 1 ? { source_id: searchScopeMeta.source_ids[0] } : {}),
             ...(effectiveCategory ? { category: effectiveCategory } : {}),
             ...(effectiveDocumentGroup ? { document_group: effectiveDocumentGroup } : {}),
-            ...(resolvedFilters.document_category ? { document_category: resolvedFilters.document_category } : {}),
-            ...(resolvedFilters.section_type ? { section_type: resolvedFilters.section_type } : {}),
+            ...(effectiveDocumentCategory ? { document_category: effectiveDocumentCategory } : {}),
+            ...(effectiveSectionType ? { section_type: effectiveSectionType } : {}),
             ...(collection ? { collection } : {}),
             ...(filterOrg ? { organization: filterOrg } : {}),
             ...(filterYear ? { year: filterYear } : {})
