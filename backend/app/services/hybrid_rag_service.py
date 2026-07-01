@@ -755,12 +755,17 @@ class HybridRAGService:
                     )
 
                 graph_doc_ids = self._graph_candidate_document_ids(graph_results)
+
+                # Graph 결과가 없거나 문서 리콜을 우선할 경우 FAISS에서 전체 검색
+                # graph_doc_ids가 빈 집합이면 FAISS 전체 검색으로 fallback
+                use_graph_filter = bool(graph_doc_ids) and not prefers_document_recall
+
                 faiss_results, faiss_time = await self._search_faiss(
                     faiss_query,
                     max(top_k * 5, top_k) if graph_doc_ids else top_k,
                     category_filter=category,
                     organization_filter=faiss_org_filter,
-                    allowed_document_ids=None if prefers_document_recall else (graph_doc_ids or None),
+                    allowed_document_ids=graph_doc_ids if use_graph_filter else None,
                     metadata_filters=metadata_filters,
                 )
 

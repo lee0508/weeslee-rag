@@ -75,6 +75,7 @@ def _tokenize(text: str) -> list[str]:
 
 
 def _resolve_snapshot_index_files(snapshot: Optional[str]) -> tuple[Optional[Path], Optional[Path], Optional[Path], Optional[str]]:
+    """단일 인덱스 파일 반환 (호환성 유지용)."""
     snapshot = str(snapshot or "").strip()
     if not snapshot:
         return None, None, None, None
@@ -93,6 +94,32 @@ def _resolve_snapshot_index_files(snapshot: Optional[str]) -> tuple[Optional[Pat
             return cat_index, cat_meta, cat_manifest, category
 
     return primary_index, primary_meta, primary_manifest, None
+
+
+def _resolve_all_snapshot_index_files(snapshot: Optional[str]) -> list[tuple[Path, Path, Optional[Path], Optional[str]]]:
+    """스냅샷에 대한 모든 카테고리별 인덱스 파일 반환."""
+    snapshot = str(snapshot or "").strip()
+    if not snapshot:
+        return []
+
+    results: list[tuple[Path, Path, Optional[Path], Optional[str]]] = []
+
+    # 1. 통합 인덱스가 있으면 그것만 사용
+    primary_index = INDEXES_DIR / f"{snapshot}_ollama.index"
+    primary_meta = INDEXES_DIR / f"{snapshot}_ollama_metadata.jsonl"
+    primary_manifest = INDEXES_DIR / f"{snapshot}_ollama.manifest.json"
+    if primary_index.exists() and primary_meta.exists():
+        return [(primary_index, primary_meta, primary_manifest, None)]
+
+    # 2. 카테고리별 인덱스 모두 수집
+    for category in _CATEGORY_SUFFIXES:
+        cat_index = INDEXES_DIR / f"{snapshot}_{category}_ollama.index"
+        cat_meta = INDEXES_DIR / f"{snapshot}_{category}_ollama_metadata.jsonl"
+        cat_manifest = INDEXES_DIR / f"{snapshot}_{category}_ollama.manifest.json"
+        if cat_index.exists() and cat_meta.exists():
+            results.append((cat_index, cat_meta, cat_manifest if cat_manifest.exists() else None, category))
+
+    return results
 
 
 def _normalize_vector(vector: np.ndarray) -> np.ndarray:
@@ -172,7 +199,11 @@ class FaissSearchService:
         self._manifest_dim: Optional[int] = None
         self._init_embedding_dim = embedding_dim
         self._index = None
+        # 카테고리별 인덱스 지원
+        self._indexes: dict[str, Any] = {}  # category -> faiss index
         self._metadata: list[dict] = []
+        self._metadata_by_category: dict[str, list[dict]] = {}  # category -> metadata list
+        self._category_offsets: dict[str, int] = {}  # category -> start offset in _metadata
         self._active_metadata: list[dict] = []
         self._active_document_ids: set[str] = set()
         self._chunks: dict[str, dict] = {}  # chunk_id -> chunk data
@@ -205,81 +236,93 @@ class FaissSearchService:
             return None
 
     def _load_index(self) -> bool:
-        """FAISS 인덱스 로드. active_index.json 기준으로 {snapshot}_ollama.index 파일을 찾는다."""
+        """FAISS 인덱스 로드. 모든 카테고리별 인덱스를 로드한다."""
         if self._loaded:
-            return self._index is not None
+            return self._index is not None or bool(self._indexes)
 
         try:
             import faiss
         except ImportError:
+            self._loaded = True
             return False
 
         index_dir = self._get_index_dir()
-        index_path = None
-        metadata_path = None
-        manifest_path = None
-
-        selected_category = None
-
-        # 1. active_index.json에서 snapshot 읽기
         snapshot = self._get_active_snapshot()
-        if snapshot:
-            index_path, metadata_path, manifest_path, selected_category = _resolve_snapshot_index_files(snapshot)
 
-        # 2. 새 규칙 파일이 없으면 legacy 파일명 시도
-        if not index_path or not index_path.exists():
-            index_path = index_dir / "chunks.index"
-            metadata_path = index_dir / "chunks_metadata.jsonl"
-            manifest_path = None
+        # 모든 카테고리 인덱스 수집
+        all_index_files = _resolve_all_snapshot_index_files(snapshot) if snapshot else []
 
-        if not index_path.exists() or not metadata_path.exists():
-            # 기본 경로 시도
-            index_path = INDEXES_DIR / "chunks.index"
-            metadata_path = INDEXES_DIR / "chunks_metadata.jsonl"
-            manifest_path = None
+        # Legacy 파일 시도
+        if not all_index_files:
+            legacy_index = index_dir / "chunks.index"
+            legacy_meta = index_dir / "chunks_metadata.jsonl"
+            if not legacy_index.exists():
+                legacy_index = INDEXES_DIR / "chunks.index"
+                legacy_meta = INDEXES_DIR / "chunks_metadata.jsonl"
+            if legacy_index.exists() and legacy_meta.exists():
+                all_index_files = [(legacy_index, legacy_meta, None, None)]
 
-        if not index_path.exists():
+        if not all_index_files:
             self._loaded = True
             return False
 
         try:
-            self._index = faiss.read_index(str(index_path))
+            # 모든 인덱스와 메타데이터 로드
+            for index_path, metadata_path, manifest_path, category in all_index_files:
+                if not index_path.exists() or not metadata_path.exists():
+                    continue
 
-            # manifest에서 embedding_dim 및 모델 정보 읽기
-            if manifest_path and manifest_path.exists():
-                with open(manifest_path, "r", encoding="utf-8") as f:
-                    manifest = json.load(f)
-                self._manifest_dim = manifest.get("embedding_dim")
-                # manifest에 모델 정보가 있으면 사용
-                if manifest.get("embedding_model"):
-                    self.ollama_model = manifest["embedding_model"]
+                cat_key = category or "_default_"
+                cat_index = faiss.read_index(str(index_path))
+                self._indexes[cat_key] = cat_index
 
-            # 메타데이터에서 embedding_provider 감지
-            if metadata_path.exists():
+                # manifest에서 embedding_dim 읽기
+                if manifest_path and manifest_path.exists():
+                    with open(manifest_path, "r", encoding="utf-8") as f:
+                        manifest = json.load(f)
+                    if self._manifest_dim is None:
+                        self._manifest_dim = manifest.get("embedding_dim")
+                    if manifest.get("embedding_model"):
+                        self.ollama_model = manifest["embedding_model"]
+
+                # 메타데이터 로드
+                cat_metadata: list[dict] = []
                 with open(metadata_path, "r", encoding="utf-8") as f:
-                    self._metadata = [
-                        json.loads(line)
-                        for line in f
-                        if line.strip()
-                    ]
-                if self.source_id:
-                    self._active_metadata = [
-                        row for row in self._metadata
-                        if str(row.get("source_id") or row.get("metadata", {}).get("source_id") or "").strip() == self.source_id
-                    ]
-                else:
-                    self._active_metadata = list(self._metadata)
-                self._active_document_ids = {
-                    str(row.get("document_id") or "").strip()
-                    for row in self._active_metadata
-                    if str(row.get("document_id") or "").strip()
-                }
+                    for line in f:
+                        if line.strip():
+                            row = json.loads(line)
+                            if category:
+                                row.setdefault("category", category)
+                            cat_metadata.append(row)
+
+                # 카테고리별 메타데이터 저장
+                self._metadata_by_category[cat_key] = cat_metadata
+                self._category_offsets[cat_key] = len(self._metadata)
+                self._metadata.extend(cat_metadata)
+
                 # ollama 인덱스면 embedding_provider 업데이트
                 if "_ollama" in str(index_path):
                     self.embedding_provider = "ollama"
-                if selected_category:
-                    for row in self._metadata:
-                        row.setdefault("category", selected_category)
+
+            # 호환성: 첫 번째 인덱스를 기본 인덱스로 설정
+            if self._indexes:
+                first_key = next(iter(self._indexes))
+                self._index = self._indexes[first_key]
+
+            # active_metadata 구성
+            if self.source_id:
+                self._active_metadata = [
+                    row for row in self._metadata
+                    if str(row.get("source_id") or row.get("metadata", {}).get("source_id") or "").strip() == self.source_id
+                ]
+            else:
+                self._active_metadata = list(self._metadata)
+
+            self._active_document_ids = {
+                str(row.get("document_id") or "").strip()
+                for row in self._active_metadata
+                if str(row.get("document_id") or "").strip()
+            }
 
             # 청크 텍스트 로드 (있으면)
             chunks_path = index_dir / "chunks.jsonl"
@@ -295,7 +338,7 @@ class FaissSearchService:
                                 self._chunks[chunk_id] = chunk
 
             self._loaded = True
-            return True
+            return bool(self._indexes)
 
         except Exception:
             self._loaded = True
@@ -322,7 +365,7 @@ class FaissSearchService:
         organization_filter: Optional[str] = None,
     ) -> FaissSearchResponse:
         """
-        FAISS 벡터 검색.
+        FAISS 벡터 검색. 모든 카테고리 인덱스를 검색하고 결과를 병합한다.
 
         Args:
             query: 검색 쿼리
@@ -344,7 +387,7 @@ class FaissSearchService:
                 search_time_ms=int((time.time() - start_time) * 1000),
             )
 
-        if self._index is None:
+        if not self._indexes:
             return FaissSearchResponse(
                 success=False,
                 query=query,
@@ -355,48 +398,75 @@ class FaissSearchService:
         try:
             # 쿼리 임베딩
             query_vector = self._get_embedding(query)
+            query_array = np.array([query_vector], dtype=np.float32)
 
             # 검색 (필터링 고려하여 더 많이 검색)
             search_k = top_k * 3 if category_filter or organization_filter else top_k
-            scores, ids = self._index.search(
-                np.array([query_vector], dtype=np.float32),
-                search_k
-            )
+
+            # 모든 카테고리 인덱스에서 검색 후 결과 수집
+            all_candidates: list[tuple[float, dict]] = []
+
+            for cat_key, cat_index in self._indexes.items():
+                cat_metadata = self._metadata_by_category.get(cat_key, [])
+                if not cat_metadata:
+                    continue
+
+                # 카테고리 필터 적용: 해당 카테고리만 검색
+                if category_filter and cat_key != "_default_":
+                    if cat_key.lower() != category_filter.lower():
+                        continue
+
+                try:
+                    scores, ids = cat_index.search(query_array, min(search_k, cat_index.ntotal))
+                except Exception:
+                    continue
+
+                for idx, score in zip(ids[0], scores[0]):
+                    if idx < 0 or idx >= len(cat_metadata):
+                        continue
+
+                    if score < min_score:
+                        continue
+
+                    row = cat_metadata[idx]
+
+                    if self.source_id:
+                        row_source_id = str(row.get("source_id") or row.get("metadata", {}).get("source_id") or "").strip()
+                        if row_source_id != self.source_id:
+                            continue
+
+                    # 필터 적용
+                    if category_filter:
+                        if row.get("category", "").lower() != category_filter.lower():
+                            continue
+                    if organization_filter:
+                        if organization_filter.lower() not in row.get("organization", "").lower():
+                            continue
+
+                    all_candidates.append((float(score), row))
+
+            # 점수 기준 정렬 (내림차순)
+            all_candidates.sort(key=lambda x: x[0], reverse=True)
 
             results = []
-            for idx, score in zip(ids[0], scores[0]):
-                if idx < 0 or idx >= len(self._metadata):
+            seen_chunk_ids: set[str] = set()
+
+            for score, row in all_candidates:
+                chunk_id = row.get("chunk_id", "")
+                if chunk_id and chunk_id in seen_chunk_ids:
                     continue
-
-                if score < min_score:
-                    continue
-
-                row = self._metadata[idx]
-
-                if self.source_id:
-                    row_source_id = str(row.get("source_id") or row.get("metadata", {}).get("source_id") or "").strip()
-                    if row_source_id != self.source_id:
-                        continue
-
-                # 필터 적용
-                if category_filter:
-                    if row.get("category", "").lower() != category_filter.lower():
-                        continue
-                if organization_filter:
-                    if organization_filter.lower() not in row.get("organization", "").lower():
-                        continue
+                seen_chunk_ids.add(chunk_id)
 
                 # 청크 텍스트 미리보기
                 text_preview = None
-                chunk_id = row.get("chunk_id")
                 if chunk_id and chunk_id in self._chunks:
                     text = self._chunks[chunk_id].get("text", "")
                     text_preview = text[:200] + "..." if len(text) > 200 else text
 
                 results.append(FaissSearchResult(
                     rank=len(results) + 1,
-                    score=float(score),
-                    chunk_id=row.get("chunk_id", ""),
+                    score=score,
+                    chunk_id=chunk_id,
                     document_id=row.get("document_id", ""),
                     category=row.get("category"),
                     section_heading=row.get("section_heading"),
@@ -458,9 +528,12 @@ class FaissSearchService:
     def get_index_stats(self) -> dict:
         """인덱스 통계."""
         self._load_index()
+        total_vectors = sum(idx.ntotal for idx in self._indexes.values()) if self._indexes else 0
         return {
-            "loaded": self._index is not None,
-            "vector_count": self._index.ntotal if self._index else 0,
+            "loaded": bool(self._indexes),
+            "index_count": len(self._indexes),
+            "categories_loaded": list(self._indexes.keys()),
+            "vector_count": total_vectors,
             "metadata_count": len(self._metadata),
             "filtered_metadata_count": len(self._active_metadata),
             "filtered_document_count": len(self._active_document_ids),
@@ -468,14 +541,10 @@ class FaissSearchService:
             "embedding_provider": self.embedding_provider,
             "source_id": self.source_id,
             "active_snapshot": self._get_active_snapshot(),
-            "fallback_category": next(
-                (
-                    category for category in _CATEGORY_SUFFIXES
-                    if (INDEXES_DIR / f"{self._get_active_snapshot()}_{category}_ollama.index").exists()
-                    and not (INDEXES_DIR / f"{self._get_active_snapshot()}_ollama.index").exists()
-                ),
-                None,
-            ),
+            "category_stats": {
+                cat: {"vectors": idx.ntotal, "metadata": len(self._metadata_by_category.get(cat, []))}
+                for cat, idx in self._indexes.items()
+            },
         }
 
 

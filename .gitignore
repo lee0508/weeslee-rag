@@ -178,6 +178,7 @@ nul
 26-*_*.md
 *_작업문서.txt
 작업문서*.txt
+playwright-rag-assistant-*.md
 Plan.md
 WindowsPowerShell/
 tmp/
