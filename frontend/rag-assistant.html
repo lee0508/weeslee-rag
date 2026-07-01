@@ -4119,9 +4119,12 @@
       const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
       const searchScopeMeta = (_searchScopes || []).find(item => item.scope_id === searchScope) || null;
       const resolvedFilters = resolveQueryFilters(query, analysisData);
-      const effectiveDocumentGroup = resolvedFilters.document_group || documentGroup;
-      const inferredCategory = resolveDocumentGroupCategory(effectiveDocumentGroup);
-      const effectiveCategory = category || inferredCategory;
+      const manualDocumentGroup = documentGroup || '';
+      const inferredDocumentGroup = resolvedFilters.document_group || '';
+      const usesHybridSearch = effectiveMode === 'hybrid_rag' || effectiveMode === 'graph_rag';
+      const effectiveDocumentGroup = manualDocumentGroup || (!usesHybridSearch ? inferredDocumentGroup : '');
+      const inferredCategory = resolveDocumentGroupCategory(inferredDocumentGroup);
+      const effectiveCategory = category || (!usesHybridSearch ? inferredCategory : '');
       if (_rfpSelectedFile && status) status.textContent = t('rfp_active_notice');
       const queryStart = performance.now();
       let searchMs = 0;
