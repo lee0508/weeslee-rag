@@ -88,6 +88,20 @@ def _calculate_quality_score(text_length: int) -> float:
     return 1.0
 
 
+def _extract_document_sync(file_path: str, ocr_use_gpu: bool) -> dict:
+    """CPU 집약적인 추출을 워커 스레드에서 실행한다."""
+    extractor = DocumentExtractor(
+        use_ocr=True,
+        ocr_use_gpu=ocr_use_gpu,
+    )
+    return asyncio.run(extractor.extract(file_path))
+
+
+async def _extract_document_in_worker(file_path: str, ocr_use_gpu: bool) -> dict:
+    """이벤트 루프 블로킹을 피하기 위해 문서 추출을 thread worker로 오프로드한다."""
+    return await asyncio.to_thread(_extract_document_sync, file_path, ocr_use_gpu)
+
+
 async def parse_document(
     document_id: int,
     file_path: str,
@@ -181,13 +195,16 @@ async def parse_document(
         start_time = datetime.now()
 
         runtime_settings = get_runtime_compute_settings()
-        extractor = DocumentExtractor(
-            use_ocr=True,
-            ocr_use_gpu=is_stage_gpu_enabled("ocr", runtime_settings),
+        ocr_use_gpu = is_stage_gpu_enabled("ocr", runtime_settings)
+        logger.info(
+            "[Step4] parse_document worker dispatch: document_id=%s ocr_use_gpu=%s file=%s",
+            document_id,
+            ocr_use_gpu,
+            file_path,
         )
 
-        # DocumentExtractor로 추출 (Strategy Pattern)
-        extract_result = await extractor.extract(file_path)
+        # CPU 집약적인 OCR/파싱은 워커 스레드에서 실행해 SSE/health check를 막지 않는다.
+        extract_result = await _extract_document_in_worker(file_path, ocr_use_gpu)
 
         # 추출 결과 매핑
         text = extract_result.get("content", "")
@@ -961,6 +978,9 @@ async def parse_documents_streaming(
                     "progress": int((idx / total) * 100),
                 })
                 failed += 1
+
+            # 다음 SSE heartbeat와 다른 요청 처리를 위해 매 문서 뒤 제어권을 반환한다.
+            await asyncio.sleep(0)
 
         try:
             db.commit()
