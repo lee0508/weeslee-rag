@@ -177,7 +177,7 @@ class HybridRAGService:
 
         response = self.faiss_service.search(
             query=query,
-            top_k=top_k,
+            top_k=max(top_k * 10, top_k) if metadata_filters else top_k,
             category_filter=category_filter,
             organization_filter=organization_filter,
         )
