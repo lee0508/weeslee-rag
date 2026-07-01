@@ -43,6 +43,8 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.services.metadata_enricher import enrich_confidence  # noqa: E402
+from app.core.database import SessionLocal  # noqa: E402
+from app.models.document_metadata import DocumentMetadata  # noqa: E402
 from app.services.knowledge_graph import (  # noqa: E402
     normalize_organization,
     get_organization_synonyms,
@@ -83,6 +85,192 @@ CATEGORY_COLORS = {
 }
 
 _DATE_PREFIX = re.compile(r"^\d+\.\s*")
+
+
+def _clean_text(value: object) -> str:
+    return str(value or "").strip()
+
+
+def _coalesce_text(*values: object) -> str:
+    for value in values:
+        text = _clean_text(value)
+        if text:
+            return text
+    return ""
+
+
+def _normalize_tag_values(tags: object) -> list[str]:
+    rows = tags if isinstance(tags, list) else []
+    values: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        if isinstance(row, dict):
+            tag_type = _clean_text(row.get("tag_type"))
+            tag_name = _clean_text(row.get("tag_name"))
+            value = f"{tag_type}:{tag_name}" if tag_type and tag_name else tag_name
+        else:
+            value = _clean_text(row)
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+    return values
+
+
+def _normalize_keyword_values(keywords: object) -> list[str]:
+    rows = keywords if isinstance(keywords, list) else []
+    values: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        if isinstance(row, dict):
+            value = _clean_text(
+                row.get("keyword")
+                or row.get("keyword_name")
+                or row.get("name")
+                or row.get("value")
+            )
+        else:
+            value = _clean_text(row)
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+    return values
+
+
+def _load_document_metadata_map(document_ids: set[str]) -> dict[str, dict]:
+    if not document_ids:
+        return {}
+
+    int_ids: list[int] = []
+    for document_id in document_ids:
+        try:
+            int_ids.append(int(str(document_id)))
+        except Exception:
+            continue
+    if not int_ids:
+        return {}
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(DocumentMetadata)
+            .filter(DocumentMetadata.document_id.in_(int_ids))
+            .all()
+        )
+        metadata_map: dict[str, dict] = {}
+        for row in rows:
+            metadata_map[str(row.document_id)] = row.to_dict()
+        return metadata_map
+    except Exception as exc:
+        print(json.dumps({"warning": f"DocumentMetadata load failed: {exc}"}, ensure_ascii=False))
+        return {}
+    finally:
+        db.close()
+
+
+def _merge_doc_metadata(doc: dict, meta_row: dict | None) -> dict:
+    if not meta_row:
+        file_name = _clean_text(Path(doc.get("source_path", "")).name)
+        project_name = _coalesce_text(doc.get("project_name"), _project_name_from_path(doc.get("source_path", "")))
+        organization = _clean_text(doc.get("organization"))
+        organization_type = _clean_text(get_organization_type(organization))
+        project_type_values = classify_project_type(" ".join([
+            project_name,
+            file_name,
+            _clean_text(doc.get("source_path")),
+        ]).strip())
+        return {
+            **doc,
+            "file_name": file_name,
+            "document_group": "",
+            "document_category": _clean_text(doc.get("category")),
+            "section_type": "",
+            "organization_type": organization_type,
+            "project_type": project_type_values[0] if project_type_values else "",
+            "year": "",
+            "tags_flat": [],
+            "keywords_flat": [],
+            "tag_count": 0,
+            "keyword_count": 0,
+            "meta_status": "",
+            "include_in_graph": True,
+            "include_in_rag": True,
+            "updated_at": "",
+        }
+
+    project_name = _coalesce_text(
+        meta_row.get("final_project_name"),
+        meta_row.get("ocr_project_name"),
+        meta_row.get("project_name"),
+        meta_row.get("scan_project_name"),
+        doc.get("project_name"),
+        _project_name_from_path(doc.get("source_path", "")),
+    )
+    organization = _coalesce_text(
+        meta_row.get("final_organization"),
+        meta_row.get("ocr_organization"),
+        meta_row.get("organization"),
+        meta_row.get("scan_organization"),
+        doc.get("organization"),
+    )
+    year = _coalesce_text(
+        meta_row.get("final_year"),
+        meta_row.get("ocr_year"),
+        meta_row.get("year"),
+        meta_row.get("scan_year"),
+    )
+    document_category = _coalesce_text(
+        meta_row.get("final_document_category"),
+        meta_row.get("ocr_document_category"),
+        meta_row.get("scan_document_category"),
+        meta_row.get("document_type"),
+        meta_row.get("category_id"),
+        doc.get("category"),
+    )
+    file_name = _coalesce_text(
+        meta_row.get("file_name"),
+        Path(_clean_text(doc.get("source_path"))).name,
+    )
+    tags_flat = _normalize_tag_values(meta_row.get("tags"))
+    keywords_flat = _normalize_keyword_values(meta_row.get("keywords"))
+    organization_type = _clean_text(get_organization_type(organization))
+    project_type_values = classify_project_type(" ".join([
+        project_name,
+        file_name,
+        _clean_text(doc.get("source_path")),
+        document_category,
+    ]).strip())
+
+    return {
+        **doc,
+        "file_name": file_name,
+        "project_name": project_name,
+        "organization": organization,
+        "document_group": _clean_text(meta_row.get("document_group")),
+        "document_category": document_category,
+        "section_type": _clean_text(meta_row.get("section_type")),
+        "organization_type": organization_type,
+        "project_type": project_type_values[0] if project_type_values else "",
+        "year": year,
+        "tags_flat": tags_flat,
+        "keywords_flat": keywords_flat,
+        "tag_count": len(tags_flat),
+        "keyword_count": len(keywords_flat),
+        "meta_status": _clean_text(meta_row.get("meta_status")),
+        "include_in_graph": bool(meta_row.get("include_in_graph", True)),
+        "include_in_rag": bool(meta_row.get("include_in_rag", True)),
+        "updated_at": _clean_text(meta_row.get("updated_at")),
+    }
+
+
+def _enrich_docs_with_metadata(docs: list[dict]) -> list[dict]:
+    metadata_map = _load_document_metadata_map({
+        _clean_text(doc.get("document_id"))
+        for doc in docs
+        if _clean_text(doc.get("document_id"))
+    })
+    return [_merge_doc_metadata(doc, metadata_map.get(_clean_text(doc.get("document_id")))) for doc in docs]
 
 
 # ── Source ID helpers ─────────────────────────────────────────────────────────
@@ -172,7 +360,7 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
             source_path = row.get("source_path") or meta.get("source_path", "")
             # 작성일: 2026-05-12 | 기능: metadata.project_name 없으면 source_path 경로에서 추출
             project_name = meta.get("project_name") or _project_name_from_path(source_path)
-            docs.append({
+            base_doc = {
                 "document_id": doc_id,
                 "category":    row.get("category") or meta.get("category", ""),
                 "source_path": source_path,
@@ -187,7 +375,8 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
                 "snapshot_id":   row.get("snapshot_id") or meta.get("snapshot_id", ""),
                 "document_uid":  row.get("document_uid") or meta.get("document_uid", ""),
                 "relative_path": meta.get("relative_path", ""),
-            })
+            }
+            docs.append(base_doc)
     return docs
 
 
@@ -375,7 +564,7 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
         # Document nodes + project→doc edges
         for doc in proj_docs:
             doc_id = f"document:{doc['document_id']}"
-            filename = Path(doc["source_path"]).name
+            filename = doc.get("file_name") or Path(doc["source_path"]).name
             add_node({
                 "id":           doc_id,
                 "type":         "document",
@@ -393,6 +582,22 @@ def _build_nodes_edges(docs: list[dict]) -> tuple[list[dict], list[dict]]:
                 "snapshot_id":   doc.get("snapshot_id", ""),
                 "document_uid":  doc.get("document_uid", ""),
                 "relative_path": doc.get("relative_path", ""),
+                "file_name":     doc.get("file_name", ""),
+                "document_group": doc.get("document_group", ""),
+                "document_category": doc.get("document_category", ""),
+                "section_type":  doc.get("section_type", ""),
+                "organization":  doc.get("organization", ""),
+                "organization_type": doc.get("organization_type", ""),
+                "project_type":  doc.get("project_type", ""),
+                "year":          doc.get("year", ""),
+                "tags_flat":     doc.get("tags_flat", []),
+                "keywords_flat": doc.get("keywords_flat", []),
+                "tag_count":     doc.get("tag_count", 0),
+                "keyword_count": doc.get("keyword_count", 0),
+                "meta_status":   doc.get("meta_status", ""),
+                "include_in_graph": doc.get("include_in_graph", True),
+                "include_in_rag": doc.get("include_in_rag", True),
+                "updated_at":    doc.get("updated_at", ""),
             })
             add_edge(proj_id, doc_id, "has_document")
             cat_node_id = f"category:{doc['category']}"
@@ -1210,6 +1415,9 @@ def main() -> int:
         source_path = str(MANIFEST_DIR)
         print(json.dumps({"source": "manifest_csv", "dir": str(MANIFEST_DIR),
                           "doc_count": len(docs)}, ensure_ascii=False))
+
+    docs = _enrich_docs_with_metadata(docs)
+    docs = [doc for doc in docs if doc.get("include_in_graph", True)]
 
     if not docs:
         print(json.dumps({"error": "No documents found — run pipeline first"}))
