@@ -4880,7 +4880,7 @@
         const hasEvidence = doc.evidence_snippets && doc.evidence_snippets.length > 0;
         const hasChunks = doc.chunks && doc.chunks.length > 0;
         const hasSummary = doc.summary_available || doc.summary;
-        const hasGraph = doc.graph_context?.length > 0 || doc.relations?.length > 0 || doc.graph_relations?.length > 0;
+        const hasGraph = doc.graph_available || doc.graph_context?.length > 0 || doc.relations?.length > 0 || doc.graph_relations?.length > 0;
 
         const viewActions = `
           <div class="doc-card-actions">
@@ -5182,7 +5182,8 @@
         summary_available: r?.summary_available || false,
         metadata,
         graph_relations: r?.graph_relations || [],
-        graph_context: r?.graph_context || r?.relations || r?.graph_relations || []
+        graph_context: r?.graph_context || r?.relations || r?.graph_relations || [],
+        graph_available: r?.graph_available || false
       };
     }
 
@@ -5920,7 +5921,7 @@
             ${doc.summary_available || doc.summary ? `<button class="btn btn-sm ${viewMode === 'summary' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('summary')">📝 요약</button>` : ''}
             ${doc.chunks && doc.chunks.length > 0 ? `<button class="btn btn-sm ${viewMode === 'chunks' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('chunks')">🔍 청크</button>` : ''}
             ${doc.evidence_snippets && doc.evidence_snippets.length > 0 ? `<button class="btn btn-sm ${viewMode === 'evidence' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('evidence')">💡 근거</button>` : ''}
-            ${doc.graph_context?.length > 0 || doc.relations?.length > 0 || doc.graph_relations?.length > 0 ? `<button class="btn btn-sm ${viewMode === 'graph' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('graph')">🔗 Graph</button>` : ''}
+            ${doc.graph_available || doc.graph_context?.length > 0 || doc.relations?.length > 0 || doc.graph_relations?.length > 0 ? `<button class="btn btn-sm ${viewMode === 'graph' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('graph')">🔗 Graph</button>` : ''}
           </div>
         `;
 
@@ -5974,6 +5975,22 @@
                 ${relationSummary}
               </div>
             `;
+          } else if (doc.graph_available && doc.document_id) {
+            // graph_available이 true이지만 데이터가 없으면 API로 로드
+            content = '<div style="color:var(--gray-400);font-size:12px">Graph 정보 로딩 중...</div>';
+            loadDocGraphRelations(doc.document_id).then(relations => {
+              if (relations && relations.length > 0 && _currentDocDetailViewMode === 'graph') {
+                const relationSummary = formatGraphRelations(relations);
+                docDetailChunks.innerHTML = tabs + `
+                  <div class="doc-detail-chunk">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--navy)">📊 문서 관계 근거</div>
+                    ${relationSummary}
+                  </div>
+                `;
+              } else if (_currentDocDetailViewMode === 'graph') {
+                docDetailChunks.innerHTML = tabs + '<div style="color:var(--gray-400);font-size:12px">Graph 관계 정보가 없습니다.</div>';
+              }
+            });
           } else {
             content = '<div style="color:var(--gray-400);font-size:12px">Graph 정보 없음</div>';
           }
@@ -5994,6 +6011,18 @@
       } catch (err) {
         console.error('요약 로드 실패:', err);
         return null;
+      }
+    }
+
+    async function loadDocGraphRelations(documentId) {
+      try {
+        const res = await fetch(`${API_BASE}/graph/documents/${encodeURIComponent(documentId)}/relations`);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.relations || data.edges || [];
+      } catch (err) {
+        console.error('Graph 관계 로드 실패:', err);
+        return [];
       }
     }
 
