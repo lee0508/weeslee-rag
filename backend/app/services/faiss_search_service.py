@@ -40,9 +40,14 @@ class FaissSearchResult:
     document_id: str
     category: Optional[str] = None
     section_heading: Optional[str] = None
+    section_title: Optional[str] = None
+    section_id: Optional[str] = None
     source_path: Optional[str] = None
     input_path: Optional[str] = None
     organization: Optional[str] = None
+    organization_type: Optional[str] = None
+    client_type: Optional[str] = None
+    project_type: Optional[str] = None
     file_name: Optional[str] = None
     text_preview: Optional[str] = None
     # Phase 2: 페이지/슬라이드 정보
@@ -395,9 +400,14 @@ class FaissSearchService:
                     document_id=row.get("document_id", ""),
                     category=row.get("category"),
                     section_heading=row.get("section_heading"),
+                    section_title=row.get("section_title") or row.get("metadata", {}).get("section_title"),
+                    section_id=row.get("section_id") or row.get("metadata", {}).get("section_id"),
                     source_path=row.get("source_path"),
                     input_path=row.get("input_path"),
                     organization=row.get("organization"),
+                    organization_type=row.get("organization_type") or row.get("metadata", {}).get("organization_type"),
+                    client_type=row.get("client_type") or row.get("metadata", {}).get("client_type"),
+                    project_type=row.get("project_type") or row.get("metadata", {}).get("project_type"),
                     file_name=row.get("file_name"),
                     text_preview=text_preview,
                     # Phase 2: 페이지/슬라이드 정보
