@@ -16999,15 +16999,19 @@ LIMIT 10`;
       const sourceId = getCurrentSourceId?.() || '';
       const datasetId = getCurrentDatasetId?.() || '';
       const collectionName = 'weeslee_rag_main';
+      const snapshotId = _wizardFaissSnapshot || getSelectedSnapshot?.() || createNewSnapshotId();
       if (!sourceId) {
         throw new Error('Step 7 실행 전 Document Source를 먼저 선택해 주세요.');
       }
+      _wizardFaissSnapshot = snapshotId;
+      if (typeof updateSnapshotUI === 'function') updateSnapshotUI();
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step7/build'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           collection_name: collectionName,
           source_id: sourceId,
+          snapshot_id: snapshotId,
           index_type: 'flat',
           metric: 'l2',
           normalize: true
@@ -17026,7 +17030,7 @@ LIMIT 10`;
         );
         const msgEl = document.getElementById('dbStep7ResultMessage');
         if (msgEl) {
-          msgEl.textContent = `Source ${d.source_id || sourceId || '-'} / Dataset ${datasetId || '-'} 기준으로 collection=${d.collection_name || collectionName} 인덱스를 생성했습니다.`;
+          msgEl.textContent = `Source ${d.source_id || sourceId || '-'} / Dataset ${datasetId || '-'} / Snapshot ${d.snapshot_id || snapshotId} 기준으로 FAISS 인덱스를 생성했습니다.`;
         }
       } else {
         showToast('FAISS Build 실패: ' + (d.message || d.error), 'error');

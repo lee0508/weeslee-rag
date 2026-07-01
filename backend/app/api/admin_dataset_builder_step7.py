@@ -1,11 +1,10 @@
 # Dataset Builder Step 7: FAISS Build API
 """
 Step 6에서 생성된 임베딩으로 FAISS 인덱스 생성
-기존 FAISS Admin API와 통합하여 Dataset Builder 워크플로우에 맞게 조정
+기존 Step 7 수동 빌드 결과를 운영 snapshot 파일 형식과 함께 저장한다.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 import numpy as np
@@ -16,12 +15,18 @@ import json
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.models.snapshot_manifest import DatasetInfo, RAGBuildInfo, SnapshotManifest, SnapshotStatus
+from app.services.dataset_context import get_source_dataset_context
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.runtime_compute_settings import is_stage_gpu_enabled
+from app.services.snapshot_manager import create_snapshot_manifest, generate_snapshot_id
 # 확장 메서드 로드
 import app.services.processed_text_store_extensions
 
 router = APIRouter(prefix="/admin/dataset-builder/step7")
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DATA_DIR = PROJECT_ROOT / "data"
+SNAPSHOT_DIR = DATA_DIR / "snapshots"
 
 
 # ── Request/Response Models ──────────────────────────────────────────────
@@ -30,6 +35,7 @@ class FAISSBuildRequest(BaseModel):
     """FAISS 인덱스 생성 요청"""
     collection_name: str = Field("weeslee_rag_main", description="컬렉션 이름")
     source_id: Optional[str] = Field(None, description="Document Source ID (특정 소스만 빌드)")
+    snapshot_id: Optional[str] = Field(None, description="운영 Snapshot ID")
     document_ids: Optional[List[int]] = Field(None, description="처리할 문서 ID 목록 (비어있으면 전체)")
     index_type: str = Field("flat", description="인덱스 타입 (flat, ivf, hnsw)")
     metric: str = Field("l2", description="거리 메트릭 (l2, ip)")
@@ -49,6 +55,7 @@ class FAISSBuildResponse(BaseModel):
     success: bool
     collection_name: str
     source_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
     index_path: str
     total_vectors: int
     embedding_dim: int
@@ -79,6 +86,12 @@ def get_faiss_dir() -> Path:
     faiss_dir = Path(settings.faiss_index_dir).expanduser().resolve()
     faiss_dir.mkdir(parents=True, exist_ok=True)
     return faiss_dir
+
+
+def get_snapshot_dir() -> Path:
+    snapshot_dir = SNAPSHOT_DIR.expanduser().resolve()
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    return snapshot_dir
 
 
 def create_faiss_index(vectors: np.ndarray, index_type: str = "flat", metric: str = "l2") -> faiss.Index:
@@ -135,6 +148,236 @@ def save_faiss_collection(
         json.dump(metadata, f, ensure_ascii=False, indent=2)
 
     return str(index_path)
+
+
+def _resolve_source_dataset_snapshot(
+    source_id: str,
+    requested_snapshot_id: Optional[str],
+) -> tuple[str, str]:
+    source_context = get_source_dataset_context(source_id)
+    dataset_id = str(source_context.get("dataset_id") or "").strip()
+    if not dataset_id:
+        raise HTTPException(status_code=400, detail=f"dataset_id를 찾을 수 없습니다: source_id={source_id}")
+
+    snapshot_id = str(requested_snapshot_id or "").strip() or generate_snapshot_id(source_id)
+    return dataset_id, snapshot_id
+
+
+def _load_existing_snapshot(snapshot_id: str) -> Optional[SnapshotManifest]:
+    snapshot_file = get_snapshot_dir() / f"{snapshot_id}.json"
+    if not snapshot_file.exists():
+        return None
+    try:
+        return SnapshotManifest(**json.loads(snapshot_file.read_text(encoding="utf-8")))
+    except Exception:
+        return None
+
+
+def _save_snapshot(snapshot: SnapshotManifest) -> None:
+    snapshot_file = get_snapshot_dir() / f"{snapshot.snapshot_id}.json"
+    snapshot_file.write_text(
+        json.dumps(snapshot.dict(), ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
+
+
+def _infer_contract_types(project_name: str, organization: str, file_name: str, source_path: str) -> tuple[str, str]:
+    try:
+        from app.services.knowledge_graph import classify_project_type, get_organization_type
+
+        organization_type = get_organization_type(organization or "") or ""
+        project_types = classify_project_type(
+            " ".join(part for part in [project_name, file_name, source_path] if part)
+        )
+        return organization_type, (project_types[0] if project_types else "")
+    except Exception:
+        return "", ""
+
+
+def _build_snapshot_metadata_row(
+    doc,
+    chunk: dict,
+    chunk_index: int,
+    file_name: str,
+    dataset_id: str,
+    snapshot_id: str,
+    total_pages: int,
+) -> dict:
+    chunk_meta = chunk.get("metadata") or {}
+    content = str(chunk.get("content") or "")
+    project_name = (
+        doc.final_project_name
+        or doc.ocr_project_name
+        or doc.project_name
+        or doc.scan_project_name
+        or ""
+    )
+    organization = (
+        doc.final_organization
+        or doc.ocr_organization
+        or doc.organization
+        or doc.scan_organization
+        or ""
+    )
+    organization_type, project_type = _infer_contract_types(
+        project_name,
+        organization,
+        file_name,
+        doc.file_path or "",
+    )
+    client_type = organization_type
+    page_no = chunk.get("page_number") or chunk_meta.get("page_no") or chunk_meta.get("page_number")
+    section_title = (
+        chunk_meta.get("section_title")
+        or chunk_meta.get("section_heading")
+        or chunk_meta.get("title")
+        or ""
+    )
+    section_id = str(chunk_meta.get("section_id") or f"{doc.document_id}-section-{chunk_index:04d}")
+    document_group = doc.document_group or ""
+    document_category = (
+        doc.final_document_category
+        or doc.ocr_document_category
+        or doc.scan_document_category
+        or doc.document_type
+        or ""
+    )
+    chunk_id = str(chunk_meta.get("chunk_id") or f"{doc.document_id}-chunk-{chunk_index:04d}")
+
+    nested_metadata = {
+        "document_id": str(doc.document_id),
+        "source_id": doc.source_id or "",
+        "dataset_id": dataset_id,
+        "snapshot_id": snapshot_id,
+        "document_uid": doc.document_uid or "",
+        "source_name": "",
+        "category": doc.category_id or "",
+        "collection_name": "weeslee_rag_main",
+        "collection_key": "weeslee_rag_main",
+        "document_group": document_group,
+        "document_category": document_category,
+        "document_type": doc.document_type or "",
+        "extension": Path(doc.file_path or "").suffix.lower(),
+        "section_heading": chunk_meta.get("section_heading") or "",
+        "section_title": section_title,
+        "section_id": section_id,
+        "project_name": project_name,
+        "project_type": project_type,
+        "organization": organization,
+        "organization_type": organization_type,
+        "client_type": client_type,
+        "relative_path": doc.relative_path or "",
+        "original_source_path": doc.file_path or "",
+        "file_name": file_name,
+        "page_no": page_no,
+        "slide_no": chunk_meta.get("slide_no"),
+        "start_char": chunk.get("start_char", 0),
+        "total_pages": total_pages,
+        "matched_terms": [],
+        "highlight_offsets": [],
+    }
+
+    return {
+        "chunk_id": chunk_id,
+        "document_id": str(doc.document_id),
+        "source_id": doc.source_id or "",
+        "dataset_id": dataset_id,
+        "snapshot_id": snapshot_id,
+        "document_uid": doc.document_uid or "",
+        "category": doc.category_id or "",
+        "section_heading": chunk_meta.get("section_heading") or "",
+        "section_title": section_title,
+        "section_id": section_id,
+        "char_count": chunk.get("char_count") or len(content),
+        "source_path": doc.file_path or "",
+        "input_path": doc.file_path or "",
+        "organization": organization,
+        "organization_type": organization_type,
+        "client_type": client_type,
+        "project_type": project_type,
+        "folder_year": str(doc.final_year or doc.ocr_year or doc.year or doc.scan_year or "") or "",
+        "root_group": "",
+        "sub_group": "",
+        "section_label": chunk_meta.get("section_label", ""),
+        "relative_path": doc.relative_path or "",
+        "original_source_path": doc.file_path or "",
+        "file_name": file_name,
+        "document_category": document_category,
+        "document_group": document_group,
+        "project_name": project_name,
+        "embedding_text_length": len(content),
+        "original_text_length": len(content),
+        "page_no": page_no,
+        "slide_no": chunk_meta.get("slide_no"),
+        "start_char": chunk.get("start_char", 0),
+        "total_pages": total_pages,
+        "matched_terms": [],
+        "highlight_offsets": [],
+        "metadata": nested_metadata,
+    }
+
+
+def _write_snapshot_outputs(
+    snapshot_id: str,
+    source_id: str,
+    dataset_id: str,
+    index: faiss.Index,
+    metadata_rows: list[dict],
+    embedding_dim: int,
+    model_name: str,
+    document_count: int,
+) -> str:
+    faiss_dir = get_faiss_dir()
+    snapshot_index_path = faiss_dir / f"{snapshot_id}_ollama.index"
+    snapshot_metadata_path = faiss_dir / f"{snapshot_id}_ollama_metadata.jsonl"
+
+    faiss.write_index(index, str(snapshot_index_path))
+    with snapshot_metadata_path.open("w", encoding="utf-8") as handle:
+        for row in metadata_rows:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    create_snapshot_manifest(
+        snapshot_id=snapshot_id,
+        source_id=source_id,
+        dataset_id=dataset_id,
+        vector_count=len(metadata_rows),
+        document_count=document_count,
+        embedding_dim=embedding_dim,
+        embedding_provider="ollama",
+        embedding_model=model_name,
+    )
+
+    snapshot = _load_existing_snapshot(snapshot_id)
+    if snapshot is None:
+        snapshot = SnapshotManifest(
+            snapshot_id=snapshot_id,
+            snapshot_name=snapshot_id,
+            dataset=DatasetInfo(
+                dataset_id=dataset_id,
+                source_id=source_id,
+                document_count=document_count,
+                scan_completed_at=datetime.utcnow(),
+            ),
+            status=SnapshotStatus.DRAFT,
+        )
+
+    snapshot.dataset.dataset_id = dataset_id
+    snapshot.dataset.source_id = source_id
+    snapshot.dataset.document_count = document_count
+    snapshot.rag_build = RAGBuildInfo(
+        rag_build_id=f"rag_build_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+        faiss_index_id=snapshot_id,
+        built_at=datetime.utcnow(),
+        embedding_model=f"ollama/{model_name}",
+        chunk_count=len(metadata_rows),
+        vector_count=len(metadata_rows),
+        index_file=str(snapshot_index_path),
+        metadata_file=str(snapshot_metadata_path),
+    )
+    snapshot.status = SnapshotStatus.DRAFT if not snapshot.is_active else snapshot.status
+    _save_snapshot(snapshot)
+
+    return str(snapshot_index_path)
 
 
 def _load_collection_metadata(metadata_path: Path) -> Dict[str, Any]:
@@ -214,6 +457,12 @@ async def build_faiss_index(
         # 처리할 문서 조회 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
         from app.models.document_metadata import DocumentMetadata, MetaStatus
 
+        source_id = str(req.source_id or "").strip()
+        if not source_id:
+            raise HTTPException(status_code=400, detail="source_id는 필수입니다.")
+
+        dataset_id, snapshot_id = _resolve_source_dataset_snapshot(source_id, req.snapshot_id)
+
         query = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag == True,
@@ -221,8 +470,7 @@ async def build_faiss_index(
             DocumentMetadata.removed_at.is_(None),
         ).order_by(DocumentMetadata.document_id)
 
-        if req.source_id:
-            query = query.filter(DocumentMetadata.source_id == req.source_id)
+        query = query.filter(DocumentMetadata.source_id == source_id)
         if req.document_ids:
             query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
 
@@ -235,6 +483,10 @@ async def build_faiss_index(
         all_vectors = []
         document_infos = []
         vector_to_doc_map = []  # (vector_index) -> (document_id, chunk_index)
+        metadata_rows: list[dict] = []
+        preview_chunk_rows: list[dict] = []
+        model_name = settings.ollama_embed_model
+        chunks_jsonl_path = DATA_DIR / "staged" / "chunks" / f"{snapshot_id}_chunks.jsonl"
 
         for doc in docs:
             document_id = doc.document_id
@@ -243,8 +495,10 @@ async def build_faiss_index(
             try:
                 # 임베딩 로드
                 embeddings = text_store.load_embeddings(document_id)
+                chunks = text_store.load_chunks(document_id)
+                report = text_store.get_report(str(document_id)) or {}
 
-                if not embeddings or len(embeddings) == 0:
+                if not embeddings or len(embeddings) == 0 or not chunks:
                     document_infos.append(DocumentIndexInfo(
                         document_id=document_id,
                         file_name=file_name,
@@ -253,41 +507,74 @@ async def build_faiss_index(
                     ))
                     continue
 
-                # 유효한 임베딩만 필터링
-                valid_embeddings = [e for e in embeddings if len(e) > 0]
+                embedding_meta = text_store.load_embedding_metadata(document_id) or {}
+                if embedding_meta.get("model"):
+                    model_name = str(embedding_meta["model"])
 
-                if not valid_embeddings:
-                    document_infos.append(DocumentIndexInfo(
-                        document_id=document_id,
-                        file_name=file_name,
-                        chunks_indexed=0,
-                        status="skipped"
-                    ))
-                    continue
-
-                # 벡터 추가
-                for chunk_idx, emb in enumerate(valid_embeddings):
+                valid_count = 0
+                total_pages = int(report.get("page_count") or doc.ocr_page_count or 0)
+                for chunk_idx, emb in enumerate(embeddings):
+                    if chunk_idx >= len(chunks) or not emb or len(emb) == 0:
+                        continue
                     all_vectors.append(emb)
                     vector_to_doc_map.append({
                         "document_id": document_id,
                         "chunk_index": chunk_idx,
                         "file_name": file_name,
                         "source_id": doc.source_id or "",
-                        "dataset_id": doc.dataset_id or "",
+                        "dataset_id": dataset_id,
                         "document_uid": doc.document_uid or "",
                         "category": doc.category_id or "",
-                        "organization": doc.organization or "",
-                        "project_name": doc.project_name or "",
+                        "organization": (
+                            doc.final_organization
+                            or doc.ocr_organization
+                            or doc.organization
+                            or doc.scan_organization
+                            or ""
+                        ),
+                        "project_name": (
+                            doc.final_project_name
+                            or doc.ocr_project_name
+                            or doc.project_name
+                            or doc.scan_project_name
+                            or ""
+                        ),
                     })
+                    metadata_rows.append(
+                        _build_snapshot_metadata_row(
+                            doc=doc,
+                            chunk=chunks[chunk_idx],
+                            chunk_index=chunk_idx,
+                            file_name=file_name,
+                            dataset_id=dataset_id,
+                            snapshot_id=snapshot_id,
+                            total_pages=total_pages,
+                        )
+                    )
+                    preview_chunk_rows.append({
+                        "chunk_id": str(chunks[chunk_idx].get("metadata", {}).get("chunk_id") or f"{doc.document_id}-chunk-{chunk_idx:04d}"),
+                        "document_id": str(doc.document_id),
+                        "text": str(chunks[chunk_idx].get("content") or ""),
+                    })
+                    valid_count += 1
+
+                if valid_count == 0:
+                    document_infos.append(DocumentIndexInfo(
+                        document_id=document_id,
+                        file_name=file_name,
+                        chunks_indexed=0,
+                        status="skipped"
+                    ))
+                    continue
 
                 document_infos.append(DocumentIndexInfo(
                     document_id=document_id,
                     file_name=file_name,
-                    chunks_indexed=len(valid_embeddings),
+                    chunks_indexed=valid_count,
                     status="success"
                 ))
 
-            except Exception as e:
+            except Exception:
                 document_infos.append(DocumentIndexInfo(
                     document_id=document_id,
                     file_name=file_name,
@@ -313,7 +600,9 @@ async def build_faiss_index(
         # 메타데이터 준비
         metadata = {
             "collection_name": req.collection_name,
-            "source_id": req.source_id or "",
+            "source_id": source_id,
+            "snapshot_id": snapshot_id,
+            "dataset_id": dataset_id,
             "total_vectors": len(vectors),
             "embedding_dim": vectors.shape[1],
             "documents_count": len([d for d in document_infos if d.status == "success"]),
@@ -324,18 +613,37 @@ async def build_faiss_index(
             "vector_to_doc_map": vector_to_doc_map
         }
 
-        # 저장
-        index_path = save_faiss_collection(
+        # 레거시 collection 형식 저장
+        save_faiss_collection(
             collection_name=req.collection_name,
             index=index,
             metadata=metadata,
             faiss_dir=faiss_dir
         )
 
+        # 운영 snapshot 형식 저장
+        index_path = _write_snapshot_outputs(
+            snapshot_id=snapshot_id,
+            source_id=source_id,
+            dataset_id=dataset_id,
+            index=index,
+            metadata_rows=metadata_rows,
+            embedding_dim=vectors.shape[1],
+            model_name=model_name,
+            document_count=len([d for d in document_infos if d.status == "success"]),
+        )
+
+        # 검색 미리보기를 위해 snapshot용 chunks.jsonl도 같이 기록한다.
+        chunks_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+        with chunks_jsonl_path.open("w", encoding="utf-8") as handle:
+            for row in preview_chunk_rows:
+                handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
         return FAISSBuildResponse(
             success=True,
             collection_name=req.collection_name,
-            source_id=req.source_id,
+            source_id=source_id,
+            snapshot_id=snapshot_id,
             index_path=index_path,
             total_vectors=len(vectors),
             embedding_dim=vectors.shape[1],
