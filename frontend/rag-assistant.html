@@ -934,6 +934,14 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    /* 질문 키워드 하이라이트 */
+    .query-highlight {
+      background: linear-gradient(135deg, rgba(232,151,31,.3) 0%, rgba(232,151,31,.15) 100%);
+      color: var(--text);
+      padding: 0 2px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
 
     /* 문서 카드 체크박스 선택 */
     .doc-card-checkbox {
@@ -4054,6 +4062,7 @@
 
     async function runQuery() {
       const query = document.getElementById('query').value.trim();
+      _currentSearchQuery = query; // 하이라이트용 쿼리 저장
       const topK = parseInt(document.getElementById('topK').value || '20', 10);
       const topDocs = parseInt(document.getElementById('topDocs').value || '5', 10);
       const maxChunks = parseInt(document.getElementById('maxChunks').value || '3', 10);
@@ -4154,17 +4163,24 @@
           });
           if (!response.ok) throw new Error(await readApiError(response));
           data = await response.json();
-        } else if (effectiveMode === 'hybrid_rag') {
-          // Hybrid RAG 모드: FAISS + GraphRAG 통합 검색
+        } else if (effectiveMode === 'hybrid_rag' || effectiveMode === 'graph_rag') {
+          // Graph RAG / Hybrid RAG 공용 경로
+          const isGraphPrimaryMode = effectiveMode === 'graph_rag';
           const hybridPayload = {
             question: effectiveQuery,
             top_k: topK,
             max_results: topDocs,
-            merge_strategy: 'score_based',
+            merge_strategy: isGraphPrimaryMode ? 'graph_first' : 'score_based',
+            force_search_order: isGraphPrimaryMode ? 'graph_first' : null,
+            enable_graph: true,
+            enable_wiki: false,
             generate_answer: answerProvider !== 'none',
             ...(!selectedSnapshotIds.length && searchScopeMeta?.source_ids?.length === 1 ? { source_id: searchScopeMeta.source_ids[0] } : {}),
+            ...(effectiveCategory ? { category: effectiveCategory } : {}),
+            ...(effectiveDocumentGroup ? { document_group: effectiveDocumentGroup } : {}),
+            ...(resolvedFilters.document_category ? { document_category: resolvedFilters.document_category } : {}),
+            ...(resolvedFilters.section_type ? { section_type: resolvedFilters.section_type } : {}),
             ...(collection ? { collection } : {}),
-            ...(category ? { category } : {}),
             ...(filterOrg ? { organization: filterOrg } : {}),
             ...(filterYear ? { year: filterYear } : {})
           };
@@ -4777,9 +4793,14 @@
       }
     }
 
-    function renderDocumentCards(documents, compact) {
+    // 현재 검색 쿼리 저장 (하이라이트용)
+    var _currentSearchQuery = '';
+
+    function renderDocumentCards(documents, compact, query) {
       // 전역 배열에 문서 저장
       _renderedDocuments = documents;
+      // 쿼리 저장 (파라미터로 전달되거나 현재 입력값 사용)
+      const highlightQuery = query || _currentSearchQuery || document.getElementById('query')?.value || '';
 
       return documents.map((doc, idx) => {
         const score = Number(doc.best_score || doc.ranking_score || 0);
@@ -4852,7 +4873,7 @@
           ${projectName !== '-' ? `<div class="doc-card-file">${escapeHtml(fileName)}</div>` : ''}
           <div class="doc-card-meta">${metaChips.join('')}</div>
           <div class="doc-card-path">${escapeHtml(docSourcePath(doc) || '-')}</div>
-          ${preview ? `<div class="doc-card-preview">${escapeHtml(preview)}</div>` : ''}
+          ${preview ? `<div class="doc-card-preview">${highlightQueryTerms(preview, highlightQuery)}</div>` : ''}
           ${graphSummary}
           ${viewActions}
         </div>
@@ -4962,31 +4983,39 @@
       const rawDocs = hybridData.merged_documents || hybridData.results || [];
 
       // documents 변환: HybridResult -> 기존 document 형식
-      const documents = rawDocs.map((r, idx) => ({
-        document_id: r.document_id || `hybrid_${idx}`,
-        file_name: r.file_name || r.title || r.document_id || '-',
-        file_path: r.file_path || r.source_path || '',
-        project_name: r.metadata?.project_name || r.project_name || '',
-        category: r.metadata?.category || r.category || '',
-        source_id: r.source_id || r.metadata?.source_id || '',
-        dataset_id: r.dataset_id || r.metadata?.dataset_id || '',
-        snapshot_id: r.snapshot_id || r.metadata?.snapshot_id || '',
-        document_uid: r.document_uid || r.metadata?.document_uid || '',
-        relative_path: r.relative_path || r.metadata?.relative_path || '',
-        source_path: r.source_path || r.metadata?.source_path || r.file_path || '',
-        score: r.score || r.final_score || r.faiss_score || 0,
-        faiss_score: r.faiss_score || 0,
-        graph_score: r.graph_score || 0,
-        source: r.source || 'hybrid',
-        snippet: r.text_preview || r.evidence || r.snippet || '',
-        chunks: r.chunks || [],
-        metadata: r.metadata || {},
-        graph_relations: r.graph_relations || []
-      }));
+      const documents = rawDocs.map((r, idx) => {
+        const baseScore = r.score || r.final_score || r.faiss_score || 0;
+        const faissScore = r.faiss_score || 0;
+        const graphScore = r.graph_score || 0;
+        const rankingScore = r.ranking_score || (baseScore * 5.0 + (r.source === 'graph' ? 1.5 : 1.0));
+        return {
+          document_id: r.document_id || `hybrid_${idx}`,
+          file_name: r.file_name || r.title || r.document_id || '-',
+          file_path: r.file_path || r.source_path || '',
+          project_name: r.metadata?.project_name || r.project_name || '',
+          category: r.metadata?.category || r.category || '',
+          source_id: r.source_id || r.metadata?.source_id || '',
+          dataset_id: r.dataset_id || r.metadata?.dataset_id || '',
+          snapshot_id: r.snapshot_id || r.metadata?.snapshot_id || '',
+          document_uid: r.document_uid || r.metadata?.document_uid || '',
+          relative_path: r.relative_path || r.metadata?.relative_path || '',
+          source_path: r.source_path || r.metadata?.source_path || r.file_path || '',
+          score: baseScore,
+          best_score: baseScore,
+          ranking_score: rankingScore,
+          faiss_score: faissScore,
+          graph_score: graphScore,
+          source: r.source || 'hybrid',
+          snippet: r.text_preview || r.evidence || r.snippet || '',
+          chunks: r.chunks || [],
+          metadata: r.metadata || {},
+          graph_relations: r.graph_relations || []
+        };
+      });
 
       // graph_context 변환: GraphRAG 관련 정보 추출
       const cypherQueries = hybridData.graph_cypher || [];
-      const graphContext = cypherQueries.length > 0 ? [{
+        const graphContext = cypherQueries.length > 0 ? [{
         project_name: '',
         cypher_query: cypherQueries.join('\n'),
         retry_count: hybridData.graph_retry_count || 0,
@@ -5009,8 +5038,16 @@
           graph_count: stats.graph_count || 0,
           wiki_count: stats.wiki_count || 0,
           merge_strategy: hybridData.merge_strategy || 'score_based',
+          search_order: hybridData.search_order || '',
+          sources_used: hybridData.sources_used || [],
           search_time_ms: timing.total_time_ms || 0,
           timing: timing
+        },
+        retrieval_summary: {
+          resolved_snapshot_count: 0,
+          skipped_snapshot_count: 0,
+          resolved_category_filter: hybridData.applied_filters?.category || '',
+          no_result_reason: documents.length ? '' : 'index_search_returned_no_hits',
         },
         evidence: hybridData.evidence || [],
         draft_answer: hybridData.answer || ''
@@ -5021,6 +5058,27 @@
       return String(text)
         .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    }
+
+    // 질문 텍스트 마크업 - 검색 쿼리 키워드 하이라이트
+    function highlightQueryTerms(text, query) {
+      if (!text || !query) return escapeHtml(text);
+
+      // 쿼리에서 의미있는 키워드 추출 (2자 이상, 조사/접속사 제외)
+      const stopWords = new Set(['은', '는', '이', '가', '을', '를', '에', '의', '와', '과', '로', '으로', '에서', '부터', '까지', '하는', '있는', '되는', '한', '할', '등', '및', '또는', '그리고']);
+      const terms = query
+        .split(/[\s,.:;!?]+/)
+        .filter(t => t.length >= 2 && !stopWords.has(t))
+        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // 정규식 이스케이프
+
+      if (terms.length === 0) return escapeHtml(text);
+
+      // 텍스트를 먼저 이스케이프
+      let escaped = escapeHtml(text);
+
+      // 각 키워드를 <mark>로 감싸기
+      const pattern = new RegExp(`(${terms.join('|')})`, 'gi');
+      return escaped.replace(pattern, '<mark class="query-highlight">$1</mark>');
     }
 
     function snippetText(snippet) {

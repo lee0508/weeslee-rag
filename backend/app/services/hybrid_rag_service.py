@@ -79,6 +79,9 @@ class MergedDocument:
     chunk_id: Optional[str] = None
     graph_relations: list[dict] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
+    ranking_score: float = 0.0
+    faiss_score: float = 0.0
+    graph_score: float = 0.0
 
 
 @dataclass
@@ -163,6 +166,11 @@ class HybridRAGService:
         self,
         query: str,
         top_k: int = 10,
+        *,
+        category_filter: Optional[str] = None,
+        organization_filter: Optional[str] = None,
+        allowed_document_ids: Optional[set[str]] = None,
+        metadata_filters: Optional[dict[str, Any]] = None,
     ) -> tuple[list[dict], int]:
         """FAISS 검색."""
         start_time = time.time()
@@ -170,6 +178,8 @@ class HybridRAGService:
         response = self.faiss_service.search(
             query=query,
             top_k=top_k,
+            category_filter=category_filter,
+            organization_filter=organization_filter,
         )
 
         elapsed_ms = int((time.time() - start_time) * 1000)
@@ -180,15 +190,26 @@ class HybridRAGService:
         results = []
         for r in response.results:
             metadata = dict(r.metadata or {})
-            results.append({
+            document_id = str(r.document_id or "")
+            if allowed_document_ids and document_id and document_id not in allowed_document_ids:
+                continue
+
+            candidate = {
                 "document_id": r.document_id,
                 "chunk_id": r.chunk_id,
                 "score": r.score,
                 "rank": r.rank,
                 "category": r.category,
                 "organization": r.organization,
+                "organization_type": r.organization_type,
+                "client_type": r.client_type,
+                "project_type": r.project_type,
                 "file_name": r.file_name,
                 "text_preview": r.text_preview,
+                "section_title": r.section_title,
+                "section_id": r.section_id,
+                "page_no": r.page_no,
+                "slide_no": r.slide_no,
                 "source_path": r.source_path,
                 "source_id": metadata.get("source_id") or self.source_id,
                 "dataset_id": metadata.get("dataset_id"),
@@ -197,9 +218,67 @@ class HybridRAGService:
                 "relative_path": metadata.get("relative_path"),
                 "metadata": metadata,
                 "source": SearchSource.FAISS.value,
+            }
+
+            if not self._matches_metadata_filters(candidate, metadata_filters or {}):
+                continue
+
+            results.append({
+                **candidate,
             })
 
         return results, elapsed_ms
+
+    @staticmethod
+    def _matches_metadata_filters(candidate: dict[str, Any], filters: dict[str, Any]) -> bool:
+        if not filters:
+            return True
+
+        metadata = candidate.get("metadata") or {}
+        category = str(candidate.get("category") or metadata.get("category") or "").strip().lower()
+        project_type = str(candidate.get("project_type") or metadata.get("project_type") or "").strip().lower()
+        organization = str(candidate.get("organization") or metadata.get("organization") or "").strip().lower()
+        organization_type = str(candidate.get("organization_type") or candidate.get("client_type") or metadata.get("organization_type") or metadata.get("client_type") or "").strip().lower()
+        year = str(metadata.get("folder_year") or metadata.get("year") or "").strip().lower()
+        document_group = str(metadata.get("document_group") or "").strip().lower()
+        document_category = str(metadata.get("document_category") or "").strip().lower()
+        section_type = str(
+            candidate.get("section_title")
+            or metadata.get("section_title")
+            or metadata.get("section_heading")
+            or metadata.get("section_label")
+            or ""
+        ).strip().lower()
+
+        def contains(actual: str, expected: str) -> bool:
+            return not expected or expected in actual
+
+        if filters.get("category") and not contains(category, str(filters["category"]).strip().lower()):
+            return False
+        if filters.get("organization") and not contains(organization, str(filters["organization"]).strip().lower()):
+            return False
+        if filters.get("organization_type") and not contains(organization_type, str(filters["organization_type"]).strip().lower()):
+            return False
+        if filters.get("project_type") and not contains(project_type, str(filters["project_type"]).strip().lower()):
+            return False
+        if filters.get("year") and not contains(year, str(filters["year"]).strip().lower()):
+            return False
+        if filters.get("document_group") and not contains(document_group, str(filters["document_group"]).strip().lower()):
+            return False
+        if filters.get("document_category") and not contains(document_category, str(filters["document_category"]).strip().lower()):
+            return False
+        if filters.get("section_type") and not contains(section_type, str(filters["section_type"]).strip().lower()):
+            return False
+        return True
+
+    @staticmethod
+    def _graph_candidate_document_ids(graph_results: list[dict]) -> set[str]:
+        candidate_ids: set[str] = set()
+        for row in graph_results:
+            doc_id = str(row.get("document_id") or "").strip()
+            if doc_id:
+                candidate_ids.add(doc_id)
+        return candidate_ids
 
     async def _search_graph(
         self,
@@ -315,12 +394,14 @@ class HybridRAGService:
             if not doc_id:
                 doc_id = r.get("chunk_id", f"faiss_{i}")
 
+            faiss_score = r.get("score", 0.0)
             if doc_id not in doc_map:
                 doc_map[doc_id] = MergedDocument(
                     document_id=doc_id,
                     source=SearchSource.FAISS,
                     rank=i + 1,
-                    score=r.get("score", 0.0),
+                    score=faiss_score,
+                    faiss_score=faiss_score,
                     category=r.get("category"),
                     organization=r.get("organization"),
                     file_name=r.get("file_name"),
@@ -339,18 +420,21 @@ class HybridRAGService:
             else:
                 # 이미 있으면 점수 업데이트
                 existing = doc_map[doc_id]
-                existing.score = max(existing.score, r.get("score", 0.0))
+                existing.score = max(existing.score, faiss_score)
+                existing.faiss_score = max(existing.faiss_score, faiss_score)
 
         # Graph 결과 추가
         for i, r in enumerate(graph_results):
             doc_id = r.get("document_id", "") or r.get("node_id", f"graph_{i}")
 
+            graph_score = r.get("score", 1.0)
             if doc_id not in doc_map:
                 doc_map[doc_id] = MergedDocument(
                     document_id=doc_id,
                     source=SearchSource.GRAPH,
                     rank=i + 1,
-                    score=r.get("score", 1.0),
+                    score=graph_score,
+                    graph_score=graph_score,
                     title=r.get("label"),
                     category=r.get("category"),
                     organization=r.get("organization"),
@@ -369,6 +453,7 @@ class HybridRAGService:
                     "node_type": r.get("node_type"),
                     "label": r.get("label"),
                 })
+                existing.graph_score = max(existing.graph_score, graph_score)
                 # 점수 부스트 (FAISS + Graph 둘 다 있으면)
                 existing.score *= 1.2
 
@@ -388,12 +473,20 @@ class HybridRAGService:
         # 병합 전략에 따라 정렬
         merged = list(doc_map.values())
 
+        # ranking_score 계산 (assemble_rag_response.py와 유사한 가중치 적용)
+        for doc in merged:
+            base_score = doc.score * 5.0
+            source_bonus = 1.0 if doc.source == SearchSource.FAISS else 1.5 if doc.source == SearchSource.GRAPH else 0.5
+            relation_bonus = len(doc.graph_relations) * 0.3
+            hybrid_bonus = 1.0 if (doc.faiss_score > 0 and doc.graph_score > 0) else 0.0
+            doc.ranking_score = base_score + source_bonus + relation_bonus + hybrid_bonus
+
         if self.merge_strategy == MergeStrategy.SCORE_BASED:
-            merged.sort(key=lambda x: x.score, reverse=True)
+            merged.sort(key=lambda x: x.ranking_score, reverse=True)
         elif self.merge_strategy == MergeStrategy.FAISS_FIRST:
-            merged.sort(key=lambda x: (x.source != SearchSource.FAISS, -x.score))
+            merged.sort(key=lambda x: (x.source != SearchSource.FAISS, -x.ranking_score))
         elif self.merge_strategy == MergeStrategy.GRAPH_FIRST:
-            merged.sort(key=lambda x: (x.source != SearchSource.GRAPH, -x.score))
+            merged.sort(key=lambda x: (x.source != SearchSource.GRAPH, -x.ranking_score))
         elif self.merge_strategy == MergeStrategy.INTERLEAVE:
             # FAISS와 Graph를 번갈아가며 배치
             faiss_docs = [d for d in merged if d.source == SearchSource.FAISS]
@@ -450,6 +543,14 @@ class HybridRAGService:
         top_k: int = 10,
         max_results: int = 20,
         generate_answer: bool = False,
+        *,
+        category: Optional[str] = None,
+        organization: Optional[str] = None,
+        year: Optional[str] = None,
+        document_group: Optional[str] = None,
+        document_category: Optional[str] = None,
+        section_type: Optional[str] = None,
+        force_search_order: Optional[str] = None,
     ) -> HybridRAGResponse:
         """
         Hybrid RAG 쿼리 실행.
@@ -478,6 +579,8 @@ class HybridRAGService:
                 query_analysis_time = int((time.time() - analysis_start) * 1000)
                 search_order = query_analysis.search_order
                 sources_to_use = [s.value for s in query_analysis.search_sources]
+            if force_search_order:
+                search_order = force_search_order
 
             # 2. 질문 유형별 검색 전략 결정
             faiss_results, faiss_time = [], 0
@@ -486,43 +589,78 @@ class HybridRAGService:
 
             # 필터 추출 (Query Router에서)
             filters = query_analysis.filters if query_analysis else {}
-            organization_filter = filters.get("organization_type") if isinstance(filters.get("organization_type"), str) else None
+            metadata_filters = {
+                "category": category,
+                "organization": organization,
+                "organization_type": filters.get("organization_type") if isinstance(filters.get("organization_type"), str) else None,
+                "project_type": filters.get("project_type") if isinstance(filters.get("project_type"), str) else None,
+                "year": year,
+                "document_group": document_group,
+                "document_category": document_category,
+                "section_type": section_type,
+            }
+            faiss_org_filter = organization
 
             if search_order == "faiss_only":
                 # 단순 키워드 검색: FAISS만
-                faiss_results, faiss_time = await self._search_faiss(question, top_k)
+                faiss_results, faiss_time = await self._search_faiss(
+                    question,
+                    top_k,
+                    category_filter=category,
+                    organization_filter=faiss_org_filter,
+                    metadata_filters=metadata_filters,
+                )
 
             elif search_order == "graph_first":
                 # Graph 우선: Graph → FAISS 순차
                 if self.enable_graph:
                     graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = await self._search_graph(question)
 
-                # Graph 결과로 FAISS 검색 범위 좁히기 (향후 구현)
-                faiss_results, faiss_time = await self._search_faiss(question, top_k)
+                graph_doc_ids = self._graph_candidate_document_ids(graph_results)
+                faiss_results, faiss_time = await self._search_faiss(
+                    question,
+                    max(top_k * 5, top_k) if graph_doc_ids else top_k,
+                    category_filter=category,
+                    organization_filter=faiss_org_filter,
+                    allowed_document_ids=graph_doc_ids or None,
+                    metadata_filters=metadata_filters,
+                )
 
                 # Wiki 검색 (필요시)
                 if self.enable_wiki and RouterSearchSource.WIKI.value in sources_to_use:
                     wiki_results, wiki_time = await self._search_wiki(
-                        question, top_k // 2, organization=organization_filter
+                        question, top_k // 2, organization=organization
                     )
 
             elif search_order == "wiki_first":
                 # Wiki 우선: 요약 요청
                 if self.enable_wiki:
                     wiki_results, wiki_time = await self._search_wiki(
-                        question, top_k, organization=organization_filter
+                        question, top_k, organization=organization
                     )
-                faiss_results, faiss_time = await self._search_faiss(question, top_k // 2)
+                faiss_results, faiss_time = await self._search_faiss(
+                    question,
+                    top_k // 2,
+                    category_filter=category,
+                    organization_filter=faiss_org_filter,
+                    metadata_filters=metadata_filters,
+                )
 
             else:
                 # 기본: 병렬 검색
-                tasks = [self._search_faiss(question, top_k)]
+                tasks = [self._search_faiss(
+                    question,
+                    top_k,
+                    category_filter=category,
+                    organization_filter=faiss_org_filter,
+                    metadata_filters=metadata_filters,
+                )]
 
                 if self.enable_graph:
                     tasks.append(self._search_graph(question))
 
                 if self.enable_wiki:
-                    tasks.append(self._search_wiki(question, top_k // 2, organization=organization_filter))
+                    tasks.append(self._search_wiki(question, top_k // 2, organization=organization))
 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -573,6 +711,9 @@ class HybridRAGService:
                         "source": d.source.value,
                         "rank": d.rank,
                         "score": d.score,
+                        "ranking_score": d.ranking_score,
+                        "faiss_score": d.faiss_score,
+                        "graph_score": d.graph_score,
                         "title": d.title,
                         "category": d.category,
                         "organization": d.organization,
