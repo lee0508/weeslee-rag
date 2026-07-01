@@ -103,6 +103,7 @@ async def parse_document(
         "document_id": document_id,
         "error": None,
         "text_length": 0,
+        "warning": None,
     }
 
     try:
@@ -208,15 +209,10 @@ async def parse_document(
             return result
 
         if quality_score < 0.7 or processing_result.text_length < 500:
-            processing_result.status = "failed"
-            processing_result.error_message = (
+            result["warning"] = (
                 processing_result.error_message
-                or f"Text quality too low: score={quality_score}, text_length={processing_result.text_length}"
+                or f"Text quality low: score={quality_score}, text_length={processing_result.text_length}"
             )
-            processed_text_store.save_result(processing_result)
-            result["error"] = processing_result.error_message
-            result["text_length"] = processing_result.text_length
-            return result
 
         processing_result.status = "done"
 
@@ -224,6 +220,8 @@ async def parse_document(
         if processed_text_store.save_result(processing_result):
             result["success"] = True
             result["text_length"] = processing_result.text_length
+            if result["warning"]:
+                result["error"] = result["warning"]
         else:
             result["error"] = "Failed to save result"
 
@@ -802,6 +800,7 @@ async def emit_parse_event(job_id: str, event: dict):
 async def parse_documents_streaming(
     job_id: str,
     document_ids: Optional[List[int]],
+    source_id: Optional[str],
     force_reparse: bool,
     db: Session
 ):
@@ -809,7 +808,7 @@ async def parse_documents_streaming(
     try:
         # 기본 일괄 실행은 검수 완료 문서만 대상으로 유지한다.
         # 단, 명시적인 document_ids 재처리는 개별 진단/복구 목적이므로 meta_status 제한을 두지 않는다.
-        documents = _get_step4_target_documents(db, document_ids)
+        documents = _get_step4_target_documents(db, document_ids, source_id)
         total = len(documents)
 
         await emit_parse_event(job_id, {
@@ -877,8 +876,14 @@ async def parse_documents_streaming(
                     skipped += 1
                 else:
                     text_len = result.get("text_length", 0)
+                    _save_ocr_metadata(db, doc, result["document_id"])
+                    doc.status = "text_extracted"
+                    doc.updated_at = datetime.utcnow()
                     await emit_parse_event(job_id, {
-                        "log": f"[{idx}/{total}] {Path(doc.file_path).name}: 성공 ({text_len} chars)",
+                        "log": (
+                            f"[{idx}/{total}] {Path(doc.file_path).name}: 성공 ({text_len} chars)"
+                            + (f" | 경고: {result['warning']}" if result.get("warning") else "")
+                        ),
                         "progress": int((idx / total) * 100),
                     })
                     processed += 1
@@ -890,6 +895,12 @@ async def parse_documents_streaming(
                     "progress": int((idx / total) * 100),
                 })
                 failed += 1
+
+        try:
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            raise exc
 
         # 완료
         await emit_parse_event(job_id, {
@@ -946,6 +957,7 @@ async def start_parse_stream(
         parse_documents_streaming,
         job_id=job_id,
         document_ids=request.document_ids,
+        source_id=request.source_id,
         force_reparse=request.force_reparse,
         db=db
     )

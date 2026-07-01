@@ -17463,12 +17463,18 @@ LIMIT 10`;
 
   // Step 4: OCR/Parser 실행
   async function runOcrParser() {
-    showToast('OCR/Parser 실행 중... (검수 완료된 문서 대상)', 'info');
+    const sourceId = getCurrentSourceId?.() || '';
+    if (!sourceId) {
+      showToast('Document Source를 먼저 선택하세요.', 'warning');
+      return;
+    }
+    showToast('OCR/Parser 실행 중... (현재 Document Source 대상)', 'info');
     try {
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step4/parse'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          source_id: sourceId,
           document_ids: null,  // null이면 모든 검수 완료 문서 처리
           force_reparse: _wizardForceRebuild || false
         }),
@@ -20130,6 +20136,11 @@ LIMIT 10`;
 
   async function runStep4ParseStreaming() {
     try {
+      const sourceId = getCurrentSourceId?.() || '';
+      if (!sourceId) {
+        showToast('Document Source를 먼저 선택하세요.', 'warning');
+        return;
+      }
       console.log('[Step 4] 파싱 작업 시작 요청...');
       console.log('[Step 4] API URL:', `${API_BASE}/admin/dataset-builder/step4/parse/stream`);
 
@@ -20138,6 +20149,7 @@ LIMIT 10`;
         method: 'POST',
         headers: authHeaders(true),
         body: JSON.stringify({
+          source_id: sourceId,
           document_ids: null,  // null이면 모든 검수 완료 문서
           force_reparse: _wizardForceRebuild || false
         })
@@ -20165,6 +20177,7 @@ LIMIT 10`;
 
       console.log('[Step 4] Job ID:', jobId);
       appendStep4Log('info', `파싱 작업 시작 (Job ID: ${jobId})`);
+      appendStep4Log('info', `Document Source: ${sourceId}`);
       showToast(`파싱 작업 시작 (Job ID: ${jobId})`, 'info');
 
       // 2. SSE 연결 (진행 상황 수신)
