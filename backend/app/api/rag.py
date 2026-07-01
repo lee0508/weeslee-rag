@@ -1436,6 +1436,8 @@ async def hybrid_query(request: HybridQueryRequest):
             "inferred_terms": request.inferred_terms,
         },
         "timestamp": response.timestamp,
+        # LLM 추출 핵심 키워드 (하이라이트용)
+        "extracted_keywords": response.extracted_keywords,
     }
 
 
