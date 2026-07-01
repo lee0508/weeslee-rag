@@ -4880,7 +4880,7 @@
         const hasEvidence = doc.evidence_snippets && doc.evidence_snippets.length > 0;
         const hasChunks = doc.chunks && doc.chunks.length > 0;
         const hasSummary = doc.summary_available || doc.summary;
-        const hasGraph = doc.graph_context || doc.relations;
+        const hasGraph = doc.graph_context?.length > 0 || doc.relations?.length > 0 || doc.graph_relations?.length > 0;
 
         const viewActions = `
           <div class="doc-card-actions">
@@ -5182,7 +5182,7 @@
         summary_available: r?.summary_available || false,
         metadata,
         graph_relations: r?.graph_relations || [],
-        graph_context: r?.graph_context || r?.relations || []
+        graph_context: r?.graph_context || r?.relations || r?.graph_relations || []
       };
     }
 
@@ -5920,7 +5920,7 @@
             ${doc.summary_available || doc.summary ? `<button class="btn btn-sm ${viewMode === 'summary' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('summary')">📝 요약</button>` : ''}
             ${doc.chunks && doc.chunks.length > 0 ? `<button class="btn btn-sm ${viewMode === 'chunks' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('chunks')">🔍 청크</button>` : ''}
             ${doc.evidence_snippets && doc.evidence_snippets.length > 0 ? `<button class="btn btn-sm ${viewMode === 'evidence' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('evidence')">💡 근거</button>` : ''}
-            ${doc.graph_context || doc.relations ? `<button class="btn btn-sm ${viewMode === 'graph' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('graph')">🔗 Graph</button>` : ''}
+            ${doc.graph_context?.length > 0 || doc.relations?.length > 0 || doc.graph_relations?.length > 0 ? `<button class="btn btn-sm ${viewMode === 'graph' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('graph')">🔗 Graph</button>` : ''}
           </div>
         `;
 
@@ -5964,7 +5964,7 @@
               `).join('')
             : '<div style="color:var(--gray-400);font-size:12px">근거 정보 없음</div>';
         } else if (viewMode === 'graph') {
-          const graphContext = doc.graph_context || doc.relations || [];
+          const graphContext = doc.graph_context || doc.relations || doc.graph_relations || [];
           if (graphContext.length > 0) {
             // Graph 관계를 한국어 근거 문구로 변환
             const relationSummary = formatGraphRelations(graphContext);
