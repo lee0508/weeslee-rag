@@ -138,35 +138,80 @@ def _normalize_keyword_values(keywords: object) -> list[str]:
     return values
 
 
-def _load_document_metadata_map(document_ids: set[str]) -> dict[str, dict]:
-    if not document_ids:
-        return {}
+def _load_document_metadata_rows(docs: list[dict]) -> list[dict]:
+    if not docs:
+        return []
 
-    int_ids: list[int] = []
-    for document_id in document_ids:
+    document_ids: set[int] = set()
+    source_ids: set[str] = set()
+    relative_paths: set[str] = set()
+    file_names: set[str] = set()
+
+    for doc in docs:
         try:
-            int_ids.append(int(str(document_id)))
+            document_ids.add(int(str(doc.get("document_id") or "").strip()))
         except Exception:
-            continue
-    if not int_ids:
-        return {}
+            pass
+        source_id = _clean_text(doc.get("source_id"))
+        if source_id:
+            source_ids.add(source_id)
+        relative_path = _clean_text(doc.get("relative_path"))
+        if relative_path:
+            relative_paths.add(relative_path)
+        file_name = _clean_text(doc.get("file_name") or Path(_clean_text(doc.get("source_path"))).name)
+        if file_name:
+            file_names.add(file_name)
 
     db = SessionLocal()
     try:
-        rows = (
-            db.query(DocumentMetadata)
-            .filter(DocumentMetadata.document_id.in_(int_ids))
-            .all()
-        )
-        metadata_map: dict[str, dict] = {}
-        for row in rows:
-            metadata_map[str(row.document_id)] = row.to_dict()
-        return metadata_map
+        query = db.query(DocumentMetadata)
+        conditions = []
+        if document_ids:
+            conditions.append(DocumentMetadata.document_id.in_(sorted(document_ids)))
+        if relative_paths:
+            conditions.append(DocumentMetadata.relative_path.in_(sorted(relative_paths)))
+        if file_names:
+            conditions.append(DocumentMetadata.file_name.in_(sorted(file_names)))
+        if source_ids:
+            conditions.append(DocumentMetadata.source_id.in_(sorted(source_ids)))
+        if not conditions:
+            return []
+
+        from sqlalchemy import or_
+        rows = query.filter(or_(*conditions)).all()
+        return [row.to_dict() for row in rows]
     except Exception as exc:
         print(json.dumps({"warning": f"DocumentMetadata load failed: {exc}"}, ensure_ascii=False))
-        return {}
+        return []
     finally:
         db.close()
+
+
+def _select_best_metadata_row(doc: dict, metadata_rows: list[dict]) -> dict | None:
+    if not metadata_rows:
+        return None
+
+    doc_uid = _clean_text(doc.get("document_uid"))
+    relative_path = _clean_text(doc.get("relative_path"))
+    file_name = _clean_text(doc.get("file_name") or Path(_clean_text(doc.get("source_path"))).name)
+    faiss_source_id = _clean_text(doc.get("source_id"))
+
+    for row in metadata_rows:
+        if doc_uid and _clean_text(row.get("document_uid")) == doc_uid:
+            return row
+
+    source_matched = [row for row in metadata_rows if not faiss_source_id or _clean_text(row.get("source_id")) == faiss_source_id]
+    relative_candidates = source_matched or metadata_rows
+
+    for row in relative_candidates:
+        if relative_path and _clean_text(row.get("relative_path")) == relative_path:
+            return row
+
+    for row in relative_candidates:
+        if file_name and _clean_text(row.get("file_name")) == file_name:
+            return row
+
+    return relative_candidates[0] if relative_candidates else metadata_rows[0]
 
 
 def _merge_doc_metadata(doc: dict, meta_row: dict | None) -> dict:
@@ -265,12 +310,8 @@ def _merge_doc_metadata(doc: dict, meta_row: dict | None) -> dict:
 
 
 def _enrich_docs_with_metadata(docs: list[dict]) -> list[dict]:
-    metadata_map = _load_document_metadata_map({
-        _clean_text(doc.get("document_id"))
-        for doc in docs
-        if _clean_text(doc.get("document_id"))
-    })
-    return [_merge_doc_metadata(doc, metadata_map.get(_clean_text(doc.get("document_id")))) for doc in docs]
+    metadata_rows = _load_document_metadata_rows(docs)
+    return [_merge_doc_metadata(doc, _select_best_metadata_row(doc, metadata_rows)) for doc in docs]
 
 
 # ── Source ID helpers ─────────────────────────────────────────────────────────
@@ -296,6 +337,10 @@ def _get_source_mount_path(source_id: str) -> str | None:
 
 def _filter_docs_by_source(docs: list[dict], source_id: str) -> list[dict]:
     """source_id의 mount_path 기준으로 문서 필터링."""
+    direct_matches = [doc for doc in docs if _clean_text(doc.get("source_id")) == source_id]
+    if direct_matches:
+        return direct_matches
+
     mount_path = _get_source_mount_path(source_id)
     if not mount_path:
         print(f"[WARN] source_id '{source_id}' not found, returning all docs")
