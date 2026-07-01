@@ -443,6 +443,11 @@ def _chunks_from_faiss_meta(path: Path, allowed_doc_ids: set[str] | None = None)
             chunks.append({
                 "chunk_id": chunk_id,
                 "document_id": document_id,
+                "source_id": row.get("source_id") or meta.get("source_id", ""),
+                "dataset_id": row.get("dataset_id") or meta.get("dataset_id", ""),
+                "snapshot_id": row.get("snapshot_id") or meta.get("snapshot_id", ""),
+                "document_uid": row.get("document_uid") or meta.get("document_uid", ""),
+                "relative_path": row.get("relative_path") or meta.get("relative_path", ""),
                 "section_heading": row.get("section_heading", ""),
                 "section_title": row.get("section_title") or meta.get("section_title", ""),
                 "section_id": row.get("section_id") or meta.get("section_id"),
@@ -1023,6 +1028,7 @@ def _add_document_section_nodes_and_edges(
 
             # section_id 추출 (첫 번째 청크의 section_id)
             section_id = next((c.get("section_id") for c in section_chunks if c.get("section_id")), None)
+            first_chunk = section_chunks[0] if section_chunks else {}
 
             # 노드 생성
             add_node({
@@ -1030,6 +1036,11 @@ def _add_document_section_nodes_and_edges(
                 "type": "document_section",
                 "label": section_title,
                 "document_id": doc_id,
+                "source_id": first_chunk.get("source_id", ""),
+                "dataset_id": first_chunk.get("dataset_id", ""),
+                "snapshot_id": first_chunk.get("snapshot_id", ""),
+                "document_uid": first_chunk.get("document_uid", ""),
+                "relative_path": first_chunk.get("relative_path", ""),
                 "section_id": section_id,
                 "chunk_count": len(section_chunks),
                 "is_key_section": is_key_section,
@@ -1136,6 +1147,7 @@ def _add_chunk_section_nodes_and_edges(
             page_nos = [c["page_no"] for c in heading_chunks if c.get("page_no")]
             start_page = min(page_nos) if page_nos else None
             end_page = max(page_nos) if page_nos else None
+            first_chunk = heading_chunks[0] if heading_chunks else {}
 
             # 노드 생성 (핵심 섹션만 또는 청크가 2개 이상인 경우)
             if is_key_section or len(heading_chunks) >= 2:
@@ -1144,6 +1156,11 @@ def _add_chunk_section_nodes_and_edges(
                     "type": "chunk_section",
                     "label": clean_heading,
                     "document_id": doc_id,
+                    "source_id": first_chunk.get("source_id", ""),
+                    "dataset_id": first_chunk.get("dataset_id", ""),
+                    "snapshot_id": first_chunk.get("snapshot_id", ""),
+                    "document_uid": first_chunk.get("document_uid", ""),
+                    "relative_path": first_chunk.get("relative_path", ""),
                     "chunk_count": len(heading_chunks),
                     "is_key_section": is_key_section,
                     "start_page": start_page,

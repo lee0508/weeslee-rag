@@ -539,20 +539,18 @@ async def build_faiss_index(
                             or ""
                         ),
                     })
-                    metadata_rows.append(
-                        _build_snapshot_metadata_row(
-                            doc=doc,
-                            chunk=chunks[chunk_idx],
-                            chunk_index=chunk_idx,
-                            file_name=file_name,
-                            dataset_id=dataset_id,
-                            snapshot_id=snapshot_id,
-                            total_pages=total_pages,
-                        )
+                    metadata_row = _build_snapshot_metadata_row(
+                        doc=doc,
+                        chunk=chunks[chunk_idx],
+                        chunk_index=chunk_idx,
+                        file_name=file_name,
+                        dataset_id=dataset_id,
+                        snapshot_id=snapshot_id,
+                        total_pages=total_pages,
                     )
+                    metadata_rows.append(metadata_row)
                     preview_chunk_rows.append({
-                        "chunk_id": str(chunks[chunk_idx].get("metadata", {}).get("chunk_id") or f"{doc.document_id}-chunk-{chunk_idx:04d}"),
-                        "document_id": str(doc.document_id),
+                        **metadata_row,
                         "text": str(chunks[chunk_idx].get("content") or ""),
                     })
                     valid_count += 1
