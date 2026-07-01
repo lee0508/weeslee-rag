@@ -16999,10 +16999,13 @@ LIMIT 10`;
       const sourceId = getCurrentSourceId?.() || '';
       const datasetId = getCurrentDatasetId?.() || '';
       const collectionName = 'weeslee_rag_main';
-      const snapshotId = _wizardFaissSnapshot || getSelectedSnapshot?.() || createNewSnapshotId();
       if (!sourceId) {
         throw new Error('Step 7 실행 전 Document Source를 먼저 선택해 주세요.');
       }
+      // 선택된 snapshot이 현재 source에 속하는지 확인
+      const existingSnapshot = _wizardFaissSnapshot || getSelectedSnapshot?.() || '';
+      const snapshotBelongsToSource = existingSnapshot && existingSnapshot.includes(sourceId);
+      const snapshotId = snapshotBelongsToSource ? existingSnapshot : createNewSnapshotId();
       _wizardFaissSnapshot = snapshotId;
       if (typeof updateSnapshotUI === 'function') updateSnapshotUI();
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step7/build'), {
