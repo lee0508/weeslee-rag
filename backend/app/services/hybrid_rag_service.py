@@ -190,6 +190,16 @@ class HybridRAGService:
         results = []
         for r in response.results:
             metadata = dict(r.metadata or {})
+            metadata.setdefault("source_id", metadata.get("source_id") or self.source_id)
+            metadata.setdefault("dataset_id", metadata.get("dataset_id"))
+            metadata.setdefault("snapshot_id", metadata.get("snapshot_id"))
+            metadata.setdefault("document_uid", metadata.get("document_uid"))
+            metadata.setdefault("relative_path", metadata.get("relative_path"))
+            metadata.setdefault("source_path", metadata.get("source_path") or r.source_path)
+            metadata.setdefault("page_no", metadata.get("page_no") or r.page_no)
+            metadata.setdefault("slide_no", metadata.get("slide_no") or r.slide_no)
+            metadata.setdefault("section_title", metadata.get("section_title") or r.section_title)
+            metadata.setdefault("section_id", metadata.get("section_id") or r.section_id)
             document_id = str(r.document_id or "")
             if allowed_document_ids and document_id and document_id not in allowed_document_ids:
                 continue
@@ -283,6 +293,8 @@ class HybridRAGService:
     async def _search_graph(
         self,
         query: str,
+        *,
+        metadata_filters: Optional[dict[str, Any]] = None,
     ) -> tuple[list[dict], list[str], int, int, str]:
         """GraphRAG Agent 검색."""
         if not self.graph_agent:
@@ -296,7 +308,7 @@ class HybridRAGService:
 
         results = []
         for node in response.results:
-            results.append({
+            candidate = {
                 "document_id": node.get("document_id") or node.get("id", ""),
                 "node_id": node.get("id", ""),
                 "node_type": node.get("type", ""),
@@ -307,11 +319,15 @@ class HybridRAGService:
                 "source_path": node.get("source_path", ""),
                 "score": 1.0,  # Graph 결과는 기본 점수 1.0
                 "source": SearchSource.GRAPH.value,
-            })
+                "metadata": node.get("metadata") or {},
+            }
+            if not self._matches_metadata_filters(candidate, metadata_filters or {}):
+                continue
+            results.append(candidate)
 
         # Fallback 결과 추가
         for fb in response.fallback_results:
-            results.append({
+            candidate = {
                 "document_id": fb.get("document_id", ""),
                 "chunk_id": fb.get("chunk_id", ""),
                 "score": fb.get("score", 0.5),
@@ -320,7 +336,11 @@ class HybridRAGService:
                 "file_name": fb.get("file_name", ""),
                 "text_preview": fb.get("text_preview", ""),
                 "source": f"{SearchSource.GRAPH.value}_fallback",
-            })
+                "metadata": fb.get("metadata") or {},
+            }
+            if not self._matches_metadata_filters(candidate, metadata_filters or {}):
+                continue
+            results.append(candidate)
 
         # 재시도 횟수 계산
         retry_count = len([s for s in response.steps if "retry" in s.step_name.lower() or "_2" in s.step_name or "_3" in s.step_name])
@@ -614,7 +634,10 @@ class HybridRAGService:
             elif search_order == "graph_first":
                 # Graph 우선: Graph → FAISS 순차
                 if self.enable_graph:
-                    graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = await self._search_graph(question)
+                    graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = await self._search_graph(
+                        question,
+                        metadata_filters=metadata_filters,
+                    )
 
                 graph_doc_ids = self._graph_candidate_document_ids(graph_results)
                 faiss_results, faiss_time = await self._search_faiss(
@@ -657,7 +680,10 @@ class HybridRAGService:
                 )]
 
                 if self.enable_graph:
-                    tasks.append(self._search_graph(question))
+                    tasks.append(self._search_graph(
+                        question,
+                        metadata_filters=metadata_filters,
+                    ))
 
                 if self.enable_wiki:
                     tasks.append(self._search_wiki(question, top_k // 2, organization=organization))
@@ -720,6 +746,18 @@ class HybridRAGService:
                         "file_name": d.file_name,
                         "text_preview": d.text_preview,
                         "chunk_id": d.chunk_id,
+                        "source_id": d.metadata.get("source_id"),
+                        "dataset_id": d.metadata.get("dataset_id"),
+                        "snapshot_id": d.metadata.get("snapshot_id"),
+                        "document_uid": d.metadata.get("document_uid"),
+                        "relative_path": d.metadata.get("relative_path"),
+                        "source_path": d.metadata.get("source_path"),
+                        "page_no": d.metadata.get("page_no"),
+                        "slide_no": d.metadata.get("slide_no"),
+                        "section_title": d.metadata.get("section_title") or d.metadata.get("section_heading"),
+                        "section_id": d.metadata.get("section_id"),
+                        "document_group": d.metadata.get("document_group"),
+                        "document_category": d.metadata.get("document_category"),
                         "graph_relations": d.graph_relations,
                         "metadata": d.metadata,
                     }

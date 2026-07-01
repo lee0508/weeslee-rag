@@ -414,7 +414,19 @@ class FaissSearchService:
                     page_no=row.get("page_no"),
                     slide_no=row.get("slide_no"),
                     total_pages=row.get("total_pages"),
-                    metadata=row.get("metadata", {}),
+                    metadata={
+                        **(row.get("metadata", {}) or {}),
+                        "source_id": row.get("source_id") or row.get("metadata", {}).get("source_id"),
+                        "dataset_id": row.get("dataset_id") or row.get("metadata", {}).get("dataset_id"),
+                        "snapshot_id": row.get("snapshot_id") or row.get("metadata", {}).get("snapshot_id"),
+                        "document_uid": row.get("document_uid") or row.get("metadata", {}).get("document_uid"),
+                        "relative_path": row.get("relative_path") or row.get("metadata", {}).get("relative_path"),
+                        "source_path": row.get("source_path") or row.get("metadata", {}).get("source_path"),
+                        "page_no": row.get("page_no") or row.get("metadata", {}).get("page_no"),
+                        "slide_no": row.get("slide_no") or row.get("metadata", {}).get("slide_no"),
+                        "section_title": row.get("section_title") or row.get("metadata", {}).get("section_title"),
+                        "section_id": row.get("section_id") or row.get("metadata", {}).get("section_id"),
+                    },
                 ))
 
                 if len(results) >= top_k:
