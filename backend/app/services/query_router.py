@@ -379,3 +379,101 @@ def get_query_router(entity_mappings_path: Optional[Path] = None) -> QueryRouter
 def analyze_query(query: str) -> QueryAnalysis:
     """질문 분석 (단축 함수)."""
     return get_query_router().analyze(query)
+
+
+# LLM 기반 핵심 키워드 추출
+import asyncio
+import urllib.request
+import urllib.error
+
+
+_LLM_KEYWORD_PROMPT = """사용자 질문에서 문서 검색에 사용할 핵심 키워드만 추출하세요.
+
+규칙:
+1. 검색에 의미있는 명사, 고유명사, 전문용어만 추출
+2. 조사(은/는/이/가/을/를/에/의/와/과), 동사(찾아/알려/보여/해줘), 부사(대한/위한/관한)는 제외
+3. "폴더", "내용", "파일" 같은 일반적인 단어는 제외
+4. 띄어쓰기가 있어도 하나의 개념이면 붙여서 추출 (예: "의사소통 관리" → "의사소통관리")
+5. 최대 5개까지만 추출
+6. JSON 배열 형식으로만 응답
+
+예시:
+질문: "프로젝트관리 폴더 안에서 의사소통 관리에 대한 내용을 찾아줘"
+응답: ["프로젝트관리", "의사소통관리"]
+
+질문: "공공기관을 고객으로 하여 AI를 접목한 시스템 도입을 원하는 사업 찾아줘"
+응답: ["공공기관", "AI", "시스템도입"]
+
+질문: {query}
+응답:"""
+
+
+async def extract_keywords_with_llm(
+    query: str,
+    ollama_url: str = "http://127.0.0.1:11434/api/generate",
+    model: str = "qwen2.5:14b",
+    timeout: float = 10.0,
+) -> List[str]:
+    """
+    LLM을 사용하여 질문에서 핵심 키워드를 추출한다.
+
+    Args:
+        query: 사용자 질문
+        ollama_url: Ollama API URL
+        model: 사용할 모델명
+        timeout: 타임아웃 (초)
+
+    Returns:
+        핵심 키워드 리스트
+    """
+    prompt = _LLM_KEYWORD_PROMPT.format(query=query)
+
+    payload = json.dumps({
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.1,
+            "num_predict": 100,
+        }
+    }).encode("utf-8")
+
+    request = urllib.request.Request(
+        ollama_url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    def _call_ollama():
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read().decode("utf-8"))
+                return data.get("response", "[]")
+        except (urllib.error.URLError, TimeoutError):
+            return "[]"
+
+    try:
+        loop = asyncio.get_event_loop()
+        response_text = await loop.run_in_executor(None, _call_ollama)
+
+        # JSON 파싱 시도
+        response_text = response_text.strip()
+        # JSON 배열만 추출
+        start = response_text.find("[")
+        end = response_text.rfind("]") + 1
+        if start >= 0 and end > start:
+            json_str = response_text[start:end]
+            keywords = json.loads(json_str)
+            if isinstance(keywords, list):
+                return [str(k).strip() for k in keywords if k and len(str(k).strip()) >= 2][:5]
+    except Exception:
+        pass
+
+    # LLM 실패 시 규칙 기반 폴백
+    return get_query_router()._extract_keywords(query)[:5]
+
+
+def extract_keywords_sync(query: str) -> List[str]:
+    """동기 버전 키워드 추출 (규칙 기반)."""
+    return get_query_router()._extract_keywords(query)[:5]

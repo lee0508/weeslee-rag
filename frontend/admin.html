@@ -12084,36 +12084,100 @@ POST /api/admin/faiss/activate</code>
     updateStepStatus(stepNum, 'running');
 
     try {
-      // API 엔드포인트 매핑 (향후 구현)
-      const endpoints = {
-        2: '/api/admin/dataset-builder/step1/scan',
-        3: '/api/admin/dataset-builder/step2/metadata-auto',
-        4: '/api/admin/dataset-builder/tag-keyword/generate',
-        5: '/api/admin/faiss/jobs',
-        6: '/api/admin/graph/schema/build',
-        7: '/api/graph/build',
-        8: '/api/wiki/build',
-        9: '/api/admin/graph/text2cypher/test',
-        10: '/api/admin/hybrid-rag/activate'
-      };
+      if (stepNum === 2) {
+        const sourceId = getCurrentSourceId?.() || document.getElementById('ctxSource')?.value?.trim() || '';
+        if (!sourceId) {
+          throw new Error('Document Source를 먼저 선택하세요.');
+        }
 
-      // 현재는 Mock 응답 (실제 API 연동 전)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+        clearStep2Console();
+        appendStep2Log('info', `Step 2 일괄 실행 시작: source_id=${sourceId}`);
+
+        const chunkSize = parseInt(document.getElementById('wrStep2ChunkSize')?.value || '1000', 10) || 1000;
+        const chunkOverlap = parseInt(document.getElementById('wrStep2ChunkOverlap')?.value || '200', 10) || 200;
+        const embeddingModel = document.getElementById('wrStep2EmbedModel')?.value || 'nomic-embed-text';
+        const currentDatasetId = getCurrentDatasetId?.() || '';
+        const snapshotId = createNewSnapshotId();
+
+        appendStep2Log('info', `Chunk size=${chunkSize}, overlap=${chunkOverlap}, embedding=${embeddingModel}`);
+        appendStep2Log('info', `Dataset=${currentDatasetId || '-'}, Snapshot=${snapshotId}`);
+
+        const response = await fetch(apiUrl('/api/admin/dataset-builder/step2/chunk-embed-faiss'), {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source_id: sourceId,
+            snapshot_id: snapshotId,
+            chunk_size: chunkSize,
+            chunk_overlap: chunkOverlap,
+            min_chunk_size: 100,
+            embedding_model: embeddingModel,
+            batch_size: 32,
+            retry_count: 3,
+            force_rebuild: !!_wizardForceRebuild,
+            collection_name: 'weeslee_rag_main',
+            index_type: 'flat',
+            metric: 'l2',
+            normalize: true
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+          throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+        }
+
+        _wizardFaissSnapshot = data.snapshot_id || snapshotId;
+        if (typeof updateSnapshotUI === 'function') updateSnapshotUI();
+
+        const chunk = data.chunk || {};
+        const embedding = data.embedding || {};
+        const faiss = data.faiss || {};
+
+        if (embedding.embedding_dim) {
+          const dimEl = document.getElementById('wrStep2EmbedDim');
+          if (dimEl) dimEl.value = String(embedding.embedding_dim);
+        }
+
+        appendStep2Log(
+          'success',
+          `Chunk 완료: 처리 ${chunk.processed || 0}건, 건너뜀 ${chunk.skipped || 0}건, 실패 ${chunk.failed || 0}건, 총 ${chunk.total_chunks || 0} chunk`
+        );
+        appendStep2Log(
+          'success',
+          `Embedding 완료: 처리 ${embedding.processed || 0}건, 건너뜀 ${embedding.skipped || 0}건, 실패 ${embedding.failed || 0}건, 총 ${embedding.total_embeddings || 0} vector`
+        );
+        appendStep2Log(
+          'success',
+          `FAISS 완료: 문서 ${faiss.documents_indexed || 0}건, vector ${faiss.total_vectors || 0}개, snapshot=${faiss.snapshot_id || _wizardFaissSnapshot}`
+        );
+
+        if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
+        if (typeof loadStatus === 'function') loadStatus();
+        if (typeof loadIndexes === 'function') loadIndexes();
+
+      } else {
+        // 아직 연결되지 않은 상세 설정 패널은 기존 Mock 동작을 유지한다.
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Step 7 결과 업데이트 예시
+        if (stepNum === 7) {
+          document.getElementById('wrStep7OrgNodes').textContent = '12개';
+          document.getElementById('wrStep7ProjNodes').textContent = '48개';
+          document.getElementById('wrStep7DocNodes').textContent = '156개';
+          document.getElementById('wrStep7Edges').textContent = '324개';
+        }
+      }
 
       updateStepStatus(stepNum, 'ok');
       showToast(`Step ${stepNum} ${stepNames[stepNum]} 완료`, 'success', 2000);
 
-      // Step 7 결과 업데이트 예시
-      if (stepNum === 7) {
-        document.getElementById('wrStep7OrgNodes').textContent = '12개';
-        document.getElementById('wrStep7ProjNodes').textContent = '48개';
-        document.getElementById('wrStep7DocNodes').textContent = '156개';
-        document.getElementById('wrStep7Edges').textContent = '324개';
-      }
-
       return true;
     } catch (error) {
       updateStepStatus(stepNum, 'err');
+      if (stepNum === 2) {
+        appendStep2Log('error', error.message || 'Step 2 실행 실패');
+      }
       showToast(`Step ${stepNum} 실패: ${error.message}`, 'error', 3000);
       return false;
     }
@@ -17431,10 +17495,16 @@ LIMIT 10`;
   async function runStep5ChunkBuild() {
     showToast(`Chunk Build 실행 중... ${getRuntimeGpuModeLabel('chunk')}`, 'info');
     try {
+      const sourceId = getCurrentSourceId?.() || '';
+      if (!sourceId) {
+        throw new Error('Document Source를 먼저 선택하세요.');
+      }
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step5/chunk'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          source_id: sourceId,
+        }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
@@ -17454,6 +17524,10 @@ LIMIT 10`;
   async function runStep6EmbedBuild() {
     showToast(`Embedding Build 실행 중... ${getRuntimeGpuModeLabel('embedding')}`, 'info');
     try {
+      const sourceId = getCurrentSourceId?.() || '';
+      if (!sourceId) {
+        throw new Error('Document Source를 먼저 선택하세요.');
+      }
       const model = document.getElementById('dbStep6EmbedModel')?.value || 'nomic-embed-text';
       const batchSize = parseInt(document.getElementById('dbStep6BatchSize')?.value || '32', 10) || 32;
       const retryCount = parseInt(document.getElementById('dbStep6RetryCount')?.value || '3', 10) || 3;
@@ -17461,6 +17535,7 @@ LIMIT 10`;
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          source_id: sourceId,
           model,
           batch_size: batchSize,
           retry_count: retryCount,

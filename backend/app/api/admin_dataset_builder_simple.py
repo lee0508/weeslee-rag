@@ -30,6 +30,10 @@ from app.services.dataset_context import get_source_dataset_context, ensure_sour
 from app.services.category_service import detect_categories_from_directory
 from app.core.config import settings
 from app.core.mappings import mappings
+from app.services.ollama import OllamaService, get_ollama
+from app.api.admin_dataset_builder_step5 import ChunkBuildRequest, build_chunks
+from app.api.admin_dataset_builder_step6 import EmbeddingBuildRequest, build_embeddings
+from app.api.admin_dataset_builder_step7 import FAISSBuildRequest, build_faiss_index
 
 router = APIRouter(
     prefix="/admin/dataset-builder",
@@ -241,6 +245,23 @@ class TagKeywordGenerateRequest(BaseModel):
     source_id: str
     snapshot_id: Optional[str] = None
     overwrite: bool = False
+
+
+class Step2ChunkEmbedFaissRequest(BaseModel):
+    source_id: str
+    snapshot_id: Optional[str] = None
+    document_ids: Optional[List[int]] = None
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+    min_chunk_size: int = 100
+    embedding_model: str = "nomic-embed-text"
+    batch_size: int = 32
+    retry_count: int = 3
+    force_rebuild: bool = False
+    collection_name: str = "weeslee_rag_main"
+    index_type: str = "flat"
+    metric: str = "l2"
+    normalize: bool = True
 
 
 def scan_folder(folder_path: str, extensions: set) -> List[dict]:
@@ -736,6 +757,94 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
 async def dataset_builder_tag_keyword_generate(body: TagKeywordGenerateRequest):
     """현재 Document Source 기준 Tag/Keyword 생성 alias."""
     return generate_tag_keyword_for_source(body)
+
+
+@router.post("/step2/chunk-embed-faiss")
+async def run_step2_chunk_embed_faiss(
+    request: Step2ChunkEmbedFaissRequest,
+    db: Session = Depends(get_db),
+    ollama: OllamaService = Depends(get_ollama),
+):
+    """
+    Dataset Builder UI용 Step 2 일괄 실행.
+
+    검수 완료 문서를 source_id 기준으로 좁힌 뒤
+    Chunk -> Embedding -> FAISS를 순차 실행한다.
+    """
+    source_id = (request.source_id or "").strip()
+    if not source_id:
+        raise HTTPException(status_code=400, detail="source_id는 필수입니다.")
+
+    query = db.query(DocumentMetadata).filter(
+        DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
+        DocumentMetadata.include_in_rag == True,
+        DocumentMetadata.is_excluded == False,
+        DocumentMetadata.removed_at.is_(None),
+        DocumentMetadata.source_id == source_id,
+    ).order_by(DocumentMetadata.document_id)
+
+    if request.document_ids:
+        query = query.filter(DocumentMetadata.document_id.in_(request.document_ids))
+
+    docs = query.all()
+    document_ids = [doc.document_id for doc in docs]
+    if not document_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=f"source_id={source_id} 에 대해 Step 2 실행 대상 문서를 찾지 못했습니다.",
+        )
+
+    chunk_result = await build_chunks(
+        ChunkBuildRequest(
+            source_id=source_id,
+            document_ids=document_ids,
+            chunk_size=request.chunk_size,
+            chunk_overlap=request.chunk_overlap,
+            min_chunk_size=request.min_chunk_size,
+            force_rebuild=request.force_rebuild,
+        ),
+        db,
+    )
+    embedding_result = await build_embeddings(
+        EmbeddingBuildRequest(
+            source_id=source_id,
+            document_ids=document_ids,
+            model=request.embedding_model,
+            batch_size=request.batch_size,
+            retry_count=request.retry_count,
+            force_rebuild=request.force_rebuild,
+        ),
+        db,
+        ollama,
+    )
+    faiss_result = await build_faiss_index(
+        FAISSBuildRequest(
+            collection_name=request.collection_name,
+            source_id=source_id,
+            snapshot_id=request.snapshot_id,
+            document_ids=document_ids,
+            index_type=request.index_type,
+            metric=request.metric,
+            normalize=request.normalize,
+        ),
+        db,
+    )
+
+    return {
+        "success": True,
+        "source_id": source_id,
+        "document_count": len(document_ids),
+        "snapshot_id": faiss_result.snapshot_id,
+        "chunk": chunk_result.model_dump(),
+        "embedding": embedding_result.model_dump(),
+        "faiss": faiss_result.model_dump(),
+        "message": (
+            f"Step 2 완료: source_id={source_id}, "
+            f"chunk={chunk_result.total_chunks}, "
+            f"embedding={embedding_result.total_embeddings}, "
+            f"faiss={faiss_result.total_vectors}"
+        ),
+    }
 
 
 @router.get("/stats")

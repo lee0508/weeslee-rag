@@ -4817,6 +4817,8 @@
 
     // 현재 검색 쿼리 저장 (하이라이트용)
     var _currentSearchQuery = '';
+    // LLM 추출 키워드 (하이라이트용)
+    var _extractedKeywords = [];
 
     function renderDocumentCards(documents, compact, query) {
       // 전역 배열에 문서 저장
@@ -5009,6 +5011,9 @@
     function transformHybridResponse(hybridData) {
       if (!hybridData) return { success: false, error: 'No hybrid data' };
 
+      // LLM 추출 키워드 저장 (하이라이트용)
+      _extractedKeywords = hybridData.extracted_keywords || [];
+
       // merged_documents 또는 results에서 문서 추출
       const rawDocs = hybridData.merged_documents || hybridData.results || [];
 
@@ -5061,16 +5066,32 @@
         .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
     }
 
-    // 질문 텍스트 마크업 - 검색 쿼리 키워드 하이라이트
+    // 질문 텍스트 마크업 - LLM 추출 키워드 우선, 폴백으로 규칙 기반
     function highlightQueryTerms(text, query) {
-      if (!text || !query) return escapeHtml(text);
+      if (!text) return '';
 
-      // 쿼리에서 의미있는 키워드 추출 (2자 이상, 조사/접속사 제외)
-      const stopWords = new Set(['은', '는', '이', '가', '을', '를', '에', '의', '와', '과', '로', '으로', '에서', '부터', '까지', '하는', '있는', '되는', '한', '할', '등', '및', '또는', '그리고']);
-      const terms = query
-        .split(/[\s,.:;!?]+/)
-        .filter(t => t.length >= 2 && !stopWords.has(t))
-        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // 정규식 이스케이프
+      // 1. LLM 추출 키워드가 있으면 우선 사용
+      let terms = [];
+      if (_extractedKeywords && _extractedKeywords.length > 0) {
+        terms = _extractedKeywords
+          .filter(k => k && k.length >= 2)
+          .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      }
+
+      // 2. LLM 키워드가 없으면 규칙 기반 폴백
+      if (terms.length === 0 && query) {
+        const stopWords = new Set([
+          '은', '는', '이', '가', '을', '를', '에', '의', '와', '과', '로', '으로', '에서', '부터', '까지',
+          '대한', '대해', '위한', '위해', '관한', '관해', '통한', '통해',
+          '하는', '있는', '되는', '한', '할', '등', '및', '또는', '그리고',
+          '안에서', '밖에서', '속에서', '폴더', '내용', '파일', '문서',
+          '찾아줘', '찾아', '알려줘', '보여줘', '해줘', '줘'
+        ]);
+        terms = query
+          .split(/[\s,.:;!?]+/)
+          .filter(t => t.length >= 2 && !stopWords.has(t))
+          .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      }
 
       if (terms.length === 0) return escapeHtml(text);
 

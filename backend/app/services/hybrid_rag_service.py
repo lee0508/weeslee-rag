@@ -41,6 +41,7 @@ from app.services.query_router import (
     QueryComplexity,
     SearchSource as RouterSearchSource,
     get_query_router,
+    extract_keywords_with_llm,
 )
 from app.services.wiki_search_service import (
     WikiSearchService,
@@ -127,6 +128,9 @@ class HybridRAGResponse:
     # 검색 전략 정보
     search_order: Optional[str] = None
     sources_used: list[str] = field(default_factory=list)
+
+    # LLM 추출 핵심 키워드 (하이라이트용)
+    extracted_keywords: list[str] = field(default_factory=list)
 
     error: Optional[str] = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -704,6 +708,15 @@ class HybridRAGService:
             if force_search_order:
                 search_order = force_search_order
 
+            # 1.5. LLM 기반 핵심 키워드 추출 (하이라이트용)
+            extracted_keywords: list[str] = []
+            try:
+                extracted_keywords = await extract_keywords_with_llm(question)
+            except Exception:
+                # 실패 시 규칙 기반 폴백
+                if query_analysis:
+                    extracted_keywords = query_analysis.keywords[:5]
+
             # 2. 질문 유형별 검색 전략 결정
             faiss_results, faiss_time = [], 0
             graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = [], [], 0, 0, ""
@@ -904,6 +917,7 @@ class HybridRAGService:
                 total_time_ms=total_time,
                 search_order=search_order,
                 sources_used=sources_to_use,
+                extracted_keywords=extracted_keywords,
             )
 
         except Exception as e:

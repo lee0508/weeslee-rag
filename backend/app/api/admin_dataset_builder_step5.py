@@ -24,6 +24,7 @@ router = APIRouter(prefix="/admin/dataset-builder/step5")
 
 class ChunkBuildRequest(BaseModel):
     """청킹 설정 요청"""
+    source_id: Optional[str] = Field(None, description="Document Source ID (특정 소스만 처리)")
     document_ids: Optional[List[int]] = Field(None, description="처리할 문서 ID 목록 (비어있으면 전체)")
     chunk_size: int = Field(512, ge=100, le=2000, description="청크 크기 (토큰)")
     chunk_overlap: int = Field(50, ge=0, le=500, description="청크 오버랩 (토큰)")
@@ -180,6 +181,9 @@ async def build_chunks(
             DocumentMetadata.is_excluded == False,
             DocumentMetadata.removed_at.is_(None),
         )
+
+        if req.source_id:
+            query = query.filter(DocumentMetadata.source_id == req.source_id)
 
         if req.document_ids:
             query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))

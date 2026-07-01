@@ -32,6 +32,7 @@ FAISS_DIR = DATA_DIR / "indexes" / "faiss"
 
 class EmbeddingBuildRequest(BaseModel):
     """임베딩 생성 요청"""
+    source_id: Optional[str] = Field(None, description="Document Source ID (특정 소스만 처리)")
     document_ids: Optional[List[int]] = Field(None, description="처리할 문서 ID 목록 (비어있으면 전체)")
     model: str = Field("nomic-embed-text", description="임베딩 모델명")
     batch_size: int = Field(32, ge=1, le=100, description="배치 크기")
@@ -494,6 +495,9 @@ async def build_embeddings(
             DocumentMetadata.is_excluded == False,
             DocumentMetadata.removed_at.is_(None),
         )
+
+        if req.source_id:
+            query = query.filter(DocumentMetadata.source_id == req.source_id)
 
         if req.document_ids:
             query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
