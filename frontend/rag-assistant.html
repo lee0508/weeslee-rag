@@ -4181,6 +4181,7 @@
           const isGraphPrimaryMode = effectiveMode === 'graph_rag';
           const hybridPayload = {
             question: effectiveQuery,
+            expanded_query: analysisData?.expanded_query || '',
             top_k: topK,
             max_results: topDocs,
             merge_strategy: isGraphPrimaryMode ? 'graph_first' : 'score_based',
@@ -4188,6 +4189,11 @@
             enable_graph: true,
             enable_wiki: false,
             generate_answer: answerProvider !== 'none',
+            inferred_organization: analysisData?.detected_organization || '',
+            inferred_project_type: analysisData?.detected_project_type || '',
+            inferred_document_group: inferredDocumentGroup || '',
+            inferred_document_category: resolvedFilters.document_category || '',
+            inferred_terms: Array.isArray(analysisData?.extracted_keywords) ? analysisData.extracted_keywords : [],
             ...(!selectedSnapshotIds.length && searchScopeMeta?.source_ids?.length === 1 ? { source_id: searchScopeMeta.source_ids[0] } : {}),
             ...(effectiveCategory ? { category: effectiveCategory } : {}),
             ...(effectiveDocumentGroup ? { document_group: effectiveDocumentGroup } : {}),

@@ -1292,6 +1292,7 @@ class HybridQueryRequest(BaseModel):
     """Hybrid RAG 쿼리 요청."""
     question: str = Field(..., description="사용자 질문")
     source_id: Optional[str] = Field(None, description="Document Source ID")
+    expanded_query: Optional[str] = Field(None, description="확장된 검색 질의")
     top_k: int = Field(10, ge=1, le=50, description="각 소스별 최대 결과 수")
     max_results: int = Field(20, ge=1, le=100, description="병합 후 최대 결과 수")
     category: Optional[str] = Field(None, description="문서 카테고리 필터")
@@ -1300,6 +1301,11 @@ class HybridQueryRequest(BaseModel):
     document_group: Optional[str] = Field(None, description="문서 그룹 필터")
     document_category: Optional[str] = Field(None, description="문서 세부 분류 필터")
     section_type: Optional[str] = Field(None, description="섹션/목차 필터")
+    inferred_organization: Optional[str] = Field(None, description="질문 분석으로 추론한 기관명 힌트")
+    inferred_project_type: Optional[str] = Field(None, description="질문 분석으로 추론한 프로젝트 유형 힌트")
+    inferred_document_group: Optional[str] = Field(None, description="질문 분석으로 추론한 문서 그룹 힌트")
+    inferred_document_category: Optional[str] = Field(None, description="질문 분석으로 추론한 문서 세부 분류 힌트")
+    inferred_terms: list[str] = Field(default_factory=list, description="질문 분석으로 추출한 키워드 힌트")
     enable_graph: bool = Field(True, description="GraphRAG 활성화")
     enable_wiki: bool = Field(False, description="Wiki 검색 활성화")
     merge_strategy: str = Field("score_based", description="결과 병합 전략: score_based, faiss_first, graph_first, interleave")
@@ -1352,6 +1358,7 @@ async def hybrid_query(request: HybridQueryRequest):
 
     response = await service.query(
         question=request.question,
+        expanded_query=request.expanded_query,
         top_k=request.top_k,
         max_results=request.max_results,
         generate_answer=request.generate_answer,
@@ -1361,6 +1368,11 @@ async def hybrid_query(request: HybridQueryRequest):
         document_group=request.document_group,
         document_category=request.document_category,
         section_type=request.section_type,
+        inferred_organization=request.inferred_organization,
+        inferred_project_type=request.inferred_project_type,
+        inferred_document_group=request.inferred_document_group,
+        inferred_document_category=request.inferred_document_category,
+        inferred_terms=request.inferred_terms,
         force_search_order=request.force_search_order,
     )
 
@@ -1414,6 +1426,14 @@ async def hybrid_query(request: HybridQueryRequest):
             "document_group": request.document_group,
             "document_category": request.document_category,
             "section_type": request.section_type,
+        },
+        "applied_hints": {
+            "expanded_query": request.expanded_query,
+            "inferred_organization": request.inferred_organization,
+            "inferred_project_type": request.inferred_project_type,
+            "inferred_document_group": request.inferred_document_group,
+            "inferred_document_category": request.inferred_document_category,
+            "inferred_terms": request.inferred_terms,
         },
         "timestamp": response.timestamp,
     }

@@ -135,6 +135,40 @@ class HybridRAGResponse:
 class HybridRAGService:
     """Hybrid RAG 서비스."""
 
+    @staticmethod
+    def _normalize_soft_hints(
+        hints: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        normalized: dict[str, Any] = {}
+        if not hints:
+            return normalized
+
+        for key in (
+            "organization",
+            "organization_type",
+            "project_type",
+            "document_group",
+            "document_category",
+            "section_type",
+        ):
+            value = hints.get(key)
+            if isinstance(value, str):
+                value = value.strip()
+                if value:
+                    normalized[key] = value.lower()
+
+        inferred_terms = hints.get("inferred_terms")
+        if isinstance(inferred_terms, list):
+            terms = [
+                str(term).strip().lower()
+                for term in inferred_terms
+                if str(term).strip()
+            ]
+            if terms:
+                normalized["inferred_terms"] = terms
+
+        return normalized
+
     def __init__(
         self,
         source_id: Optional[str] = None,
@@ -402,6 +436,7 @@ class HybridRAGService:
         wiki_results: list[dict],
         question: str = "",
         max_results: int = 20,
+        soft_metadata_hints: Optional[dict[str, Any]] = None,
     ) -> list[MergedDocument]:
         """결과 병합 및 중복 제거."""
         start_time = time.time()
@@ -499,6 +534,8 @@ class HybridRAGService:
         prefers_slide = any(token in query_lower for token in ("장표", "슬라이드", "slide", "ppt", "pptx"))
         prefers_security = any(token in query_lower for token in ("보안", "누출금지", "정보보호"))
 
+        normalized_hints = self._normalize_soft_hints(soft_metadata_hints)
+
         # ranking_score 계산 (assemble_rag_response.py와 유사한 가중치 적용)
         for doc in merged:
             metadata = doc.metadata or {}
@@ -509,6 +546,10 @@ class HybridRAGService:
             intent_bonus = 0.0
 
             document_group = str(metadata.get("document_group") or "").strip().lower()
+            document_category = str(metadata.get("document_category") or "").strip().lower()
+            project_type = str(metadata.get("project_type") or doc.metadata.get("project_type") or "").strip().lower()
+            organization = str(doc.organization or metadata.get("organization") or "").strip().lower()
+            organization_type = str(metadata.get("organization_type") or metadata.get("client_type") or "").strip().lower()
             extension = str(metadata.get("extension") or "").strip().lower()
             section_text = " ".join(
                 str(value or "")
@@ -518,6 +559,8 @@ class HybridRAGService:
                     metadata.get("section_label"),
                     doc.file_name,
                     metadata.get("file_name"),
+                    metadata.get("project_name"),
+                    doc.organization,
                 )
             ).lower()
 
@@ -533,6 +576,24 @@ class HybridRAGService:
 
             if prefers_security and any(token in section_text for token in ("보안", "누출금지", "정보보호")):
                 intent_bonus += 1.2
+
+            if normalized_hints.get("organization") and normalized_hints["organization"] in organization:
+                intent_bonus += 1.0
+            if normalized_hints.get("organization_type") and normalized_hints["organization_type"] in organization_type:
+                intent_bonus += 1.0
+            if normalized_hints.get("project_type") and normalized_hints["project_type"] in project_type:
+                intent_bonus += 1.2
+            if normalized_hints.get("document_group") and normalized_hints["document_group"] in document_group:
+                intent_bonus += 0.8
+            if normalized_hints.get("document_category") and normalized_hints["document_category"] in document_category:
+                intent_bonus += 1.0
+            if normalized_hints.get("section_type") and normalized_hints["section_type"] in section_text:
+                intent_bonus += 0.8
+
+            inferred_terms = normalized_hints.get("inferred_terms") or []
+            term_hits = sum(1 for term in inferred_terms if term and term in section_text)
+            if term_hits:
+                intent_bonus += min(term_hits * 0.25, 1.5)
 
             doc.ranking_score = base_score + source_bonus + relation_bonus + hybrid_bonus + intent_bonus
 
@@ -599,12 +660,18 @@ class HybridRAGService:
         max_results: int = 20,
         generate_answer: bool = False,
         *,
+        expanded_query: Optional[str] = None,
         category: Optional[str] = None,
         organization: Optional[str] = None,
         year: Optional[str] = None,
         document_group: Optional[str] = None,
         document_category: Optional[str] = None,
         section_type: Optional[str] = None,
+        inferred_organization: Optional[str] = None,
+        inferred_project_type: Optional[str] = None,
+        inferred_document_group: Optional[str] = None,
+        inferred_document_category: Optional[str] = None,
+        inferred_terms: Optional[list[str]] = None,
         force_search_order: Optional[str] = None,
     ) -> HybridRAGResponse:
         """
@@ -647,24 +714,32 @@ class HybridRAGService:
                 or any(token in query_lower for token in ("장표", "슬라이드", "slide", "ppt", "pptx", "제안서"))
             )
 
-            # 필터 추출 (Query Router에서)
-            filters = query_analysis.filters if query_analysis else {}
+            # 사용자 직접 입력 또는 화면 선택값만 strict filter 로 사용한다.
             metadata_filters = {
                 "category": category,
                 "organization": organization,
-                "organization_type": filters.get("organization_type") if isinstance(filters.get("organization_type"), str) else None,
-                "project_type": filters.get("project_type") if isinstance(filters.get("project_type"), str) else None,
                 "year": year,
                 "document_group": document_group,
                 "document_category": document_category,
                 "section_type": section_type,
             }
+            router_filters = query_analysis.filters if query_analysis else {}
+            soft_metadata_hints = self._normalize_soft_hints({
+                "organization": inferred_organization,
+                "organization_type": router_filters.get("organization_type") if isinstance(router_filters.get("organization_type"), str) else None,
+                "project_type": inferred_project_type or (router_filters.get("project_type") if isinstance(router_filters.get("project_type"), str) else None),
+                "document_group": inferred_document_group,
+                "document_category": inferred_document_category,
+                "section_type": document_category or section_type or inferred_document_category,
+                "inferred_terms": inferred_terms,
+            })
+            faiss_query = (expanded_query or "").strip() or question
             faiss_org_filter = organization
 
             if search_order == "faiss_only":
                 # 단순 키워드 검색: FAISS만
                 faiss_results, faiss_time = await self._search_faiss(
-                    question,
+                    faiss_query,
                     top_k,
                     category_filter=category,
                     organization_filter=faiss_org_filter,
@@ -681,7 +756,7 @@ class HybridRAGService:
 
                 graph_doc_ids = self._graph_candidate_document_ids(graph_results)
                 faiss_results, faiss_time = await self._search_faiss(
-                    question,
+                    faiss_query,
                     max(top_k * 5, top_k) if graph_doc_ids else top_k,
                     category_filter=category,
                     organization_filter=faiss_org_filter,
@@ -699,10 +774,10 @@ class HybridRAGService:
                 # Wiki 우선: 요약 요청
                 if self.enable_wiki:
                     wiki_results, wiki_time = await self._search_wiki(
-                        question, top_k, organization=organization
+                        faiss_query, top_k, organization=organization
                     )
                 faiss_results, faiss_time = await self._search_faiss(
-                    question,
+                    faiss_query,
                     top_k // 2,
                     category_filter=category,
                     organization_filter=faiss_org_filter,
@@ -712,7 +787,7 @@ class HybridRAGService:
             else:
                 # 기본: 병렬 검색
                 tasks = [self._search_faiss(
-                    question,
+                    faiss_query,
                     top_k,
                     category_filter=category,
                     organization_filter=faiss_org_filter,
@@ -726,7 +801,7 @@ class HybridRAGService:
                     ))
 
                 if self.enable_wiki:
-                    tasks.append(self._search_wiki(question, top_k // 2, organization=organization))
+                    tasks.append(self._search_wiki(faiss_query, top_k // 2, organization=organization))
 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -753,6 +828,7 @@ class HybridRAGService:
                 wiki_results,
                 question=question,
                 max_results=max_results,
+                soft_metadata_hints=soft_metadata_hints,
             )
             merge_time = int((time.time() - merge_start) * 1000)
 
