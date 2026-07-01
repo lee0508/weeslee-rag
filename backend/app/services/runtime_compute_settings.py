@@ -9,13 +9,24 @@ from app.services.platform_store import create_record, get_record, update_record
 STORE_NAME = "runtime_compute_settings"
 RECORD_ID = "default"
 
-DEFAULT_RUNTIME_COMPUTE_SETTINGS: dict[str, Any] = {
+LEGACY_DEFAULT_RUNTIME_COMPUTE_SETTINGS: dict[str, Any] = {
     "id": RECORD_ID,
     "gpu_enabled": False,
     "cuda_visible_devices": "0",
     "ollama_use_gpu": False,
     "ocr_use_gpu": True,
     "chunk_use_gpu": False,
+    "embedding_use_gpu": True,
+    "faiss_use_gpu": True,
+}
+
+DEFAULT_RUNTIME_COMPUTE_SETTINGS: dict[str, Any] = {
+    "id": RECORD_ID,
+    "gpu_enabled": True,
+    "cuda_visible_devices": "0",
+    "ollama_use_gpu": True,
+    "ocr_use_gpu": True,
+    "chunk_use_gpu": True,
     "embedding_use_gpu": True,
     "faiss_use_gpu": True,
 }
@@ -119,8 +130,30 @@ def _detect_faiss_gpu() -> dict[str, Any]:
         }
 
 
+def _should_upgrade_legacy_defaults(saved: dict[str, Any] | None) -> bool:
+    if not saved:
+        return False
+    for key, legacy_value in LEGACY_DEFAULT_RUNTIME_COMPUTE_SETTINGS.items():
+        if key == "id":
+            continue
+        if saved.get(key) != legacy_value:
+            return False
+    return True
+
+
+def _upgrade_legacy_defaults(saved: dict[str, Any]) -> dict[str, Any]:
+    upgraded = dict(saved)
+    for key, value in DEFAULT_RUNTIME_COMPUTE_SETTINGS.items():
+        if key == "id":
+            continue
+        upgraded[key] = value
+    return upgraded
+
+
 def get_runtime_compute_settings() -> dict[str, Any]:
     saved = get_record(STORE_NAME, "id", RECORD_ID) or {}
+    if _should_upgrade_legacy_defaults(saved):
+        saved = update_record(STORE_NAME, "id", RECORD_ID, _upgrade_legacy_defaults(saved)) or _upgrade_legacy_defaults(saved)
     return {
         **DEFAULT_RUNTIME_COMPUTE_SETTINGS,
         **saved,
@@ -130,6 +163,8 @@ def get_runtime_compute_settings() -> dict[str, Any]:
 
 def save_runtime_compute_settings(payload: dict[str, Any]) -> dict[str, Any]:
     current = get_record(STORE_NAME, "id", RECORD_ID)
+    if _should_upgrade_legacy_defaults(current):
+        current = update_record(STORE_NAME, "id", RECORD_ID, _upgrade_legacy_defaults(current)) or _upgrade_legacy_defaults(current)
     updates = {
         **DEFAULT_RUNTIME_COMPUTE_SETTINGS,
         **(current or {}),

@@ -90,11 +90,11 @@ class CollectionInfo(BaseModel):
 
 
 class RuntimeComputeSettingsRequest(BaseModel):
-    gpu_enabled: bool = False
+    gpu_enabled: bool = True
     cuda_visible_devices: str = "0"
-    ollama_use_gpu: bool = False
+    ollama_use_gpu: bool = True
     ocr_use_gpu: bool = True
-    chunk_use_gpu: bool = False
+    chunk_use_gpu: bool = True
     embedding_use_gpu: bool = True
     faiss_use_gpu: bool = True
 
