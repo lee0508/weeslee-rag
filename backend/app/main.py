@@ -20,6 +20,7 @@ from app.api.files import router as files_router
 from app.api.faiss_admin import router as faiss_admin_router, sse_router as faiss_sse_router
 from app.api.graph import router as graph_router
 from app.api.wiki import router as wiki_router
+from app.api.wiki_search import router as wiki_search_router
 from app.api.benchmark import router as benchmark_router
 from app.api.review import router as review_router
 from app.api.documents import router as documents_router
@@ -130,6 +131,7 @@ app.include_router(faiss_admin_router, prefix="/api", tags=["FAISS Admin"])
 app.include_router(faiss_sse_router, prefix="/api", tags=["FAISS Admin SSE"])
 app.include_router(graph_router, prefix="/api", tags=["Graph"])
 app.include_router(wiki_router, prefix="/api", tags=["Wiki"])
+app.include_router(wiki_search_router, prefix="/api", tags=["Wiki Search"])
 app.include_router(benchmark_router, prefix="/api", tags=["Benchmark"])
 app.include_router(review_router, prefix="/api", tags=["Review"])
 app.include_router(clients_router, prefix="/api", tags=["Platform - Clients"])

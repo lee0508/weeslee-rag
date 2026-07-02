@@ -76,28 +76,26 @@ async def build_wiki(
 
         # wiki_type에 따라 다른 엔드포인트 호출
         if request.wiki_type == "project":
-            # build_project_wiki.py 스크립트 실행
-            build_script = project_root / "backend" / "scripts" / "build_project_wiki.py"
+            # build_wiki_from_db.py 스크립트 실행 (DB 기반 Wiki 생성)
+            build_script = project_root / "backend" / "scripts" / "build_wiki_from_db.py"
 
             if not build_script.exists():
                 raise HTTPException(
                     status_code=500,
-                    detail=f"build_project_wiki.py not found at {build_script}"
+                    detail=f"build_wiki_from_db.py not found at {build_script}"
                 )
 
-            cmd = [sys.executable, str(build_script)]
+            # source_id 필수
+            if not request.source_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="source_id is required for DB-based wiki generation"
+                )
 
-            if request.slug:
-                cmd += ["--project", request.slug]
-            elif request.source_id:
-                cmd += ["--source-id", request.source_id]
-            elif request.from_inventory:
-                cmd += ["--from-inventory"]
-            else:
-                cmd += ["--all"]
+            cmd = [sys.executable, str(build_script), "--source-id", request.source_id]
 
             if request.max_wikis > 0:
-                cmd += ["--max-projects", str(request.max_wikis)]
+                cmd += ["--max-wikis", str(request.max_wikis)]
 
             # 스크립트 실행
             proc = subprocess.run(
@@ -118,21 +116,27 @@ async def build_wiki(
                     output=proc.stderr.strip() or "Build script failed"
                 )
 
-            # 생성된 파일 목록 확인
-            wiki_dir = project_root / "data" / "wiki" / "projects"
-            if request.source_id:
-                wiki_dir = project_root / "data" / "wiki" / request.source_id / "projects"
+            # build_info.json에서 결과 읽기
+            build_info_path = project_root / "data" / "wiki" / request.source_id / "build_info.json"
+            generated_count = 0
+            generated_wikis = []
 
-            generated = [p.stem for p in wiki_dir.glob("*.md")] if wiki_dir.exists() else []
+            if build_info_path.exists():
+                try:
+                    build_info = json.loads(build_info_path.read_text(encoding="utf-8"))
+                    generated_count = build_info.get("wiki_count", 0)
+                    generated_wikis = build_info.get("generated_wikis", [])
+                except Exception:
+                    pass
 
             end_time = datetime.now()
             processing_time = (end_time - start_time).total_seconds()
 
             return WikiBuildResponse(
                 success=True,
-                message=f"Wiki build completed: {len(generated)} wikis generated",
-                generated_count=len(generated),
-                generated_wikis=generated[:20],  # 최대 20개만 반환
+                message=f"Wiki build completed: {generated_count} wikis generated",
+                generated_count=generated_count,
+                generated_wikis=generated_wikis[:20],  # 최대 20개만 반환
                 processing_time=processing_time,
                 output=proc.stdout.strip()[-500:]
             )
