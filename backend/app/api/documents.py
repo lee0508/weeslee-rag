@@ -24,6 +24,7 @@ from app.core.database import get_db
 from app.models.collection import Collection
 from app.models.document import Document, DocumentStatus, FileType, ProcessingLog
 from app.services.metadata_db import metadata_db_service
+from app.services.processed_text_store import processed_text_store
 
 router = APIRouter()
 
@@ -167,6 +168,11 @@ def _text_path(document_id: int) -> Path:
     return STAGED_TEXT_DIR / f"{document_id}.txt"
 
 
+def _processed_text_path(document_id: int, format: str = "txt") -> Path:
+    file_name = "full_text.md" if format == "md" else "full_text.txt"
+    return DATA_DIR / "processed_text" / str(document_id) / file_name
+
+
 def _build_text(document_id: int) -> tuple[str, str, Optional[Path]]:
     raw_text_path = _raw_text_path(document_id)
     raw_text = _read_text(raw_text_path)
@@ -177,6 +183,11 @@ def _build_text(document_id: int) -> tuple[str, str, Optional[Path]]:
     staged_text = _read_text(staged_text_path)
     if staged_text is not None:
         return staged_text, "staged_text", staged_text_path
+
+    processed_text = processed_text_store.get_text(str(document_id), format="txt")
+    if processed_text is not None:
+        processed_path = _processed_text_path(document_id, "txt")
+        return processed_text, "processed_text", processed_path if processed_path.exists() else None
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text file not found")
 
@@ -241,6 +252,11 @@ def _build_markdown(document_id: int, record: dict[str, Any], metadata_payload: 
     if markdown is not None:
         return markdown, "file", markdown_path
 
+    processed_markdown = processed_text_store.get_text(str(document_id), format="md")
+    if processed_markdown is not None:
+        processed_path = _processed_text_path(document_id, "md")
+        return processed_markdown, "processed_text_md", processed_path if processed_path.exists() else None
+
     try:
         raw_text, source, text_path = _build_text(document_id)
         return raw_text, f"generated_from_{source}", text_path
@@ -289,11 +305,13 @@ def _available_formats(document_id: int, record: dict[str, Any], orm_doc: Option
     original_path = _resolve_original_path(record, orm_doc)
     metadata_path = _find_metadata_file(document_id)
     summary_text = record.get("summary") or metadata_payload.get("summary")
+    processed_txt_exists = processed_text_store.get_text(str(document_id), format="txt") is not None
+    processed_md_exists = processed_text_store.get_text(str(document_id), format="md") is not None
     return {
         "original": original_path is not None,
-        "txt": _raw_text_path(document_id).is_file() or _text_path(document_id).is_file(),
-        "md": _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or bool(summary_text),
-        "html": _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or bool(summary_text),
+        "txt": _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists,
+        "md": _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
+        "html": _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
         "summary": _summary_path(document_id).is_file() or bool(summary_text),
         "json": metadata_path is not None or bool(metadata_payload),
         "docx": original_path is not None and original_path.suffix.lower() == ".docx",
@@ -312,6 +330,10 @@ def _document_detail_payload(
     summary_text = _read_text(_summary_path(document_id)) or record.get("summary") or metadata_payload.get("summary") or ""
     suggestion = metadata_db_service.get_suggestion(document_id)
     text_path = _text_path(document_id)
+    if not text_path.is_file():
+        processed_path = _processed_text_path(document_id, "txt")
+        if processed_path.is_file():
+            text_path = processed_path
 
     payload = {
         "document_id": document_id,
