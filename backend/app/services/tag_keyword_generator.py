@@ -17,6 +17,8 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.models.document_metadata import DocumentMetadata
+from app.services.processed_text_store import ProcessedTextStore
+import app.services.processed_text_store_extensions  # noqa: F401
 
 
 class TagKeywordGenerator:
@@ -43,13 +45,15 @@ class TagKeywordGenerator:
         self.source_id = source_id
         self.snapshot_id = snapshot_id
         self.overwrite = overwrite
+        self.processed_text_store = ProcessedTextStore()
 
         # 불용어 (stopwords)
         self.stopwords = {
             "기반", "위한", "수립", "사업", "용역", "구축", "고도화",
             "컨설팅", "연구", "활용", "도입", "방안", "강화", "통합",
             "재구축", "정보화전략계획", "정보전략계획", "및", "을", "를",
-            "의", "에", "대한", "관련", "등", "년", "차", "단계"
+            "의", "에", "대한", "관련", "등", "년", "차", "단계",
+            "문서", "자료", "내용", "구성", "작성", "검토", "추진",
         }
 
         # 키워드 동의어 그룹 (대표 키워드로 정규화)
@@ -94,10 +98,17 @@ class TagKeywordGenerator:
             relative_path = doc.relative_path or ""
             file_name = doc.file_name or Path(doc.file_path or "").name
             project_name = doc.project_name or self._extract_project_name(file_name)
+            text_context = self._build_text_context(doc, project_name, file_name, relative_path)
 
             # 문서 분류값 (이미 DB에 있으면 사용, 없으면 계산)
             document_group = doc.document_group or ""
-            section_type = doc.section_type or ""
+            section_type = (
+                doc.section_type
+                or doc.final_document_category
+                or doc.ocr_document_category
+                or doc.scan_document_category
+                or ""
+            )
 
             # 태그 후보 생성
             tags_for_doc = []
@@ -115,17 +126,27 @@ class TagKeywordGenerator:
                 tags_for_doc.append(("rfp_section", "RFP"))
 
             # 프로젝트 유형 태그
-            project_type_tags = self._extract_project_type_tags(project_name)
+            project_type_tags = self._extract_project_type_tags(text_context)
             for tag in project_type_tags:
                 tags_for_doc.append(("project_type", tag))
 
             # 기술 태그
-            technology_tags = self._extract_technology_tags(project_name)
+            technology_tags = self._extract_technology_tags(text_context)
             for tag in technology_tags:
                 tags_for_doc.append(("technology", tag))
 
+            # OCR/청크 섹션 기반 문서 구조 태그 보강
+            section_tags = self._extract_section_tags(text_context)
+            for tag in section_tags:
+                if document_group == "제안서":
+                    tags_for_doc.append(("proposal_section", tag))
+                elif document_group == "산출물":
+                    tags_for_doc.append(("deliverable_section", tag))
+
+            tags_for_doc = list(dict.fromkeys(tags_for_doc))
+
             # 키워드 후보 생성
-            keywords = self._extract_keywords(project_name)
+            keywords = self._extract_keywords(text_context)
 
             # 카운터 및 문서별 매핑 구성
             for tag_type, tag_name in tags_for_doc:
@@ -136,7 +157,7 @@ class TagKeywordGenerator:
                     "tag_type": tag_type,
                     "tag_name": tag_name,
                     "confidence": 0.9,
-                    "source": "folder_filename_rule",
+                    "source": "ocr_text_rule" if text_context else "folder_filename_rule",
                 })
 
             for keyword in keywords:
@@ -145,7 +166,7 @@ class TagKeywordGenerator:
                 document_keyword_map[doc.document_id].append({
                     "keyword": keyword,
                     "confidence": 0.75,
-                    "source": "filename_rule",
+                    "source": "ocr_text_rule" if text_context else "filename_rule",
                 })
 
         # 태그/키워드 payload 생성
@@ -222,6 +243,47 @@ class TagKeywordGenerator:
             {"tag_type": "technology", "tag_name": "디지털트윈"},
         ]
 
+    def _build_text_context(
+        self,
+        doc: DocumentMetadata,
+        project_name: str,
+        file_name: str,
+        relative_path: str,
+    ) -> str:
+        parts: List[str] = []
+        for value in (
+            project_name,
+            file_name,
+            relative_path,
+            doc.section_type,
+            doc.final_document_category,
+            doc.ocr_document_category,
+            doc.scan_document_category,
+            doc.project_name,
+            doc.organization,
+        ):
+            text = str(value or "").strip()
+            if text:
+                parts.append(text)
+
+        chunk_file = self.processed_text_store.load_chunk_file(doc.document_id)
+        if chunk_file:
+            for chunk in (chunk_file.get("chunks") or [])[:10]:
+                meta = chunk.get("metadata") or {}
+                section_title = str(meta.get("section_title") or "").strip()
+                content = str(chunk.get("content") or "").strip()
+                if section_title:
+                    parts.append(section_title)
+                if content:
+                    parts.append(content[:600])
+
+        if len(parts) < 8:
+            full_text = self.processed_text_store.get_text(str(doc.document_id), format="txt") or ""
+            if full_text.strip():
+                parts.append(full_text[:8000])
+
+        return "\n".join(part for part in parts if part).strip()
+
     def _extract_project_name(self, filename: str) -> str:
         """파일명에서 prefix를 제거하고 프로젝트명을 추출합니다."""
         name = Path(filename).stem
@@ -270,8 +332,27 @@ class TagKeywordGenerator:
 
         return list(dict.fromkeys(tags))
 
+    def _extract_section_tags(self, text: str) -> List[str]:
+        """OCR 본문/청크 섹션에서 문서 구조 태그를 추출합니다."""
+        lowered = text.lower()
+        rules = {
+            "전략및방법론": ["전략및방법론", "방법론", "추진전략"],
+            "기술및기능": ["기술및기능", "기술 기능", "기능 요구", "기능정의"],
+            "프로젝트관리": ["프로젝트관리", "사업관리", "관리방안", "의사소통 관리", "의사소통관리"],
+            "프로젝트지원": ["프로젝트지원", "사업지원", "지원방안"],
+            "환경분석": ["환경분석", "내외부환경", "내외부 환경"],
+            "현황분석": ["현황분석", "현행업무", "as-is", "업무현황"],
+            "목표모델": ["목표모델", "to-be", "목표 모델"],
+            "이행계획": ["이행계획", "로드맵", "추진계획"],
+        }
+        found: List[str] = []
+        for tag_name, aliases in rules.items():
+            if any(alias.lower() in lowered for alias in aliases):
+                found.append(tag_name)
+        return found
+
     def _extract_keywords(self, text: str) -> List[str]:
-        """프로젝트명에서 일반 키워드를 추출합니다."""
+        """OCR 본문을 포함한 텍스트에서 일반 키워드를 추출합니다."""
         keywords = []
 
         # 동의어 기반 대표 키워드 추출
@@ -282,7 +363,7 @@ class TagKeywordGenerator:
                     break
 
         # 일반 단어 추출 (특수문자 제거 후 토큰화)
-        clean = re.sub(r"[()\[\],·‧+/\-]", " ", text)
+        clean = re.sub(r"[()\[\],·‧+/\-:>]", " ", text)
         tokens = clean.split()
 
         for token in tokens:
@@ -298,9 +379,15 @@ class TagKeywordGenerator:
             if token.isdigit():
                 continue
 
+            if len(token) > 30:
+                continue
+
+            if re.fullmatch(r"[A-Za-z]{1}", token):
+                continue
+
             keywords.append(token)
 
-        return list(dict.fromkeys(keywords))
+        return list(dict.fromkeys(keywords))[:40]
 
     def _guess_keyword_type(self, keyword: str) -> str:
         """키워드 유형을 규칙 기반으로 추정합니다."""

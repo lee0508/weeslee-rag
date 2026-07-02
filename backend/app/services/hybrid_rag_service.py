@@ -140,6 +140,47 @@ class HybridRAGService:
     """Hybrid RAG 서비스."""
 
     @staticmethod
+    def _normalize_project_type_value(value: Optional[str]) -> str:
+        raw = str(value or "").strip().lower()
+        if not raw:
+            return ""
+
+        normalized = raw.replace(" ", "")
+        alias_map = {
+            "업무시스템개선": "시스템개선",
+            "시스템개선사업": "시스템개선",
+            "플랫폼개선": "플랫폼고도화",
+            "플랫폼고도화": "플랫폼고도화",
+            "플랫폼구축": "플랫폼고도화",
+            "isp": "isp수립",
+            "정보화전략계획": "isp수립",
+            "bpr": "bprisp",
+            "bpr/isp": "bprisp",
+            "bprisp": "bprisp",
+        }
+        return alias_map.get(normalized, normalized)
+
+    @staticmethod
+    def _normalize_document_group_value(value: Optional[str]) -> str:
+        raw = str(value or "").strip().lower()
+        if not raw:
+            return ""
+
+        alias_map = {
+            "proposal": "제안서",
+            "deliverable": "산출물",
+            "rfp": "rfp",
+        }
+        return alias_map.get(raw, raw)
+
+    @staticmethod
+    def _normalize_section_value(value: Optional[str]) -> str:
+        raw = str(value or "").strip().lower()
+        if not raw:
+            return ""
+        return raw.replace(" ", "")
+
+    @staticmethod
     def _normalize_soft_hints(
         hints: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
@@ -159,7 +200,14 @@ class HybridRAGService:
             if isinstance(value, str):
                 value = value.strip()
                 if value:
-                    normalized[key] = value.lower()
+                    if key == "project_type":
+                        normalized[key] = HybridRAGService._normalize_project_type_value(value)
+                    elif key == "document_group":
+                        normalized[key] = HybridRAGService._normalize_document_group_value(value)
+                    elif key in ("document_category", "section_type"):
+                        normalized[key] = HybridRAGService._normalize_section_value(value)
+                    else:
+                        normalized[key] = value.lower()
 
         inferred_terms = hints.get("inferred_terms")
         if isinstance(inferred_terms, list):
@@ -284,19 +332,33 @@ class HybridRAGService:
 
         metadata = candidate.get("metadata") or {}
         category = str(candidate.get("category") or metadata.get("category") or "").strip().lower()
-        project_type = str(candidate.get("project_type") or metadata.get("project_type") or "").strip().lower()
+        project_type = HybridRAGService._normalize_project_type_value(
+            candidate.get("project_type") or metadata.get("project_type") or ""
+        )
         organization = str(candidate.get("organization") or metadata.get("organization") or "").strip().lower()
         organization_type = str(candidate.get("organization_type") or candidate.get("client_type") or metadata.get("organization_type") or metadata.get("client_type") or "").strip().lower()
         year = str(metadata.get("folder_year") or metadata.get("year") or "").strip().lower()
-        document_group = str(metadata.get("document_group") or "").strip().lower()
-        document_category = str(metadata.get("document_category") or "").strip().lower()
-        section_type = str(
+        document_group = HybridRAGService._normalize_document_group_value(metadata.get("document_group") or "")
+        document_category = HybridRAGService._normalize_section_value(metadata.get("document_category") or "")
+        section_type = HybridRAGService._normalize_section_value(
             candidate.get("section_title")
             or metadata.get("section_title")
             or metadata.get("section_heading")
             or metadata.get("section_label")
             or ""
-        ).strip().lower()
+        )
+        section_search_text = HybridRAGService._normalize_section_value(" ".join(
+            str(value or "")
+            for value in (
+                metadata.get("document_category"),
+                candidate.get("section_title"),
+                metadata.get("section_title"),
+                metadata.get("section_heading"),
+                metadata.get("section_label"),
+                candidate.get("file_name"),
+                metadata.get("file_name"),
+            )
+        ))
 
         def contains(actual: str, expected: str) -> bool:
             return not expected or expected in actual
@@ -307,15 +369,15 @@ class HybridRAGService:
             return False
         if filters.get("organization_type") and not contains(organization_type, str(filters["organization_type"]).strip().lower()):
             return False
-        if filters.get("project_type") and not contains(project_type, str(filters["project_type"]).strip().lower()):
+        if filters.get("project_type") and not contains(project_type, HybridRAGService._normalize_project_type_value(filters["project_type"])):
             return False
         if filters.get("year") and not contains(year, str(filters["year"]).strip().lower()):
             return False
-        if filters.get("document_group") and not contains(document_group, str(filters["document_group"]).strip().lower()):
+        if filters.get("document_group") and not contains(document_group, HybridRAGService._normalize_document_group_value(filters["document_group"])):
             return False
-        if filters.get("document_category") and not contains(document_category, str(filters["document_category"]).strip().lower()):
+        if filters.get("document_category") and not contains(section_search_text or document_category, HybridRAGService._normalize_section_value(filters["document_category"])):
             return False
-        if filters.get("section_type") and not contains(section_type, str(filters["section_type"]).strip().lower()):
+        if filters.get("section_type") and not contains(section_search_text or section_type, HybridRAGService._normalize_section_value(filters["section_type"])):
             return False
         return True
 
@@ -728,22 +790,35 @@ class HybridRAGService:
             )
 
             # 사용자 직접 입력 또는 화면 선택값만 strict filter 로 사용한다.
+            router_filters = query_analysis.filters if query_analysis else {}
+            router_document_section = None
+            if isinstance(router_filters.get("document_section"), str):
+                router_document_section = router_filters.get("document_section")
+
+            strict_project_type = inferred_project_type
+            router_project_type = router_filters.get("project_type") if isinstance(router_filters.get("project_type"), str) else None
+            if not strict_project_type and router_project_type:
+                normalized_project_type = self._normalize_project_type_value(router_project_type)
+                if normalized_project_type in {"시스템개선", "플랫폼고도화", "isp수립", "bprisp", "연구용역", "시스템구축"}:
+                    strict_project_type = router_project_type
+
             metadata_filters = {
                 "category": category,
                 "organization": organization,
                 "year": year,
-                "document_group": document_group,
-                "document_category": document_category,
-                "section_type": section_type,
+                "organization_type": router_filters.get("organization_type") if isinstance(router_filters.get("organization_type"), str) else None,
+                "project_type": strict_project_type,
+                "document_group": document_group or (router_filters.get("document_group") if isinstance(router_filters.get("document_group"), str) else None),
+                "document_category": document_category or router_document_section,
+                "section_type": section_type or router_document_section,
             }
-            router_filters = query_analysis.filters if query_analysis else {}
             soft_metadata_hints = self._normalize_soft_hints({
                 "organization": inferred_organization,
                 "organization_type": router_filters.get("organization_type") if isinstance(router_filters.get("organization_type"), str) else None,
-                "project_type": inferred_project_type or (router_filters.get("project_type") if isinstance(router_filters.get("project_type"), str) else None),
-                "document_group": inferred_document_group,
-                "document_category": inferred_document_category,
-                "section_type": document_category or section_type or inferred_document_category,
+                "project_type": inferred_project_type or router_project_type,
+                "document_group": inferred_document_group or router_filters.get("document_group"),
+                "document_category": inferred_document_category or router_document_section,
+                "section_type": document_category or section_type or inferred_document_category or router_document_section,
                 "inferred_terms": inferred_terms,
             })
             faiss_query = (expanded_query or "").strip() or question

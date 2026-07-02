@@ -27,6 +27,7 @@ from datetime import datetime
 from pathlib import Path
 
 import os
+import re
 
 # LangSmith 트레이싱 (환경변수로 활성화)
 try:
@@ -46,6 +47,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 WIKI_DIR = DATA_DIR / "wiki" / "projects"
 STAGED_DIR = DATA_DIR / "staged"
 INVENTORY_PATH = STAGED_DIR / "project_inventory.json"
+PROCESSED_TEXT_DIR = DATA_DIR / "processed_text"
 
 # 환경변수 우선, 없으면 로컬 기본값 사용 (CLI 인자로 덮어쓸 수 있음)
 RAG_API_BASE = os.getenv("RAG_API_BASE", "http://127.0.0.1:8080")
@@ -303,7 +305,78 @@ def collect_evidence(folder_name: str, meta: dict, inventory: dict, snapshot: st
         print(f"{len(snippets)} snippets from {len(docs)} docs")
         time.sleep(0.3)
 
+    ocr_snippets = collect_ocr_evidence(folder_name, meta)
+    if ocr_snippets:
+        evidence["ocr"] = ocr_snippets
+
     return evidence
+
+
+def _split_ocr_snippets(text: str, limit: int = 6) -> list[str]:
+    cleaned = re.sub(r"\s+", " ", text or "").strip()
+    if not cleaned:
+        return []
+
+    pieces = re.split(r"(?<=[.!?])\s+|(?<=다\.)\s+|(?<=요\.)\s+", cleaned)
+    snippets: list[str] = []
+    for piece in pieces:
+        piece = piece.strip()
+        if len(piece) < 40:
+            continue
+        snippets.append(piece[:260])
+        if len(snippets) >= limit:
+            break
+
+    if not snippets and cleaned:
+        snippets.append(cleaned[:260])
+    return snippets
+
+
+def collect_ocr_evidence(folder_name: str, meta: dict, limit: int = 6) -> list[str]:
+    """processed_text 저장소에서 동일 프로젝트 폴더의 OCR 발췌를 수집한다."""
+    if not PROCESSED_TEXT_DIR.exists():
+        return []
+
+    target = folder_name.replace("\\", "/").lower()
+    target_source_id = str(meta.get("source_id") or "").strip()
+    snippets: list[str] = []
+
+    for doc_dir in sorted(PROCESSED_TEXT_DIR.iterdir()):
+        if not doc_dir.is_dir():
+            continue
+
+        report_path = doc_dir / "ocr_report.json"
+        text_path = doc_dir / "full_text.txt"
+        if not report_path.exists() or not text_path.exists():
+            continue
+
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        if target_source_id:
+            row_source_id = str(report.get("source_id") or "").strip()
+            if row_source_id and row_source_id != target_source_id:
+                continue
+
+        source_path = str(report.get("relative_path") or report.get("source_path") or "").replace("\\", "/").lower()
+        if target not in source_path:
+            continue
+
+        try:
+            full_text = text_path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+
+        doc_snippets = _split_ocr_snippets(full_text, limit=2)
+        for snippet in doc_snippets:
+            labeled = f"[OCR:{report.get('file_name') or doc_dir.name}] {snippet}"
+            snippets.append(labeled)
+            if len(snippets) >= limit:
+                return snippets
+
+    return snippets
 
 
 def build_ollama_prompt(meta: dict, evidence: dict[str, list[str]]) -> str:
@@ -312,7 +385,7 @@ def build_ollama_prompt(meta: dict, evidence: dict[str, list[str]]) -> str:
     for cat, snippets in evidence.items():
         if not snippets:
             continue
-        cat_label = CATEGORY_KO.get(cat, cat)
+        cat_label = "OCR 원문 발췌" if cat == "ocr" else CATEGORY_KO.get(cat, cat)
         evidence_text += f"\n### {cat_label}\n"
         for s in snippets[:4]:
             evidence_text += f"- {s[:300]}\n"
@@ -402,11 +475,11 @@ def render_wiki(
 
     # Evidence section per category
     evidence_sections = ""
-    for cat in ["rfp", "proposal", "kickoff", "final_report", "presentation"]:
+    for cat in ["rfp", "proposal", "kickoff", "final_report", "presentation", "ocr"]:
         snippets = evidence.get(cat, [])
         if not snippets:
             continue
-        cat_label = CATEGORY_KO[cat]
+        cat_label = "OCR 원문 발췌" if cat == "ocr" else CATEGORY_KO[cat]
         evidence_sections += f"\n### {cat_label}\n\n"
         for s in snippets[:3]:
             evidence_sections += f"> {s[:250]}\n\n"
@@ -609,6 +682,9 @@ def meta_from_folder(folder_name: str, folder_data: dict) -> dict:
         "year": folder_data.get("folder_year", "-"),
         "project_type": "자동 분류",
         "search_name": folder_name,
+        "source_id": folder_data.get("source_id", ""),
+        "dataset_id": folder_data.get("dataset_id", ""),
+        "snapshot_id": folder_data.get("snapshot_id", ""),
     }
 
 
