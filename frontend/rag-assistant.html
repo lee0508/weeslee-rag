@@ -298,7 +298,7 @@
     }
 
     .results-wrap {
-      padding: 0 16px 16px;
+      padding: 0 0 16px;
       display: flex;
       flex-direction: column;
       min-height: 0;
@@ -951,6 +951,93 @@
       padding: 0 2px;
       border-radius: 2px;
       font-weight: 500;
+    }
+
+    /* 키워드 태그 UI */
+    .keyword-tags-container {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: var(--bg-s);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .keyword-tags-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .keyword-tags-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-s);
+    }
+    .keyword-tags-count {
+      font-size: 11px;
+      color: var(--gray-400);
+      background: var(--gray-100);
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+    .keyword-tags-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .keyword-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: var(--navy-l);
+      color: var(--navy);
+      border: 1px solid var(--navy-l);
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .keyword-tag:hover {
+      background: var(--navy);
+      color: #fff;
+      border-color: var(--navy);
+    }
+    .keyword-tag.excluded {
+      background: var(--gray-100);
+      color: var(--gray-400);
+      border-color: var(--gray-200);
+      text-decoration: line-through;
+    }
+    .keyword-tag.excluded:hover {
+      background: var(--gray-200);
+      color: var(--gray-500);
+    }
+    .keyword-tag-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      font-size: 10px;
+      line-height: 1;
+      background: rgba(0,0,0,0.1);
+      color: inherit;
+      margin-left: 2px;
+    }
+    .keyword-tag:hover .keyword-tag-remove {
+      background: rgba(255,255,255,0.3);
+    }
+    .keyword-tag-add {
+      background: transparent;
+      border: 1px dashed var(--gray-300);
+      color: var(--gray-400);
+    }
+    .keyword-tag-add:hover {
+      background: var(--gray-100);
+      border-style: solid;
+      color: var(--gray-500);
     }
 
     /* 문서 카드 체크박스 선택 */
@@ -2185,12 +2272,6 @@
           </div>
         </div>
       </div>
-      <div class="sidebar-section">
-        <div class="sidebar-label" data-i18n="rec_docs">Recommended Documents</div>
-      </div>
-      <div class="results-wrap">
-        <div class="results" id="results"></div>
-      </div>
     </aside>
 
     <main class="main">
@@ -2261,6 +2342,14 @@
               <span id="selectedDocsIndicator" style="display:none;background:var(--amber-l);color:var(--amber-d);padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;"></span>
               <button id="runSelectedBtn" class="btn btn-outline" onclick="runQueryWithSelectedDocs()" style="display:none;border-color:var(--amber);color:var(--amber);" title="선택한 문서만을 기반으로 답변을 생성합니다">📌 선택 문서로 답변</button>
             </div>
+            <!-- 키워드 태그 UI -->
+            <div id="keywordTagsContainer" class="keyword-tags-container" style="display:none;">
+              <div class="keyword-tags-header">
+                <span class="keyword-tags-label">🏷️ 추출 키워드</span>
+                <span class="keyword-tags-count" id="keywordTagsCount"></span>
+              </div>
+              <div class="keyword-tags-list" id="keywordTagsList"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -2280,6 +2369,11 @@
         </div>
         <!-- RAG 탭 (FAISS 검색 결과 + LLM 답변) -->
         <div class="card-body panel-view active" id="ragPanel">
+          <!-- 추천 문서 섹션 (검색 결과 상단) -->
+          <div class="results-wrap" id="recommendedDocsWrap" style="display:none;">
+            <div class="section-title" data-i18n="rec_docs">추천 문서</div>
+            <div class="results" id="results"></div>
+          </div>
           <div class="rag-answer-section" id="ragAnswerSection" data-i18n="no_answer">아직 답변이 없습니다.</div>
           <div class="rag-docs-section" id="ragDocsSection" style="display:none">
             <div class="section-title" data-i18n="rag_evidence_docs">근거 문서</div>
@@ -3573,7 +3667,7 @@
       if (scopeMeta?.source_ids?.length === 1) {
         return scopeMeta.source_ids[0];
       }
-      return resolveGraphSourceId(_lastData?.documents || []);
+      return resolveGraphSourceId(_renderedDocuments || []);
     }
 
     function getResultDocumentIds(documents = []) {
@@ -3940,6 +4034,119 @@
       }
     }
 
+    const SEARCH_MODE_SEQUENCE = ['general', 'bid_project', 'rfp_analysis', 'graph_rag', 'hybrid_rag'];
+
+    function getSearchModeLabel(mode) {
+      const option = document.querySelector(`#searchMode option[value="${mode}"]`);
+      return option?.textContent?.trim() || mode || '전체';
+    }
+
+    async function runSequentialSearchModes() {
+      const searchModeEl = document.getElementById('searchMode');
+      const runBtn = document.querySelector('button[onclick="runQuery()"]');
+      const status = document.getElementById('queryStatus');
+      const ragAnswerEl = document.getElementById('ragAnswerSection');
+      const ragDocsSection = document.getElementById('ragDocsSection');
+      const ragResultDocs = document.getElementById('ragResultDocs');
+      const originalMode = searchModeEl?.value || '';
+      const sequence = _rfpSelectedFile ? ['rfp_analysis'] : SEARCH_MODE_SEQUENCE.slice();
+      const groupedResults = [];
+      let totalDocCount = 0;
+
+      if (!sequence.length) return null;
+
+      if (runBtn) {
+        runBtn.disabled = true;
+        runBtn.textContent = t('running_btn');
+      }
+      if (ragAnswerEl) {
+        ragAnswerEl.innerHTML = `<div class="answer-note">전체 검색 모드 순차 실행 중입니다. 결과 문서를 모드 순서대로 누적 표시합니다.</div>`;
+      }
+      if (ragDocsSection) ragDocsSection.style.display = 'none';
+      if (ragResultDocs) ragResultDocs.innerHTML = '';
+
+      try {
+        for (let i = 0; i < sequence.length; i += 1) {
+          const mode = sequence[i];
+          if (status) {
+            status.hidden = false;
+            status.textContent = `순차 검색 (${i + 1}/${sequence.length}) · ${getSearchModeLabel(mode)}`;
+          }
+          if (searchModeEl) {
+            searchModeEl.value = mode;
+            onSearchModeChange();
+          }
+          const data = await runQuery(mode, { sequentialChild: true, suppressRender: true });
+          const docCount = data?.documents?.length || 0;
+          groupedResults.push({ mode, data, documents: data?.documents || [] });
+          totalDocCount += docCount;
+        }
+
+        renderSequentialResults(groupedResults, _currentSearchQuery);
+        switchAnswerTab('rag');
+
+        if (status) {
+          status.textContent = totalDocCount > 0
+            ? `순차 검색 완료 · ${groupedResults.length}개 검색 모드에서 총 ${totalDocCount}건 문서 검색됨`
+            : '순차 검색 완료 · 모든 검색 모드에서 결과가 없습니다.';
+        }
+        if (totalDocCount > 0) {
+          showToast(`순차 검색 완료: ${groupedResults.length}개 모드에서 총 ${totalDocCount}건 검색됨`, 'success');
+        } else {
+          showToast('순차 검색 완료: 모든 검색 모드에서 결과가 없습니다.', 'warning');
+        }
+      } finally {
+        if (searchModeEl) {
+          searchModeEl.value = originalMode;
+          onSearchModeChange();
+        }
+        if (runBtn) {
+          runBtn.disabled = false;
+          runBtn.textContent = t('run_rag');
+        }
+      }
+      return null;
+    }
+
+    function renderSequentialResults(groups, query = '') {
+      const results = document.getElementById('results');
+      const recommendedWrap = document.getElementById('recommendedDocsWrap');
+      if (!results) return;
+
+      const normalizedGroups = (groups || []).map(group => ({
+        mode: group.mode,
+        documents: Array.isArray(group.documents) ? group.documents : [],
+        data: group.data || {},
+      }));
+      const allDocuments = normalizedGroups.flatMap(group => group.documents);
+
+      if (!allDocuments.length) {
+        _renderedDocuments = [];
+        results.innerHTML = `<div class="doc">${t('no_docs')}</div>`;
+        if (recommendedWrap) recommendedWrap.style.display = 'none';
+        return;
+      }
+
+      _renderedDocuments = allDocuments;
+      let offset = 0;
+      results.innerHTML = normalizedGroups.map((group, groupIdx) => {
+        const count = group.documents.length;
+        const header = `
+          <div class="doc-group-header" style="margin:${groupIdx === 0 ? '0' : '18px'} 0 10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(15,23,42,.03);">
+            <div style="font-size:13px;font-weight:700;color:var(--navy);">${groupIdx + 1}. ${escapeHtml(getSearchModeLabel(group.mode))}</div>
+            <div style="margin-top:4px;font-size:11px;color:var(--text-s);">검색 결과 ${count}건</div>
+          </div>
+        `;
+        const body = count
+          ? renderDocumentCards(group.documents, true, query, offset, true)
+          : `<div class="doc" style="margin-bottom:12px;">검색 결과가 없습니다.</div>`;
+        offset += count;
+        return header + body;
+      }).join('');
+
+      if (recommendedWrap) recommendedWrap.style.display = 'block';
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Phase 10: 제안서 초안 생성 함수
     // ─────────────────────────────────────────────────────────────────────────
@@ -4070,7 +4277,7 @@
       resultPanel.innerHTML = html;
     }
 
-    async function runQuery() {
+    async function runQuery(modeOverride = null, options = {}) {
       const query = document.getElementById('query').value.trim();
       _currentSearchQuery = query; // 하이라이트용 쿼리 저장
       const topK = parseInt(document.getElementById('topK').value || '20', 10);
@@ -4083,7 +4290,8 @@
       const filterYear = document.getElementById('filterYear').value.trim();
       const answerProvider = document.getElementById('answerProvider').value;
       const answerModel = document.getElementById('answerModel').value.trim() || 'llama3:8b';
-      const searchMode = document.getElementById('searchMode').value;
+      const selectedSearchMode = document.getElementById('searchMode').value;
+      const searchMode = modeOverride || selectedSearchMode;
       const collection = document.getElementById('collection')?.value || '';
       const documentGroup = document.getElementById('documentGroup')?.value || '';
       const temperature = parseFloat((parseInt(document.getElementById('temperature')?.value || 20)) / 100);
@@ -4094,6 +4302,10 @@
       const status = document.getElementById('queryStatus');
 
       syncAnswerModeLabel();
+
+      if (!modeOverride && !selectedSearchMode) {
+        return runSequentialSearchModes();
+      }
 
       if (!query && !_rfpSelectedFile) { if (status) status.textContent = t('enter_query'); return; }
       if (searchScope === 'selected_snapshots' && !selectedSnapshotIds.length) {
@@ -4111,8 +4323,10 @@
       const analysisData = await analyzeAndRenderAgent(query);
 
       const runBtn = document.querySelector('button[onclick="runQuery()"]');
-      runBtn.disabled = true;
-      runBtn.textContent = t('running_btn');
+      if (!options.sequentialChild && runBtn) {
+        runBtn.disabled = true;
+        runBtn.textContent = t('running_btn');
+      }
       setQueryTiming('running');
 
       const effectiveQuery = query;
@@ -4227,13 +4441,15 @@
 
         if (!data.success) {
           if (status) status.textContent = `${t('result_failed')}: ${data.error || 'unknown error'}`;
-          renderResultPanel(data);
-          switchAnswerTab('rag');
+          if (!options.suppressRender) {
+            renderResultPanel(data);
+            switchAnswerTab('rag');
+          }
           setQueryTiming(_rfpSelectedFile ? 'rfp' : 'search_only', {
             searchMs,
             totalMs: performance.now() - queryStart,
           });
-          return;
+          return data;
         }
 
         const expandedNote = data.expanded_query
@@ -4247,42 +4463,58 @@
           : '';
         if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote + scopeNote + snapshotNote + skipNote + noResultNote;
         _hasAnswer = answerProvider === 'none';
-        renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
-        renderResultPanel(data);
-        renderResults(data.documents || []);
+        if (!options.suppressRender) {
+          renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
+          renderResultPanel(data);
+          renderResults(data.documents || []);
+        }
+
+        // 키워드 태그 UI 업데이트
+        renderKeywordTags(_extractedKeywords);
 
         // Graph RAG, Hybrid RAG 모드 또는 전체 모드일 때 그래프 로드
         const isGraphMode = effectiveMode === 'graph_rag';
         const isHybridMode = effectiveMode === 'hybrid_rag';
         const isAllMode = effectiveMode === '' || effectiveMode === 'all';
 
-        if (isGraphMode || isHybridMode || isAllMode) {
+        if (!options.suppressRender && (isGraphMode || isHybridMode || isAllMode)) {
           loadGraphFromQuery(query, data.documents || []);
           if (isGraphMode) {
             switchAnswerTab('graph');
           } else {
             switchAnswerTab('rag');
           }
-        } else {
+        } else if (!options.suppressRender) {
           switchAnswerTab('rag');
         }
 
         if (_rfpSelectedFile) {
           _hasAnswer = answerProvider !== 'none' && Boolean(data.draft_answer);
-          renderAnswerPanel(data, answerProvider === 'none' ? '' : (data.draft_answer || ''), answerProvider === 'none');
-          pushHistory(query || _rfpSelectedFile.name, data);
+          if (!options.suppressRender) {
+            renderAnswerPanel(data, answerProvider === 'none' ? '' : (data.draft_answer || ''), answerProvider === 'none');
+            pushHistory(query || _rfpSelectedFile.name, data);
+          }
           setQueryTiming('rfp', {
             searchMs,
             totalMs: performance.now() - queryStart,
           });
-          if (!isGraphMode && answerProvider !== 'none') switchAnswerTab('rag');
+          if (!options.suppressRender && !isGraphMode && answerProvider !== 'none') switchAnswerTab('rag');
         } else if (answerProvider === 'none') {
-          pushHistory(query, data);
+          if (!options.suppressRender) {
+            pushHistory(query, data);
+          }
           setQueryTiming('search_only', {
             searchMs,
             totalMs: performance.now() - queryStart,
           });
         } else {
+          if (options.suppressRender) {
+            setQueryTiming('search_only', {
+              searchMs,
+              totalMs: performance.now() - queryStart,
+            });
+            return data;
+          }
           const answerStart = performance.now();
           const answerResponse = await fetch(`${API_BASE}/rag/answer`, {
             method: 'POST',
@@ -4311,6 +4543,7 @@
             totalMs: performance.now() - queryStart,
           });
         }
+        return data;
       } catch (error) {
         if (status) status.textContent = `${t('query_failed')}: ${error.message}`;
         const ragAnswerEl2 = document.getElementById('ragAnswerSection'); if (ragAnswerEl2) ragAnswerEl2.innerHTML = '';
@@ -4318,21 +4551,29 @@
           totalMs: performance.now() - queryStart,
           error: error.message,
         });
-        showToast(`${t('query_failed')}: ${error.message}`, 'error');
+        if (!options.sequentialChild) {
+          showToast(`${t('query_failed')}: ${error.message}`, 'error');
+        }
+        return { success: false, error: error.message, documents: [] };
       } finally {
-        runBtn.disabled = false;
-        runBtn.textContent = t('run_rag');
+        if (!options.sequentialChild && runBtn) {
+          runBtn.disabled = false;
+          runBtn.textContent = t('run_rag');
+        }
       }
     }
 
     function renderResults(documents) {
       const results = document.getElementById('results');
+      const recommendedWrap = document.getElementById('recommendedDocsWrap');
       if (!results) return;
       if (!documents || !documents.length) {
         results.innerHTML = `<div class="doc">${t('no_docs')}</div>`;
+        if (recommendedWrap) recommendedWrap.style.display = 'none';
         return;
       }
       results.innerHTML = renderDocumentCards(documents, true);
+      if (recommendedWrap) recommendedWrap.style.display = 'block';
     }
 
     function renderSourcePathLink(sourcePath, inputPath) {
@@ -4819,14 +5060,97 @@
     var _currentSearchQuery = '';
     // LLM 추출 키워드 (하이라이트용)
     var _extractedKeywords = [];
+    var _excludedKeywords = new Set(); // 사용자가 제외한 키워드
 
-    function renderDocumentCards(documents, compact, query) {
+    // 키워드 태그 UI 렌더링
+    function renderKeywordTags(keywords) {
+      const container = document.getElementById('keywordTagsContainer');
+      const list = document.getElementById('keywordTagsList');
+      const count = document.getElementById('keywordTagsCount');
+
+      if (!container || !list) return;
+
+      // 키워드가 없으면 숨김
+      if (!keywords || keywords.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+
+      container.style.display = 'block';
+      const activeCount = keywords.filter(k => !_excludedKeywords.has(k)).length;
+      count.textContent = `${activeCount}/${keywords.length}개 활성`;
+
+      // 태그 HTML 생성
+      const tagsHtml = keywords.map(keyword => {
+        const isExcluded = _excludedKeywords.has(keyword);
+        return `
+          <span class="keyword-tag ${isExcluded ? 'excluded' : ''}"
+                data-keyword="${escapeHtml(keyword)}"
+                onclick="toggleKeywordTag(this)"
+                title="${isExcluded ? '클릭하여 다시 활성화' : '클릭하여 검색에서 제외'}">
+            ${escapeHtml(keyword)}
+            <span class="keyword-tag-remove" onclick="event.stopPropagation(); appendKeywordToQuery('${escapeHtml(keyword)}')" title="검색어에 추가">+</span>
+          </span>
+        `;
+      }).join('');
+
+      list.innerHTML = tagsHtml;
+    }
+
+    // 키워드 태그 토글 (활성/제외)
+    function toggleKeywordTag(tagEl) {
+      const keyword = tagEl.dataset.keyword;
+      if (_excludedKeywords.has(keyword)) {
+        _excludedKeywords.delete(keyword);
+        tagEl.classList.remove('excluded');
+      } else {
+        _excludedKeywords.add(keyword);
+        tagEl.classList.add('excluded');
+      }
+      // 카운트 업데이트
+      const count = document.getElementById('keywordTagsCount');
+      if (count && _extractedKeywords.length > 0) {
+        const activeCount = _extractedKeywords.filter(k => !_excludedKeywords.has(k)).length;
+        count.textContent = `${activeCount}/${_extractedKeywords.length}개 활성`;
+      }
+      // 하이라이트 다시 적용
+      updateHighlightsWithActiveKeywords();
+    }
+
+    // 키워드를 검색어에 추가
+    function appendKeywordToQuery(keyword) {
+      const queryInput = document.getElementById('query');
+      if (queryInput) {
+        const currentQuery = queryInput.value.trim();
+        if (!currentQuery.includes(keyword)) {
+          queryInput.value = currentQuery + (currentQuery ? ' ' : '') + keyword;
+        }
+      }
+    }
+
+    // 활성 키워드만으로 하이라이트 업데이트 (문서 카드 다시 렌더링)
+    function updateHighlightsWithActiveKeywords() {
+      // 활성 키워드만 필터링하여 _extractedKeywords 대체 효과
+      // 실제 렌더링에서 _excludedKeywords를 체크하도록 highlightQueryTerms 수정 필요
+      // 여기서는 간단히 문서 카드 영역만 새로고침
+      if (_renderedDocuments && _renderedDocuments.length > 0) {
+        const docListContainer = document.getElementById('docList');
+        if (docListContainer) {
+          docListContainer.innerHTML = renderDocumentCards(_renderedDocuments, false, _currentSearchQuery);
+        }
+      }
+    }
+
+    function renderDocumentCards(documents, compact, query, startIndex = 0, skipStore = false) {
       // 전역 배열에 문서 저장
-      _renderedDocuments = documents;
+      if (!skipStore) {
+        _renderedDocuments = documents;
+      }
       // 쿼리 저장 (파라미터로 전달되거나 현재 입력값 사용)
       const highlightQuery = query || _currentSearchQuery || document.getElementById('query')?.value || '';
 
       return documents.map((doc, idx) => {
+        const absoluteIdx = startIndex + idx;
         const score = Number(doc.best_score || doc.ranking_score || 0);
         const scoreClass = score >= 0.8 ? '' : score >= 0.6 ? 'medium' : 'low';
         const scoreLabel = score >= 0.995 ? `#${doc.rank || idx + 1}` : `${(score * 100).toFixed(0)}%`;
@@ -4884,19 +5208,19 @@
 
         const viewActions = `
           <div class="doc-card-actions">
-            <button class="btn btn-sm btn-outline doc-card-action" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'original')" title="상세 보기">상세 보기</button>
-            <button class="btn btn-sm btn-outline doc-card-action" onclick="event.stopPropagation(); openDocFileByIndex(${idx})" title="파일 보기">파일 보기</button>
-            ${hasSummary ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'summary')" title="요약 보기">📝 요약</button>` : ''}
-            ${hasChunks ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'chunks')" title="검색 청크 보기">🔍 청크</button>` : ''}
-            ${hasEvidence ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'evidence')" title="근거 스니펫 보기">💡 근거</button>` : ''}
-            ${hasGraph ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${idx}, 'graph')" title="Graph 관계 보기">🔗 Graph</button>` : ''}
+            <button class="btn btn-sm btn-outline doc-card-action" onclick="event.stopPropagation(); openDocDetailByIndex(${absoluteIdx}, 'original')" title="상세 보기">상세 보기</button>
+            <button class="btn btn-sm btn-outline doc-card-action" onclick="event.stopPropagation(); openDocFileByIndex(${absoluteIdx})" title="파일 보기">파일 보기</button>
+            ${hasSummary ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${absoluteIdx}, 'summary')" title="요약 보기">📝 요약</button>` : ''}
+            ${hasChunks ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${absoluteIdx}, 'chunks')" title="검색 청크 보기">🔍 청크</button>` : ''}
+            ${hasEvidence ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${absoluteIdx}, 'evidence')" title="근거 스니펫 보기">💡 근거</button>` : ''}
+            ${hasGraph ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); openDocDetailByIndex(${absoluteIdx}, 'graph')" title="Graph 관계 보기">🔗 Graph</button>` : ''}
           </div>
         `;
 
         return `
-        <div class="doc-card" data-doc-idx="${idx}" role="button" tabindex="0"
-          onclick="openDocDetailByIndex(${idx})" onkeydown="onDocCardKey(event, ${idx})">
-          <input type="checkbox" class="doc-card-checkbox" onclick="event.stopPropagation(); toggleDocSelection(${idx})" title="답변 생성에 사용할 문서 선택">
+        <div class="doc-card" data-doc-idx="${absoluteIdx}" role="button" tabindex="0"
+          onclick="openDocDetailByIndex(${absoluteIdx})" onkeydown="onDocCardKey(event, ${absoluteIdx})">
+          <input type="checkbox" class="doc-card-checkbox" onclick="event.stopPropagation(); toggleDocSelection(${absoluteIdx})" title="답변 생성에 사용할 문서 선택">
           <div class="doc-card-header">
             <div class="doc-card-title">#${doc.rank || idx + 1} ${escapeHtml(projectName !== '-' ? projectName : fileName)}</div>
             <div class="doc-card-score ${scoreClass}">${escapeHtml(scoreLabel)}</div>
@@ -5001,9 +5325,11 @@
       }
     }
 
-    function openDocDetailByIndex(idx, viewMode = 'original') {
+    async function openDocDetailByIndex(idx, viewMode = 'original') {
       if (_renderedDocuments && _renderedDocuments[idx]) {
-        openDocDetail(_renderedDocuments[idx], viewMode);
+        const enriched = await enrichDocumentForDetail(_renderedDocuments[idx]);
+        _renderedDocuments[idx] = enriched;
+        openDocDetail(enriched, viewMode);
       }
     }
 
@@ -5070,11 +5396,11 @@
     function highlightQueryTerms(text, query) {
       if (!text) return '';
 
-      // 1. LLM 추출 키워드가 있으면 우선 사용
+      // 1. LLM 추출 키워드가 있으면 우선 사용 (제외된 키워드는 필터링)
       let terms = [];
       if (_extractedKeywords && _extractedKeywords.length > 0) {
         terms = _extractedKeywords
-          .filter(k => k && k.length >= 2)
+          .filter(k => k && k.length >= 2 && !_excludedKeywords.has(k))
           .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
       }
 
@@ -5131,12 +5457,33 @@
       return String(value || '').trim();
     }
 
+    function resolveProjectName(metadata = {}, raw = {}) {
+      return (
+        raw?.project_name ||
+        metadata?.project_name ||
+        metadata?.final_project_name ||
+        metadata?.ocr_project_name ||
+        metadata?.scan_project_name ||
+        ''
+      );
+    }
+
+    function resolveProjectId(projectName, metadata = {}, raw = {}) {
+      return (
+        raw?.project_id ||
+        metadata?.project_id ||
+        (projectName ? `project:${projectName}` : '')
+      );
+    }
+
     function normalizeDocumentForUI(r, idx = 0) {
       const metadata = r?.metadata || {};
       const baseScore = r?.score || r?.final_score || r?.faiss_score || 0;
       const faissScore = r?.faiss_score || 0;
       const graphScore = r?.graph_score || 0;
       const rankingScore = r?.ranking_score || (baseScore * 5.0 + (r?.source === 'graph' ? 1.5 : 1.0));
+      const projectName = resolveProjectName(metadata, r);
+      const projectId = resolveProjectId(projectName, metadata, r);
       const documentGroupRaw = r?.document_group || metadata?.document_group || r?.category || metadata?.category || '';
       const documentGroup = normalizeDocGroupLabel(documentGroupRaw);
       const documentCategory = r?.document_category || metadata?.document_category || metadata?.section_label || '';
@@ -5147,13 +5494,14 @@
         document_id: r?.document_id || `hybrid_${idx}`,
         file_name: r?.file_name || r?.title || r?.document_id || '-',
         file_path: r?.file_path || r?.source_path || metadata?.source_path || '',
-        project_name: metadata?.project_name || r?.project_name || '',
+        project_name: projectName,
+        project_id: projectId,
         category,
         document_group: documentGroup,
         document_category: documentCategory,
         source_id: r?.source_id || metadata?.source_id || '',
         dataset_id: r?.dataset_id || metadata?.dataset_id || '',
-        snapshot_id: r?.snapshot_id || metadata?.snapshot_id || '',
+        snapshot_id: r?.snapshot_id || metadata?.snapshot_id || metadata?.faiss_snapshot || '',
         document_uid: r?.document_uid || metadata?.document_uid || '',
         relative_path: r?.relative_path || metadata?.relative_path || '',
         source_path: r?.source_path || metadata?.source_path || r?.file_path || '',
@@ -5183,8 +5531,57 @@
         metadata,
         graph_relations: r?.graph_relations || [],
         graph_context: r?.graph_context || r?.relations || r?.graph_relations || [],
-        graph_available: r?.graph_available || false
+        // document_id가 있으면 Graph 관계 조회 가능
+        graph_available: r?.graph_available || !!(r?.document_id)
       };
+    }
+
+    async function enrichDocumentForDetail(doc) {
+      const documentId = Number(doc?.document_id || 0);
+      if (!Number.isFinite(documentId) || documentId <= 0) return doc;
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/documents/${documentId}`);
+        if (!response.ok) return doc;
+        const detail = await response.json();
+        const mergedMetadata = {
+          ...(detail || {}),
+          ...(doc?.metadata || {}),
+        };
+        const projectName = (
+          doc?.project_name ||
+          detail?.final_project_name ||
+          detail?.ocr_project_name ||
+          detail?.project_name ||
+          detail?.scan_project_name ||
+          ''
+        );
+        const projectId = doc?.project_id || (projectName ? `project:${projectName}` : '');
+
+        return {
+          ...doc,
+          source_id: doc?.source_id || detail?.source_id || '',
+          dataset_id: doc?.dataset_id || detail?.dataset_id || '',
+          snapshot_id: doc?.snapshot_id || detail?.faiss_snapshot || '',
+          project_name: projectName,
+          project_id: projectId,
+          document_group: doc?.document_group || detail?.document_group || '',
+          document_category: (
+            doc?.document_category ||
+            detail?.final_document_category ||
+            detail?.ocr_document_category ||
+            detail?.scan_document_category ||
+            ''
+          ),
+          organization: doc?.organization || detail?.final_organization || detail?.ocr_organization || detail?.organization || '',
+          project_year: doc?.project_year || detail?.final_year || detail?.ocr_year || detail?.year || detail?.scan_year || '',
+          relative_path: doc?.relative_path || detail?.relative_path || '',
+          source_path: doc?.source_path || detail?.file_path || '',
+          metadata: mergedMetadata,
+        };
+      } catch (_) {
+        return doc;
+      }
     }
 
     // ── Main tab switching ────────────────────────────────────────────
@@ -5883,6 +6280,7 @@
           <div><strong>Source ID:</strong> ${escapeHtml(doc.source_id || '-')}</div>
           <div><strong>Dataset ID:</strong> ${escapeHtml(doc.dataset_id || '-')}</div>
           <div><strong>Snapshot ID:</strong> ${escapeHtml(doc.snapshot_id || '-')}</div>
+          <div><strong>프로젝트 ID:</strong> ${escapeHtml(doc.project_id || '-')}</div>
           <div><strong>프로젝트:</strong> ${escapeHtml(doc.project_name || '-')}</div>
           <div><strong>파일명:</strong> ${escapeHtml(doc.file_name || '-')}</div>
           <div><strong>문서 그룹:</strong> ${escapeHtml(doc.document_group || '-')}</div>
@@ -6019,7 +6417,27 @@
         const res = await fetch(`${API_BASE}/graph/documents/${encodeURIComponent(documentId)}/relations`);
         if (!res.ok) return [];
         const data = await res.json();
-        return data.relations || data.edges || [];
+        // API 응답 구조: outgoing_relations, incoming_relations, same_project_documents
+        const outgoing = data.outgoing_relations || [];
+        const incoming = data.incoming_relations || [];
+        const sameProject = (data.same_project_documents || []).map(d => ({
+          relation_type: 'SAME_PROJECT',
+          target_id: d.id,
+          target_label: d.label,
+          target_type: 'document',
+          category: d.category
+        }));
+        // 기존 필드도 지원 (호환성)
+        if (data.relations || data.edges) {
+          return data.relations || data.edges || [];
+        }
+        return [...outgoing, ...incoming.map(r => ({
+          relation_type: r.relation_type,
+          target_id: r.source_id,
+          target_label: r.source_label,
+          target_type: r.source_type,
+          direction: 'incoming'
+        })), ...sameProject];
       } catch (err) {
         console.error('Graph 관계 로드 실패:', err);
         return [];

@@ -8,18 +8,26 @@ HWP 파일 텍스트 추출기.
   3. 품질 낮으면 → PDF 변환 후 재추출
   4. 그래도 품질 낮으면 → OCR 실행
 
+표 추출 개선:
+  - PDF 변환 후 Camelot/Tabula로 구조화된 표 추출
+  - 추출된 표는 Markdown 형식으로 본문에 통합
+
 사용 방법:
   - use_pdf_fallback=True: PDF 변환 fallback 활성화
   - use_ocr_fallback=True: OCR fallback 활성화
+  - extract_tables=True: 표 구조 추출 활성화
 """
 import os
 import sys
 import subprocess
 import tempfile
+import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from app.extractors.base import BaseExtractor, ExtractionResult
+
+logger = logging.getLogger(__name__)
 
 # 품질 점검 모듈 (선택적 import)
 try:
@@ -84,11 +92,21 @@ def _detect_hwp_container(file_path: str) -> str:
     return "unknown"
 
 
+def _is_table_extractor_available() -> bool:
+    """표 추출 서비스 사용 가능 여부 확인."""
+    try:
+        from app.services.table_extractor import get_table_extractor_service
+        return True
+    except ImportError:
+        return False
+
+
 class HwpExtractor(BaseExtractor):
     """
     HWP 바이너리 형식(.hwp) 텍스트 추출기.
 
     품질 점검 및 PDF 변환 fallback 지원.
+    표 추출: PDF 변환 후 Camelot/Tabula 사용.
     """
 
     def __init__(
@@ -96,6 +114,8 @@ class HwpExtractor(BaseExtractor):
         use_pdf_fallback: bool = True,
         use_ocr_fallback: bool = True,
         quality_threshold: float = 0.6,
+        extract_tables: bool = True,
+        table_as_markdown: bool = True,
     ):
         """
         초기화.
@@ -104,10 +124,14 @@ class HwpExtractor(BaseExtractor):
             use_pdf_fallback: 품질 낮을 때 PDF 변환 시도
             use_ocr_fallback: PDF에서도 품질 낮을 때 OCR 시도
             quality_threshold: 품질 점수 임계값 (이하일 때 fallback)
+            extract_tables: 표 구조 추출 활성화
+            table_as_markdown: 표를 Markdown 형식으로 본문에 추가
         """
         self.use_pdf_fallback = use_pdf_fallback
         self.use_ocr_fallback = use_ocr_fallback
         self.quality_threshold = quality_threshold
+        self.extract_tables = extract_tables
+        self.table_as_markdown = table_as_markdown
 
     @property
     def supported_extensions(self) -> List[str]:
@@ -310,13 +334,13 @@ class HwpExtractor(BaseExtractor):
                 if not pdf_files:
                     return None
 
-                pdf_path = pdf_files[0]
+                pdf_path = str(pdf_files[0])
 
                 # PDF에서 텍스트 추출
                 import pdfplumber
                 content_parts = []
 
-                with pdfplumber.open(str(pdf_path)) as pdf:
+                with pdfplumber.open(pdf_path) as pdf:
                     for i, page in enumerate(pdf.pages):
                         text = page.extract_text()
                         if text:
@@ -327,20 +351,48 @@ class HwpExtractor(BaseExtractor):
                 if not content.strip():
                     return None
 
+                metadata = {
+                    "source": file_path,
+                    "filename": Path(file_path).name,
+                    "content_length": len(content),
+                    "pages": len(content_parts),
+                }
+
+                # 표 추출 (Camelot/Tabula 사용)
+                table_markdown = ""
+                if self.extract_tables and _is_table_extractor_available():
+                    try:
+                        from app.services.table_extractor import get_table_extractor_service
+                        table_service = get_table_extractor_service()
+                        table_result = table_service.pdf_extractor.extract_tables(pdf_path)
+
+                        if table_result.success and table_result.tables:
+                            metadata["tables_extracted"] = len(table_result.tables)
+                            metadata["table_methods"] = table_result.methods_used
+
+                            if self.table_as_markdown:
+                                table_parts = []
+                                for table in table_result.tables:
+                                    table_header = f"\n\n### 표 (페이지 {table.page_number}, #{table.table_index + 1})\n"
+                                    table_parts.append(table_header + table.markdown)
+                                table_markdown = "\n".join(table_parts)
+                    except Exception as e:
+                        logger.warning(f"Table extraction failed for {file_path}: {e}")
+                        metadata["table_extraction_error"] = str(e)
+
+                # 본문 + 표 결합
+                if table_markdown:
+                    content = content + "\n\n---\n## 추출된 표\n" + table_markdown
+
                 return ExtractionResult(
                     success=True,
                     content=content,
-                    metadata={
-                        "source": file_path,
-                        "filename": Path(file_path).name,
-                        "content_length": len(content),
-                        "pages": len(content_parts),
-                    },
+                    metadata=metadata,
                     method="hwp_pdf_conversion"
                 )
 
         except Exception as e:
-            print(f"[WARN] PDF conversion failed for {file_path}: {e}")
+            logger.warning(f"PDF conversion failed for {file_path}: {e}")
             return None
 
     async def _extract_with_ocr(self, file_path: str) -> Optional[ExtractionResult]:

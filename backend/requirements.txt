@@ -24,6 +24,12 @@ pytesseract>=0.3.13
 pdf2image>=1.17.0
 Pillow>=10.0.0
 
+# Table Extraction (PDF 표 구조 추출)
+camelot-py[cv]>=0.11.0
+tabula-py>=2.9.0
+opencv-python>=4.8.0
+pandas>=2.0.0
+
 # HWP (구형 바이너리) 텍스트 추출
 pyhwp>=0.1b15
 

@@ -629,7 +629,7 @@ async def get_embedding_status(db: Session = Depends(get_db)):
     """
     임베딩 상태 조회
     """
-    from app.models.document_metadata import DocumentMetadata
+    from app.models.document_metadata import DocumentMetadata, MetaStatus
     text_store = get_text_store()
 
     try:

@@ -88,13 +88,63 @@ def _calculate_quality_score(text_length: int) -> float:
     return 1.0
 
 
+def _iso_now() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _build_step4_event(
+    *,
+    stage: str,
+    log: str,
+    progress: int,
+    level: str = "info",
+    doc: Optional[DocumentMetadata] = None,
+    metadata_ctx: Optional[dict] = None,
+    extra: Optional[dict] = None,
+) -> dict:
+    event = {
+        "timestamp": _iso_now(),
+        "stage": stage,
+        "level": level,
+        "log": log,
+        "progress": progress,
+    }
+    if doc is not None:
+        event.update({
+            "document_id": doc.document_id,
+            "document_uid": doc.document_uid,
+            "file_name": Path(doc.file_path or "").name if doc.file_path else None,
+            "relative_path": doc.relative_path,
+            "source_id": doc.source_id,
+            "dataset_id": doc.dataset_id,
+        })
+    elif metadata_ctx:
+        event.update({
+            "document_uid": metadata_ctx.get("document_uid"),
+            "relative_path": metadata_ctx.get("relative_path"),
+            "source_id": metadata_ctx.get("source_id"),
+            "dataset_id": metadata_ctx.get("dataset_id"),
+        })
+    if extra:
+        event.update(extra)
+    return event
+
+
 def _extract_document_sync(file_path: str, ocr_use_gpu: bool) -> dict:
     """CPU 집약적인 추출을 워커 스레드에서 실행한다."""
     extractor = DocumentExtractor(
         use_ocr=True,
         ocr_use_gpu=ocr_use_gpu,
     )
-    return asyncio.run(extractor.extract(file_path))
+    # 워커 스레드에서 새 이벤트 루프를 생성하여 async 함수 실행
+    # asyncio.run()은 이미 루프가 실행 중일 때 RuntimeError 발생 가능
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(extractor.extract(file_path))
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
 
 
 async def _extract_document_in_worker(file_path: str, ocr_use_gpu: bool) -> dict:
@@ -122,6 +172,9 @@ async def parse_document(
         "error": None,
         "text_length": 0,
         "warning": None,
+        "parser_type": None,
+        "processing_time_ms": 0,
+        "ocr_use_gpu": False,
     }
 
     try:
@@ -196,6 +249,7 @@ async def parse_document(
 
         runtime_settings = get_runtime_compute_settings()
         ocr_use_gpu = is_stage_gpu_enabled("ocr", runtime_settings)
+        result["ocr_use_gpu"] = ocr_use_gpu
         logger.info(
             "[Step4] parse_document worker dispatch: document_id=%s ocr_use_gpu=%s file=%s",
             document_id,
@@ -209,6 +263,7 @@ async def parse_document(
         # 추출 결과 매핑
         text = extract_result.get("content", "")
         processing_result.parser_type = extract_result.get("method", "unknown")
+        result["parser_type"] = processing_result.parser_type
         processing_result.full_text = text
         processing_result.full_text_md = f"# {file_name}\n\n{text}"
 
@@ -229,6 +284,7 @@ async def parse_document(
 
         processing_result.processing_time_ms = processing_time_ms
         processing_result.text_length = len(processing_result.full_text or "")
+        result["processing_time_ms"] = processing_time_ms
 
         quality_score = _calculate_quality_score(processing_result.text_length)
 
@@ -390,6 +446,15 @@ def _build_processing_metadata_ctx(doc: DocumentMetadata, dataset_id_cache: dict
     }
 
 
+def _commit_step4_progress(db: Session) -> None:
+    """Step 4 진행 상태를 중간 커밋해 MySQL 가시성과 장애 복구성을 높인다."""
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
 # ── API Endpoints ───────────────────────────────────────────────────────────
 
 
@@ -470,6 +535,7 @@ async def parse_documents(
                     _save_ocr_metadata(db, doc, result["document_id"])
                     doc.status = "text_extracted"
                     doc.updated_at = datetime.utcnow()
+                    _commit_step4_progress(db)
             else:
                 failed += 1
                 failures.append({
@@ -479,10 +545,7 @@ async def parse_documents(
                 })
 
         # ocr_* flush 후 일괄 커밋
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
+        _commit_step4_progress(db)
 
         end_time = datetime.now()
         processing_time = (end_time - start_time).total_seconds()
@@ -565,6 +628,7 @@ async def refresh_ocr_metadata(
             if doc.ocr_metadata_status == "success":
                 processed += 1
                 doc.status = "text_extracted"
+                _commit_step4_progress(db)
             elif doc.ocr_metadata_status == "skipped":
                 skipped += 1
             else:
@@ -575,11 +639,7 @@ async def refresh_ocr_metadata(
                     "error": "OCR metadata refresh failed",
                 })
 
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
+        _commit_step4_progress(db)
 
         processing_time = (datetime.now() - start_time).total_seconds()
 
@@ -890,11 +950,15 @@ async def parse_documents_streaming(
             "stage": "초기화",
             "log": f"총 {total}개 문서 파싱 시작",
             "progress": 0,
+            "timestamp": _iso_now(),
+            "source_id": source_id,
         })
         await emit_parse_event(job_id, {
             "stage": "초기화",
             "log": f"OCR 실행 모드: {describe_stage_compute_mode('ocr')}",
             "progress": 0,
+            "timestamp": _iso_now(),
+            "source_id": source_id,
         })
 
         if total == 0:
@@ -920,21 +984,30 @@ async def parse_documents_streaming(
 
         for idx, doc in enumerate(documents, 1):
             if not doc.file_path:
-                await emit_parse_event(job_id, {
-                    "level": "error",
-                    "log": f"[{idx}/{total}] document_id={doc.document_id}: 파일 경로 없음",
-                    "progress": int((idx / total) * 100),
-                })
+                await emit_parse_event(job_id, _build_step4_event(
+                    stage=f"파싱 중 ({idx}/{total})",
+                    level="error",
+                    log=f"[{idx}/{total}] document_id={doc.document_id}: 파일 경로 없음",
+                    progress=int((idx / total) * 100),
+                    doc=doc,
+                    extra={"sequence": idx, "total_documents": total},
+                ))
                 failed += 1
                 continue
 
-            await emit_parse_event(job_id, {
-                "stage": f"파싱 중 ({idx}/{total})",
-                "log": f"[{idx}/{total}] {Path(doc.file_path).name} 파싱 시작",
-                "progress": int(((idx - 1) / total) * 100),
-            })
-
             metadata_ctx = _build_processing_metadata_ctx(doc, dataset_id_cache)
+            await emit_parse_event(job_id, _build_step4_event(
+                stage=f"파싱 중 ({idx}/{total})",
+                log=f"[{idx}/{total}] {Path(doc.file_path).name} 파싱 시작",
+                progress=int(((idx - 1) / total) * 100),
+                doc=doc,
+                metadata_ctx=metadata_ctx,
+                extra={
+                    "sequence": idx,
+                    "total_documents": total,
+                    "phase": "start",
+                },
+            ))
             result = await parse_document(
                 document_id=doc.document_id,
                 file_path=doc.file_path,
@@ -952,41 +1025,74 @@ async def parse_documents_streaming(
                         force_reparse,
                         doc.relative_path,
                     )
-                    await emit_parse_event(job_id, {
-                        "log": f"[{idx}/{total}] {Path(doc.file_path).name}: 이미 처리됨 (skip)",
-                        "progress": int((idx / total) * 100),
-                    })
+                    await emit_parse_event(job_id, _build_step4_event(
+                        stage=f"파싱 중 ({idx}/{total})",
+                        level="warning",
+                        log=f"[{idx}/{total}] {Path(doc.file_path).name}: 이미 처리됨 (skip)",
+                        progress=int((idx / total) * 100),
+                        doc=doc,
+                        metadata_ctx=metadata_ctx,
+                        extra={
+                            "sequence": idx,
+                            "total_documents": total,
+                            "phase": "skip",
+                            "skip_reason": "already_processed",
+                        },
+                    ))
                     skipped += 1
                 else:
                     text_len = result.get("text_length", 0)
                     _save_ocr_metadata(db, doc, result["document_id"])
                     doc.status = "text_extracted"
                     doc.updated_at = datetime.utcnow()
-                    await emit_parse_event(job_id, {
-                        "log": (
+                    _commit_step4_progress(db)
+                    await emit_parse_event(job_id, _build_step4_event(
+                        stage=f"파싱 중 ({idx}/{total})",
+                        level="success" if not result.get("warning") else "warning",
+                        log=(
                             f"[{idx}/{total}] {Path(doc.file_path).name}: 성공 ({text_len} chars)"
                             + (f" | 경고: {result['warning']}" if result.get("warning") else "")
                         ),
-                        "progress": int((idx / total) * 100),
-                    })
+                        progress=int((idx / total) * 100),
+                        doc=doc,
+                        metadata_ctx=metadata_ctx,
+                        extra={
+                            "sequence": idx,
+                            "total_documents": total,
+                            "phase": "success",
+                            "parser_type": result.get("parser_type"),
+                            "text_length": text_len,
+                            "processing_time_ms": result.get("processing_time_ms"),
+                            "ocr_use_gpu": result.get("ocr_use_gpu"),
+                            "warning": result.get("warning"),
+                        },
+                    ))
                     processed += 1
             else:
                 error_msg = result.get("error", "Unknown error")
-                await emit_parse_event(job_id, {
-                    "level": "error",
-                    "log": f"[{idx}/{total}] {Path(doc.file_path).name}: 실패 - {error_msg}",
-                    "progress": int((idx / total) * 100),
-                })
+                await emit_parse_event(job_id, _build_step4_event(
+                    stage=f"파싱 중 ({idx}/{total})",
+                    level="error",
+                    log=f"[{idx}/{total}] {Path(doc.file_path).name}: 실패 - {error_msg}",
+                    progress=int((idx / total) * 100),
+                    doc=doc,
+                    metadata_ctx=metadata_ctx,
+                    extra={
+                        "sequence": idx,
+                        "total_documents": total,
+                        "phase": "failed",
+                        "parser_type": result.get("parser_type"),
+                        "processing_time_ms": result.get("processing_time_ms"),
+                        "ocr_use_gpu": result.get("ocr_use_gpu"),
+                        "error_detail": error_msg,
+                    },
+                ))
                 failed += 1
 
             # 다음 SSE heartbeat와 다른 요청 처리를 위해 매 문서 뒤 제어권을 반환한다.
             await asyncio.sleep(0)
 
-        try:
-            db.commit()
-        except Exception as exc:
-            db.rollback()
-            raise exc
+        _commit_step4_progress(db)
 
         logger.info(
             "[Step4] stream complete: job_id=%s source_id=%s force_reparse=%s total=%s processed=%s failed=%s skipped=%s",
@@ -1005,6 +1111,8 @@ async def parse_documents_streaming(
             "log": f"파싱 완료: {processed}개 성공, {failed}개 실패, {skipped}개 건너뜀",
             "progress": 100,
             "done": True,
+            "timestamp": _iso_now(),
+            "source_id": source_id,
             "result": {
                 "total_documents": total,
                 "processed": processed,
@@ -1027,6 +1135,8 @@ async def parse_documents_streaming(
             "log": f"파싱 작업 실패: {str(e)}",
             "progress": 0,
             "done": True,
+            "timestamp": _iso_now(),
+            "source_id": source_id,
             "error": str(e),
         })
 

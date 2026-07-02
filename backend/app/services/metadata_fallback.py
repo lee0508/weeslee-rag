@@ -16,9 +16,32 @@ from dataclasses import dataclass
 FALLBACK_FIELDS = [
     "project_name",
     "organization",
+    "organization_type",
     "year",
     "document_category",
 ]
+
+# 기관 유형 자동 분류 규칙
+ORGANIZATION_TYPE_RULES = {
+    "공공기관": ["부", "청", "처", "원", "위원회", "국", "실", "과"],
+    "연구기관": ["연구원", "연구소", "연구센터"],
+    "공기업": ["공사", "공단"],
+    "교육기관": ["대학교", "대학", "학교", "교육원"],
+    "의료기관": ["병원", "의료원", "건강보험"],
+    "재단법인": ["재단", "협회", "진흥원"],
+}
+
+
+def infer_organization_type(organization: Optional[str]) -> Optional[str]:
+    """기관명에서 기관 유형을 추론한다."""
+    if not organization:
+        return None
+    org = organization.strip()
+    for org_type, suffixes in ORGANIZATION_TYPE_RULES.items():
+        for suffix in suffixes:
+            if org.endswith(suffix):
+                return org_type
+    return None
 
 
 @dataclass
@@ -26,6 +49,7 @@ class ResolvedMetadata:
     """Fallback 체인을 통해 해결된 메타데이터."""
     project_name: Optional[str] = None
     organization: Optional[str] = None
+    organization_type: Optional[str] = None
     year: Optional[str] = None
     document_category: Optional[str] = None
     document_group: Optional[str] = None
@@ -33,6 +57,7 @@ class ResolvedMetadata:
     # 원본 소스 추적 (디버깅용)
     project_name_source: Optional[str] = None
     organization_source: Optional[str] = None
+    organization_type_source: Optional[str] = None
     year_source: Optional[str] = None
     document_category_source: Optional[str] = None
 
@@ -41,12 +66,14 @@ class ResolvedMetadata:
         return {
             "project_name": self.project_name,
             "organization": self.organization,
+            "organization_type": self.organization_type,
             "year": self.year,
             "document_category": self.document_category,
             "document_group": self.document_group,
             "_sources": {
                 "project_name": self.project_name_source,
                 "organization": self.organization_source,
+                "organization_type": self.organization_type_source,
                 "year": self.year_source,
                 "document_category": self.document_category_source,
             }
@@ -128,17 +155,25 @@ def resolve_metadata(meta: Dict[str, Any]) -> ResolvedMetadata:
     year, year_source = get_effective_value(meta, "year")
     document_category, dc_source = get_effective_value(meta, "document_category")
 
+    # organization_type: 명시적 값이 없으면 organization에서 추론
+    organization_type, ot_source = get_effective_value(meta, "organization_type")
+    if not organization_type and organization:
+        organization_type = infer_organization_type(organization)
+        ot_source = "inferred" if organization_type else None
+
     # document_group은 별도 필드로 존재
     document_group = meta.get("document_group") or meta.get("category")
 
     return ResolvedMetadata(
         project_name=project_name,
         organization=organization,
+        organization_type=organization_type,
         year=year,
         document_category=document_category,
         document_group=document_group,
         project_name_source=pn_source,
         organization_source=org_source,
+        organization_type_source=ot_source,
         year_source=year_source,
         document_category_source=dc_source,
     )
@@ -187,6 +222,8 @@ def merge_metadata_for_faiss(
         result["project_name"] = resolved.project_name
     if resolved.organization:
         result["organization"] = resolved.organization
+    if resolved.organization_type:
+        result["organization_type"] = resolved.organization_type
     if resolved.year:
         result["folder_year"] = resolved.year
     if resolved.document_category:
@@ -220,6 +257,7 @@ def merge_metadata_for_graph(
         "relative_path": doc_meta.get("relative_path"),
         "project_name": resolved.project_name,
         "organization": resolved.organization,
+        "organization_type": resolved.organization_type,
         "year": resolved.year,
         "document_category": resolved.document_category,
         "document_group": resolved.document_group or doc_meta.get("category"),
@@ -230,6 +268,7 @@ def merge_metadata_for_graph(
         "_resolved_sources": {
             "project_name": resolved.project_name_source,
             "organization": resolved.organization_source,
+            "organization_type": resolved.organization_type_source,
             "year": resolved.year_source,
             "document_category": resolved.document_category_source,
         }

@@ -278,7 +278,7 @@ class HybridRAGService:
             metadata = dict(r.metadata or {})
             metadata.setdefault("source_id", metadata.get("source_id") or self.source_id)
             metadata.setdefault("dataset_id", metadata.get("dataset_id"))
-            metadata.setdefault("snapshot_id", metadata.get("snapshot_id"))
+            metadata.setdefault("snapshot_id", metadata.get("snapshot_id") or metadata.get("faiss_snapshot"))
             metadata.setdefault("document_uid", metadata.get("document_uid"))
             metadata.setdefault("relative_path", metadata.get("relative_path"))
             metadata.setdefault("source_path", metadata.get("source_path") or r.source_path)
@@ -286,6 +286,18 @@ class HybridRAGService:
             metadata.setdefault("slide_no", metadata.get("slide_no") or r.slide_no)
             metadata.setdefault("section_title", metadata.get("section_title") or r.section_title)
             metadata.setdefault("section_id", metadata.get("section_id") or r.section_id)
+            project_name = (
+                metadata.get("project_name")
+                or metadata.get("final_project_name")
+                or metadata.get("ocr_project_name")
+                or metadata.get("scan_project_name")
+                or ""
+            )
+            metadata.setdefault("project_name", project_name)
+            metadata.setdefault(
+                "project_id",
+                metadata.get("project_id") or (f"project:{project_name}" if project_name else ""),
+            )
             document_id = str(r.document_id or "")
             if allowed_document_ids and document_id and document_id not in allowed_document_ids:
                 continue
@@ -312,6 +324,8 @@ class HybridRAGService:
                 "snapshot_id": metadata.get("snapshot_id"),
                 "document_uid": metadata.get("document_uid"),
                 "relative_path": metadata.get("relative_path"),
+                "project_name": metadata.get("project_name"),
+                "project_id": metadata.get("project_id"),
                 "metadata": metadata,
                 "source": SearchSource.FAISS.value,
             }

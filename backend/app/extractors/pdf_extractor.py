@@ -1,12 +1,16 @@
 """
 PDF Extractor with OCR support (pytesseract + easyocr fallback)
+표 추출 개선: Camelot/Tabula 병행 사용으로 구조화된 표 추출 지원
 """
 import os
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import pdfplumber
+import logging
 
 from app.extractors.base import BaseExtractor, ExtractionResult
+
+logger = logging.getLogger(__name__)
 
 
 def _is_tesseract_available() -> bool:
@@ -49,6 +53,15 @@ def _get_easyocr_reader(use_gpu_override: Optional[bool] = None):
     return _easyocr_readers[cache_key]
 
 
+def _is_table_extractor_available() -> bool:
+    """표 추출 서비스 사용 가능 여부 확인."""
+    try:
+        from app.services.table_extractor import get_table_extractor_service
+        return True
+    except ImportError:
+        return False
+
+
 class PDFExtractor(BaseExtractor):
     """Extracts text from PDF files with pytesseract OCR fallback for scanned pages"""
 
@@ -56,10 +69,19 @@ class PDFExtractor(BaseExtractor):
     def supported_extensions(self) -> List[str]:
         return [".pdf"]
 
-    def __init__(self, use_ocr: bool = True, ocr_threshold: int = 50, ocr_use_gpu: Optional[bool] = None):
+    def __init__(
+        self,
+        use_ocr: bool = True,
+        ocr_threshold: int = 50,
+        ocr_use_gpu: Optional[bool] = None,
+        extract_tables: bool = True,
+        table_as_markdown: bool = True,
+    ):
         self.use_ocr = use_ocr
         self.ocr_threshold = ocr_threshold
         self.ocr_use_gpu = ocr_use_gpu
+        self.extract_tables = extract_tables
+        self.table_as_markdown = table_as_markdown
 
     def _is_scanned_pdf(self, pdf_path: str) -> bool:
         """Return True if first 3 pages yield less than ocr_threshold chars each."""
@@ -124,6 +146,35 @@ class PDFExtractor(BaseExtractor):
                         "cid_ratio": cid_count / len(full_content) if len(full_content) > 0 else 0,
                     }
                 )
+
+            # 표 추출 (Camelot/Tabula 사용)
+            table_markdown = ""
+            table_count = 0
+            if self.extract_tables and _is_table_extractor_available():
+                try:
+                    from app.services.table_extractor import get_table_extractor_service
+                    table_service = get_table_extractor_service()
+                    table_result = table_service.pdf_extractor.extract_tables(pdf_path)
+
+                    if table_result.success and table_result.tables:
+                        table_count = len(table_result.tables)
+                        metadata["tables_extracted"] = table_count
+                        metadata["table_methods"] = table_result.methods_used
+
+                        if self.table_as_markdown:
+                            # 표를 Markdown으로 변환하여 본문 끝에 추가
+                            table_parts = []
+                            for table in table_result.tables:
+                                table_header = f"\n\n### 표 (페이지 {table.page_number}, #{table.table_index + 1})\n"
+                                table_parts.append(table_header + table.markdown)
+                            table_markdown = "\n".join(table_parts)
+                except Exception as e:
+                    logger.warning(f"Table extraction failed for {pdf_path}: {e}")
+                    metadata["table_extraction_error"] = str(e)
+
+            # 본문 + 표 결합
+            if table_markdown:
+                full_content = full_content + "\n\n---\n## 추출된 표\n" + table_markdown
 
             return ExtractionResult(
                 success=True,

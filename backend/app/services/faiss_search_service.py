@@ -488,7 +488,12 @@ class FaissSearchService:
                         **(row.get("metadata", {}) or {}),
                         "source_id": row.get("source_id") or row.get("metadata", {}).get("source_id"),
                         "dataset_id": row.get("dataset_id") or row.get("metadata", {}).get("dataset_id"),
-                        "snapshot_id": row.get("snapshot_id") or row.get("metadata", {}).get("snapshot_id"),
+                        "snapshot_id": (
+                            row.get("snapshot_id")
+                            or row.get("faiss_snapshot")
+                            or row.get("metadata", {}).get("snapshot_id")
+                            or row.get("metadata", {}).get("faiss_snapshot")
+                        ),
                         "document_uid": row.get("document_uid") or row.get("metadata", {}).get("document_uid"),
                         "relative_path": row.get("relative_path") or row.get("metadata", {}).get("relative_path"),
                         "source_path": row.get("source_path") or row.get("metadata", {}).get("source_path"),
@@ -496,6 +501,26 @@ class FaissSearchService:
                         "slide_no": row.get("slide_no") or row.get("metadata", {}).get("slide_no"),
                         "section_title": row.get("section_title") or row.get("metadata", {}).get("section_title"),
                         "section_id": row.get("section_id") or row.get("metadata", {}).get("section_id"),
+                        "project_name": (
+                            row.get("project_name")
+                            or row.get("final_project_name")
+                            or row.get("ocr_project_name")
+                            or row.get("scan_project_name")
+                            or row.get("metadata", {}).get("project_name")
+                            or row.get("metadata", {}).get("final_project_name")
+                            or row.get("metadata", {}).get("ocr_project_name")
+                            or row.get("metadata", {}).get("scan_project_name")
+                        ),
+                        "project_id": (
+                            row.get("project_id")
+                            or row.get("metadata", {}).get("project_id")
+                        ),
+                        "faiss_snapshot": (
+                            row.get("faiss_snapshot")
+                            or row.get("snapshot_id")
+                            or row.get("metadata", {}).get("faiss_snapshot")
+                            or row.get("metadata", {}).get("snapshot_id")
+                        ),
                     },
                 ))
 
