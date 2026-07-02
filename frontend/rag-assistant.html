@@ -705,13 +705,28 @@
       gap: 8px;
     }
 
-    .query-timing {
+    .query-meta-row {
       width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+    }
+    .query-timing {
+      flex: 0 0 auto;
       margin-top: 0;
       font-size: 11px;
       color: var(--text-s);
       min-height: 16px;
       line-height: 1.4;
+    }
+    .query-mode-progress {
+      flex: 1 1 240px;
+      font-size: 11px;
+      color: var(--navy);
+      min-height: 16px;
+      line-height: 1.4;
+      font-weight: 600;
     }
     .panel-tab {
       padding: 6px 10px;
@@ -2156,6 +2171,7 @@
           <div>
             <label for="searchScope">검색 범위</label>
             <select id="searchScope" onchange="updateSearchScopeHint()">
+              <option value="all_sources">전체 데이터셋</option>
               <option value="active_snapshot" selected>현재 Active Snapshot</option>
             </select>
             <div id="searchScopeHint" style="margin-top:4px;font-size:11px;color:var(--gray-400);line-height:1.5;">
@@ -2267,7 +2283,7 @@
             <div>
               <label for="temperature" data-i18n="temperature">Temperature: <span id="tempDisplay">0.20</span></label>
               <input id="temperature" type="range" min="0" max="200" value="20" step="1"
-                oninput="document.getElementById('tempDisplay').textContent = (this.value/100).toFixed(2)" style="width:100%">
+                oninput="onTemperatureChange(this.value)" style="width:100%">
             </div>
           </div>
         </div>
@@ -2365,7 +2381,10 @@
             <button class="panel-tab" type="button" data-tab="graph" onclick="switchAnswerTab('graph')" data-i18n="tab_graph">Graph</button>
             <button class="panel-tab" type="button" data-tab="wiki" onclick="switchAnswerTab('wiki')" data-i18n="tab_wiki_result">Wiki</button>
           </div>
-          <div id="queryTiming" class="query-timing" aria-live="polite"></div>
+          <div class="query-meta-row">
+            <div id="queryTiming" class="query-timing" aria-live="polite"></div>
+            <div id="queryModeProgress" class="query-mode-progress" aria-live="polite"></div>
+          </div>
         </div>
         <!-- RAG 탭 (FAISS 검색 결과 + LLM 답변) -->
         <div class="card-body panel-view active" id="ragPanel">
@@ -3009,6 +3028,7 @@
         if (_selectedReviewIdx >= 0) selectReviewItem(_selectedReviewIdx);
       }
       renderQueryTiming();
+      renderQueryModeProgress('');
     }
 
     // ── Toast notifications ───────────────────────────────────────────────
@@ -3027,6 +3047,24 @@
 
     function formatLatency(ms) {
       return `${(ms / 1000).toFixed(2)}s`;
+    }
+
+    function renderQueryModeProgress(message = '') {
+      const el = document.getElementById('queryModeProgress');
+      if (!el) return;
+      el.textContent = message || '';
+    }
+
+    function getSearchModeProgressLabel(mode) {
+      const labels = {
+        general: '일반문서',
+        bid_project: '유사문서',
+        rfp_analysis: 'RFP 분석',
+        graph_rag: '관계기반',
+        hybrid_rag: 'Hybrid RAG',
+        proposal_draft: '제안서 초안',
+      };
+      return labels[mode] || getSearchModeLabel(mode);
     }
 
     function renderQueryTiming() {
@@ -3148,12 +3186,27 @@
     }
 
     function onWeightChange() {
-      const vw = parseInt(document.getElementById('vectorWeight').value);
-      const gw = parseInt(document.getElementById('graphWeight').value);
-      const ww = parseInt(document.getElementById('wikiWeight').value);
-      document.getElementById('vectorWeightVal').textContent = vw + '%';
-      document.getElementById('graphWeightVal').textContent = gw + '%';
-      document.getElementById('wikiWeightVal').textContent = ww + '%';
+      const vectorInput = document.getElementById('vectorWeight');
+      const graphInput = document.getElementById('graphWeight');
+      const wikiInput = document.getElementById('wikiWeight');
+      const vectorValueEl = document.getElementById('vectorWeightVal');
+      const graphValueEl = document.getElementById('graphWeightVal');
+      const wikiValueEl = document.getElementById('wikiWeightVal');
+
+      const vw = parseInt(vectorInput?.value || '0', 10);
+      const gw = parseInt(graphInput?.value || '0', 10);
+      const ww = parseInt(wikiInput?.value || '0', 10);
+
+      if (vectorValueEl) vectorValueEl.textContent = `${vw}%`;
+      if (graphValueEl) graphValueEl.textContent = `${gw}%`;
+      if (wikiValueEl) wikiValueEl.textContent = `${ww}%`;
+    }
+
+    function onTemperatureChange(value) {
+      const tempDisplay = document.getElementById('tempDisplay');
+      if (tempDisplay) {
+        tempDisplay.textContent = (Number(value || 0) / 100).toFixed(2);
+      }
     }
 
     // ── Category dynamic load ─────────────────────────────────────────────
@@ -3219,10 +3272,34 @@
         .filter(Boolean);
     }
 
+    function ensureSearchScopeValue(scopeId = 'active_snapshot') {
+      const selectEl = document.getElementById('searchScope');
+      if (!selectEl) return;
+      const hasOption = Array.from(selectEl.options || []).some(option => option.value === scopeId);
+      if (hasOption) {
+        selectEl.value = scopeId;
+      }
+    }
+
+    function syncSearchScopeSelection() {
+      const selectedSnapshotIds = getSelectedSnapshotIds();
+      if (selectedSnapshotIds.length) {
+        ensureSearchScopeValue('selected_snapshots');
+        return 'selected_snapshots';
+      }
+      const currentScope = getSelectedSearchScope();
+      if (!currentScope || currentScope === 'selected_snapshots') {
+        ensureSearchScopeValue('active_snapshot');
+        return 'active_snapshot';
+      }
+      return currentScope;
+    }
+
     function clearSelectedSnapshots() {
       getSnapshotCheckboxNodes().forEach(node => {
         node.checked = false;
       });
+      syncSearchScopeSelection();
       updateSnapshotSelectionHint();
       updateSearchScopeHint();
     }
@@ -3232,7 +3309,7 @@
       if (!hintEl) return;
       const selectedNodes = getSnapshotCheckboxNodes().filter(node => node.checked);
       if (!selectedNodes.length) {
-        hintEl.textContent = '선택 없으면 위 검색 범위를 사용합니다.';
+        hintEl.textContent = '선택 없으면 기본 검색 범위인 현재 Active Snapshot을 사용합니다.';
         return;
       }
       const labels = selectedNodes.slice(0, 3).map(node => node.dataset.snapshotLabel || node.dataset.snapshotId || '');
@@ -3348,6 +3425,7 @@
           checkbox.checked = selectedIds.has(snapshot.snapshot_id);
           checkbox.addEventListener('change', (e) => {
             e.stopPropagation();
+            syncSearchScopeSelection();
             updateSnapshotSelectionHint();
             updateSearchScopeHint();
           });
@@ -3385,6 +3463,7 @@
           tr.addEventListener('click', (e) => {
             if (e.target !== checkbox) {
               checkbox.checked = !checkbox.checked;
+              syncSearchScopeSelection();
               updateSnapshotSelectionHint();
               updateSearchScopeHint();
             }
@@ -3401,9 +3480,10 @@
     }
 
     function updateSearchScopeHint() {
+      const selectEl = document.getElementById('searchScope');
       const hintEl = document.getElementById('searchScopeHint');
       if (!hintEl) return;
-      const selected = getSelectedSearchScope();
+      const selected = syncSearchScopeSelection();
       const scope = (_searchScopes || []).find(item => item.scope_id === selected);
       if (!scope) {
         hintEl.textContent = '현재 선택된 검색 범위 정보를 찾을 수 없습니다.';
@@ -3412,11 +3492,20 @@
       const parts = [];
       const selectedSnapshotIds = getSelectedSnapshotIds();
       if (selectedSnapshotIds.length) {
-        parts.push(`직접 선택 Snapshot ${selectedSnapshotIds.length}개가 우선 적용됩니다.`);
+        const mode = document.getElementById('searchMode')?.value || 'general';
+        parts.push(`직접 선택 Snapshot ${selectedSnapshotIds.length}개에 대해 ${getSearchModeProgressLabel(mode)} 검색을 실행합니다.`);
+      } else if (selected === 'active_snapshot') {
+        parts.push('표시는 전체 데이터셋 기준으로 제공되지만, 기본 검색은 현재 Active Snapshot으로 실행됩니다.');
       }
       if (scope.description) parts.push(scope.description);
       if (scope.snapshot_count) parts.push(`Snapshot ${scope.snapshot_count}개`);
       if (scope.source_count) parts.push(`Source ${scope.source_count}개`);
+      if (selectEl) {
+        const selectedOption = selectEl.options[selectEl.selectedIndex];
+        if (selectedOption && selected === 'active_snapshot') {
+          selectedOption.textContent = '현재 Active Snapshot';
+        }
+      }
       hintEl.textContent = parts.join(' · ') || scope.label || '';
     }
 
@@ -3430,6 +3519,33 @@
         if (!response.ok) throw new Error(await readApiError(response));
         const data = await response.json();
         _searchScopes = Array.isArray(data.scopes) ? data.scopes : [];
+        if (!_searchScopes.some(scope => scope.scope_id === 'all_sources')) {
+          _searchScopes.unshift({
+            scope_id: 'all_sources',
+            label: '전체 데이터셋',
+            description: '등록된 전체 Snapshot 범위를 기준으로 검색할 수 있습니다.',
+            snapshot_count: data.total_snapshot_count || 0,
+            source_count: data.total_source_count || 0,
+          });
+        }
+        if (!_searchScopes.some(scope => scope.scope_id === 'active_snapshot')) {
+          _searchScopes.push({
+            scope_id: 'active_snapshot',
+            label: '현재 Active Snapshot',
+            description: '현재 활성 스냅샷 1개만 기본 검색합니다.',
+            snapshot_count: 1,
+            source_count: 1,
+          });
+        }
+        if (!_searchScopes.some(scope => scope.scope_id === 'selected_snapshots')) {
+          _searchScopes.push({
+            scope_id: 'selected_snapshots',
+            label: '선택 Snapshot',
+            description: '직접 체크한 Snapshot 집합을 우선 검색합니다.',
+            snapshot_count: 0,
+            source_count: 0,
+          });
+        }
         renderSnapshotMultiSelect(data.sources || []);
 
         const currentValue = selectEl.value;
@@ -3451,12 +3567,12 @@
           _searchScopes.forEach(scope => {
             const option = document.createElement('option');
             option.value = scope.scope_id;
-            option.textContent = scope.is_default ? `${scope.label} (기본)` : scope.label;
+            option.textContent = scope.label;
             selectEl.appendChild(option);
           });
         }
 
-        const preferredValue = data.default_scope_id || _searchScopes[0]?.scope_id || 'active_snapshot';
+        const preferredValue = 'active_snapshot';
         const nextValue = hasInitialized && _searchScopes.some(scope => scope.scope_id === currentValue)
           ? currentValue
           : preferredValue;
@@ -3466,13 +3582,26 @@
       } catch (error) {
         console.error('loadSearchScopes error:', error);
         _searchScopes = [{
+          scope_id: 'all_sources',
+          label: '전체 데이터셋',
+          description: '등록된 전체 Snapshot 범위를 기준으로 검색할 수 있습니다.',
+          snapshot_count: 0,
+          source_count: 0,
+        }, {
           scope_id: 'active_snapshot',
           label: '현재 Active Snapshot',
           description: '현재 활성 스냅샷만 검색합니다.',
           snapshot_count: 0,
           source_count: 0,
+        }, {
+          scope_id: 'selected_snapshots',
+          label: '선택 Snapshot',
+          description: '직접 체크한 Snapshot 집합을 우선 검색합니다.',
+          snapshot_count: 0,
+          source_count: 0,
         }];
-        selectEl.innerHTML = '<option value="active_snapshot">현재 Active Snapshot</option>';
+        selectEl.innerHTML = '<option value="all_sources">전체 데이터셋</option><option value="active_snapshot">현재 Active Snapshot</option>';
+        selectEl.value = 'active_snapshot';
         renderSnapshotMultiSelect([]);
         selectEl.dataset.initialized = '1';
         if (hintEl) hintEl.textContent = '검색 범위 목록을 가져오지 못해 현재 Active Snapshot 기준으로 고정합니다.';
@@ -4059,6 +4188,7 @@
         runBtn.disabled = true;
         runBtn.textContent = t('running_btn');
       }
+      renderQueryModeProgress('');
       if (ragAnswerEl) {
         ragAnswerEl.innerHTML = `<div class="answer-note">전체 검색 모드 순차 실행 중입니다. 결과 문서를 모드 순서대로 누적 표시합니다.</div>`;
       }
@@ -4080,6 +4210,7 @@
           const docCount = data?.documents?.length || 0;
           groupedResults.push({ mode, data, documents: data?.documents || [] });
           totalDocCount += docCount;
+          renderQueryModeProgress(`${getSearchModeProgressLabel(mode)} 검색이 완료 되었습니다.`);
         }
 
         renderSequentialResults(groupedResults, _currentSearchQuery);
@@ -4286,6 +4417,7 @@
       const category = document.getElementById('category').value;
       const searchScope = getSelectedSearchScope();
       const selectedSnapshotIds = getSelectedSnapshotIds();
+      const effectiveSearchScope = selectedSnapshotIds.length ? 'selected_snapshots' : (searchScope || 'active_snapshot');
       const filterOrg = document.getElementById('filterOrg').value.trim();
       const filterYear = document.getElementById('filterYear').value.trim();
       const answerProvider = document.getElementById('answerProvider').value;
@@ -4306,9 +4438,12 @@
       if (!modeOverride && !selectedSearchMode) {
         return runSequentialSearchModes();
       }
+      if (!options.sequentialChild) {
+        renderQueryModeProgress('');
+      }
 
       if (!query && !_rfpSelectedFile) { if (status) status.textContent = t('enter_query'); return; }
-      if (searchScope === 'selected_snapshots' && !selectedSnapshotIds.length) {
+      if (effectiveSearchScope === 'selected_snapshots' && !selectedSnapshotIds.length) {
         if (status) status.textContent = '선택 Snapshot 범위는 최소 1개 Snapshot을 선택해야 실행됩니다.';
         showToast('선택 Snapshot 범위를 사용하려면 Snapshot을 1개 이상 선택하세요.', 'warning');
         return;
@@ -4331,7 +4466,7 @@
 
       const effectiveQuery = query;
       const effectiveMode = _rfpSelectedFile ? 'rfp_analysis' : searchMode;
-      const searchScopeMeta = (_searchScopes || []).find(item => item.scope_id === searchScope) || null;
+      const searchScopeMeta = (_searchScopes || []).find(item => item.scope_id === effectiveSearchScope) || null;
       const resolvedFilters = resolveQueryFilters(query, analysisData);
       const manualDocumentGroup = documentGroup || '';
       const inferredDocumentGroup = resolvedFilters.document_group || '';
@@ -4354,7 +4489,7 @@
         vector_weight: vw / wTotal,
         graph_weight: gw / wTotal,
         wiki_weight: ww / wTotal,
-        ...(searchScope   ? { search_scope: searchScope }         : {}),
+        ...(effectiveSearchScope ? { search_scope: effectiveSearchScope } : {}),
         ...(selectedSnapshotIds.length ? { snapshot_ids: selectedSnapshotIds } : {}),
         ...(effectiveCategory ? { category: effectiveCategory }   : {}),
         ...(collection    ? { collection }                       : {}),
@@ -4375,7 +4510,7 @@
           formData.append('file', _rfpSelectedFile);
           formData.append('top_k', String(topK));
           formData.append('top_docs', String(topDocs));
-          if (searchScope) formData.append('search_scope', searchScope);
+          if (effectiveSearchScope) formData.append('search_scope', effectiveSearchScope);
           if (selectedSnapshotIds.length) formData.append('snapshot_ids', JSON.stringify(selectedSnapshotIds));
           formData.append('mode', effectiveMode);
           formData.append('max_chunks_per_doc', String(maxChunks));

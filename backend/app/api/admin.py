@@ -28,6 +28,8 @@ from app.services.metadata_db import metadata_db_service  # Legacy SQLite (depre
 from app.services.unified_document_service import unified_document_service  # MySQL primary
 from app.services.metadata_auto_generator import metadata_auto_generator
 from app.services.admin_stats_service import get_snapshot_stats
+from app.services.processed_text_store import processed_text_store
+from app.services.platform_store import get_record
 from app.services.runtime_compute_settings import (
     get_runtime_compute_snapshot,
     save_runtime_compute_settings,
@@ -112,6 +114,68 @@ def _update_progress(task_id: str, progress: PipelineProgress):
         "message": progress.message,
         "details": progress.details
     }
+
+
+def _first_non_empty(*values: Any) -> Any:
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str):
+            if value.strip():
+                return value.strip()
+            continue
+        return value
+    return ""
+
+
+def _enrich_admin_document_detail(doc: dict[str, Any]) -> dict[str, Any]:
+    document_id = int(doc.get("document_id") or 0)
+    if document_id <= 0:
+        return doc
+
+    report = processed_text_store.get_report(str(document_id)) or {}
+    source_id = _first_non_empty(doc.get("source_id"), report.get("source_id"))
+    source_record = get_record("document_sources", "source_id", source_id) if source_id else None
+
+    dataset_id = _first_non_empty(
+        doc.get("dataset_id"),
+        report.get("dataset_id"),
+        (source_record or {}).get("dataset_id"),
+    )
+    snapshot_id = _first_non_empty(
+        doc.get("faiss_snapshot"),
+        doc.get("snapshot_id"),
+        report.get("snapshot_id"),
+    )
+    project_name = _first_non_empty(
+        doc.get("final_project_name"),
+        doc.get("ocr_project_name"),
+        doc.get("project_name"),
+        report.get("project_name"),
+    )
+    organization = _first_non_empty(
+        doc.get("final_organization"),
+        doc.get("ocr_organization"),
+        doc.get("organization"),
+        report.get("organization"),
+    )
+    relative_path = _first_non_empty(doc.get("relative_path"), report.get("relative_path"))
+    document_uid = _first_non_empty(doc.get("document_uid"), report.get("document_uid"))
+
+    doc["source_id"] = source_id or ""
+    doc["dataset_id"] = dataset_id or ""
+    doc["faiss_snapshot"] = snapshot_id or ""
+    doc["snapshot_id"] = snapshot_id or ""
+    doc["project_name"] = project_name or ""
+    doc["organization"] = organization or ""
+    doc["relative_path"] = relative_path or ""
+    doc["document_uid"] = document_uid or ""
+    if source_record:
+        doc["source_name"] = _first_non_empty(doc.get("source_name"), source_record.get("source_name"), source_id)
+        doc["dataset_status"] = _first_non_empty(doc.get("dataset_status"), source_record.get("dataset_status"))
+    elif source_id:
+        doc["source_name"] = _first_non_empty(doc.get("source_name"), source_id)
+    return doc
 
 
 @router.post("/documents/process", response_model=ProcessDocumentResponse)
@@ -743,6 +807,7 @@ async def get_document_detail(document_id: int):
     doc = unified_document_service.get_document(document_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    doc = _enrich_admin_document_detail(doc)
     # Legacy SQLite suggestion 데이터 포함 (하위 호환)
     try:
         suggestion = metadata_db_service.get_suggestion(document_id)
