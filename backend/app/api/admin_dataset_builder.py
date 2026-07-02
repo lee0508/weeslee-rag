@@ -123,16 +123,18 @@ def extract_project_name_from_path(filepath: str) -> tuple[str, float]:
     """
     폴더 경로에서 실제 프로젝트명 추출
 
-    경로 예시: W:\01. 국내사업폴더\202603. AX기반의 차세대 업무 시스템 구축을 위한 ISMP\01. 제안서\...
+    경로 예시: W:\\01. 국내사업폴더\\202603. AX기반의 차세대 업무 시스템 구축을 위한 ISMP\\01. 제안서\\...
     → "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
 
     Returns:
         tuple[str, float]: (프로젝트명, 신뢰도)
     """
     import re
+    import os
 
-    # 경로를 분리
-    parts = filepath.replace('\\', '/').split('/')
+    # 경로를 정규화하고 분리
+    normalized_path = filepath.replace('\\\\', '/').replace('\\', '/')
+    parts = normalized_path.split('/')
 
     # "202603. AX기반의..." 같은 패턴 찾기
     for part in parts:
@@ -207,8 +209,9 @@ def extract_organization_from_path(filepath: str, project_name: str = None) -> t
             if org_candidate.endswith(org_suffixes):
                 return org_candidate, 0.85
 
-    # 경로에서 기관명 찾기
-    parts = filepath.replace('\\', '/').split('/')
+    # 경로를 정규화하고 분리
+    normalized_path = filepath.replace('\\\\', '/').replace('\\', '/')
+    parts = normalized_path.split('/')
     for part in parts:
         # 연도코드 제거
         part = re.sub(r'^\d{6}\.\s*', '', part)
@@ -237,7 +240,9 @@ def extract_section_types_from_path(filepath: str) -> dict:
     """
     import re
 
-    parts = filepath.replace('\\', '/').split('/')
+    # 경로를 정규화하고 분리
+    normalized_path = filepath.replace('\\\\', '/').replace('\\', '/')
+    parts = normalized_path.split('/')
 
     deliverable_section = None
     proposal_section = None
