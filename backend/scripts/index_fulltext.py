@@ -45,15 +45,11 @@ def index_fulltext(source_id: str = None, batch_size: int = 100):
         try:
             full_text = text_file.read_text(encoding='utf-8')
 
-            # FTS 테이블에 삽입 또는 업데이트
+            # FTS 테이블에 기존 레코드 삭제 후 삽입
+            cursor.execute('DELETE FROM documents_fts WHERE rowid = ?', (doc_id,))
             cursor.execute('''
                 INSERT INTO documents_fts(rowid, document_id, source_id, file_name, full_text)
                 VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(rowid) DO UPDATE SET
-                    document_id = excluded.document_id,
-                    source_id = excluded.source_id,
-                    file_name = excluded.file_name,
-                    full_text = excluded.full_text
             ''', (doc_id, doc_id, src_id, file_name, full_text[:50000]))  # 최대 50KB로 제한
 
             indexed += 1
