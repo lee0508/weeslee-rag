@@ -471,6 +471,23 @@ class HybridRAGService:
 
         results = []
         for node in response.results:
+            metadata = {
+                "source_id": node.get("source_id") or self.source_id,
+                "dataset_id": node.get("dataset_id"),
+                "snapshot_id": node.get("snapshot_id"),
+                "document_uid": node.get("document_uid"),
+                "relative_path": node.get("relative_path"),
+                "source_path": node.get("source_path"),
+                "file_name": node.get("file_name"),
+                "project_name": node.get("project_name"),
+                "project_id": node.get("project_id"),
+                "document_group": node.get("document_group"),
+                "document_category": node.get("document_category"),
+                "section_type": node.get("section_type"),
+                "project_type": node.get("project_type"),
+                "organization_type": node.get("organization_type"),
+                **(node.get("metadata") or {}),
+            }
             candidate = {
                 "document_id": node.get("document_id") or node.get("id", ""),
                 "node_id": node.get("id", ""),
@@ -478,11 +495,14 @@ class HybridRAGService:
                 "label": node.get("label", ""),
                 "category": node.get("category", ""),
                 "organization": node.get("organization", ""),
+                "organization_type": node.get("organization_type", ""),
                 "project_name": node.get("project_name", ""),
+                "project_type": node.get("project_type", ""),
+                "file_name": node.get("file_name", ""),
                 "source_path": node.get("source_path", ""),
                 "score": 1.0,  # Graph 결과는 기본 점수 1.0
                 "source": SearchSource.GRAPH.value,
-                "metadata": node.get("metadata") or {},
+                "metadata": metadata,
             }
             if not self._matches_metadata_filters(candidate, metadata_filters or {}):
                 continue
@@ -623,8 +643,9 @@ class HybridRAGService:
                     title=r.get("label"),
                     category=r.get("category"),
                     organization=r.get("organization"),
-                    file_name=r.get("source_path"),
+                    file_name=r.get("file_name") or r.get("source_path"),
                     metadata={
+                        **(r.get("metadata") or {}),
                         "node_type": r.get("node_type"),
                         "project_name": r.get("project_name"),
                         "source_path": r.get("source_path"),
