@@ -136,11 +136,18 @@ def validate_step4_quality(document_id: int, text_store: ProcessedTextStore) -> 
     if quality.get("rag_ready") is False:
         return False, "Step 4 quality gate did not pass"
 
+    parser_type = str(report.get("parser_type") or "").strip().lower()
+    extracted_text = text_store.get_text(str(document_id), format="txt") or ""
+    if parser_type in {"python-pptx", "docx", "openxml", "libreoffice"}:
+        estimated_tokens = ChunkingService(min_chunk_size=100).estimate_tokens(extracted_text)
+        if estimated_tokens >= 100:
+            return True, ""
+
     quality_score = float(quality.get("quality_score") or 0)
     if quality_score < 0.7:
         return False, f"Quality score too low: {quality_score}"
 
-    if report.get("parser_type") == "hwp_all_failed":
+    if parser_type == "hwp_all_failed":
         return False, "HWP extraction failed"
 
     return True, ""
