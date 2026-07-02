@@ -13,7 +13,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core.database import SessionLocal
-from app.models.platform_config import PlatformClient, PlatformDocumentSource, PlatformLlmSettings
+from app.models.platform_config import (
+    PlatformActiveSnapshotState,
+    PlatformClient,
+    PlatformDocumentSource,
+    PlatformLlmSettings,
+    PlatformRuntimeComputeSettings,
+)
 from sqlalchemy.exc import SQLAlchemyError
 
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "platform_config"
@@ -23,6 +29,8 @@ _DB_STORE_MODELS = {
     "clients": (PlatformClient, "client_id"),
     "document_sources": (PlatformDocumentSource, "source_id"),
     "llm_settings": (PlatformLlmSettings, "id"),
+    "runtime_compute_settings": (PlatformRuntimeComputeSettings, "id"),
+    "active_snapshot_state": (PlatformActiveSnapshotState, "id"),
 }
 
 

@@ -12,6 +12,10 @@ from app.services.dataset_context import (
     get_source_dataset_context,
     generate_dataset_id,
 )
+from app.services.active_snapshot_state import (
+    get_active_snapshot_state,
+    save_active_snapshot_state,
+)
 from app.models.snapshot_manifest import (
     SnapshotManifest,
     SnapshotStatus,
@@ -136,6 +140,8 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
     1. active_index.json (faiss/status와 동일한 소스) - 권장
     2. active_snapshot.json (확장 정보)
     """
+    db_state = get_active_snapshot_state()
+
     # 1. active_index.json에서 읽기 (faiss/status와 동일한 소스 - 권장)
     if ACTIVE_INDEX_FILE.exists():
         with open(ACTIVE_INDEX_FILE, "r", encoding="utf-8") as f:
@@ -166,14 +172,14 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
                 document_count=(snapshot.dataset.document_count if snapshot else 0) or int((faiss_manifest or {}).get("document_count") or 0) or index_data.get("document_count", 0),
                 chunk_count=(snapshot.rag_build.chunk_count if snapshot else 0) or int((faiss_manifest or {}).get("vector_count") or 0) or index_data.get("chunk_count", 0),
                 activated_at=datetime.fromisoformat(index_data["activated_at"]) if index_data.get("activated_at") else None,
-                source_id=src_id or extra_data.get("source_id"),
-                dataset_id=ds_id or extra_data.get("dataset_id"),
-                tag_keyword_build_id=extra_data.get("tag_keyword_build_id"),
-                graph_build_id=extra_data.get("graph_build_id"),
-                ontology_id=extra_data.get("ontology_id"),
-                wiki_build_id=extra_data.get("wiki_build_id"),
-                previous_snapshot_id=extra_data.get("previous_snapshot_id"),
-                rollback_available=extra_data.get("rollback_available", False),
+                source_id=src_id or extra_data.get("source_id") or db_state.get("source_id"),
+                dataset_id=ds_id or extra_data.get("dataset_id") or db_state.get("dataset_id"),
+                tag_keyword_build_id=extra_data.get("tag_keyword_build_id") or db_state.get("tag_keyword_build_id"),
+                graph_build_id=extra_data.get("graph_build_id") or db_state.get("graph_build_id"),
+                ontology_id=extra_data.get("ontology_id") or db_state.get("ontology_id"),
+                wiki_build_id=extra_data.get("wiki_build_id") or db_state.get("wiki_build_id"),
+                previous_snapshot_id=extra_data.get("previous_snapshot_id") or db_state.get("previous_snapshot_id"),
+                rollback_available=extra_data.get("rollback_available", False) or bool(db_state.get("rollback_available")),
             )
 
     # 2. active_snapshot.json만 있는 경우 (fallback)
@@ -203,6 +209,34 @@ def _load_active_config() -> Optional[ActiveSnapshotConfig]:
             config.chunk_count = int(faiss_manifest.get("vector_count") or config.chunk_count or 0)
         return config
 
+    if db_state.get("active_snapshot_id"):
+        activated_at = None
+        if db_state.get("activated_at"):
+            try:
+                activated_at = datetime.fromisoformat(str(db_state["activated_at"]))
+            except Exception:
+                activated_at = None
+        return ActiveSnapshotConfig(
+            active_snapshot_id=str(db_state.get("active_snapshot_id") or ""),
+            faiss_index_id=str(db_state.get("faiss_index_id") or db_state.get("active_snapshot_id") or ""),
+            index_file=db_state.get("index_file"),
+            metadata_file=db_state.get("metadata_file"),
+            embedding_provider=str(db_state.get("embedding_provider") or "ollama"),
+            vector_count=int(db_state.get("vector_count") or 0),
+            document_count=int(db_state.get("document_count") or 0),
+            chunk_count=int(db_state.get("chunk_count") or 0),
+            source_id=db_state.get("source_id"),
+            dataset_id=db_state.get("dataset_id"),
+            tag_keyword_build_id=db_state.get("tag_keyword_build_id"),
+            graph_build_id=db_state.get("graph_build_id"),
+            ontology_id=db_state.get("ontology_id"),
+            wiki_build_id=db_state.get("wiki_build_id"),
+            activated_at=activated_at,
+            activated_by=db_state.get("activated_by"),
+            previous_snapshot_id=db_state.get("previous_snapshot_id"),
+            rollback_available=bool(db_state.get("rollback_available")),
+        )
+
     return None
 
 
@@ -218,6 +252,30 @@ def _save_active_config(config: ActiveSnapshotConfig):
     # 저장 파일도 권장 계약을 그대로 유지한다.
     config.faiss_index_id = config.active_snapshot_id
     config.embedding_provider = _resolve_embedding_provider(None, config.embedding_provider)
+
+    save_active_snapshot_state(
+        {
+            "active_snapshot_id": config.active_snapshot_id,
+            "snapshot_id": config.active_snapshot_id,
+            "faiss_index_id": config.faiss_index_id,
+            "source_id": config.source_id,
+            "dataset_id": config.dataset_id,
+            "index_file": config.index_file,
+            "metadata_file": config.metadata_file,
+            "embedding_provider": config.embedding_provider,
+            "vector_count": config.vector_count,
+            "document_count": config.document_count,
+            "chunk_count": config.chunk_count,
+            "tag_keyword_build_id": config.tag_keyword_build_id,
+            "graph_build_id": config.graph_build_id,
+            "ontology_id": config.ontology_id,
+            "wiki_build_id": config.wiki_build_id,
+            "activated_at": config.activated_at.isoformat() if config.activated_at else "",
+            "activated_by": config.activated_by,
+            "previous_snapshot_id": config.previous_snapshot_id,
+            "rollback_available": config.rollback_available,
+        }
+    )
 
     # 1. active_snapshot.json 저장 (확장 정보)
     with open(ACTIVE_SNAPSHOT_FILE, "w", encoding="utf-8") as f:

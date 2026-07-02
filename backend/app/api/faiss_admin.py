@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from app.core.auth import require_admin_token
 from app.core.config import settings
 from app.services import faiss_job_runner as runner
+from app.services.active_snapshot_state import get_active_snapshot_state
 from app.services.dataset_context import generate_dataset_id, get_source_dataset_context
 from app.services.incremental_rag_service import add_documents_to_active_snapshot
 from app.models.snapshot_manifest import SnapshotManifest
@@ -221,6 +222,9 @@ async def faiss_status():
     """현재 활성 인덱스 상태 및 서버 설정."""
     active = runner.read_active_index()
     snapshot = (active or {}).get("snapshot", "") or (active or {}).get("active_snapshot", "")
+    db_state = get_active_snapshot_state()
+    if not snapshot:
+        snapshot = str(db_state.get("active_snapshot_id") or db_state.get("snapshot_id") or "").strip()
     snapshot_manifest = _load_snapshot_manifest(snapshot)
     faiss_manifest = _load_faiss_manifest(snapshot)
 
@@ -231,8 +235,12 @@ async def faiss_status():
         active_payload["snapshot"] = snapshot
     if source_id:
         active_payload["source_id"] = source_id
+    elif db_state.get("source_id"):
+        active_payload["source_id"] = db_state.get("source_id")
     if dataset_id:
         active_payload["dataset_id"] = dataset_id
+    elif db_state.get("dataset_id"):
+        active_payload["dataset_id"] = db_state.get("dataset_id")
     if snapshot_manifest:
         active_payload["vector_count"] = snapshot_manifest.rag_build.vector_count or active_payload.get("vector_count", 0)
         active_payload["document_count"] = snapshot_manifest.dataset.document_count or active_payload.get("document_count", 0)
@@ -242,6 +250,10 @@ async def faiss_status():
         active_payload["vector_count"] = int(faiss_manifest.get("vector_count") or active_payload.get("vector_count", 0) or 0)
         active_payload["document_count"] = int(faiss_manifest.get("document_count") or active_payload.get("document_count", 0) or 0)
         active_payload["chunk_count"] = int(faiss_manifest.get("vector_count") or active_payload.get("chunk_count", 0) or 0)
+    else:
+        active_payload["vector_count"] = int(active_payload.get("vector_count") or db_state.get("vector_count") or 0)
+        active_payload["document_count"] = int(active_payload.get("document_count") or db_state.get("document_count") or 0)
+        active_payload["chunk_count"] = int(active_payload.get("chunk_count") or db_state.get("chunk_count") or 0)
 
     active_embedding_model = (
         _normalize_embedding_model(snapshot_manifest.rag_build.embedding_model) if snapshot_manifest else None

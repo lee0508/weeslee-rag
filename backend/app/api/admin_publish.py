@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import require_admin_token
 from app.core.database import get_db
+from app.services.active_snapshot_state import get_active_snapshot_state
 from app.services.dataset_context import get_source_dataset_context, generate_dataset_id
 from app.models.snapshot_manifest import SnapshotManifest
 
@@ -186,6 +187,8 @@ def _load_faiss_manifest(snapshot_id: str) -> Optional[dict]:
 
 def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
     """현재 활성 Snapshot 정보 조회 - FAISS status 함수를 직접 호출"""
+    db_state = get_active_snapshot_state()
+
     # 1. FAISS status endpoint의 로직을 사용하여 현재 활성 정보 조회
     try:
         from app.services import faiss_job_runner as runner
@@ -224,9 +227,9 @@ def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
                 return {
                     "snapshot": snapshot,
                     "snapshot_id": snapshot,
-                    "source_id": resolved_source_id or active.get("source_id"),
-                    "dataset_id": resolved_dataset_id or active.get("dataset_id"),
-                    "activated_at": active.get("activated_at"),
+                    "source_id": resolved_source_id or active.get("source_id") or db_state.get("source_id"),
+                    "dataset_id": resolved_dataset_id or active.get("dataset_id") or db_state.get("dataset_id"),
+                    "activated_at": active.get("activated_at") or db_state.get("activated_at"),
                     "chunk_count": chunk_count,
                     "document_count": document_count,
                 }
@@ -243,7 +246,12 @@ def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
 
     if active_file.exists():
         with open(active_file, "r", encoding="utf-8") as f:
-            return json.load(f)
+            payload = json.load(f)
+        if db_state.get("source_id") and not payload.get("source_id"):
+            payload["source_id"] = db_state.get("source_id")
+        if db_state.get("dataset_id") and not payload.get("dataset_id"):
+            payload["dataset_id"] = db_state.get("dataset_id")
+        return payload
 
     # Fallback: active_index.json에서 읽기 (RAG 검색이 사용하는 파일)
     active_index_file = project_root / "data" / "active_index.json"
@@ -252,7 +260,24 @@ def _get_active_info(source_id: Optional[str] = None) -> Dict[str, Any]:
             data = json.load(f)
         # snapshot 또는 active_snapshot 키 지원
         snapshot_id = data.get("snapshot") or data.get("active_snapshot")
-        return {"snapshot_id": snapshot_id, "snapshot": snapshot_id, **data}
+        payload = {"snapshot_id": snapshot_id, "snapshot": snapshot_id, **data}
+        if db_state.get("source_id") and not payload.get("source_id"):
+            payload["source_id"] = db_state.get("source_id")
+        if db_state.get("dataset_id") and not payload.get("dataset_id"):
+            payload["dataset_id"] = db_state.get("dataset_id")
+        return payload
+
+    if db_state.get("active_snapshot_id"):
+        snapshot_id = db_state.get("active_snapshot_id")
+        return {
+            "snapshot_id": snapshot_id,
+            "snapshot": snapshot_id,
+            "source_id": db_state.get("source_id"),
+            "dataset_id": db_state.get("dataset_id"),
+            "activated_at": db_state.get("activated_at"),
+            "chunk_count": int(db_state.get("chunk_count") or 0),
+            "document_count": int(db_state.get("document_count") or 0),
+        }
 
     return {}
 
@@ -667,8 +692,6 @@ async def get_publish_stats(source_id: Optional[str] = None):
     Publish 통계를 조회합니다.
     """
     try:
-        project_root = _get_project_root()
-
         # FAISS 통계
         faiss_stats = {}
         try:

@@ -15,6 +15,7 @@ except Exception as exc:  # pragma: no cover
     raise RuntimeError("faiss-cpu is required for rag_runtime") from exc
 
 from app.core.config import settings
+from app.services.active_snapshot_state import get_active_snapshot_id as get_db_active_snapshot_id
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -100,6 +101,12 @@ def _assembler():
 def get_active_snapshot() -> str:
     active_paths = [path for path in _active_snapshot_paths() if path.exists()]
     if not active_paths:
+        try:
+            db_snapshot = get_db_active_snapshot_id()
+            if db_snapshot:
+                return db_snapshot
+        except Exception:
+            pass
         return settings.faiss_snapshot
 
     cache_key = "|".join(str(path.resolve()) for path in active_paths)
@@ -132,6 +139,13 @@ def get_active_snapshot() -> str:
         _active_snapshot_cache.update(
             {"path": cache_key, "mtime": latest_mtime, "snapshot": snapshot}
         )
+        if not snapshot:
+            try:
+                db_snapshot = get_db_active_snapshot_id()
+                if db_snapshot:
+                    return db_snapshot
+            except Exception:
+                pass
         return snapshot
 
 

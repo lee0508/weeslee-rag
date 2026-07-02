@@ -87,3 +87,51 @@ class PlatformLlmSettings(Base):
     typo_dict = Column(Text, nullable=True)
     created_at = Column(String(40), nullable=True)
     updated_at = Column(String(40), nullable=True)
+
+
+class PlatformRuntimeComputeSettings(Base):
+    """Runtime compute settings stored in DB."""
+
+    __tablename__ = "runtime_compute_settings"
+
+    id = Column(String(100), primary_key=True)
+    gpu_enabled = Column(Boolean, default=True, nullable=False)
+    cuda_visible_devices = Column(String(50), nullable=True)
+    ollama_use_gpu = Column(Boolean, default=True, nullable=False)
+    ocr_use_gpu = Column(Boolean, default=True, nullable=False)
+    chunk_use_gpu = Column(Boolean, default=True, nullable=False)
+    embedding_use_gpu = Column(Boolean, default=True, nullable=False)
+    faiss_use_gpu = Column(Boolean, default=True, nullable=False)
+    created_at = Column(String(40), nullable=True)
+    updated_at = Column(String(40), nullable=True)
+
+
+class PlatformActiveSnapshotState(Base):
+    """Active snapshot state stored in DB."""
+
+    __tablename__ = "active_snapshot_state"
+
+    id = Column(String(100), primary_key=True)
+    active_snapshot_id = Column(String(255), nullable=True, index=True)
+    snapshot_id = Column(String(255), nullable=True)
+    snapshot_name = Column(String(255), nullable=True)
+    faiss_index_id = Column(String(255), nullable=True)
+    source_id = Column(String(100), nullable=True, index=True)
+    dataset_id = Column(String(150), nullable=True, index=True)
+    index_file = Column(String(1000), nullable=True)
+    metadata_file = Column(String(1000), nullable=True)
+    embedding_provider = Column(String(50), nullable=True)
+    vector_count = Column(Integer, default=0, nullable=False)
+    document_count = Column(Integer, default=0, nullable=False)
+    chunk_count = Column(Integer, default=0, nullable=False)
+    tag_keyword_build_id = Column(String(255), nullable=True)
+    graph_build_id = Column(String(255), nullable=True)
+    ontology_id = Column(String(255), nullable=True)
+    wiki_build_id = Column(String(255), nullable=True)
+    activated_at = Column(String(40), nullable=True)
+    activated_by = Column(String(100), nullable=True)
+    previous_snapshot_id = Column(String(255), nullable=True)
+    rollback_available = Column(Boolean, default=False, nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(String(40), nullable=True)
+    updated_at = Column(String(40), nullable=True)
