@@ -11,6 +11,7 @@ from app.core.database import SessionLocal
 from app.models.platform_config import PlatformSnapshot
 from app.models.snapshot_manifest import SnapshotManifest
 from app.services.active_snapshot_state import get_active_snapshot_id
+from app.services.rag_runtime import get_active_snapshot as get_runtime_active_snapshot
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -43,8 +44,8 @@ def _index_exists(snapshot_id: str, faiss_index_id: Optional[str] = None) -> boo
 
 
 def _serialize_row(row: PlatformSnapshot) -> dict[str, Any]:
-    active_snapshot_id = get_active_snapshot_id()
-    is_active = bool(row.is_active) or (row.snapshot_id == active_snapshot_id)
+    active_snapshot_id = get_runtime_active_snapshot() or get_active_snapshot_id()
+    is_active = (row.snapshot_id == active_snapshot_id) if active_snapshot_id else bool(row.is_active)
     queryable = _index_exists(row.snapshot_id, row.faiss_index_id) or bool(row.queryable)
     return {
         "snapshot_id": row.snapshot_id,
