@@ -580,7 +580,7 @@ async def list_snapshots(source_id: Optional[str] = None):
 @router.post("/activate", response_model=ActivateResponse)
 async def activate_snapshot(request: ActivateRequest):
     """
-    Snapshot을 활성화합니다.
+    Snapshot을 활성화하고 전문 검색(FTS5) 인덱싱을 자동 실행합니다.
     """
     try:
         project_root = _get_project_root()
@@ -608,9 +608,35 @@ async def activate_snapshot(request: ActivateRequest):
         with open(active_file, "w", encoding="utf-8") as f:
             json.dump(active_data, f, ensure_ascii=False, indent=2)
 
+        # 전문 검색(FTS5) 인덱싱 자동 실행
+        try:
+            if request.source_id:
+                import subprocess
+                import sys
+
+                # index_fulltext.py 실행
+                script_path = project_root / "backend" / "scripts" / "index_fulltext.py"
+                python_path = sys.executable
+
+                result = subprocess.run(
+                    [python_path, str(script_path), request.source_id],
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5분 타임아웃
+                )
+
+                if result.returncode == 0:
+                    print(f"[FTS5] 인덱싱 완료: {request.source_id}")
+                    print(result.stdout)
+                else:
+                    print(f"[FTS5] 인덱싱 실패 (코드 {result.returncode}): {result.stderr}")
+        except Exception as e:
+            # FTS5 인덱싱 실패는 활성화를 막지 않음 (warning only)
+            print(f"[FTS5] 인덱싱 중 오류 발생 (무시됨): {str(e)}")
+
         return ActivateResponse(
             success=True,
-            message=f"Snapshot '{request.snapshot_id}' 활성화 완료",
+            message=f"Snapshot '{request.snapshot_id}' 활성화 완료 (FTS5 인덱싱 실행됨)",
             activated_snapshot=request.snapshot_id,
             previous_snapshot=previous_snapshot
         )
