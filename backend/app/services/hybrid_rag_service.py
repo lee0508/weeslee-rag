@@ -341,7 +341,8 @@ class HybridRAGService:
         document_group = HybridRAGService._normalize_document_group_value(metadata.get("document_group") or "")
         document_category = HybridRAGService._normalize_section_value(metadata.get("document_category") or "")
         section_type = HybridRAGService._normalize_section_value(
-            candidate.get("section_title")
+            metadata.get("section_type")
+            or candidate.get("section_title")
             or metadata.get("section_title")
             or metadata.get("section_heading")
             or metadata.get("section_label")
@@ -351,6 +352,7 @@ class HybridRAGService:
             str(value or "")
             for value in (
                 metadata.get("document_category"),
+                metadata.get("section_type"),
                 candidate.get("section_title"),
                 metadata.get("section_title"),
                 metadata.get("section_heading"),
@@ -380,6 +382,14 @@ class HybridRAGService:
         if filters.get("section_type") and not contains(section_search_text or section_type, HybridRAGService._normalize_section_value(filters["section_type"])):
             return False
         return True
+
+    @staticmethod
+    def _relax_project_type_filter(filters: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        if not filters:
+            return filters
+        relaxed = dict(filters)
+        relaxed["project_type"] = None
+        return relaxed
 
     @staticmethod
     def _graph_candidate_document_ids(graph_results: list[dict]) -> set[str]:
@@ -923,6 +933,54 @@ class HybridRAGService:
                 max_results=max_results,
                 soft_metadata_hints=soft_metadata_hints,
             )
+
+            # project_type strict filter가 너무 강해 0건이 되는 경우, 문서그룹/섹션 필터는 유지하고 재검색한다.
+            if not merged_docs and metadata_filters.get("project_type"):
+                relaxed_filters = self._relax_project_type_filter(metadata_filters)
+                retry_faiss_results, retry_faiss_time = await self._search_faiss(
+                    faiss_query,
+                    max(top_k * 10, top_k),
+                    category_filter=category,
+                    organization_filter=faiss_org_filter,
+                    metadata_filters=relaxed_filters,
+                )
+                retry_graph_results = graph_results
+                retry_graph_cypher = graph_cypher
+                retry_graph_retry = graph_retry
+                retry_graph_time = graph_time
+                retry_graph_question_type = graph_question_type
+
+                if self.enable_graph and search_order in {"graph_first", "parallel"}:
+                    (
+                        retry_graph_results,
+                        retry_graph_cypher,
+                        retry_graph_retry,
+                        retry_graph_time,
+                        retry_graph_question_type,
+                    ) = await self._search_graph(
+                        question,
+                        metadata_filters=relaxed_filters,
+                    )
+
+                retry_merged_docs = self._merge_results(
+                    retry_faiss_results,
+                    retry_graph_results,
+                    wiki_results,
+                    question=question,
+                    max_results=max_results,
+                    soft_metadata_hints=soft_metadata_hints,
+                )
+                if retry_merged_docs:
+                    metadata_filters = relaxed_filters
+                    faiss_results = retry_faiss_results
+                    faiss_time = retry_faiss_time
+                    graph_results = retry_graph_results
+                    graph_cypher = retry_graph_cypher
+                    graph_retry = retry_graph_retry
+                    graph_time = retry_graph_time
+                    graph_question_type = retry_graph_question_type
+                    merged_docs = retry_merged_docs
+
             merge_time = int((time.time() - merge_start) * 1000)
 
             # 4. 근거 생성

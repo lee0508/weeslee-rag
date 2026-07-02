@@ -235,8 +235,16 @@ def _build_snapshot_metadata_row(
     )
     section_id = str(chunk_meta.get("section_id") or f"{doc.document_id}-section-{chunk_index:04d}")
     document_group = doc.document_group or ""
+    section_type = (
+        doc.section_type
+        or doc.final_document_category
+        or doc.ocr_document_category
+        or doc.scan_document_category
+        or ""
+    )
     document_category = (
-        doc.final_document_category
+        doc.section_type
+        or doc.final_document_category
         or doc.ocr_document_category
         or doc.scan_document_category
         or doc.document_type
@@ -258,6 +266,7 @@ def _build_snapshot_metadata_row(
         "document_category": document_category,
         "document_type": doc.document_type or "",
         "extension": Path(doc.file_path or "").suffix.lower(),
+        "section_type": section_type,
         "section_heading": chunk_meta.get("section_heading") or "",
         "section_title": section_title,
         "section_id": section_id,
@@ -288,6 +297,7 @@ def _build_snapshot_metadata_row(
         "section_heading": chunk_meta.get("section_heading") or "",
         "section_title": section_title,
         "section_id": section_id,
+        "section_type": section_type,
         "char_count": chunk.get("char_count") or len(content),
         "source_path": doc.file_path or "",
         "input_path": doc.file_path or "",
