@@ -92,6 +92,7 @@ def init_db() -> None:
     # Import all models to register them with Base
     from app.models import (  # noqa: F401
         collection,
+        dataset_build_settings,
         document,
         document_metadata,
         document_structure,
