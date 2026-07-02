@@ -139,6 +139,12 @@ class HybridRAGResponse:
 class HybridRAGService:
     """Hybrid RAG 서비스."""
 
+    _GENERIC_QUERY_TERMS = {
+        "관련", "관련된", "내용", "문서", "파일", "사업", "자료", "장표", "슬라이드",
+        "찾아줘", "검색", "조회", "알려줘", "보여줘", "안에서", "중에서", "원하는",
+        "대한", "부분", "있는", "있는지",
+    }
+
     @staticmethod
     def _normalize_project_type_value(value: Optional[str]) -> str:
         raw = str(value or "").strip().lower()
@@ -220,6 +226,39 @@ class HybridRAGService:
                 normalized["inferred_terms"] = terms
 
         return normalized
+
+    @classmethod
+    def _sanitize_inferred_terms(cls, terms: Optional[list[str]]) -> list[str]:
+        cleaned: list[str] = []
+        for term in terms or []:
+            token = str(term or "").strip().lower()
+            if not token:
+                continue
+            compact = token.replace(" ", "")
+            if compact in cls._GENERIC_QUERY_TERMS:
+                continue
+            if len(compact) < 2:
+                continue
+            if compact not in cleaned:
+                cleaned.append(compact)
+        return cleaned[:8]
+
+    @staticmethod
+    def _extract_literal_section_hint(question: str) -> Optional[str]:
+        normalized = str(question or "").replace(" ", "")
+        for value in (
+            "전략및방법론",
+            "기술및기능",
+            "프로젝트관리",
+            "프로젝트지원",
+            "환경분석",
+            "현황분석",
+            "목표모델",
+            "이행계획",
+        ):
+            if value in normalized:
+                return value
+        return None
 
     def __init__(
         self,
@@ -802,6 +841,7 @@ class HybridRAGService:
                 # 실패 시 규칙 기반 폴백
                 if query_analysis:
                     extracted_keywords = query_analysis.keywords[:5]
+            extracted_keywords = self._sanitize_inferred_terms(extracted_keywords)
 
             # 2. 질문 유형별 검색 전략 결정
             faiss_results, faiss_time = [], 0
@@ -818,6 +858,9 @@ class HybridRAGService:
             router_document_section = None
             if isinstance(router_filters.get("document_section"), str):
                 router_document_section = router_filters.get("document_section")
+            literal_section_hint = self._extract_literal_section_hint(question)
+            if literal_section_hint:
+                router_document_section = literal_section_hint
 
             strict_project_type = inferred_project_type
             router_project_type = router_filters.get("project_type") if isinstance(router_filters.get("project_type"), str) else None
@@ -826,6 +869,9 @@ class HybridRAGService:
                 if normalized_project_type in {"시스템개선", "플랫폼고도화", "isp수립", "bprisp", "연구용역", "시스템구축"}:
                     strict_project_type = router_project_type
 
+            normalized_inferred_terms = self._sanitize_inferred_terms(
+                inferred_terms if isinstance(inferred_terms, list) else extracted_keywords
+            )
             metadata_filters = {
                 "category": category,
                 "organization": organization,
@@ -843,7 +889,7 @@ class HybridRAGService:
                 "document_group": inferred_document_group or router_filters.get("document_group"),
                 "document_category": inferred_document_category or router_document_section,
                 "section_type": document_category or section_type or inferred_document_category or router_document_section,
-                "inferred_terms": inferred_terms,
+                "inferred_terms": normalized_inferred_terms,
             })
             faiss_query = (expanded_query or "").strip() or question
             faiss_org_filter = organization

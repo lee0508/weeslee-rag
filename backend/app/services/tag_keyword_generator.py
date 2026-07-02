@@ -147,8 +147,11 @@ class TagKeywordGenerator:
 
             tags_for_doc = list(dict.fromkeys(tags_for_doc))
 
-            # 키워드 후보 생성
-            keywords = self._extract_keywords(text_context)
+            # 키워드 후보 생성: 파일명/폴더명/프로젝트명 + OCR 본문을 함께 사용
+            keywords = self._merge_keyword_candidates(
+                self._extract_path_keywords(file_name, relative_path, project_name),
+                self._extract_keywords(text_context),
+            )
             llm_enrichment = self._enrich_keywords_with_ollama(
                 file_name=file_name,
                 text_context=text_context,
@@ -414,6 +417,28 @@ class TagKeywordGenerator:
             keywords.append(token)
 
         return list(dict.fromkeys(keywords))[:40]
+
+    def _extract_path_keywords(self, file_name: str, relative_path: str, project_name: str) -> List[str]:
+        """파일명/폴더명/프로젝트명에서 직접 검색에 유용한 키워드를 추출합니다."""
+        text = " ".join([file_name or "", relative_path or "", project_name or ""]).strip()
+        if not text:
+            return []
+
+        clean = re.sub(r"[._()\[\],·‧+/\-:>]", " ", text)
+        keywords: List[str] = []
+        for token in clean.split():
+            token = token.strip()
+            if len(token) < 2:
+                continue
+            if token in self.stopwords:
+                continue
+            if token.isdigit():
+                continue
+            if len(token) > 40:
+                continue
+            keywords.append(token)
+
+        return list(dict.fromkeys(keywords))[:20]
 
     def _should_use_ollama_keyword_enrichment(
         self,

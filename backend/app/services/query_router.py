@@ -18,6 +18,17 @@ from typing import Any, Dict, List, Optional, Set
 from pathlib import Path
 import json
 
+SECTION_HINTS = (
+    "전략및방법론",
+    "기술및기능",
+    "프로젝트관리",
+    "프로젝트지원",
+    "환경분석",
+    "현황분석",
+    "목표모델",
+    "이행계획",
+)
+
 
 class SearchSource(str, Enum):
     """검색 소스 타입."""
@@ -237,6 +248,9 @@ class QueryRouter:
             "의", "를", "을", "이", "가", "에", "에서", "로", "으로",
             "와", "과", "또는", "및", "그리고", "하는", "있는", "된",
             "찾아줘", "검색해줘", "알려줘", "보여줘", "해줘",
+            "관련", "관련된", "내용", "부분", "문서", "파일", "사업", "장표",
+            "폴더", "안", "안에서", "중", "중에서", "대한", "기준", "원하는",
+            "있는지", "찾기", "찾아", "조회", "검색", "알려", "보여",
         }
 
         # 토큰화
@@ -244,6 +258,29 @@ class QueryRouter:
         keywords = [t for t in tokens if t not in stopwords and len(t) >= 2]
 
         return keywords[:10]
+
+    def _extract_literal_filters(self, query: str, filters: Dict[str, Any]) -> Dict[str, Any]:
+        """질문 원문에 명시된 섹션/문서그룹 힌트를 보강한다."""
+        updated = dict(filters)
+        normalized_query = re.sub(r"\s+", "", query)
+
+        for section in SECTION_HINTS:
+            if section in normalized_query:
+                updated["document_section"] = section
+                if section in {"전략및방법론", "기술및기능", "프로젝트관리", "프로젝트지원"}:
+                    updated.setdefault("document_group", "제안서")
+                elif section in {"환경분석", "현황분석", "목표모델", "이행계획"}:
+                    updated.setdefault("document_group", "산출물")
+                break
+
+        if "제안서" in query and "document_group" not in updated:
+            updated["document_group"] = "제안서"
+        elif "산출물" in query and "document_group" not in updated:
+            updated["document_group"] = "산출물"
+        elif re.search(r"\bRFP\b|제안요청서", query, re.IGNORECASE) and "document_group" not in updated:
+            updated["document_group"] = "RFP"
+
+        return updated
 
     def _determine_complexity(self, filters: Dict[str, Any]) -> QueryComplexity:
         """복잡도 판단."""
@@ -315,6 +352,7 @@ class QueryRouter:
 
         # 2. 필터 추출
         filters = self._extract_filters(query)
+        filters = self._extract_literal_filters(query, filters)
 
         # 3. 키워드 추출
         keywords = self._extract_keywords(query)

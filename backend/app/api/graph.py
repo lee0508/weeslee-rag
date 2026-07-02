@@ -1238,7 +1238,11 @@ async def get_graph_status(source_id: Optional[str] = None):
 
     return {
         "source_id": source_id or "all",
-        "status": "ready" if cache["nodes"] else "empty",
+        "status": (
+            "warning"
+            if (m.get("graph_integrity") or {}).get("integrity_ok") is False
+            else ("ready" if cache["nodes"] else "empty")
+        ),
         "built_at": m.get("built_at"),
         "schema_version": "phase2" if m.get("built_at") else None,
         "node_count": len(cache["nodes"]),
@@ -1246,6 +1250,7 @@ async def get_graph_status(source_id: Optional[str] = None):
         "node_type_counts": node_type_counts,
         "relation_type_counts": relation_type_counts,
         "has_data": bool(cache["nodes"]),
+        "graph_integrity": m.get("graph_integrity") or {},
     }
 
 

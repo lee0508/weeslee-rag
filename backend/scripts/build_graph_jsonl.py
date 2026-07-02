@@ -309,6 +309,33 @@ def _merge_doc_metadata(doc: dict, meta_row: dict | None) -> dict:
     }
 
 
+def _build_graph_integrity(docs: list[dict], nodes: list[dict]) -> dict:
+    """입력 문서와 생성된 document 노드를 대조해 무결성 정보를 만든다."""
+    expected_ids = {
+        str(doc.get("document_id")).strip()
+        for doc in docs
+        if str(doc.get("document_id") or "").strip()
+    }
+    actual_ids = {
+        str(node.get("document_id")).strip()
+        for node in nodes
+        if node.get("type") == "document" and str(node.get("document_id") or "").strip()
+    }
+
+    missing_ids = sorted(expected_ids - actual_ids)
+    unexpected_ids = sorted(actual_ids - expected_ids)
+
+    return {
+        "expected_document_count": len(expected_ids),
+        "actual_document_count": len(actual_ids),
+        "missing_document_count": len(missing_ids),
+        "unexpected_document_count": len(unexpected_ids),
+        "missing_document_ids": missing_ids[:100],
+        "unexpected_document_ids": unexpected_ids[:50],
+        "integrity_ok": not missing_ids,
+    }
+
+
 def _enrich_docs_with_metadata(docs: list[dict]) -> list[dict]:
     metadata_rows = _load_document_metadata_rows(docs)
     return [_merge_doc_metadata(doc, _select_best_metadata_row(doc, metadata_rows)) for doc in docs]
@@ -1554,6 +1581,7 @@ def main() -> int:
     contains_section_count = sum(1 for e in edges if e["relation"] == "CONTAINS_SECTION")
     appears_in_count = sum(1 for e in edges if e["relation"] == "APPEARS_IN")
     mentions_edge_count = sum(1 for e in edges if e["relation"] == "MENTIONS")
+    integrity = _build_graph_integrity(docs, nodes)
 
     # 진행률 출력: 완료
     print(json.dumps({"progress": 100, "current": 7, "total": 7, "stage": "그래프 빌드 완료"}), flush=True)
@@ -1579,6 +1607,8 @@ def main() -> int:
         "appears_in_edge_count": appears_in_count,
         # Phase 3: MENTIONS 통계
         "mentions_edge_count": mentions_edge_count,
+        # 무결성 검증
+        "graph_integrity": integrity,
     }
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -1591,6 +1621,11 @@ def main() -> int:
     print(f"  [MANIFEST]  {manifest_path}", flush=True)
     print(f"              - 노드: {len(nodes)}개 (프로젝트: {project_count}, 문서: {document_count})", flush=True)
     print(f"              - 엣지: {len(edges)}개", flush=True)
+    if not integrity["integrity_ok"]:
+        print(
+            f"              - 무결성 경고: 누락 문서 {integrity['missing_document_count']}건",
+            flush=True,
+        )
     print("=" * 60 + "\n", flush=True)
 
     print(json.dumps({"graph_complete": True, **manifest}, ensure_ascii=False))
