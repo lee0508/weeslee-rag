@@ -20,6 +20,7 @@ from app.models.platform_config import (
     PlatformLlmSettings,
     PlatformRuntimeComputeSettings,
 )
+from app.models.dataset_build_settings import DatasetBuildSettings
 from sqlalchemy.exc import SQLAlchemyError
 
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "platform_config"
@@ -31,6 +32,7 @@ _DB_STORE_MODELS = {
     "llm_settings": (PlatformLlmSettings, "id"),
     "runtime_compute_settings": (PlatformRuntimeComputeSettings, "id"),
     "active_snapshot_state": (PlatformActiveSnapshotState, "id"),
+    "dataset_build_settings": (DatasetBuildSettings, "source_id"),
 }
 
 
