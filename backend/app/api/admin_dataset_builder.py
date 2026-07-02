@@ -119,9 +119,49 @@ def scan_folder(folder_path: str, extensions: set) -> tuple[List[dict], int]:
     return files, excluded_count
 
 
-def extract_project_name(filename: str) -> str:
-    """파일명에서 프로젝트명 추출"""
-    name = Path(filename).stem
+def extract_project_name_from_path(filepath: str) -> tuple[str, float]:
+    """
+    폴더 경로에서 실제 프로젝트명 추출
+
+    경로 예시: W:\01. 국내사업폴더\202603. AX기반의 차세대 업무 시스템 구축을 위한 ISMP\01. 제안서\...
+    → "AX기반의 차세대 업무 시스템 구축을 위한 ISMP"
+
+    Returns:
+        tuple[str, float]: (프로젝트명, 신뢰도)
+    """
+    import re
+
+    # 경로를 분리
+    parts = filepath.replace('\\', '/').split('/')
+
+    # "202603. AX기반의..." 같은 패턴 찾기
+    for part in parts:
+        # 연도코드(6자리). 프로젝트명 패턴
+        match = re.match(r'^(\d{6})\.\s*(.+)$', part)
+        if match:
+            project_name = match.group(2).strip()
+            # 너무 짧거나 긴 경우 제외
+            if 10 <= len(project_name) <= 150:
+                return project_name, 0.90
+
+    # 백업: "[제안실주]" 같은 표시가 있는 폴더 다음 항목
+    for i, part in enumerate(parts):
+        if part.startswith('[제안실주]') or part.startswith('[제안중]'):
+            if i + 1 < len(parts):
+                project_name = parts[i + 1]
+                # 연도코드 제거
+                project_name = re.sub(r'^\d{6}\.\s*', '', project_name)
+                if 10 <= len(project_name) <= 150:
+                    return project_name, 0.80
+
+    # 최후 수단: 파일명에서 추출
+    filename = Path(filepath).stem
+    return extract_project_name_from_filename(filename), 0.50
+
+
+def extract_project_name_from_filename(filename: str) -> str:
+    """파일명에서 프로젝트명 추출 (기존 로직)"""
+    name = filename
 
     prefixes = [
         "RFP_", "전략및방법론_", "기술및기능_", "프로젝트관리_",
@@ -141,6 +181,114 @@ def extract_project_name(filename: str) -> str:
             name = parts[1]
 
     return name.strip()
+
+
+def extract_organization_from_path(filepath: str, project_name: str = None) -> tuple[str, float]:
+    """
+    폴더 경로 또는 프로젝트명에서 기관명 추출
+
+    Returns:
+        tuple[str, float]: (기관명, 신뢰도)
+    """
+    import re
+
+    # 기관명 패턴
+    org_suffixes = (
+        "부", "청", "처", "공사", "공단", "연구원", "연구소", "재단",
+        "위원회", "센터", "병원", "대학교", "대학", "학교", "진흥원",
+        "협회", "본부", "관리원", "교육원", "평가원"
+    )
+
+    # 프로젝트명에서 기관명 찾기 ("법무부_디지털플랫폼..." 형태)
+    if project_name:
+        match = re.match(r'^([^_]+)_', project_name)
+        if match:
+            org_candidate = match.group(1)
+            if org_candidate.endswith(org_suffixes):
+                return org_candidate, 0.85
+
+    # 경로에서 기관명 찾기
+    parts = filepath.replace('\\', '/').split('/')
+    for part in parts:
+        # 연도코드 제거
+        part = re.sub(r'^\d{6}\.\s*', '', part)
+
+        # 기관명 패턴 검색
+        match = re.search(r'([가-힣A-Za-z·&-]{2,30}(?:' + '|'.join(org_suffixes) + r'))', part)
+        if match:
+            org = match.group(1)
+            # 너무 긴 경우 제외
+            if len(org) <= 30:
+                return org, 0.70
+
+    return None, 0.0
+
+
+def extract_section_types_from_path(filepath: str) -> dict:
+    """
+    폴더 경로에서 산출물 유형 추출
+
+    Returns:
+        dict: {
+            'deliverable_section': str,
+            'proposal_section': str,
+            'confidence': float
+        }
+    """
+    import re
+
+    parts = filepath.replace('\\', '/').split('/')
+
+    deliverable_section = None
+    proposal_section = None
+    confidence = 0.0
+
+    for part in parts:
+        # "02. 환경분석", "01. 제안서" 등의 패턴
+        match = re.match(r'^\d+\.\s*(.+)$', part)
+        if not match:
+            continue
+
+        section = match.group(1).strip()
+
+        # 산출물 유형 매칭
+        if any(keyword in section for keyword in ['환경분석', '환경 분석']):
+            deliverable_section = '환경분석'
+            confidence = max(confidence, 0.90)
+        elif any(keyword in section for keyword in ['현황분석', '현황 분석']):
+            deliverable_section = '현황분석'
+            confidence = max(confidence, 0.90)
+        elif any(keyword in section for keyword in ['목표모델', '목표 모델']):
+            deliverable_section = '목표모델'
+            confidence = max(confidence, 0.90)
+        elif any(keyword in section for keyword in ['이행계획', '이행 계획']):
+            deliverable_section = '이행계획'
+            confidence = max(confidence, 0.90)
+        elif any(keyword in section for keyword in ['사업수행', '사업 수행']):
+            deliverable_section = '사업수행'
+            confidence = max(confidence, 0.85)
+
+        # 제안서 관련
+        if any(keyword in section for keyword in ['제안서', '제안 서', 'Proposal']):
+            proposal_section = '제안서'
+            confidence = max(confidence, 0.90)
+        elif any(keyword in section for keyword in ['RFP', '제안요청서', '제안요청 서']):
+            proposal_section = 'RFP'
+            confidence = max(confidence, 0.95)
+
+    return {
+        'deliverable_section': deliverable_section,
+        'proposal_section': proposal_section,
+        'confidence': confidence
+    }
+
+
+def extract_project_name(filename: str) -> str:
+    """
+    하위 호환성을 위한 래퍼 함수
+    filepath가 아닌 filename만 받는 기존 호출을 지원
+    """
+    return extract_project_name_from_filename(filename)
 
 
 # ── API Endpoints ───────────────────────────────────────────────────────────
@@ -386,12 +534,31 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
                 skipped += 1
                 continue
 
-            # 파일명에서 프로젝트명 추출
-            project_name = extract_project_name(doc.filename)
+            # 파일 경로에서 메타데이터 추출
+            filepath = metadata.file_path
+
+            # 프로젝트명 추출
+            project_name, pn_confidence = extract_project_name_from_path(filepath)
+
+            # 기관명 추출
+            organization, org_confidence = extract_organization_from_path(filepath, project_name)
+
+            # 산출물 유형 추출
+            section_info = extract_section_types_from_path(filepath)
 
             # 메타데이터 업데이트
             metadata.project_name = project_name
-            metadata.project_name_confidence = 0.5  # 자동 추출 confidence
+            metadata.project_name_confidence = pn_confidence
+
+            if organization and org_confidence >= 0.70:
+                metadata.organization = organization
+
+            if section_info['deliverable_section']:
+                metadata.deliverable_section = section_info['deliverable_section']
+
+            if section_info['proposal_section']:
+                metadata.proposal_section = section_info['proposal_section']
+
             metadata.meta_status = MetaStatus.METADATA_SUGGESTED.value
             metadata.updated_at = datetime.utcnow()
 
