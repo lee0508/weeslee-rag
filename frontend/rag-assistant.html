@@ -3808,6 +3808,27 @@
       ));
     }
 
+    function renderGraphEmptyState(message, icon = '🔍') {
+      const container = document.getElementById('graphCanvas');
+      if (!container) return;
+      container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">${icon}</div><div>${message}</div></div>`;
+    }
+
+    async function fetchGraphStatus(sourceId) {
+      const normalized = String(sourceId || '').trim();
+      if (!normalized) return null;
+      try {
+        const response = await fetch(`${API_BASE}/graph/status?source_id=${encodeURIComponent(normalized)}`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) return null;
+        return await response.json();
+      } catch (err) {
+        console.warn('Graph status precheck failed:', err);
+        return null;
+      }
+    }
+
     // Graph RAG 모드에서 검색 결과 문서 중심 검증 그래프 로드
     async function loadGraphFromQuery(query, documents = []) {
       const container = document.getElementById('graphCanvas');
@@ -3816,7 +3837,17 @@
       try {
         const documentIds = getResultDocumentIds(documents);
         if (!documentIds.length) {
-          container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">🔍</div><div>${t('ks_none')}</div></div>`;
+          renderGraphEmptyState(t('ks_none'));
+          return;
+        }
+
+        const graphSourceId = resolveGraphSourceId(documents);
+        const graphStatus = await fetchGraphStatus(graphSourceId);
+        if (graphSourceId && graphStatus && graphStatus.has_data === false) {
+          renderGraphEmptyState(
+            `선택한 Source의 Knowledge Graph 데이터가 아직 생성되지 않았습니다.<br>${escapeHtml(graphSourceId)}<br>Dataset Builder에서 "Knowledge Graph 실행" 후 다시 확인하세요.`,
+            '⚠️'
+          );
           return;
         }
 
@@ -3825,7 +3856,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             document_ids: documentIds,
-            source_id: resolveGraphSourceId(documents),
+            source_id: graphSourceId,
             limit: 180,
           }),
         });
@@ -3833,7 +3864,14 @@
         const data = await response.json();
 
         if (!data.nodes || data.nodes.length === 0) {
-          container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">🔍</div><div>${t('ks_none')}</div></div>`;
+          if (graphSourceId && data.source_id === graphSourceId && Number(data.matchedDocumentCount || 0) === 0) {
+            renderGraphEmptyState(
+              `현재 Source Graph에서 검색 결과 문서와 연결된 노드를 찾지 못했습니다.<br>${escapeHtml(graphSourceId)}<br>Graph 빌드 완료 여부와 문서 ID 반영 상태를 확인하세요.`,
+              '⚠️'
+            );
+            return;
+          }
+          renderGraphEmptyState(t('ks_none'));
           return;
         }
 
@@ -3852,7 +3890,7 @@
 
       } catch (err) {
         console.error('Auto graph load error:', err);
-        container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">❌</div><div>${t('graph_error')}<br>${escapeHtml(err.message)}</div></div>`;
+        renderGraphEmptyState(`${t('graph_error')}<br>${escapeHtml(err.message)}`, '❌');
       }
     }
 

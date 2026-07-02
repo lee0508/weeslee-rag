@@ -146,6 +146,30 @@ def validate_step4_quality(document_id: int, text_store: ProcessedTextStore) -> 
     return True, ""
 
 
+def allow_parser_text_fallback(
+    report: dict,
+    extracted_text: str,
+    chunking_service: ChunkingService,
+) -> tuple[bool, str]:
+    """
+    OCR 품질 점수는 낮지만 파서가 실제 텍스트를 정상 추출한 문서는
+    Step 5에서 청킹을 계속 진행할 수 있게 예외 처리한다.
+    """
+    parser_type = str(report.get("parser_type") or "").strip().lower()
+    if parser_type not in {"python-pptx", "docx", "openxml", "libreoffice"}:
+        return False, ""
+
+    clean_text = str(extracted_text or "").strip()
+    if not clean_text:
+        return False, ""
+
+    estimated_tokens = chunking_service.estimate_tokens(clean_text)
+    if estimated_tokens < chunking_service.min_chunk_size:
+        return False, ""
+
+    return True, f"Parser text fallback accepted: parser={parser_type}, tokens={estimated_tokens}"
+
+
 # ── API Endpoints ────────────────────────────────────────────────────────
 
 @router.post("/chunk", response_model=ChunkBuildResponse)
@@ -208,24 +232,31 @@ async def build_chunks(
                         ))
                         continue
 
-                # Step 4 품질 게이트 통과 문서만 청킹한다.
-                from app.services.processed_text_store import processed_text_store
-                quality_ok, quality_error = validate_step4_quality(document_id, processed_text_store)
-                if not quality_ok:
-                    skipped += 1
-                    results.append(ChunkBuildResult(
-                        document_id=document_id,
-                        file_name=file_name,
-                        status="skipped",
-                        chunks_count=0,
-                        total_tokens=0,
-                        error=quality_error
-                    ))
-                    continue
-
                 # Step 4에서 추출된 텍스트/페이지 결과 로드
+                from app.services.processed_text_store import processed_text_store
                 extracted_text = processed_text_store.get_text(str(document_id), format="txt")
                 extraction_result = processed_text_store.get_result(str(document_id))
+                report = processed_text_store.get_report(str(document_id)) or {}
+
+                # Step 4 품질 게이트 통과 문서만 청킹한다.
+                quality_ok, quality_error = validate_step4_quality(document_id, processed_text_store)
+                if not quality_ok:
+                    fallback_ok, fallback_reason = allow_parser_text_fallback(
+                        report,
+                        extracted_text or "",
+                        chunking_service,
+                    )
+                    if not fallback_ok:
+                        skipped += 1
+                        results.append(ChunkBuildResult(
+                            document_id=document_id,
+                            file_name=file_name,
+                            status="skipped",
+                            chunks_count=0,
+                            total_tokens=0,
+                            error=quality_error
+                        ))
+                        continue
 
                 # 텍스트 없으면 스킵
                 if not extracted_text:
