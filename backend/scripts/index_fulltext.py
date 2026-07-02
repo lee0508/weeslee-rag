@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 
 # MySQL 연결을 위한 import
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+backend_dir = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(backend_dir))
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata
 
