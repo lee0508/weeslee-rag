@@ -18,6 +18,41 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 GRAPH_DIR = DATA_DIR / "indexes" / "graph"
 
+NODE_TYPE_ALIASES = {
+    "organization": "organization",
+    "organizationtype": "organization_type",
+    "project": "project",
+    "projecttype": "project_type",
+    "document": "document",
+    "documentsection": "document_section",
+    "documentkeyword": "document_keyword",
+    "keyword": "keyword",
+    "category": "category",
+    "technology": "technology",
+    "methodology": "methodology",
+    "domain": "domain",
+    "person": "person",
+}
+
+RELATION_TYPE_ALIASES = {
+    "ORDERED": {"발주"},
+    "HAS_DOCUMENT": {"has_document"},
+    "HAS_SECTION": {"문서섹션"},
+    "HAS_DOC_KEYWORD": {"관련키워드", "MENTIONS"},
+    "BELONGS_TO_TYPE": {"소속유형", "발주기관유형"},
+    "HAS_PROJECT_TYPE": {"사업유형"},
+    "USES_TECH": {"적용기술"},
+    "USES_METHODOLOGY": {"사용방법론"},
+    "RELATED_DOMAIN": {"관련도메인"},
+    "SIMILAR_PROJECT": {"similar_project"},
+}
+
+CATEGORY_VALUE_ALIASES = {
+    "rfp": {"rfp", "cat_rfp"},
+    "proposal": {"proposal", "cat_proposal"},
+    "deliverable": {"deliverable", "cat_deliverable"},
+}
+
 
 class QueryResultQuality(Enum):
     """쿼리 결과 품질."""
@@ -140,66 +175,173 @@ class GraphQueryService:
 
         간단한 패턴 매칭으로 구현.
         """
-        results = []
-        cypher_upper = cypher.upper()
+        alias_specs = self._parse_node_specs(cypher)
+        if not alias_specs:
+            return []
 
-        # 노드 타입 추출
-        node_type_match = re.search(
-            r":\s*(Organization|Project|Document|Keyword|Category|Technology|Person)",
-            cypher, re.IGNORECASE
+        relations = self._parse_relation_specs(cypher)
+        candidate_map = {
+            alias: [node for node in self._nodes if self._match_node_spec(node, spec)]
+            for alias, spec in alias_specs.items()
+        }
+
+        if relations:
+            candidate_map = self._apply_relation_constraints(candidate_map, relations)
+
+        return_alias = self._extract_return_alias(cypher) or next(iter(alias_specs.keys()))
+        results = candidate_map.get(return_alias, [])
+
+        limit_match = re.search(r"LIMIT\s+(\d+)", cypher, re.IGNORECASE)
+        limit = int(limit_match.group(1)) if limit_match else 20
+        return results[:limit]
+
+    @staticmethod
+    def _normalize_node_type(node_type: str) -> str:
+        return NODE_TYPE_ALIASES.get((node_type or "").replace("_", "").lower(), (node_type or "").lower())
+
+    @staticmethod
+    def _normalize_relation_aliases(relation: str) -> set[str]:
+        if not relation:
+            return set()
+        return RELATION_TYPE_ALIASES.get(relation.upper(), {relation})
+
+    @staticmethod
+    def _normalize_category_value(value: str) -> set[str]:
+        normalized = (value or "").strip().lower()
+        return CATEGORY_VALUE_ALIASES.get(normalized, {normalized})
+
+    def _parse_properties(self, raw_props: str) -> dict[str, str]:
+        props: dict[str, str] = {}
+        if not raw_props:
+            return props
+        for key, quoted, numeric in re.findall(r"(\w+)\s*:\s*(?:['\"]([^'\"]+)['\"]|(\d+))", raw_props):
+            props[key] = quoted or numeric
+        return props
+
+    def _parse_node_specs(self, cypher: str) -> dict[str, dict[str, Any]]:
+        specs: dict[str, dict[str, Any]] = {}
+        node_pattern = re.compile(
+            r"\((?P<alias>\w+)(?::(?P<type>\w+))?(?:\s*\{(?P<props>[^}]*)\})?\)"
+        )
+        for match in node_pattern.finditer(cypher):
+            alias = match.group("alias")
+            specs.setdefault(alias, {"type": "", "props": {}})
+            if match.group("type"):
+                specs[alias]["type"] = self._normalize_node_type(match.group("type"))
+            specs[alias]["props"].update(self._parse_properties(match.group("props") or ""))
+
+        for alias, prop, value in re.findall(r"\b(\w+)\.(\w+)\s*=\s*['\"]([^'\"]+)['\"]", cypher):
+            specs.setdefault(alias, {"type": "", "props": {}})
+            specs[alias]["props"][prop] = value
+
+        return specs
+
+    def _parse_relation_specs(self, cypher: str) -> list[dict[str, Any]]:
+        relations: list[dict[str, Any]] = []
+
+        outgoing = re.compile(
+            r"\((\w+)(?::\w+)?(?:\s*\{[^}]*\})?\)\s*-\s*\[:\s*([A-Z_가-힣]+)\s*\]\s*->\s*\((\w+)(?::\w+)?(?:\s*\{[^}]*\})?\)"
+        )
+        incoming = re.compile(
+            r"\((\w+)(?::\w+)?(?:\s*\{[^}]*\})?\)\s*<-\s*\[:\s*([A-Z_가-힣]+)\s*\]\s*-\s*\((\w+)(?::\w+)?(?:\s*\{[^}]*\})?\)"
         )
 
-        # 속성 필터 추출
-        name_filter = self._extract_property(cypher, "name")
-        year_filter = self._extract_property(cypher, "year")
-        category_filter = self._extract_property(cypher, "category")
-        organization_filter = self._extract_property(cypher, "organization")
+        for source, relation, target in outgoing.findall(cypher):
+            relations.append({"source": source, "target": target, "relations": self._normalize_relation_aliases(relation)})
+        for target, relation, source in incoming.findall(cypher):
+            relations.append({"source": source, "target": target, "relations": self._normalize_relation_aliases(relation)})
 
-        # 노드 검색
-        for node in self._nodes:
-            node_type = node.get("type", "").lower()
+        return relations
 
-            # 타입 필터
-            if node_type_match:
-                expected_type = node_type_match.group(1).lower()
-                if node_type != expected_type:
+    def _match_node_spec(self, node: dict, spec: dict[str, Any]) -> bool:
+        expected_type = spec.get("type") or ""
+        if expected_type and node.get("type", "").lower() != expected_type:
+            return False
+
+        props = spec.get("props") or {}
+        for key, expected in props.items():
+            expected_text = str(expected or "").strip()
+            if not expected_text:
+                continue
+
+            if key == "category":
+                actual = str(node.get("category", "")).strip().lower()
+                if actual not in self._normalize_category_value(expected_text):
+                    return False
+                continue
+
+            if key == "year":
+                if str(node.get("year", "")).strip() != expected_text:
+                    return False
+                continue
+
+            haystacks = [
+                str(node.get(key, "")).strip(),
+                str(node.get("label", "")).strip(),
+                str(node.get("name", "")).strip(),
+                str(node.get("project_name", "")).strip(),
+                str(node.get("file_name", "")).strip(),
+                str(node.get("organization", "")).strip(),
+            ]
+            expected_lower = expected_text.lower()
+            if not any(expected_lower in value.lower() for value in haystacks if value):
+                return False
+
+        return True
+
+    def _apply_relation_constraints(
+        self,
+        candidate_map: dict[str, list[dict]],
+        relations: list[dict[str, Any]],
+    ) -> dict[str, list[dict]]:
+        node_by_id = {node.get("id"): node for node in self._nodes if node.get("id")}
+        candidate_ids = {
+            alias: {node.get("id") for node in nodes if node.get("id")}
+            for alias, nodes in candidate_map.items()
+        }
+
+        changed = True
+        while changed:
+            changed = False
+            for rel in relations:
+                source_alias = rel["source"]
+                target_alias = rel["target"]
+                allowed_relations = {name.lower() for name in rel["relations"]}
+                source_ids = candidate_ids.get(source_alias, set())
+                target_ids = candidate_ids.get(target_alias, set())
+                if not source_ids or not target_ids:
+                    candidate_ids[source_alias] = set()
+                    candidate_ids[target_alias] = set()
                     continue
 
-            # 속성 필터
-            if name_filter:
-                label = node.get("label", "").lower()
-                name = node.get("name", "").lower()
-                if name_filter.lower() not in label and name_filter.lower() not in name:
-                    continue
+                matched_sources: set[str] = set()
+                matched_targets: set[str] = set()
+                for edge in self._edges:
+                    relation_name = str(edge.get("relation", "")).lower()
+                    if relation_name not in allowed_relations:
+                        continue
+                    source_id = edge.get("source")
+                    target_id = edge.get("target")
+                    if source_id in source_ids and target_id in target_ids:
+                        matched_sources.add(source_id)
+                        matched_targets.add(target_id)
 
-            if year_filter:
-                if str(node.get("year", "")) != year_filter:
-                    continue
+                if matched_sources != source_ids:
+                    candidate_ids[source_alias] = matched_sources
+                    changed = True
+                if matched_targets != target_ids:
+                    candidate_ids[target_alias] = matched_targets
+                    changed = True
 
-            if category_filter:
-                if node.get("category", "").lower() != category_filter.lower():
-                    continue
+        filtered: dict[str, list[dict]] = {}
+        for alias, ids in candidate_ids.items():
+            filtered[alias] = [node_by_id[node_id] for node_id in ids if node_id in node_by_id]
+        return filtered
 
-            if organization_filter:
-                org = node.get("organization", "").lower()
-                if organization_filter.lower() not in org:
-                    continue
-
-            results.append(node)
-
-        # 관계 탐색 (MATCH 패턴에 관계가 있는 경우)
-        if "-[:" in cypher_upper or "]->" in cypher_upper or "<-[" in cypher_upper:
-            results = self._traverse_relations(results, cypher)
-
-        # LIMIT 처리
-        limit_match = re.search(r"LIMIT\s+(\d+)", cypher, re.IGNORECASE)
-        if limit_match:
-            limit = int(limit_match.group(1))
-            results = results[:limit]
-        else:
-            results = results[:20]  # 기본 20개 제한
-
-        return results
+    @staticmethod
+    def _extract_return_alias(cypher: str) -> Optional[str]:
+        match = re.search(r"RETURN\s+(\w+)\b", cypher, re.IGNORECASE)
+        return match.group(1) if match else None
 
     def _extract_property(self, cypher: str, prop_name: str) -> Optional[str]:
         """Cypher에서 속성 값 추출."""

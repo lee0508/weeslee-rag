@@ -54,6 +54,38 @@ class CypherExecutionResult:
 class Text2CypherService:
     """Text2Cypher 서비스."""
 
+    _SECTION_HINTS = (
+        "전략및방법론",
+        "기술및기능",
+        "프로젝트관리",
+        "프로젝트지원",
+        "연구과제",
+        "환경분석",
+        "현황분석",
+        "목표모델",
+        "이행계획",
+    )
+
+    _KEYWORD_HINTS = {
+        "의사소통관리": ("의사소통 관리", "의사소통관리"),
+        "보안": ("보안", "누출금지", "정보보호", "보안성"),
+        "품질관리": ("품질관리", "품질 관리"),
+        "위험관리": ("위험관리", "위험 관리"),
+        "선진사례": ("선진사례", "유사사례", "사례분석"),
+        "데이터관리": ("데이터관리", "데이터 관리"),
+    }
+
+    _PROJECT_TYPE_HINTS = {
+        "플랫폼고도화": ("플랫폼 고도화", "플랫폼고도화", "플랫폼 개선", "플랫폼개선"),
+        "시스템개선": ("시스템 개선", "시스템개선", "업무시스템 개선", "업무 시스템 개선"),
+        "시스템구축": ("시스템 구축", "시스템구축", "도입"),
+        "ISP수립": ("isp", "정보화전략계획", "정보전략계획"),
+        "연구용역": ("연구", "연구용역", "컨설팅"),
+    }
+
+    _ORG_TYPE_HINTS = ("공공기관", "공기업", "연구기관", "민간기업", "건강보험")
+    _TECH_HINTS = ("AI", "LLM", "AX", "클라우드", "빅데이터", "플랫폼")
+
     def __init__(self, ollama_service: Optional[OllamaService] = None):
         self.ollama = ollama_service or OllamaService()
         self._ensure_logs_dir()
@@ -106,6 +138,77 @@ When generating queries:
         # 그 외에는 전체 응답 반환 (정제 필요)
         return response.strip()
 
+    @staticmethod
+    def _contains_any(text: str, keywords: tuple[str, ...] | list[str]) -> bool:
+        lowered = text.lower()
+        return any(keyword.lower() in lowered for keyword in keywords)
+
+    def _build_rule_based_cypher(self, question: str) -> Optional[str]:
+        """명시적 패턴 질문은 규칙 기반으로 안정적인 Cypher를 우선 생성한다."""
+        q = (question or "").strip()
+        if not q:
+            return None
+
+        category: Optional[str] = None
+        if self._contains_any(q, ("제안서",)):
+            category = "proposal"
+        elif self._contains_any(q, ("산출물", "최종보고서", "최종 보고서")):
+            category = "deliverable"
+        elif self._contains_any(q, ("RFP", "제안요청서")):
+            category = "rfp"
+
+        section = next((name for name in self._SECTION_HINTS if name in q), None)
+
+        keyword = None
+        for normalized, hints in self._KEYWORD_HINTS.items():
+            if self._contains_any(q, hints):
+                keyword = normalized
+                break
+
+        project_type = None
+        for normalized, hints in self._PROJECT_TYPE_HINTS.items():
+            if self._contains_any(q, hints):
+                project_type = normalized
+                break
+
+        org_type = next((name for name in self._ORG_TYPE_HINTS if name in q), None)
+        tech = next((name for name in self._TECH_HINTS if name.lower() in q.lower()), None)
+
+        clauses: list[str] = []
+
+        if org_type:
+            clauses.append(f"(o:Organization)-[:BELONGS_TO_TYPE]->(ot:OrganizationType {{name: '{org_type}'}})")
+            clauses.append("(o)-[:ORDERED]->(p:Project)")
+        elif project_type or tech:
+            clauses.append("(p:Project)")
+        elif category or section or keyword:
+            clauses.append("(d:Document)")
+
+        if project_type:
+            clauses.append(f"(p)-[:HAS_PROJECT_TYPE]->(pt:ProjectType {{name: '{project_type}'}})")
+
+        if tech:
+            clauses.append(f"(p)-[:USES_TECH]->(t:Technology {{name: '{tech}'}})")
+
+        if category:
+            if any("(p:Project" in clause for clause in clauses):
+                clauses.append(f"(p)-[:HAS_DOCUMENT]->(d:Document {{category: '{category}'}})")
+            else:
+                clauses[0] = f"(d:Document {{category: '{category}'}})"
+        elif any("(p:Project" in clause for clause in clauses):
+            clauses.append("(p)-[:HAS_DOCUMENT]->(d:Document)")
+
+        if section:
+            clauses.append(f"(d)-[:HAS_SECTION]->(s:DocumentSection {{name: '{section}'}})")
+
+        if keyword:
+            clauses.append(f"(d)-[:HAS_DOC_KEYWORD]->(dk:DocumentKeyword {{name: '{keyword}'}})")
+
+        if not clauses:
+            return None
+
+        return f"MATCH {', '.join(clauses)} RETURN {'p' if org_type and not category else 'd'} LIMIT 10"
+
     async def generate_cypher(
         self,
         question: str,
@@ -127,6 +230,19 @@ When generating queries:
         start_time = time.time()
 
         try:
+            rule_based_cypher = self._build_rule_based_cypher(question)
+            if rule_based_cypher:
+                validation = validate_cypher(rule_based_cypher)
+                if validation.is_valid:
+                    return Text2CypherResult(
+                        success=True,
+                        question=question,
+                        cypher=validation.sanitized_query or rule_based_cypher,
+                        validation=validation,
+                        model="rule-based",
+                        generation_time_ms=int((time.time() - start_time) * 1000),
+                    )
+
             # LLM에게 Cypher 생성 요청
             system_prompt = self._get_system_prompt()
             user_prompt = f"Question: {question}\n\nGenerate a Cypher query:"
