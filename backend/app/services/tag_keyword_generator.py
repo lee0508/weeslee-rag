@@ -17,6 +17,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.models.document_metadata import DocumentMetadata
+from app.services.ollama_metadata_keyword_enricher import OllamaMetadataKeywordEnricher
 from app.services.processed_text_store import ProcessedTextStore
 import app.services.processed_text_store_extensions  # noqa: F401
 
@@ -46,6 +47,7 @@ class TagKeywordGenerator:
         self.snapshot_id = snapshot_id
         self.overwrite = overwrite
         self.processed_text_store = ProcessedTextStore()
+        self.ollama_enricher = OllamaMetadataKeywordEnricher()
 
         # 불용어 (stopwords)
         self.stopwords = {
@@ -147,6 +149,27 @@ class TagKeywordGenerator:
 
             # 키워드 후보 생성
             keywords = self._extract_keywords(text_context)
+            llm_enrichment = self._enrich_keywords_with_ollama(
+                file_name=file_name,
+                text_context=text_context,
+                existing_keywords=keywords,
+                document_group=document_group,
+                section_type=section_type,
+            )
+
+            extra_section_tags = llm_enrichment.get("section_tags") or []
+            for tag in extra_section_tags:
+                if document_group == "제안서":
+                    tags_for_doc.append(("proposal_section", tag))
+                elif document_group == "산출물":
+                    tags_for_doc.append(("deliverable_section", tag))
+
+            tags_for_doc = list(dict.fromkeys(tags_for_doc))
+            keywords = self._merge_keyword_candidates(
+                keywords,
+                llm_enrichment.get("keywords") or [],
+                llm_enrichment.get("synonyms") or [],
+            )
 
             # 카운터 및 문서별 매핑 구성
             for tag_type, tag_name in tags_for_doc:
@@ -162,11 +185,14 @@ class TagKeywordGenerator:
 
             for keyword in keywords:
                 keyword_counter[keyword] += 1
+                keyword_source = "ocr_text_rule"
+                if keyword in (llm_enrichment.get("keywords") or []) or keyword in (llm_enrichment.get("synonyms") or []):
+                    keyword_source = "ollama_expansion"
 
                 document_keyword_map[doc.document_id].append({
                     "keyword": keyword,
                     "confidence": 0.75,
-                    "source": "ocr_text_rule" if text_context else "filename_rule",
+                    "source": keyword_source if text_context else "filename_rule",
                 })
 
         # 태그/키워드 payload 생성
@@ -388,6 +414,51 @@ class TagKeywordGenerator:
             keywords.append(token)
 
         return list(dict.fromkeys(keywords))[:40]
+
+    def _should_use_ollama_keyword_enrichment(
+        self,
+        text_context: str,
+        existing_keywords: List[str],
+    ) -> bool:
+        if len(text_context.strip()) < 200:
+            return False
+        if len(existing_keywords) >= 8:
+            return False
+        return True
+
+    def _enrich_keywords_with_ollama(
+        self,
+        *,
+        file_name: str,
+        text_context: str,
+        existing_keywords: List[str],
+        document_group: str,
+        section_type: str,
+    ) -> Dict[str, Any]:
+        if not self._should_use_ollama_keyword_enrichment(text_context, existing_keywords):
+            return {}
+        return self.ollama_enricher.enrich_keywords(
+            file_name=file_name,
+            text_context=text_context,
+            existing_keywords=existing_keywords,
+            document_group=document_group,
+            section_type=section_type,
+        )
+
+    def _merge_keyword_candidates(self, *groups: List[str]) -> List[str]:
+        merged: List[str] = []
+        for group in groups:
+            for keyword in group:
+                token = str(keyword or "").strip()
+                if len(token) < 2:
+                    continue
+                if token in self.stopwords:
+                    continue
+                if token not in merged:
+                    merged.append(token)
+                if len(merged) >= 40:
+                    return merged
+        return merged
 
     def _guess_keyword_type(self, keyword: str) -> str:
         """키워드 유형을 규칙 기반으로 추정합니다."""

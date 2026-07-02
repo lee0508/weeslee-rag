@@ -8,9 +8,10 @@ metadata_auto_generator.py
 """
 
 import re
-import json
-import httpx
+import asyncio
 from typing import Dict, List, Any
+
+from app.services.ollama_metadata_keyword_enricher import OllamaMetadataKeywordEnricher
 
 
 class MetadataAutoGenerator:
@@ -72,6 +73,7 @@ class MetadataAutoGenerator:
 
     def __init__(self, ollama_host: str = "http://localhost:11434"):
         self.ollama_host = ollama_host
+        self.enricher = OllamaMetadataKeywordEnricher(base_url=ollama_host)
 
     def extract_metadata(self, file_name: str, file_content: str = "") -> Dict[str, Any]:
         """
@@ -251,56 +253,29 @@ class MetadataAutoGenerator:
         # 먼저 규칙 기반 추출
         rule_result = self.extract_metadata(file_name, file_content)
 
-        # LLM 프롬프트 구성
-        prompt = f"""다음 문서의 메타데이터를 JSON 형식으로 추출해주세요.
-
-파일명: {file_name}
-
-문서 내용 (처음 2000자):
-{file_content[:2000]}
-
-추출할 항목:
-- document_type: 문서 유형 (rfp, proposal, kickoff_report, interim_report, final_report, completion_report, presentation, unknown 중 하나)
-- project_name: 사업명
-- organization: 발주기관
-- project_year: 수행연도 (예: 2024)
-- business_domain: 사업분야 (예: 공공 ISP, 데이터 플랫폼)
-- technology_tags: 기술 태그 배열 (예: ["AI", "클라우드", "데이터플랫폼"])
-- business_tags: 업무 태그 배열 (예: ["ISP", "컨설팅"])
-- summary: 문서 요약 (한 문장)
-- reuse_level: 재사용 가능성 (high, medium, low)
-
-JSON만 출력하세요:"""
-
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(
-                    f"{self.ollama_host}/api/generate",
-                    json={
-                        "model": model,
-                        "prompt": prompt,
-                        "stream": False,
-                    }
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
-                    llm_output = data.get("response", "")
-
-                    # JSON 추출 시도
-                    try:
-                        # JSON 블록 찾기
-                        json_match = re.search(r'\{[\s\S]*\}', llm_output)
-                        if json_match:
-                            llm_result = json.loads(json_match.group())
-
-                            # 규칙 기반 결과와 병합 (LLM 결과 우선)
-                            merged = {**rule_result, **llm_result}
-                            merged["confidence"] = min(rule_result["confidence"] + 0.2, 1.0)
-                            merged["reason"] = "LLM 기반 추출 + 규칙 기반 보정"
-                            return merged
-                    except json.JSONDecodeError:
-                        pass
+            llm_result = await asyncio.to_thread(
+                self.enricher.enrich_metadata,
+                file_name=file_name,
+                file_content=file_content[:3000],
+                rule_result=rule_result,
+                model=model,
+            )
+            if llm_result:
+                merged = {**rule_result}
+                for key, value in llm_result.items():
+                    if key.endswith("_tags") and value:
+                        base_values = rule_result.get(key) or []
+                        merged[key] = list(dict.fromkeys([*base_values, *value]))[:8]
+                    elif key == "confidence":
+                        merged[key] = max(rule_result.get("confidence", 0.0), float(value or 0.0))
+                    elif key == "reason":
+                        merged[key] = value or "LLM 기반 추출 + 규칙 기반 보정"
+                    elif value not in ("", None, []):
+                        merged[key] = value
+                if not merged.get("reason"):
+                    merged["reason"] = "LLM 기반 추출 + 규칙 기반 보정"
+                return merged
 
         except Exception as e:
             rule_result["reason"] += f"; LLM 호출 실패: {str(e)[:50]}"
