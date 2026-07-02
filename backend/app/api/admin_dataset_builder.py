@@ -119,6 +119,66 @@ def scan_folder(folder_path: str, extensions: set) -> tuple[List[dict], int]:
     return files, excluded_count
 
 
+def _is_sentence_fragment(text: str) -> bool:
+    """
+    문장 일부인지 검사
+
+    다음 패턴이 있으면 문장 일부로 간주:
+    - 조사로 끝남 (을, 를, 의, 에, 로, 와, 과, 이, 가 등)
+    - 동사/형용사 어미로 끝남 (합니다, 했습니다, 됩니다 등)
+    - 불완전한 문장 패턴
+    """
+    import re
+
+    # 조사로 끝나는 경우
+    if re.search(r'[을를의에로와과이가은는도부터까지만]$', text):
+        return True
+
+    # 동사/형용사 어미로 끝나는 경우
+    verb_endings = [
+        '합니다', '했습니다', '됩니다', '되었습니다', '수행합니다',
+        '진행합니다', '완료되었습니다', '시작됩니다', '종료됩니다'
+    ]
+    if any(text.endswith(ending) for ending in verb_endings):
+        return True
+
+    # 연결어미로 끝나는 경우
+    if re.search(r'(하여|하고|하며|되어|되고|되며)$', text):
+        return True
+
+    return False
+
+
+def _is_valid_project_name(text: str) -> bool:
+    """
+    유효한 프로젝트명인지 검증
+
+    다음 조건을 만족해야 함:
+    - 길이 10~150자
+    - 문장 일부가 아님
+    - 일반적인 문서명이 아님
+    """
+    if not text or len(text) < 10 or len(text) > 150:
+        return False
+
+    # 문장 일부인 경우 제외
+    if _is_sentence_fragment(text):
+        return False
+
+    # 일반적인 문서명 패턴 제외
+    generic_names = [
+        r'^(환경|현황|목표|전략|방법론|기술|기능|관리|지원|계획|분석|설계|개발|구축|이행)',
+        r'^(사업|프로젝트|연구|개발|구축|수행|추진|진행|완료)',
+        r'(의\s+이해|의\s+개요|의\s+현황|의\s+목표|의\s+방향|의\s+전략)$'
+    ]
+
+    for pattern in generic_names:
+        if re.search(pattern, text):
+            return False
+
+    return True
+
+
 def extract_project_name_from_path(filepath: str) -> tuple[str, float]:
     """
     폴더 경로에서 실제 프로젝트명 추출
@@ -156,9 +216,41 @@ def extract_project_name_from_path(filepath: str) -> tuple[str, float]:
                 if 10 <= len(project_name) <= 150:
                     return project_name, 0.80
 
-    # 최후 수단: 파일명에서 추출
+    # 추가: 상위 폴더에서 프로젝트명 후보 찾기
+    # "01. 제안서", "02. 계약", "03. 산출물" 등을 제외한 폴더명 중 가장 긴 것
+    project_candidates = []
+    exclude_patterns = [
+        r'^\d+\.\s*(제안서|계약|산출물|RFP|요청서|보고서|발표|회의|참고|기타|temp|tmp)',
+        r'^(문서|자료|참고자료|backup|old|archive|test)'
+    ]
+
+    for part in reversed(parts):  # 역순으로 검사 (파일에 가까운 폴더부터)
+        # 제외 패턴과 매칭되면 스킵
+        if any(re.match(pattern, part, re.IGNORECASE) for pattern in exclude_patterns):
+            continue
+
+        # 연도코드 제거
+        cleaned = re.sub(r'^\d{6}\.\s*', '', part).strip()
+
+        # 길이 제약 및 검증
+        if 10 <= len(cleaned) <= 150 and not _is_sentence_fragment(cleaned):
+            project_candidates.append((cleaned, len(cleaned)))
+
+    # 가장 긴 후보 선택 (일반적으로 더 구체적인 프로젝트명)
+    if project_candidates:
+        project_candidates.sort(key=lambda x: x[1], reverse=True)
+        return project_candidates[0][0], 0.70
+
+    # 최후 수단: 파일명에서 추출 (검증 후)
     filename = Path(filepath).stem
-    return extract_project_name_from_filename(filename), 0.50
+    extracted = extract_project_name_from_filename(filename)
+
+    # 파일명 추출 결과 검증
+    if _is_valid_project_name(extracted):
+        return extracted, 0.50
+
+    # 검증 실패 시 빈 문자열 반환
+    return "", 0.0
 
 
 def extract_project_name_from_filename(filename: str) -> str:
@@ -201,12 +293,18 @@ def extract_organization_from_path(filepath: str, project_name: str = None) -> t
         "협회", "본부", "관리원", "교육원", "평가원"
     )
 
+    # 기관명이 아닌 일반 단어 필터 (블랙리스트)
+    excluded_orgs = {
+        "출처", "참조", "참고", "자료", "문서", "내용", "요약", "개요",
+        "배경", "목적", "범위", "대상", "기간", "방법", "결과", "결론"
+    }
+
     # 프로젝트명에서 기관명 찾기 ("법무부_디지털플랫폼..." 형태)
     if project_name:
         match = re.match(r'^([^_]+)_', project_name)
         if match:
             org_candidate = match.group(1)
-            if org_candidate.endswith(org_suffixes):
+            if org_candidate.endswith(org_suffixes) and org_candidate not in excluded_orgs:
                 return org_candidate, 0.85
 
     # 경로를 정규화하고 분리
@@ -220,8 +318,8 @@ def extract_organization_from_path(filepath: str, project_name: str = None) -> t
         match = re.search(r'([가-힣A-Za-z·&-]{2,30}(?:' + '|'.join(org_suffixes) + r'))', part)
         if match:
             org = match.group(1)
-            # 너무 긴 경우 제외
-            if len(org) <= 30:
+            # 블랙리스트 체크 및 길이 제약
+            if len(org) <= 30 and org not in excluded_orgs:
                 return org, 0.70
 
     return None, 0.0
