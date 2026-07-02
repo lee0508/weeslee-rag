@@ -7413,18 +7413,23 @@ POST /api/admin/faiss/activate</code>
 
   function onWikiSourceChange() { loadWikiList(); }
 
+  function getWikiTabSelection() {
+    return {
+      snapshotId: document.getElementById('wikiSnapshotSelect')?.value || '',
+      sourceId: document.getElementById('wikiSourceSelect')?.value || '',
+    };
+  }
+
   async function loadWikiList() {
-    const snapshotId = document.getElementById('wikiSnapshotSelect')?.value || '';
-    const sourceId = document.getElementById('wikiSourceSelect')?.value || '';
+    const { sourceId } = getWikiTabSelection();
     const tbody = document.getElementById('wikiTableBody');
     const statTotal = document.getElementById('wikiStatTotal');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="6" class="empty">로딩 중...</td></tr>';
     try {
       const params = new URLSearchParams();
-      if (snapshotId) params.append('snapshot_id', snapshotId);
       if (sourceId) params.append('source_id', sourceId);
-      const data = await api(`/admin/wiki/list?${params.toString()}`).catch(() => ({ wikis: [] }));
+      const data = await api(`/admin/llm-wiki/list?${params.toString()}`).catch(() => ({ wikis: [] }));
       const wikis = data.wikis || data.items || [];
       if (statTotal) statTotal.textContent = wikis.length;
       if (!wikis.length) {
@@ -7438,7 +7443,7 @@ POST /api/admin/faiss/activate</code>
           <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(w.title || '-')}</td>
           <td>${w.document_count || '-'}</td>
           <td>${w.created_at ? new Date(w.created_at).toLocaleDateString() : '-'}</td>
-          <td><button class="btn btn-outline btn-sm" onclick="viewWiki('${w.wiki_id || w.id}')">보기</button></td>
+          <td><button class="btn btn-outline btn-sm" onclick="viewWikiContent('${esc(w.wiki_type || w.type || 'project')}', '${esc(w.slug || w.wiki_id || w.id || '')}')">보기</button></td>
         </tr>
       `).join('');
     } catch (e) {
@@ -9770,7 +9775,10 @@ POST /api/admin/faiss/activate</code>
 
   async function loadWikiStats() {
     try {
-      const data = await api('/wiki/stats');
+      const { sourceId } = getWikiTabSelection();
+      const query = new URLSearchParams();
+      if (sourceId) query.set('source_id', sourceId);
+      const data = await api(`/wiki/stats${query.toString() ? `?${query.toString()}` : ''}`);
       document.getElementById('wikiOrgCount').textContent = data.organization_count ?? '-';
       document.getElementById('wikiProjectCount').textContent = data.project_count ?? '-';
       document.getElementById('wikiTechCount').textContent = data.technology_count ?? '-';
@@ -9782,9 +9790,13 @@ POST /api/admin/faiss/activate</code>
   async function generateWikiByOrganization() {
     showToast('발주기관별 Wiki 생성 중...', 'info');
     try {
-      await api('/wiki/generate/by-organization', { method: 'POST' });
+      const { sourceId } = getWikiTabSelection();
+      const query = new URLSearchParams();
+      if (sourceId) query.set('source_id', sourceId);
+      await api(`/wiki/generate/by-organization${query.toString() ? `?${query.toString()}` : ''}`, { method: 'POST' });
       showToast('발주기관별 Wiki 생성 완료', 'success');
       loadWikiStats();
+      loadWikiList();
     } catch (e) {
       showToast('실패: ' + e.message, 'error');
     }
@@ -9793,9 +9805,14 @@ POST /api/admin/faiss/activate</code>
   async function generateWikiByProject() {
     showToast('사업별 Wiki 생성 중...', 'info');
     try {
-      await api('/wiki/generate/by-project', { method: 'POST' });
+      const { sourceId, snapshotId } = getWikiTabSelection();
+      const query = new URLSearchParams();
+      if (sourceId) query.set('source_id', sourceId);
+      if (snapshotId) query.set('snapshot', snapshotId);
+      await api(`/wiki/generate/by-project${query.toString() ? `?${query.toString()}` : ''}`, { method: 'POST' });
       showToast('사업별 Wiki 생성 완료', 'success');
       loadWikiStats();
+      loadWikiList();
     } catch (e) {
       showToast('실패: ' + e.message, 'error');
     }
@@ -9804,9 +9821,13 @@ POST /api/admin/faiss/activate</code>
   async function generateWikiByTechnology() {
     showToast('기술별 Wiki 생성 중...', 'info');
     try {
-      await api('/wiki/generate/by-technology', { method: 'POST' });
+      const { sourceId } = getWikiTabSelection();
+      const query = new URLSearchParams();
+      if (sourceId) query.set('source_id', sourceId);
+      await api(`/wiki/generate/by-technology${query.toString() ? `?${query.toString()}` : ''}`, { method: 'POST' });
       showToast('기술별 Wiki 생성 완료', 'success');
       loadWikiStats();
+      loadWikiList();
     } catch (e) {
       showToast('실패: ' + e.message, 'error');
     }

@@ -240,17 +240,32 @@ WIKI_ORG_DIR = PROJECT_ROOT / "data" / "wiki" / "organizations"
 WIKI_TECH_DIR = PROJECT_ROOT / "data" / "wiki" / "technologies"
 
 
+def _get_wiki_type_dir(wiki_type: str, source_id: Optional[str] = None) -> Path:
+    """Wiki 유형별 저장 경로를 반환한다."""
+    if wiki_type == "project":
+        return _get_wiki_dir(source_id)
+    if source_id:
+        return DATA_DIR / "wiki" / source_id / f"{wiki_type}s"
+    if wiki_type == "organization":
+        return WIKI_ORG_DIR
+    if wiki_type == "technology":
+        return WIKI_TECH_DIR
+    return _get_wiki_dir(source_id)
+
+
 @router.get("/stats")
 async def get_wiki_stats(source_id: Optional[str] = None):
     """Wiki 현황 통계."""
-    project_wiki_dir = _get_wiki_dir(source_id)
+    project_wiki_dir = _get_wiki_type_dir("project", source_id)
+    org_wiki_dir = _get_wiki_type_dir("organization", source_id)
+    tech_wiki_dir = _get_wiki_type_dir("technology", source_id)
     project_wiki_dir.mkdir(parents=True, exist_ok=True)
-    WIKI_ORG_DIR.mkdir(parents=True, exist_ok=True)
-    WIKI_TECH_DIR.mkdir(parents=True, exist_ok=True)
+    org_wiki_dir.mkdir(parents=True, exist_ok=True)
+    tech_wiki_dir.mkdir(parents=True, exist_ok=True)
 
     project_count = len(list(project_wiki_dir.glob("*.md")))
-    org_count = len(list(WIKI_ORG_DIR.glob("*.md")))
-    tech_count = len(list(WIKI_TECH_DIR.glob("*.md")))
+    org_count = len(list(org_wiki_dir.glob("*.md")))
+    tech_count = len(list(tech_wiki_dir.glob("*.md")))
 
     return {
         "source_id": source_id or "default",
@@ -262,14 +277,15 @@ async def get_wiki_stats(source_id: Optional[str] = None):
 
 
 @router.post("/generate/by-organization")
-async def generate_wiki_by_organization():
+async def generate_wiki_by_organization(source_id: Optional[str] = None):
     """발주기관별 Wiki 생성."""
     from app.services.metadata_db import metadata_db_service
 
-    WIKI_ORG_DIR.mkdir(parents=True, exist_ok=True)
+    wiki_dir = _get_wiki_type_dir("organization", source_id)
+    wiki_dir.mkdir(parents=True, exist_ok=True)
 
     # SQLite에서 발주기관별 문서 집계
-    documents = metadata_db_service.list_documents(limit=1000)
+    documents = metadata_db_service.list_documents(limit=1000, source_id=source_id)
     org_docs: dict[str, list] = {}
 
     for doc in documents:
@@ -288,28 +304,34 @@ async def generate_wiki_by_organization():
         slug = _slugify(org_name) or "unknown"
         md_content = _generate_org_wiki_markdown(org_name, docs)
 
-        wiki_path = WIKI_ORG_DIR / f"{slug}.md"
+        wiki_path = wiki_dir / f"{slug}.md"
         wiki_path.write_text(md_content, encoding="utf-8")
         generated.append(slug)
 
-    return {"success": True, "generated": generated, "count": len(generated)}
+    return {
+        "success": True,
+        "generated": generated,
+        "count": len(generated),
+        "source_id": source_id or "default",
+    }
 
 
 @router.post("/generate/by-project")
-async def generate_wiki_by_project():
+async def generate_wiki_by_project(source_id: Optional[str] = None, snapshot: Optional[str] = None):
     """사업별 Wiki 생성 (기존 build 함수 호출)."""
-    return await build_wiki(slug=None)
+    return await build_wiki(slug=None, source_id=source_id, snapshot=snapshot)
 
 
 @router.post("/generate/by-technology")
-async def generate_wiki_by_technology():
+async def generate_wiki_by_technology(source_id: Optional[str] = None):
     """기술별 Wiki 생성."""
     from app.services.metadata_db import metadata_db_service
 
-    WIKI_TECH_DIR.mkdir(parents=True, exist_ok=True)
+    wiki_dir = _get_wiki_type_dir("technology", source_id)
+    wiki_dir.mkdir(parents=True, exist_ok=True)
 
     # SQLite에서 기술 태그별 문서 집계
-    documents = metadata_db_service.list_documents(limit=1000)
+    documents = metadata_db_service.list_documents(limit=1000, source_id=source_id)
     tech_docs: dict[str, list] = {}
 
     for doc in documents:
@@ -343,11 +365,16 @@ async def generate_wiki_by_technology():
         slug = _slugify(tech_name) or "tech"
         md_content = _generate_tech_wiki_markdown(tech_name, docs)
 
-        wiki_path = WIKI_TECH_DIR / f"{slug}.md"
+        wiki_path = wiki_dir / f"{slug}.md"
         wiki_path.write_text(md_content, encoding="utf-8")
         generated.append(slug)
 
-    return {"success": True, "generated": generated, "count": len(generated)}
+    return {
+        "success": True,
+        "generated": generated,
+        "count": len(generated),
+        "source_id": source_id or "default",
+    }
 
 
 def _generate_org_wiki_markdown(org_name: str, docs: list) -> str:

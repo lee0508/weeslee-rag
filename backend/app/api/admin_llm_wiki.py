@@ -93,6 +93,21 @@ class WikiContentResponse(BaseModel):
     metadata: Dict[str, Any] = {}
 
 
+class WikiListItem(BaseModel):
+    wiki_id: str
+    wiki_type: str
+    slug: str
+    title: str
+    created_at: Optional[str] = None
+    size_bytes: int = 0
+    document_count: Optional[int] = None
+
+
+class WikiListResponse(BaseModel):
+    success: bool
+    wikis: List[WikiListItem] = []
+
+
 # ── Helper Functions ────────────────────────────────────────────────────────
 
 
@@ -471,6 +486,32 @@ async def get_wiki_preview(
 
     except Exception as e:
         return WikiPreviewResponse(success=False)
+
+
+@router.get("/list", response_model=WikiListResponse)
+async def get_wiki_list(
+    source_id: Optional[str] = None,
+    wiki_type: Optional[str] = None,
+    limit: int = 50,
+):
+    """관리자 표용 Wiki 목록을 반환한다."""
+    preview = await get_wiki_preview(source_id=source_id, wiki_type=wiki_type, limit=limit)
+    if not preview.success:
+        return WikiListResponse(success=False, wikis=[])
+
+    items = [
+        WikiListItem(
+            wiki_id=f"{page.wiki_type}:{page.slug}",
+            wiki_type=page.wiki_type,
+            slug=page.slug,
+            title=page.title,
+            created_at=page.created_at,
+            size_bytes=page.size_bytes,
+            document_count=None,
+        )
+        for page in preview.pages
+    ]
+    return WikiListResponse(success=True, wikis=items)
 
 
 @router.get("/content/{wiki_type}/{slug}", response_model=WikiContentResponse)
