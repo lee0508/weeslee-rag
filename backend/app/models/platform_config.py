@@ -135,3 +135,27 @@ class PlatformActiveSnapshotState(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(String(40), nullable=True)
     updated_at = Column(String(40), nullable=True)
+
+
+class PlatformSnapshot(Base):
+    """Snapshot registry stored in DB."""
+
+    __tablename__ = "snapshots"
+
+    snapshot_id = Column(String(255), primary_key=True)
+    snapshot_name = Column(String(255), nullable=True)
+    source_id = Column(String(100), nullable=True, index=True)
+    dataset_id = Column(String(150), nullable=True, index=True)
+    faiss_index_id = Column(String(255), nullable=True)
+    status = Column(String(50), nullable=True, index=True)
+    is_active = Column(Boolean, default=False, nullable=False, index=True)
+    queryable = Column(Boolean, default=False, nullable=False)
+    vector_count = Column(Integer, default=0, nullable=False)
+    chunk_count = Column(Integer, default=0, nullable=False)
+    document_count = Column(Integer, default=0, nullable=False)
+    index_file = Column(String(1000), nullable=True)
+    metadata_file = Column(String(1000), nullable=True)
+    manifest_path = Column(String(1000), nullable=True)
+    created_at = Column(String(40), nullable=True)
+    activated_at = Column(String(40), nullable=True)
+    updated_at = Column(String(40), nullable=True)

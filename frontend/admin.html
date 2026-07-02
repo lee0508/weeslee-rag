@@ -7193,6 +7193,16 @@ POST /api/admin/faiss/activate</code>
   let _cachedSources = null;
   let _cachedActiveSnapshotId = null;
 
+  function normalizeSnapshotApiResponse(payload) {
+    if (Array.isArray(payload)) {
+      return { snapshots: payload, active_snapshot_id: payload.find(item => item?.is_active)?.snapshot_id || null };
+    }
+    return {
+      snapshots: Array.isArray(payload?.snapshots) ? payload.snapshots : [],
+      active_snapshot_id: payload?.active_snapshot_id || payload?.active_snapshot || null,
+    };
+  }
+
   async function fetchSnapshotsAndSources() {
     // 캐시가 있으면 재사용 (5초 TTL)
     if (_cachedSnapshots && _cachedSources) {
@@ -7202,8 +7212,9 @@ POST /api/admin/faiss/activate</code>
       api('/admin/snapshots').catch(() => ({ snapshots: [] })),
       api('/admin/document-sources').catch(() => [])
     ]);
-    _cachedSnapshots = snapData.snapshots || [];
-    _cachedActiveSnapshotId = snapData.active_snapshot_id || null;
+    const normalizedSnapshots = normalizeSnapshotApiResponse(snapData);
+    _cachedSnapshots = normalizedSnapshots.snapshots;
+    _cachedActiveSnapshotId = normalizedSnapshots.active_snapshot_id || null;
     _cachedSources = Array.isArray(srcData) ? srcData : [];
     // 5초 후 캐시 만료
     setTimeout(() => { _cachedSnapshots = null; _cachedSources = null; }, 5000);
@@ -13010,8 +13021,8 @@ LIMIT 10`;
     const snapshotSelect = document.getElementById('kgViewSnapshotFilter');
     if (!snapshotSelect) return;
     try {
-      const snapshots = await api('/admin/snapshots');
-      kgViewSnapshotsCache = snapshots || [];
+      const data = await api('/admin/snapshots');
+      kgViewSnapshotsCache = normalizeSnapshotApiResponse(data).snapshots;
       snapshotSelect.innerHTML = '<option value="">Snapshot 선택...</option>';
       if (kgViewSnapshotsCache.length === 0) {
         snapshotSelect.innerHTML = '<option value="">등록된 Snapshot 없음</option>';
@@ -18420,6 +18431,23 @@ LIMIT 10`;
     if (formatted) _wizardAppendLog(step, formatted);
   }
 
+  function formatStep4EventLog(event) {
+    if (!event || typeof event !== 'object') return String(event || '');
+    const base = String(event.log || '').trim();
+    const details = [];
+    if (event.document_id) details.push(`doc=${event.document_id}`);
+    if (event.file_name) details.push(`file=${event.file_name}`);
+    if (event.parser_type) details.push(`parser=${event.parser_type}`);
+    if (typeof event.text_length === 'number' && event.text_length > 0) details.push(`chars=${event.text_length}`);
+    if (typeof event.processing_time_ms === 'number' && event.processing_time_ms > 0) details.push(`ms=${event.processing_time_ms}`);
+    if (typeof event.ocr_use_gpu === 'boolean') details.push(`ocr_gpu=${event.ocr_use_gpu ? 'ON' : 'OFF'}`);
+    if (event.source_id) details.push(`source=${event.source_id}`);
+    if (event.dataset_id) details.push(`dataset=${event.dataset_id}`);
+    if (event.skip_reason) details.push(`skip=${event.skip_reason}`);
+    if (event.error_detail && event.error_detail !== base) details.push(`detail=${event.error_detail}`);
+    return details.length ? `${base} | ${details.join(' | ')}` : base;
+  }
+
   function _wizardMarkDone(step, stepStartTime) {
     _wizardSetStatus(step, '완료', 'ok');
     const el = document.querySelector(`.wizard-step[data-step="${step}"]`);
@@ -18779,7 +18807,7 @@ LIMIT 10`;
       sse.onmessage = (e) => {
         try {
           const ev = JSON.parse(e.data);
-          if (ev.log) _wizardAppendJobLog(step, ev.log);
+          if (ev.log) _wizardAppendJobLog(step, formatStep4EventLog(ev));
           if (ev.stage && ev.stage !== lastStage) {
             lastStage = ev.stage;
             _wizardAppendLog(step, `[${ev.progress || 0}%] ${ev.stage}`);
@@ -18834,7 +18862,7 @@ LIMIT 10`;
         _wizardAppendLog(step, `[poll ${progress}%] ${stage}`);
       }
       if (lastEvent.log) {
-        _wizardAppendJobLog(step, `[poll] ${lastEvent.log}`);
+        _wizardAppendJobLog(step, `[poll] ${formatStep4EventLog(lastEvent)}`);
       }
 
       if (data.status === 'completed') {
@@ -19564,8 +19592,8 @@ LIMIT 10`;
     if (!snapshotSelect) return;
 
     try {
-      const snapshots = await api('/admin/snapshots');
-      searchQualitySnapshotsCache = snapshots || [];
+      const data = await api('/admin/snapshots');
+      searchQualitySnapshotsCache = normalizeSnapshotApiResponse(data).snapshots;
       snapshotSelect.innerHTML = '<option value="">Snapshot 선택...</option>';
       if (searchQualitySnapshotsCache.length === 0) {
         snapshotSelect.innerHTML = '<option value="">등록된 Snapshot 없음</option>';
@@ -19766,8 +19794,8 @@ LIMIT 10`;
     if (!snapshotSelect) return;
 
     try {
-      const snapshots = await api('/admin/snapshots');
-      metaReviewSnapshotsCache = snapshots || [];
+      const data = await api('/admin/snapshots');
+      metaReviewSnapshotsCache = normalizeSnapshotApiResponse(data).snapshots;
 
       snapshotSelect.innerHTML = '<option value="">Snapshot 선택...</option>';
 
@@ -20353,7 +20381,7 @@ LIMIT 10`;
 
         // 로그 출력
         if (event.log) {
-          appendStep4Log(event.level || 'info', event.log);
+          appendStep4Log(event.level || 'info', formatStep4EventLog(event));
         }
 
         // 완료 처리

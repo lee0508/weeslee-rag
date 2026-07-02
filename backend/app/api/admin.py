@@ -32,6 +32,7 @@ from app.services.runtime_compute_settings import (
     get_runtime_compute_snapshot,
     save_runtime_compute_settings,
 )
+from app.services.snapshot_registry_service import list_snapshot_registry
 from app.core.config import settings
 from app.models.document_pipeline_status import DatasetStatusSummary
 
@@ -1504,60 +1505,9 @@ async def get_dataset_status_summary(source_id: Optional[str] = None):
 
 @router.get("/snapshots")
 async def list_snapshots():
-    """생성된 Snapshot 목록 조회. active_snapshot.json과 개별 snapshot JSON 파일들을 읽어 반환."""
-    project_root = Path(__file__).resolve().parents[3]
-    snapshots_dir = project_root / "data" / "snapshots"
-    active_snapshot_path = snapshots_dir / "active_snapshot.json"
-
-    # Active Snapshot 정보 로드
-    active_info = {}
-    active_snapshot_id = None
-    if active_snapshot_path.exists():
-        try:
-            active_info = json.loads(active_snapshot_path.read_text(encoding="utf-8"))
-            active_snapshot_id = active_info.get("active_snapshot_id") or active_info.get("snapshot")
-        except Exception:
-            pass
-
-    # 모든 snapshot JSON 파일 로드
-    result = []
-    if snapshots_dir.exists():
-        for snap_file in snapshots_dir.glob("snapshot_*.json"):
-            if snap_file.name == "active_snapshot.json":
-                continue
-            try:
-                snap_data = json.loads(snap_file.read_text(encoding="utf-8"))
-                snapshot_id = snap_data.get("snapshot_id", snap_file.stem)
-                source_id = snap_data.get("dataset", {}).get("source_id") or snap_data.get("source_id")
-                result.append({
-                    "snapshot_id": snapshot_id,
-                    "snapshot_name": snap_data.get("snapshot_name", snapshot_id),
-                    "source_id": source_id,
-                    "dataset_id": snap_data.get("dataset", {}).get("dataset_id"),
-                    "document_count": snap_data.get("dataset", {}).get("document_count", 0),
-                    "is_active": snapshot_id == active_snapshot_id,
-                    "created_at": snap_data.get("created_at"),
-                    "file_name": snap_file.name,
-                })
-            except Exception:
-                continue
-
-    # Active snapshot이 별도 파일에 없을 경우 active_info에서 추가
-    if active_snapshot_id and not any(s["snapshot_id"] == active_snapshot_id for s in result):
-        result.insert(0, {
-            "snapshot_id": active_snapshot_id,
-            "snapshot_name": active_snapshot_id,
-            "source_id": active_info.get("source_id"),
-            "dataset_id": active_info.get("dataset_id"),
-            "document_count": 0,
-            "is_active": True,
-            "created_at": active_info.get("activated_at"),
-            "file_name": "active_snapshot.json",
-        })
-
-    # is_active가 True인 항목을 맨 앞으로 정렬
-    result.sort(key=lambda x: (not x.get("is_active", False), x.get("snapshot_id", "")))
-
+    """생성된 Snapshot 목록 조회. DB registry를 우선 사용한다."""
+    result = list_snapshot_registry()
+    active_snapshot_id = next((row.get("snapshot_id") for row in result if row.get("is_active")), None)
     return {
         "snapshots": result,
         "active_snapshot_id": active_snapshot_id,

@@ -19,6 +19,7 @@ from app.models.snapshot_manifest import DatasetInfo, RAGBuildInfo, SnapshotMani
 from app.services.dataset_context import get_source_dataset_context
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.runtime_compute_settings import is_stage_gpu_enabled
+from app.services.snapshot_registry_service import upsert_snapshot_manifest
 from app.services.snapshot_manager import create_snapshot_manifest, generate_snapshot_id
 # 확장 메서드 로드
 import app.services.processed_text_store_extensions
@@ -179,6 +180,7 @@ def _save_snapshot(snapshot: SnapshotManifest) -> None:
         json.dumps(snapshot.dict(), ensure_ascii=False, indent=2, default=str),
         encoding="utf-8",
     )
+    upsert_snapshot_manifest(snapshot)
 
 
 def _infer_contract_types(project_name: str, organization: str, file_name: str, source_path: str) -> tuple[str, str]:

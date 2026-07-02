@@ -16,6 +16,10 @@ from app.services.active_snapshot_state import (
     get_active_snapshot_state,
     save_active_snapshot_state,
 )
+from app.services.snapshot_registry_service import (
+    list_snapshot_registry,
+    upsert_snapshot_manifest,
+)
 from app.models.snapshot_manifest import (
     SnapshotManifest,
     SnapshotStatus,
@@ -64,6 +68,7 @@ def _save_snapshot(snapshot: SnapshotManifest):
     snapshot_file = SNAPSHOT_DIR / f"{snapshot.snapshot_id}.json"
     with open(snapshot_file, "w", encoding="utf-8") as f:
         json.dump(snapshot.dict(), f, ensure_ascii=False, indent=2, default=str)
+    upsert_snapshot_manifest(snapshot)
 
 
 def _parse_snapshot_ids(snapshot_id: str) -> tuple[Optional[str], Optional[str]]:
@@ -350,26 +355,11 @@ async def get_active_snapshot():
 @router.get("/list")
 async def list_snapshots(source_id: Optional[str] = None, limit: int = 20):
     """Snapshot 목록 조회"""
-    _ensure_dirs()
-
-    snapshots = []
-    for f in SNAPSHOT_DIR.glob("*.json"):
-        try:
-            snap = _load_snapshot(f.stem)
-            if snap:
-                if source_id and snap.dataset.source_id != source_id:
-                    continue
-                snapshots.append(snap.get_build_summary())
-        except Exception:
-            continue
-
-    # 최신순 정렬
-    snapshots.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-
+    snapshots = list_snapshot_registry(source_id=source_id, limit=limit)
     return {
         "success": True,
         "count": len(snapshots),
-        "snapshots": snapshots[:limit],
+        "snapshots": snapshots,
     }
 
 

@@ -5,9 +5,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from app.models.snapshot_manifest import SnapshotManifest
 from app.services.platform_store import list_records
 from app.services.rag_runtime import get_active_snapshot
+from app.services.snapshot_registry_service import list_snapshot_registry
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -59,46 +59,8 @@ def save_default_scope_id(scope_id: str) -> dict[str, Any]:
     return config
 
 
-def _load_snapshot_manifests() -> list[SnapshotManifest]:
-    if not SNAPSHOT_DIR.exists():
-        return []
-    manifests: list[SnapshotManifest] = []
-    for path in SNAPSHOT_DIR.glob("*.json"):
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            manifests.append(SnapshotManifest(**data))
-        except Exception:
-            continue
-    if not manifests:
-        return manifests
-
-    canonical_by_faiss_id: dict[str, SnapshotManifest] = {}
-    for snap in manifests:
-        faiss_id = str(snap.rag_build.faiss_index_id or snap.snapshot_id or "").strip()
-        if not faiss_id:
-            continue
-        current = canonical_by_faiss_id.get(faiss_id)
-        if current is None:
-            canonical_by_faiss_id[faiss_id] = snap
-            continue
-        current_is_alias = current.snapshot_id == faiss_id
-        candidate_is_alias = snap.snapshot_id == faiss_id
-        if current_is_alias and not candidate_is_alias:
-            canonical_by_faiss_id[faiss_id] = snap
-
-    filtered: list[SnapshotManifest] = []
-    for snap in manifests:
-        faiss_id = str(snap.rag_build.faiss_index_id or snap.snapshot_id or "").strip()
-        canonical = canonical_by_faiss_id.get(faiss_id)
-        # Hide legacy alias manifests when a canonical snapshot manifest exists.
-        if canonical and canonical.snapshot_id != snap.snapshot_id and snap.snapshot_id == faiss_id:
-            continue
-        filtered.append(snap)
-    return filtered
-
-
-def _faiss_index_exists(snapshot: SnapshotManifest) -> bool:
-    faiss_id = (snapshot.rag_build.faiss_index_id or snapshot.snapshot_id or "").strip()
+def _faiss_index_exists(snapshot: dict[str, Any]) -> bool:
+    faiss_id = str(snapshot.get("faiss_index_id") or snapshot.get("snapshot_id") or "").strip()
     if not faiss_id:
         return False
     # 메인 인덱스 확인
@@ -115,13 +77,13 @@ def _faiss_index_exists(snapshot: SnapshotManifest) -> bool:
     return False
 
 
-def _snapshot_sort_key(snapshot: SnapshotManifest) -> tuple:
+def _snapshot_sort_key(snapshot: dict[str, Any]) -> tuple:
     return (
-        1 if snapshot.is_active else 0,
+        1 if snapshot.get("is_active") else 0,
         1 if _faiss_index_exists(snapshot) else 0,
-        int(snapshot.rag_build.vector_count or 0),
-        snapshot.activated_at or datetime.min,
-        snapshot.created_at or datetime.min,
+        int(snapshot.get("vector_count") or 0),
+        snapshot.get("activated_at") or "",
+        snapshot.get("created_at") or "",
     )
 
 
@@ -170,11 +132,12 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
     registry: dict[str, dict[str, Any]] = {}
     known_snapshot_ids: set[str] = set()
     known_faiss_index_ids: set[str] = set()
-    for snap in sorted(_load_snapshot_manifests(), key=_snapshot_sort_key, reverse=True):
-        source_id = str(snap.dataset.source_id or "").strip()
+    snapshot_rows = list_snapshot_registry()
+    for snap in sorted(snapshot_rows, key=_snapshot_sort_key, reverse=True):
+        source_id = str(snap.get("source_id") or "").strip()
         if not source_id:
             continue
-        known_snapshot_ids.add(snap.snapshot_id)
+        known_snapshot_ids.add(str(snap.get("snapshot_id") or ""))
         info = registry.setdefault(
             source_id,
             {
@@ -184,25 +147,25 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
                 "latest_queryable_snapshot": "",
             },
         )
-        faiss_index_id = (snap.rag_build.faiss_index_id or snap.snapshot_id or "").strip()
+        faiss_index_id = str(snap.get("faiss_index_id") or snap.get("snapshot_id") or "").strip()
         if faiss_index_id:
             known_faiss_index_ids.add(faiss_index_id)
         snapshot_entry = {
-            "snapshot_id": snap.snapshot_id,
+            "snapshot_id": str(snap.get("snapshot_id") or ""),
             "faiss_index_id": faiss_index_id,
-            "dataset_id": snap.dataset.dataset_id,
-            "is_active": bool(snap.is_active),
-            "status": snap.status.value,
-            "vector_count": int(snap.rag_build.vector_count or 0),
-            "chunk_count": int(snap.rag_build.chunk_count or 0),
-            "document_count": int(snap.dataset.document_count or 0),
-            "created_at": snap.created_at.isoformat() if snap.created_at else None,
-            "activated_at": snap.activated_at.isoformat() if snap.activated_at else None,
-            "queryable": _faiss_index_exists(snap),
+            "dataset_id": str(snap.get("dataset_id") or ""),
+            "is_active": bool(snap.get("is_active")),
+            "status": str(snap.get("status") or ""),
+            "vector_count": int(snap.get("vector_count") or 0),
+            "chunk_count": int(snap.get("chunk_count") or 0),
+            "document_count": int(snap.get("document_count") or 0),
+            "created_at": snap.get("created_at"),
+            "activated_at": snap.get("activated_at"),
+            "queryable": bool(snap.get("queryable")) or _faiss_index_exists(snap),
         }
         info["snapshots"].append(snapshot_entry)
         if snapshot_entry["queryable"] and not info["latest_queryable_snapshot"]:
-            info["latest_queryable_snapshot"] = snap.snapshot_id
+            info["latest_queryable_snapshot"] = snapshot_entry["snapshot_id"]
 
     for snapshot_id in _list_faiss_snapshot_names():
         if snapshot_id in known_snapshot_ids or snapshot_id in known_faiss_index_ids:

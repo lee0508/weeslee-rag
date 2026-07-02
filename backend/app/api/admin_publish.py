@@ -17,6 +17,7 @@ from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.services.active_snapshot_state import get_active_snapshot_state
 from app.services.dataset_context import get_source_dataset_context, generate_dataset_id
+from app.services.snapshot_registry_service import list_snapshot_registry
 from app.models.snapshot_manifest import SnapshotManifest
 
 
@@ -548,61 +549,23 @@ async def list_snapshots(source_id: Optional[str] = None):
     사용 가능한 Snapshot 목록을 조회합니다.
     """
     try:
-        project_root = _get_project_root()
-        snapshots_dir = project_root / "data" / "snapshots"
-
-        if source_id:
-            snapshots_dir = snapshots_dir / source_id
-
-        snapshots: List[SnapshotInfo] = []
         active_info = _get_active_info(source_id)
         active_snapshot = active_info.get("snapshot") or active_info.get("snapshot_id")
-
-        if snapshots_dir.exists():
-            for snapshot_dir in sorted(snapshots_dir.iterdir(), reverse=True):
-                if not snapshot_dir.is_dir():
-                    continue
-                if snapshot_dir.name in ["active.json", "manifest.json"]:
-                    continue
-
-                snapshot_id = snapshot_dir.name
-
-                # manifest.json 읽기
-                manifest_file = snapshot_dir / "manifest.json"
-                document_count = 0
-                chunk_count = 0
-                created_at = ""
-
-                if manifest_file.exists():
-                    with open(manifest_file, "r", encoding="utf-8") as f:
-                        manifest = json.load(f)
-                    document_count = manifest.get("document_count", 0)
-                    chunk_count = manifest.get("chunk_count", 0)
-                    created_at = manifest.get("created_at", "")
-
-                # FAISS 존재 여부
-                has_faiss = any(snapshot_dir.glob("*.index"))
-
-                # Graph 존재 여부
-                has_graph = (snapshot_dir / "graph_nodes.jsonl").exists()
-
-                # Wiki 존재 여부
-                wiki_dir = project_root / "data" / "wiki"
-                if source_id:
-                    wiki_dir = wiki_dir / source_id
-                has_wiki = wiki_dir.exists() and any(wiki_dir.rglob("*.md"))
-
-                snapshots.append(SnapshotInfo(
-                    snapshot_id=snapshot_id,
-                    source_id=source_id or "default",
-                    created_at=created_at,
-                    document_count=document_count,
-                    chunk_count=chunk_count,
-                    is_active=(snapshot_id == active_snapshot),
-                    has_faiss=has_faiss,
-                    has_graph=has_graph,
-                    has_wiki=has_wiki
-                ))
+        registry_rows = list_snapshot_registry(source_id=source_id, limit=20)
+        snapshots: List[SnapshotInfo] = [
+            SnapshotInfo(
+                snapshot_id=str(row.get("snapshot_id") or ""),
+                source_id=str(row.get("source_id") or source_id or "default"),
+                created_at=str(row.get("created_at") or ""),
+                document_count=int(row.get("document_count") or 0),
+                chunk_count=int(row.get("chunk_count") or 0),
+                is_active=bool(row.get("is_active")) or str(row.get("snapshot_id") or "") == active_snapshot,
+                has_faiss=bool(row.get("queryable")),
+                has_graph=False,
+                has_wiki=False,
+            )
+            for row in registry_rows
+        ]
 
         return SnapshotListResponse(
             success=True,
