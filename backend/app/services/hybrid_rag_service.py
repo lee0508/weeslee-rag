@@ -235,6 +235,15 @@ class HybridRAGService:
         return cleaned[:8]
 
     @staticmethod
+    def _normalize_search_query_text(value: Optional[str]) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            return ""
+        normalized = re.sub(r"[+/|]+", " ", raw)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
+
+    @staticmethod
     def _extract_literal_section_hint(question: str) -> Optional[str]:
         normalized = str(question or "").replace(" ", "")
         for value in (
@@ -910,7 +919,7 @@ class HybridRAGService:
                 "section_type": document_category or section_type or inferred_document_category or router_document_section,
                 "inferred_terms": normalized_inferred_terms,
             })
-            faiss_query = (expanded_query or "").strip() or question
+            faiss_query = self._normalize_search_query_text((expanded_query or "").strip() or question)
             faiss_org_filter = organization
 
             if search_order == "faiss_only":
