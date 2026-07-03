@@ -1060,6 +1060,29 @@ class HybridRAGService:
                     graph_question_type = retry_graph_question_type
                     merged_docs = retry_merged_docs
 
+            # strict metadata filter로 0건이 되면 source 범위는 유지한 채
+            # FAISS 무필터 검색으로 한 번 더 폴백한다.
+            if not merged_docs and any(value for value in (metadata_filters or {}).values()):
+                fallback_faiss_results, fallback_faiss_time = await self._search_faiss(
+                    faiss_query,
+                    max(top_k * 10, top_k),
+                    category_filter=category,
+                    organization_filter=faiss_org_filter,
+                    metadata_filters=None,
+                )
+                fallback_merged_docs = self._merge_results(
+                    fallback_faiss_results,
+                    graph_results,
+                    wiki_results,
+                    question=question,
+                    max_results=max_results,
+                    soft_metadata_hints=soft_metadata_hints,
+                )
+                if fallback_merged_docs:
+                    faiss_results = fallback_faiss_results
+                    faiss_time = max(faiss_time, fallback_faiss_time)
+                    merged_docs = fallback_merged_docs
+
             merge_time = int((time.time() - merge_start) * 1000)
 
             # 4. 근거 생성
