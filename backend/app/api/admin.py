@@ -525,7 +525,6 @@ async def system_check():
     import importlib
     import subprocess
     import httpx
-    from pathlib import Path
 
     from app.extractors.hwp_extractor import _hwp5txt_path
 
@@ -622,9 +621,6 @@ async def save_runtime_compute_settings_api(request: RuntimeComputeSettingsReque
 @router.get("/stats")
 async def get_admin_stats_cached():
     """Get cached admin dashboard statistics backed by snapshot artifacts."""
-    import json
-    from pathlib import Path
-
     project_root = Path(__file__).resolve().parents[3]
     active_index_path = project_root / "data" / "active_index.json"
 
@@ -661,9 +657,6 @@ async def get_admin_stats_cached():
 @router.get("/stats")
 async def get_admin_stats():
     """Get admin dashboard statistics — FAISS-based (no MySQL dependency)."""
-    import json
-    from pathlib import Path
-
     project_root = Path(__file__).resolve().parents[3]
     faiss_dir = project_root / "data" / "indexes" / "faiss"
     active_index_path = project_root / "data" / "active_index.json"
@@ -862,7 +855,6 @@ async def auto_generate_metadata(
     file_content = ""
     if file_path:
         try:
-            from pathlib import Path
             fp = Path(file_path)
             if fp.exists() and fp.suffix.lower() in ['.txt', '.md']:
                 file_content = fp.read_text(encoding='utf-8')[:3000]
@@ -924,7 +916,6 @@ async def auto_generate_all_metadata():
             file_content = ""
             if file_path:
                 try:
-                    from pathlib import Path
                     fp = Path(file_path)
                     if fp.exists() and fp.suffix.lower() in ['.txt', '.md']:
                         file_content = fp.read_text(encoding='utf-8')[:3000]
@@ -991,7 +982,6 @@ async def auto_generate_batch_metadata(
             file_content = ""
             if file_path:
                 try:
-                    from pathlib import Path
                     fp = Path(file_path)
                     if fp.exists() and fp.suffix.lower() in ['.txt', '.md']:
                         file_content = fp.read_text(encoding='utf-8')[:3000]
@@ -1168,8 +1158,6 @@ async def upload_multiple_documents(
     organization: Optional[str] = Query(None),
 ):
     """다중 문서 업로드 및 SQLite DB 등록."""
-    from pathlib import Path
-
     allowed_extensions = ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.hwp', '.hwpx', '.txt']
     project_root = Path(__file__).resolve().parents[3]
     upload_dir = project_root / "data" / "uploads"
@@ -1343,10 +1331,9 @@ async def get_dataset_status_summary(source_id: Optional[str] = None):
     - DB 쿼리 통합 (7개 → 1개)
     - manifest 파일 활용 (JSONL 전체 파싱 제거)
     """
-    from pathlib import Path
     from datetime import datetime as dt
     from sqlalchemy import func
-    from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
+    from app.models.document_metadata import DocumentMetadata, MetaStatus
 
     # ── 캐시 확인 ─────────────────────────────────────────────────────────────
     cache_key = f"status_summary:{source_id or 'all'}"

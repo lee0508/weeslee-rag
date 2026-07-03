@@ -15,7 +15,7 @@ import sys
 import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_admin_token
@@ -408,7 +408,7 @@ async def get_graph_status(source_id: Optional[str] = None):
             snapshot_id=manifest.get("snapshot_id")
         )
 
-    except Exception as e:
+    except Exception:
         return GraphStatusResponse(
             status="error",
             node_count=0,
@@ -481,7 +481,7 @@ async def get_graph_preview(
             relation_type_counts=relation_type_counts
         )
 
-    except Exception as e:
+    except Exception:
         return GraphPreviewResponse(
             success=False,
             node_count=0,

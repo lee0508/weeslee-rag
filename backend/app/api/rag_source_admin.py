@@ -17,7 +17,7 @@ from app.core.auth import require_admin_token
 from app.core.config import settings
 from app.core.mappings import mappings
 from app.services.metadata_db import get_db_connection, metadata_db_service
-from app.services.platform_store import list_records, get_record
+from app.services.platform_store import get_record
 
 router = APIRouter(
     prefix="/admin/rag-source",

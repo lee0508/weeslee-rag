@@ -206,7 +206,6 @@ async def graph_stats(source_id: Optional[str] = None):
     from app.services.graph_traversal import get_graph_statistics
 
     stats = get_graph_statistics()
-    cache = _load_graph(source_id)
     manifest = _manifest(source_id)
 
     return {
@@ -1703,10 +1702,7 @@ async def agent_stats(source_id: Optional[str] = None):
     Graph 및 FAISS 인덱스 상태를 반환한다.
     """
     from app.services.faiss_search_service import get_faiss_search_service
-    from app.services.graph_query_service import get_graph_query_service
-
     faiss_service = get_faiss_search_service(source_id)
-    graph_service = get_graph_query_service(source_id)
 
     # Graph 통계
     cache = _load_graph(source_id)

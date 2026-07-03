@@ -67,7 +67,6 @@ async def build_wiki(
     import subprocess
     import sys
     import json
-    import asyncio
 
     start_time = datetime.now()
 

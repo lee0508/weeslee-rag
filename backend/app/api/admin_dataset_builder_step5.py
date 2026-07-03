@@ -4,18 +4,14 @@ Step 4에서 추출된 텍스트를 청킹하여 FAISS 인덱싱 준비
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel, Field
-import json
 from pathlib import Path
 from datetime import datetime
 
 from app.core.database import get_db
 from app.services.chunking import ChunkingService
 from app.services.processed_text_store import ProcessedTextStore
-# 확장 메서드 로드
-import app.services.processed_text_store_extensions
 
 router = APIRouter(prefix="/admin/dataset-builder/step5")
 
@@ -207,8 +203,8 @@ async def build_chunks(
         from app.models.document_metadata import DocumentMetadata, ProcessingStatus
 
         query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         )
 
@@ -364,14 +360,14 @@ async def get_chunk_status(db: Session = Depends(get_db)):
     """
     청킹 상태 조회
     """
-    from app.models.document_metadata import DocumentMetadata, MetaStatus
+    from app.models.document_metadata import DocumentMetadata
     text_store = get_text_store()
 
     try:
         # 전체 문서 수 (RAG 포함 + 제외/삭제되지 않은 문서)
         total_documents = db.query(DocumentMetadata).filter(
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).count()
 
@@ -380,8 +376,8 @@ async def get_chunk_status(db: Session = Depends(get_db)):
         total_chunks = 0
 
         docs = db.query(DocumentMetadata).filter(
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).all()
 
@@ -465,8 +461,8 @@ async def get_chunk_stats(db: Session = Depends(get_db)):
         # 검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서
         docs = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).all()
 

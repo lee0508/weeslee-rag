@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from typing import Optional, List, Any
 
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, Query
 
 from app.models.document_metadata import DocumentMetadata, MetaStatus
@@ -41,8 +40,8 @@ def rag_ready_filter() -> tuple:
     """
     return (
         DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-        DocumentMetadata.include_in_rag == True,
-        DocumentMetadata.is_excluded == False,
+        DocumentMetadata.include_in_rag.is_(True),
+        DocumentMetadata.is_excluded.is_(False),
         DocumentMetadata.removed_at.is_(None),
     )
 
@@ -55,7 +54,7 @@ def active_document_filter() -> tuple:
         filter 조건 튜플
     """
     return (
-        DocumentMetadata.is_excluded == False,
+        DocumentMetadata.is_excluded.is_(False),
         DocumentMetadata.removed_at.is_(None),
     )
 

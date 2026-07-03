@@ -20,7 +20,6 @@ from typing import List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field, model_validator
 
-from app.core.config import settings
 from app.api.rag_with_similar_files import (
     _snippet_text as _standard_snippet_text,
     _standardize_rag_document,
@@ -1273,7 +1272,7 @@ async def analyze_prompt_endpoint(request: PromptAnalysisRequest):
     try:
         result = analyze_prompt(request.query)
         return PromptAnalysisResponse(success=True, **result)
-    except Exception as exc:
+    except Exception:
         return PromptAnalysisResponse(
             success=False,
             original_query=request.query,

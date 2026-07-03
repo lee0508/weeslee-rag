@@ -25,6 +25,8 @@ from datetime import datetime
 from typing import Optional, List
 from pathlib import Path
 import os
+import re
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -49,6 +51,7 @@ SUPPORTED_EXTENSIONS = mappings.SUPPORTED_EXTENSIONS
 RAG_SOURCE_ROOT = settings.rag_source_root
 SOURCE_ID_MAP = mappings.SOURCE_ID_MAP
 CATEGORY_ID_MAP = mappings.CATEGORY_ID_MAP
+STAGED_DIR = Path(settings.data_dir) / "staged"
 
 
 # ── Request/Response Models ─────────────────────────────────────────────────
@@ -189,9 +192,6 @@ def extract_project_name_from_path(filepath: str) -> tuple[str, float]:
     Returns:
         tuple[str, float]: (프로젝트명, 신뢰도)
     """
-    import re
-    import os
-
     # 경로를 정규화하고 분리
     normalized_path = filepath.replace('\\\\', '/').replace('\\', '/')
     parts = normalized_path.split('/')

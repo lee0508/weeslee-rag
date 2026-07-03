@@ -4,14 +4,12 @@ Step 5에서 생성된 청크에 대해 임베딩 벡터를 생성
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel, Field
 import numpy as np
 import json
 from pathlib import Path
 from datetime import datetime
-import asyncio
 import random
 
 from app.core.database import get_db
@@ -19,8 +17,6 @@ from app.core.config import settings
 from app.services.ollama import OllamaService, get_ollama
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.faiss_job_runner import read_active_index
-# 확장 메서드 로드
-import app.services.processed_text_store_extensions
 
 router = APIRouter(prefix="/admin/dataset-builder/step6")
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -114,8 +110,8 @@ def _eligible_documents_query(db: Session, source_id: Optional[str] = None):
     from app.models.document_metadata import DocumentMetadata
 
     query = db.query(DocumentMetadata).filter(
-        DocumentMetadata.include_in_rag == True,
-        DocumentMetadata.is_excluded == False,
+        DocumentMetadata.include_in_rag.is_(True),
+        DocumentMetadata.is_excluded.is_(False),
         DocumentMetadata.removed_at.is_(None),
     )
     if source_id:
@@ -495,8 +491,8 @@ async def build_embeddings(
         from app.models.document_metadata import DocumentMetadata, ProcessingStatus
 
         query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         )
 
@@ -636,8 +632,8 @@ async def get_embedding_status(db: Session = Depends(get_db)):
         # 전체 문서 수 (검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서)
         total_documents = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).count()
 
@@ -648,8 +644,8 @@ async def get_embedding_status(db: Session = Depends(get_db)):
 
         docs = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).all()
 
@@ -691,8 +687,8 @@ async def get_embedding_stats(db: Session = Depends(get_db)):
         # 검수 완료 + RAG 포함 + 제외/삭제되지 않은 문서
         docs = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).all()
 

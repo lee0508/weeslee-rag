@@ -3,7 +3,7 @@
 Step 8은 문서 메타데이터와 청크 데이터를 기반으로 Knowledge Graph를 생성합니다.
 """
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from pathlib import Path
 import json
 import subprocess
@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import require_admin_token
 from app.core.database import get_db
-from app.models.document_metadata import DocumentMetadata, MetaStatus
 
 
 router = APIRouter(

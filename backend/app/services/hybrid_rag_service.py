@@ -23,29 +23,19 @@ from enum import Enum
 from typing import Any, Optional
 
 from app.agents.graphrag_agent import (
-    GraphRAGAgent,
-    GraphRAGResponse,
-    AgentStatus,
     get_graphrag_agent,
 )
 from app.services.faiss_search_service import (
-    FaissSearchService,
-    FaissSearchResponse,
-    FaissSearchResult,
     get_faiss_search_service,
 )
 from app.services.query_router import (
-    QueryRouter,
     QueryAnalysis,
     QueryIntent,
-    QueryComplexity,
     SearchSource as RouterSearchSource,
     get_query_router,
     extract_keywords_with_llm,
 )
 from app.services.wiki_search_service import (
-    WikiSearchService,
-    WikiSearchResponse,
     get_wiki_search_service,
 )
 
@@ -588,8 +578,6 @@ class HybridRAGService:
         soft_metadata_hints: Optional[dict[str, Any]] = None,
     ) -> list[MergedDocument]:
         """결과 병합 및 중복 제거."""
-        start_time = time.time()
-
         # 문서 ID 기준 병합
         doc_map: dict[str, MergedDocument] = {}
 

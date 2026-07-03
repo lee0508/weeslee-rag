@@ -420,7 +420,6 @@ class DocumentStructureExtractor:
         for chunk in chunks:
             chunk_copy = dict(chunk)
             chunk_start = chunk.get("start_char", 0)
-            chunk_end = chunk_start + chunk.get("char_count", 0)
 
             # 청크가 속하는 페이지 찾기
             for page in pages:

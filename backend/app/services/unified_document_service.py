@@ -8,16 +8,13 @@ SQLite documents 테이블에 비동기로 동기화하는 통합 서비스.
 기존 metadata_db_service (SQLite) 호환 인터페이스를 제공하여
 점진적 마이그레이션을 지원.
 """
-import asyncio
-import json
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pathlib import Path
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.core.database import get_db, SessionLocal
+from app.core.database import SessionLocal
 from app.models.document_metadata import DocumentMetadata, MetaStatus, ProcessingStatus
 from app.services.metadata_fallback import resolve_review_final_metadata
 

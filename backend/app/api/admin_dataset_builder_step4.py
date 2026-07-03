@@ -388,8 +388,8 @@ def _get_step4_target_documents(
 ) -> List[DocumentMetadata]:
     """Step 4 대상 문서를 조회한다."""
     query = db.query(DocumentMetadata).filter(
-        DocumentMetadata.include_in_rag == True,
-        DocumentMetadata.is_excluded == False,
+        DocumentMetadata.include_in_rag.is_(True),
+        DocumentMetadata.is_excluded.is_(False),
         DocumentMetadata.removed_at.is_(None),
     )
 
@@ -666,16 +666,16 @@ async def get_step4_status(db: Session = Depends(get_db)):
         # 전체 검수 완료 문서 수 (제외/삭제되지 않은 문서만)
         total = db.query(func.count(DocumentMetadata.id)).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).scalar()
 
         # 처리 완료 문서 확인
         documents = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).all()
 

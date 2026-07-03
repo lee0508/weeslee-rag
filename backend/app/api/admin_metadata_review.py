@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.services.document_metadata_service import document_metadata_service
-from app.models.document import Document
 from app.models.document_metadata import DocumentMetadata
 
 router = APIRouter(
@@ -253,7 +252,7 @@ async def update_document_metadata(
             raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
 
         # 메타데이터 업데이트
-        updated = document_metadata_service.update_document_metadata(
+        document_metadata_service.update_document_metadata(
             db=db,
             document_id=document_id,
             updates=request.dict(exclude_none=True)
@@ -292,7 +291,7 @@ async def approve_metadata(request: ApproveMetadataRequest, db: Session = Depend
                     reviewer=request.reviewer
                 )
                 approved_count += 1
-            except Exception as e:
+            except Exception:
                 failed_ids.append(document_id)
 
         return {
@@ -328,7 +327,7 @@ async def reject_metadata(request: RejectMetadataRequest, db: Session = Depends(
                     reason=request.reason
                 )
                 rejected_count += 1
-            except Exception as e:
+            except Exception:
                 failed_ids.append(document_id)
 
         return {

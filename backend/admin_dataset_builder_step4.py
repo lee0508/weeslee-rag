@@ -285,7 +285,7 @@ async def parse_documents(
         # 처리 대상 문서 조회
         query = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.include_in_rag.is_(True),
         )
 
         if request.document_ids:
@@ -367,13 +367,13 @@ async def get_step4_status(db: Session = Depends(get_db)):
         # 전체 검수 완료 문서 수
         total = db.query(func.count(DocumentMetadata.id)).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.include_in_rag.is_(True),
         ).scalar()
 
         # 처리 완료 문서 확인
         documents = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
-            DocumentMetadata.include_in_rag == True,
+            DocumentMetadata.include_in_rag.is_(True),
         ).all()
 
         completed = 0

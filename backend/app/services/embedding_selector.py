@@ -253,8 +253,8 @@ def validate_model_compatibility(
     info = get_model_info(model_name)
     if info["gpu_recommended"] and not is_gpu_available():
         warnings.append(
-            f"이 모델은 GPU 사용이 권장됩니다. "
-            f"CPU 모드에서는 속도가 느릴 수 있습니다."
+            "이 모델은 GPU 사용이 권장됩니다. "
+            "CPU 모드에서는 속도가 느릴 수 있습니다."
         )
 
     return {

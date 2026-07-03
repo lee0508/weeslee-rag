@@ -31,7 +31,6 @@ from app.services.category_service import detect_categories_from_directory
 from app.services.metadata_auto_generator import MetadataAutoGenerator
 from app.services.metadata_enricher import enrich_confidence
 from app.services.processed_text_store import ProcessedTextStore
-import app.services.processed_text_store_extensions
 from app.core.config import settings
 from app.core.mappings import mappings
 from app.services.ollama import OllamaService, get_ollama
@@ -154,7 +153,6 @@ def classify_relative_path(relative_path: str, source: Optional[Dict[str, Any]] 
         }
 
     # Document Source의 동적 카테고리 설정 조회
-    source_id = (source or {}).get("source_id", "")
     category_config = (source or {}).get("category_config") or {}
     source_categories = category_config.get("categories", [])
 
@@ -904,8 +902,8 @@ async def run_step2_chunk_embed_faiss(
         raise HTTPException(status_code=400, detail="source_id는 필수입니다.")
 
     query = db.query(DocumentMetadata).filter(
-        DocumentMetadata.include_in_rag == True,
-        DocumentMetadata.is_excluded == False,
+        DocumentMetadata.include_in_rag.is_(True),
+        DocumentMetadata.is_excluded.is_(False),
         DocumentMetadata.removed_at.is_(None),
         DocumentMetadata.source_id == source_id,
     ).order_by(DocumentMetadata.document_id)
@@ -1234,7 +1232,7 @@ async def delete_orphans(
     """
     try:
         orphan_docs = db.query(DocumentMetadata).filter(
-            DocumentMetadata.is_orphan == True
+            DocumentMetadata.is_orphan.is_(True)
         ).all()
 
         deleted_details = []
@@ -1341,7 +1339,7 @@ async def restore_excluded(
         for doc_id in document_ids:
             doc = db.query(DocumentMetadata).filter(
                 DocumentMetadata.document_id == doc_id,
-                DocumentMetadata.is_excluded == True
+                DocumentMetadata.is_excluded.is_(True)
             ).first()
 
             if doc:
@@ -1386,12 +1384,12 @@ async def get_cleanup_status(db: Session = Depends(get_db)):
 
         # orphan 문서 수
         orphan_count = db.query(func.count(DocumentMetadata.id)).filter(
-            DocumentMetadata.is_orphan == True
+            DocumentMetadata.is_orphan.is_(True)
         ).scalar() or 0
 
         # excluded 문서 수
         excluded_count = db.query(func.count(DocumentMetadata.id)).filter(
-            DocumentMetadata.is_excluded == True
+            DocumentMetadata.is_excluded.is_(True)
         ).scalar() or 0
 
         # 30일 이상 지난 removed 문서 수

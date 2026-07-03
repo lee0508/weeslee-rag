@@ -22,12 +22,11 @@ OCR/파싱 결과를 document_id 기준으로 저장하고 관리합니다.
 from __future__ import annotations
 
 import json
-import os
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 
 @dataclass
@@ -506,12 +505,12 @@ if __name__ == "__main__":
         print(f"저장 성공: {success}")
 
         # 존재 확인 테스트
-        print(f"\n=== 존재 확인 ===")
+        print("\n=== 존재 확인 ===")
         print(f"exists: {store.exists('doc_20260604_000001')}")
         print(f"not exists: {store.exists('doc_nonexistent')}")
 
         # 조회 테스트
-        print(f"\n=== 조회 테스트 ===")
+        print("\n=== 조회 테스트 ===")
         loaded = store.get_result("doc_20260604_000001")
         if loaded:
             print(f"document_id: {loaded.document_id}")
@@ -521,30 +520,30 @@ if __name__ == "__main__":
             print(f"quality_score: {loaded.quality.get('quality_score')}")
 
         # 보고서만 조회
-        print(f"\n=== 보고서 조회 ===")
+        print("\n=== 보고서 조회 ===")
         report = store.get_report("doc_20260604_000001")
         if report:
             print(f"file_name: {report.get('file_name')}")
             print(f"parser_type: {report.get('parser_type')}")
 
         # 텍스트만 조회
-        print(f"\n=== 텍스트 조회 ===")
+        print("\n=== 텍스트 조회 ===")
         text = store.get_text("doc_20260604_000001", "txt")
         if text:
             print(f"텍스트 (앞 50자): {text[:50]}...")
 
         # 목록 조회
-        print(f"\n=== 목록 조회 ===")
+        print("\n=== 목록 조회 ===")
         docs = store.list_documents()
         print(f"총 문서 수: {len(docs)}")
 
         # 통계 조회
-        print(f"\n=== 통계 조회 ===")
+        print("\n=== 통계 조회 ===")
         stats = store.get_statistics()
         print(f"통계: {stats}")
 
         # 삭제 테스트
-        print(f"\n=== 삭제 테스트 ===")
+        print("\n=== 삭제 테스트 ===")
         deleted = store.delete("doc_20260604_000001")
         print(f"삭제 성공: {deleted}")
         print(f"삭제 후 exists: {store.exists('doc_20260604_000001')}")

@@ -8,7 +8,6 @@ from the browser.
 from __future__ import annotations
 
 import json
-import os
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -108,10 +107,10 @@ def _write_env(payload: dict[str, Any]) -> None:
         f"OLLAMA_HOST={payload['ollama_host']}",
         f"OLLAMA_MODEL={payload['answer_model']}",
         f"OLLAMA_EMBED_MODEL={payload['ollama_embed_model']}",
-        f"EMBEDDING_PROVIDER=ollama",
+        "EMBEDDING_PROVIDER=ollama",
         f"EMBEDDING_DIM={payload['embedding_dim']}",
         f"MAX_EMBED_CHARS={payload['max_embed_chars']}",
-        f"ANSWER_PROVIDER=ollama",
+        "ANSWER_PROVIDER=ollama",
         f"ANSWER_MODEL={payload['answer_model']}",
         f"DATA_DIR={payload['data_dir']}",
         f"UPLOAD_DIR={payload['upload_dir']}",

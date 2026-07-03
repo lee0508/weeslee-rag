@@ -352,8 +352,6 @@ def analyze_prompt(query: str) -> dict:
             "expanded_query": str,
         }
     """
-    query_lower = query.lower()
-
     # 1. 모드 감지
     mode_detection = detect_mode_with_reason(query)
 

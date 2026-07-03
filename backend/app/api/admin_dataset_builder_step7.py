@@ -21,8 +21,6 @@ from app.services.processed_text_store import ProcessedTextStore
 from app.services.runtime_compute_settings import is_stage_gpu_enabled
 from app.services.snapshot_registry_service import upsert_snapshot_manifest
 from app.services.snapshot_manager import create_snapshot_manifest, generate_snapshot_id
-# 확장 메서드 로드
-import app.services.processed_text_store_extensions
 
 router = APIRouter(prefix="/admin/dataset-builder/step7")
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -476,8 +474,8 @@ async def build_faiss_index(
         dataset_id, snapshot_id = _resolve_source_dataset_snapshot(source_id, req.snapshot_id)
 
         query = db.query(DocumentMetadata).filter(
-            DocumentMetadata.include_in_rag == True,
-            DocumentMetadata.is_excluded == False,
+            DocumentMetadata.include_in_rag.is_(True),
+            DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
         ).order_by(DocumentMetadata.document_id)
 

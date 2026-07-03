@@ -131,7 +131,7 @@ def validate_cypher(query: str) -> ValidationResult:
             return ValidationResult(
                 is_valid=False,
                 result_type=CypherValidationResult.SYNTAX_ERROR,
-                message=f"보안상 허용되지 않는 패턴이 포함되어 있습니다.",
+                message="보안상 허용되지 않는 패턴이 포함되어 있습니다.",
             )
 
     # 다중 쿼리 검사 (세미콜론으로 구분된 여러 쿼리)

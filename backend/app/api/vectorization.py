@@ -5,7 +5,7 @@ Vectorization API Endpoints
 - 문서 벡터화 (OCR → 청킹 → 임베딩 → VectorDB)
 - Qdrant 검색
 """
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import logging

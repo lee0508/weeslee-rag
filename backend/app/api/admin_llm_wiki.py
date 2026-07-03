@@ -401,7 +401,6 @@ async def get_wiki_status(source_id: Optional[str] = None, wiki_type: Optional[s
     try:
         counts = _count_wikis(source_id)
         total = sum(counts.values())
-        running_job = _get_running_wiki_job(source_id, wiki_type)
         latest_job = _get_latest_wiki_job(source_id, wiki_type)
         status = "ready" if total > 0 else "empty"
         message = None
@@ -430,7 +429,7 @@ async def get_wiki_status(source_id: Optional[str] = None, wiki_type: Optional[s
             message=message,
         )
 
-    except Exception as e:
+    except Exception:
         return WikiStatusResponse(status="error")
 
 
@@ -484,7 +483,7 @@ async def get_wiki_preview(
             type_counts=type_counts
         )
 
-    except Exception as e:
+    except Exception:
         return WikiPreviewResponse(success=False)
 
 

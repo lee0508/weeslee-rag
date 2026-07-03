@@ -2,9 +2,7 @@
 """
 Step 10은 RAG 검색 품질을 테스트하고 평가합니다.
 """
-from datetime import datetime
-from typing import Optional, List, Dict, Any
-from pathlib import Path
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
