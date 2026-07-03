@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCR / Parser Lab - weeslee-rag</title>
+<style>
+/* ============================================================
+   OCR / Parser Lab 스타일
+   - 관리자 도구 성격에 맞춘 실무형 레이아웃
+   - 좌측: 문서 목록 패널 / 우측: 작업 탭 영역 / 하단: 콘솔
+   ============================================================ */
+
+/* ---------- 전역 변수 (색상 토큰) ---------- */
+:root {
+  --bg:          #f2f4f7;   /* 페이지 배경 */
+  --panel:       #ffffff;   /* 패널 배경 */
+  --border:      #d9dee6;   /* 테두리 */
+  --text:        #1f2733;   /* 본문 텍스트 */
+  --text-sub:    #6b7686;   /* 보조 텍스트 */
+  --accent:      #1a5fb4;   /* 주 강조색 (파랑) */
+  --accent-bg:   #e8f0fb;   /* 강조 배경 */
+  --ok:          #1a7f37;   /* 성공 (초록) */
+  --ok-bg:       #e6f4ea;
+  --warn:        #b45309;   /* 진행중/경고 (주황) */
+  --warn-bg:     #fdf1e2;
+  --err:         #b3261e;   /* 오류 (빨강) */
+  --err-bg:      #fceeee;
+  --console-bg:  #14181f;   /* 콘솔 배경 (어두움) */
+  --console-fg:  #c9d4e3;   /* 콘솔 글자 */
+  --mono: "D2Coding", "Consolas", "Courier New", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------- 상단 헤더 ---------- */
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+header h1 { font-size: 17px; font-weight: 700; }
+header h1 span { color: var(--accent); }
+
+/* 파이프라인 단계 표시 칩 (헤더 우측) */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-sub);
+  flex-wrap: wrap;
+}
+.pipeline .chip {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  white-space: nowrap;
+}
+/* 현재 실행 중인 단계는 강조 표시 */
+.pipeline .chip.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+.pipeline .chip.done {
+  background: var(--ok-bg);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.pipeline .arrow { color: var(--border); }
+
+/* ---------- 본문 레이아웃 (좌측 패널 + 우측 작업 영역) ---------- */
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 0; /* flex 자식 스크롤을 위해 필요 */
+}
+
+/* ---------- 좌측 패널: 문서 목록 ---------- */
+.side {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.side .side-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.side .side-head h2 { font-size: 13px; margin-bottom: 8px; }
+
+/* source 선택 + 새로고침 행 */
+.source-row { display: flex; gap: 6px; }
+.source-row select { flex: 1; }
+
+select, input[type="text"], input[type="number"], textarea {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text);
+}
+select:focus, input:focus, textarea:focus {
+  outline: 2px solid var(--accent-bg);
+  border-color: var(--accent);
+}
+
+/* 공통 버튼 */
+button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+button:hover { background: var(--bg); }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+button.primary:hover { background: #14508f; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 문서 목록 스크롤 영역 */
+.doc-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.doc-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  background: #fff;
+}
+.doc-item:hover { border-color: var(--accent); }
+.doc-item.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.doc-item .doc-name {
+  font-size: 13px;
+  font-weight: 700;
+  word-break: break-all;
+  margin-bottom: 5px;
+}
+.doc-item .doc-meta {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-bottom: 5px;
+}
+/* 문서별 단계 상태 배지 (OCR / Chunk / Embed / FAISS) */
+.badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-sub);
+}
+.badge.ok   { background: var(--ok-bg);   color: var(--ok);   border-color: var(--ok); }
+.badge.run  { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+.badge.err  { background: var(--err-bg);  color: var(--err);  border-color: var(--err); }
+
+/* 좌측 하단: 파일 업로드 영역 */
+.upload-box {
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+}
+.upload-box .hint { font-size: 11px; color: var(--text-sub); margin-top: 6px; }
+
+/* ---------- 우측 작업 영역 ---------- */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 탭 헤더 */
+.tabs {
+  display: flex;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 10px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.tab-btn {
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+.tab-btn:hover { background: transparent; color: var(--text); }
+.tab-btn.active {
+  color: var(--accent);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
+
+/* 탭 콘텐츠 */
+.tab-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  min-height: 0;
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* 툴바 (탭 내부 상단 버튼 행) */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.toolbar label { font-size: 12px; color: var(--text-sub); }
+
+/* 결과 표시 상자 (원문/OCR 결과 등) */
+.result-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  min-height: 180px;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.result-box.mono { font-family: var(--mono); font-size: 12px; }
+
+/* 진행률 바 */
+.progress-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: 22px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+}
+.progress-bar {
+  background: var(--accent);
+  height: 100%;
+  width: 0%;
+  transition: width .3s;
+}
+.progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* 청크 카드 목록 */
+.chunk-grid { display: flex; flex-direction: column; gap: 8px; }
+.chunk-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.chunk-card .chunk-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.chunk-card .chunk-head b { color: var(--accent); }
+.chunk-card .chunk-text {
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 130px;
+  overflow-y: auto;
+}
+
+/* 통계 카드 (청크 수, 토큰 수 등) */
+.stat-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 120px;
+}
+.stat-card .stat-label { font-size: 11px; color: var(--text-sub); }
+.stat-card .stat-value { font-size: 20px; font-weight: 700; color: var(--accent); }
+
+/* 챗봇 테스트 영역 */
+.chat-area { display: flex; flex-direction: column; gap: 10px; }
+.chat-q-row { display: flex; gap: 8px; }
+.chat-q-row input { flex: 1; }
+.chat-answer {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.evidence-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ok);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.evidence-card .ev-head {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-bottom: 4px;
+}
+.evidence-card .ev-head b { color: var(--ok); }
+
+/* ---------- 하단 콘솔 ---------- */
+.console-wrap {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--console-bg);
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+.console-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  color: var(--console-fg);
+  font-size: 11px;
+  border-bottom: 1px solid #2a313d;
+}
+.console-head button {
+  background: transparent;
+  border-color: #3a4453;
+  color: var(--console-fg);
+  padding: 2px 8px;
+  font-size: 11px;
+}
+#console {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--console-fg);
+  line-height: 1.6;
+}
+#console .log-time { color: #5f6b7d; }
+#console .log-ok   { color: #7ee081; }
+#console .log-err  { color: #ff8d85; }
+#console .log-info { color: #8fbcf5; }
+
+/* 설정 패널 (오른쪽 슬라이드) */
+.settings {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+.settings .field { display: flex; flex-direction: column; gap: 4px; }
+.settings .field label { font-size: 11px; color: var(--text-sub); font-weight: 700; }
+
+/* 반응형: 좁은 화면에서는 좌측 패널을 위로 */
+@media (max-width: 860px) {
+  .layout { flex-direction: column; overflow-y: auto; }
+  .side { width: 100%; max-height: 300px; border-right: none; border-bottom: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     상단 헤더: 제목 + 파이프라인 단계 표시
+     ============================================================ -->
+<header>
+  <h1>OCR / Parser <span>Lab</span></h1>
+  <div class="pipeline" id="pipeline">
+    <!-- 각 chip은 JS에서 data-step 기준으로 상태(active/done) 갱신 -->
+    <span class="chip" data-step="upload">업로드</span><span class="arrow">→</span>
+    <span class="chip" data-step="text">원문</span><span class="arrow">→</span>
+    <span class="chip" data-step="ocr">OCR/파싱</span><span class="arrow">→</span>
+    <span class="chip" data-step="chunk">청킹</span><span class="arrow">→</span>
+    <span class="chip" data-step="embed">임베딩</span><span class="arrow">→</span>
+    <span class="chip" data-step="faiss">Vector</span><span class="arrow">→</span>
+    <span class="chip" data-step="chat">테스트</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ============================================================
+       좌측 패널: source 선택 + 문서 목록 + 업로드
+       ============================================================ -->
+  <aside class="side">
+    <div class="side-head">
+      <h2>문서 선택</h2>
+      <div class="source-row">
+        <!-- source_id 선택: 서버에서 목록을 불러와 채움 -->
+        <select id="sourceSelect">
+          <option value="">Source 선택...</option>
+        </select>
+        <button id="btnRefreshDocs" title="문서 목록 새로고침">⟳</button>
+      </div>
+    </div>
+
+    <!-- 문서 목록: 클릭하면 해당 문서가 작업 대상으로 선택됨 -->
+    <div class="doc-list" id="docList">
+      <div style="color:var(--text-sub); font-size:12px; padding:10px;">
+        Source를 선택하면 문서 목록이 표시됩니다.
+      </div>
+    </div>
+
+    <!-- 파일 업로드 (기존 Step 1~3 업로드 API 활용) -->
+    <div class="upload-box">
+      <input type="file" id="fileInput" accept=".pdf,.hwp,.hwpx,.docx,.pptx,.xlsx" style="width:100%; font-size:12px;">
+      <button class="primary" id="btnUpload" style="width:100%; margin-top:8px;">파일 업로드</button>
+      <div class="hint">PDF, HWP, DOCX, PPTX, XLSX 지원</div>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       우측 작업 영역: 탭 UI
+       ============================================================ -->
+  <div class="main">
+
+    <!-- 탭 버튼 -->
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="tab-text">1. 원문 보기</button>
+      <button class="tab-btn" data-tab="tab-ocr">2. OCR / 파싱</button>
+      <button class="tab-btn" data-tab="tab-chunk">3. 청킹</button>
+      <button class="tab-btn" data-tab="tab-embed">4. 임베딩</button>
+      <button class="tab-btn" data-tab="tab-faiss">5. Vector 저장</button>
+      <button class="tab-btn" data-tab="tab-chat">6. 챗봇 테스트</button>
+    </div>
+
+    <div class="tab-body">
+
+      <!-- ---------- 탭 1: 원문 보기 ---------- -->
+      <div class="tab-pane active" id="tab-text">
+        <div class="toolbar">
+          <button class="primary" id="btnLoadText">원문 불러오기</button>
+          <label id="textDocLabel">선택된 문서 없음</label>
+        </div>
+        <div class="result-box" id="textResult">문서를 선택한 뒤 [원문 불러오기]를 누르세요.</div>
+      </div>
+
+      <!-- ---------- 탭 2: OCR / 파싱 ---------- -->
+      <div class="tab-pane" id="tab-ocr">
+        <!-- 설정: OCR 엔진 선택 (문서의 "바로 결정해야 할 항목" 1번) -->
+        <div class="settings">
+          <div class="field">
+            <label>OCR 엔진</label>
+            <select id="ocrEngine">
+              <option value="paddleocr" selected>PaddleOCR (한글 인식 우수, 기본값)</option>
+              <option value="surya">Surya (레이아웃 분석 강점)</option>
+              <option value="tesseract">Tesseract (경량, CPU)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>출력 형식</label>
+            <select id="ocrFormat">
+              <option value="all" selected>전체 (json + md + html)</option>
+              <option value="json">JSON만</option>
+              <option value="md">Markdown만</option>
+            </select>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" id="btnRunOcr">OCR / 파싱 실행</button>
+          <button id="btnViewParsed">파싱 결과 보기</button>
+        </div>
+        <!-- SSE 스트리밍으로 갱신되는 진행률 바 -->
+        <div class="progress-wrap">
+          <div class="progress-bar" id="ocrProgress"></div>
+          <div class="progress-text" id="ocrProgressText">대기 중</div>
+        </div>
+        <div class="result-box mono" id="ocrResult">OCR/파싱 결과가 여기에 표시됩니다.</div>
+      </div>
+
+      <!-- ---------- 탭 3: 청킹 ---------- -->
+      <div class="tab-pane" id="tab-chunk">
+        <!-- 설정: 청킹 단위 (문서의 "바로 결정해야 할 항목" 3번) -->
+        <div class="settings">
+          <div class="field">
+            <label>chunk_size (글자 수)</label>
+            <select id="chunkSize">
+              <option value="500">500</option>
+              <option value="700" selected>700 (권장 시작값)</option>
+              <option value="1000">1000 (Jupiter-2 검증값)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>chunk_overlap</label>
+            <input type="number" id="chunkOverlap" value="200" min="0" step="50">
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" id="btnRunChunk">청킹 실행</button>
+          <button id="btnLoadChunks">청크 목록 조회</button>
+        </div>
+        <!-- 청크 통계 카드 -->
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">총 청크 수</div>
+            <div class="stat-value" id="statChunkCount">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">평균 글자 수</div>
+            <div class="stat-value" id="statChunkAvg">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">최대 글자 수</div>
+            <div class="stat-value" id="statChunkMax">-</div>
+          </div>
+        </div>
+        <!-- 청크 내용을 카드 형태로 시각화 -->
+        <div class="chunk-grid" id="chunkGrid"></div>
+      </div>
+
+      <!-- ---------- 탭 4: 임베딩 ---------- -->
+      <div class="tab-pane" id="tab-embed">
+        <!-- 설정: 임베딩 모델 (문서의 "바로 결정해야 할 항목" 2번) -->
+        <div class="settings">
+          <div class="field">
+            <label>Embedding 모델</label>
+            <select id="embedModel">
+              <option value="bge-m3" selected>bge-m3 (한국어 성능 우수, 권장)</option>
+              <option value="nomic-embed-text">nomic-embed-text (경량)</option>
+            </select>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" id="btnRunEmbed">임베딩 실행</button>
+          <button id="btnEmbedStatus">상태 조회</button>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="embedProgress"></div>
+          <div class="progress-text" id="embedProgressText">대기 중</div>
+        </div>
+        <div class="result-box mono" id="embedResult">임베딩 결과가 여기에 표시됩니다.</div>
+      </div>
+
+      <!-- ---------- 탭 5: Vector 저장 (FAISS 빌드) ---------- -->
+      <div class="tab-pane" id="tab-faiss">
+        <div class="settings">
+          <div class="field">
+            <label>인덱스 타입</label>
+            <select id="faissType">
+              <option value="flat" selected>Flat (정확도 최우선, 소규모 테스트 권장)</option>
+              <option value="ivf">IVF (중규모)</option>
+              <option value="hnsw">HNSW (대규모/속도)</option>
+            </select>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="primary" id="btnRunFaiss">FAISS 인덱스 빌드</button>
+          <button id="btnFaissStatus">인덱스 상태 조회</button>
+        </div>
+        <div class="result-box mono" id="faissResult">FAISS 빌드 결과가 여기에 표시됩니다.</div>
+      </div>
+
+      <!-- ---------- 탭 6: 챗봇 테스트 ---------- -->
+      <div class="tab-pane" id="tab-chat">
+        <div class="settings">
+          <div class="field">
+            <label>Top-K (검색할 청크 수)</label>
+            <input type="number" id="topK" value="5" min="1" max="20">
+          </div>
+          <div class="field">
+            <label>모드</label>
+            <select id="chatMode">
+              <!-- 문서 요구사항: LLM 답변보다 검색 결과 확인이 우선 -->
+              <option value="search" selected>검색만 (Top-K 청크 확인)</option>
+              <option value="rag">검색 + LLM 답변</option>
+            </select>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div class="chat-q-row">
+            <input type="text" id="chatQuestion" placeholder="질문 입력 예: 한국수자원공사 ISP와 유사한 내용이 있나요?">
+            <button class="primary" id="btnAsk">질문</button>
+          </div>
+          <!-- LLM 답변 영역 (rag 모드일 때만 표시) -->
+          <div class="chat-answer" id="chatAnswer" style="display:none;"></div>
+          <!-- 근거 청크 목록 -->
+          <div id="evidenceList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
+
+    </div><!-- /.tab-body -->
+  </div><!-- /.main -->
+</div><!-- /.layout -->
+
+<!-- ============================================================
+     하단 콘솔: 모든 API 호출/응답 로그
+     ============================================================ -->
+<div class="console-wrap">
+  <div class="console-head">
+    <span>콘솔</span>
+    <button id="btnClearConsole">지우기</button>
+  </div>
+  <div id="console"></div>
+</div>
+
+<script>
+/* ============================================================
+   OCR / Parser Lab 메인 스크립트
+   ------------------------------------------------------------
+   설계 원칙 (개발계획 문서 기준):
+   1. 백엔드 신규 개발 없음 - 기존 Step 4~7 API 재사용
+   2. 단일 HTML 파일로 완결 (외부 라이브러리 없음)
+   3. 모든 API 경로는 CONFIG에 집중 - 서버 실제 응답 구조가
+      다를 경우 CONFIG와 [서버 확인 필요] 주석 지점만 수정
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   [1] 설정 - API 엔드포인트 정의
+   개발계획 문서 6장 "백엔드 API (기존 재사용)" 표 기준
+   ------------------------------------------------------------ */
+// API_BASE 자동 감지 (admin.html과 동일한 로직)
+function detectApiBase() {
+  const pathname = window.location.pathname || '';
+  // /weeslee-rag 경로에서 서빙되면 /weeslee-rag/api 사용
+  if (/^\/weeslee-rag(?:\/|$)/.test(pathname)) {
+    return '/weeslee-rag/api';
+  }
+  // 그 외에는 /api 사용
+  return '/api';
+}
+
+const CONFIG = {
+  API_BASE: detectApiBase(),
+
+  EP: {
+    // Document Sources API (실제 확인 완료)
+    sources:     "/admin/document-sources",
+    documents:   "/admin/dataset-builder/step1/records",      // ?source_id=...
+    upload:      "/admin/documents/upload-multi",             // 다중 업로드
+
+    // Step 4: OCR / 파싱 (실제 확인 완료)
+    docText:     (id) => `/admin/dataset-builder/step4/document/${id}/text`,
+    parse:       "/admin/dataset-builder/step4/parse/stream", // SSE 방식으로 변경
+    parseJob:    (jobId) => `/admin/dataset-builder/step4/parse/jobs/${jobId}`,
+    parseStream: (jobId) => `/sse/parse/stream/${jobId}`,     // SSE 엔드포인트
+
+    // Step 5: 청킹 (실제 확인 완료)
+    chunk:       "/admin/dataset-builder/step5/chunk",
+    chunkList:   (id) => `/admin/dataset-builder/step5/document/${id}/chunks`,
+
+    // Step 6: 임베딩 (실제 확인 완료)
+    embed:       "/admin/dataset-builder/step6/embed",
+
+    // Step 7: FAISS (실제 확인 완료)
+    faissBuild:  "/admin/dataset-builder/step7/build",
+
+    // 단계별 상태 조회 (N = 4~7) (실제 확인 완료)
+    status:      (n) => `/admin/dataset-builder/step${n}/status`,
+
+    // 챗봇 테스트: 검색 전용 / RAG 답변
+    search:      "/rag/search",
+    chat:        "/rag/chat"
+  },
+
+  // Step 5~7은 SSE가 없으므로 상태 폴링 주기(ms)
+  POLL_INTERVAL: 2000
+};
+
+/* ------------------------------------------------------------
+   [2] 전역 상태
+   ------------------------------------------------------------ */
+const state = {
+  sourceId: null,       // 현재 선택된 source_id
+  docId: null,          // 현재 선택된 document_id
+  docName: null,        // 현재 선택된 문서명 (표시용)
+  sse: null,            // 진행 중인 EventSource 객체 (중복 연결 방지)
+  pollTimer: null,      // 진행 중인 폴링 타이머
+  initialSourceId: new URLSearchParams(window.location.search || "").get("source_id") || null,
+  initialDocId: new URLSearchParams(window.location.search || "").get("document_id") || null
+};
+
+/* ------------------------------------------------------------
+   [3] 유틸리티: 콘솔 로그 / 파이프라인 칩 / fetch 래퍼
+   ------------------------------------------------------------ */
+
+// 하단 콘솔에 시간과 함께 로그를 출력한다.
+// type: info(파랑) | ok(초록) | err(빨강) | plain(기본)
+function log(msg, type = "plain") {
+  const box = document.getElementById("console");
+  const time = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+  const cls = { info: "log-info", ok: "log-ok", err: "log-err" }[type] || "";
+  const line = document.createElement("div");
+  line.innerHTML = `<span class="log-time">[${time}]</span> <span class="${cls}"></span>`;
+  line.querySelector(`span:last-child`).textContent = msg; // XSS 방지: textContent 사용
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight; // 자동 스크롤
+}
+
+// 헤더 파이프라인 칩 상태 갱신
+// step: upload|text|ocr|chunk|embed|faiss|chat, status: "active"|"done"|""
+function setPipeline(step, status) {
+  const chip = document.querySelector(`.pipeline .chip[data-step="${step}"]`);
+  if (!chip) return;
+  chip.classList.remove("active", "done");
+  if (status) chip.classList.add(status);
+}
+
+// 공통 fetch 래퍼: JSON 요청/응답 + 콘솔 로그 + 에러 처리
+async function api(path, options = {}) {
+  const url = CONFIG.API_BASE + path;
+  const method = options.method || "GET";
+  log(`${method} ${url}`, "info");
+  try {
+    const res = await fetch(url, {
+      headers: options.body instanceof FormData
+        ? {} // FormData는 브라우저가 Content-Type을 자동 설정 (boundary 포함)
+        : { "Content-Type": "application/json" },
+      ...options
+    });
+    // HTTP 에러 코드도 본문을 읽어 상세 메시지를 보여준다.
+    const text = await res.text();
+    let data;
+    try { data = text ? JSON.parse(text) : {}; }
+    catch { data = { raw: text }; } // JSON이 아닌 응답 대비
+    if (!res.ok) {
+      const detail = data.detail || data.message || text || res.statusText;
+      throw new Error(`HTTP ${res.status}: ${detail}`);
+    }
+    return data;
+  } catch (e) {
+    log(`오류: ${e.message}`, "err");
+    throw e;
+  }
+}
+
+// 문서가 선택되어 있는지 확인하고, 없으면 안내 후 예외 발생
+function requireDoc() {
+  if (!state.docId) {
+    alert("먼저 좌측에서 문서를 선택하세요.");
+    throw new Error("문서 미선택");
+  }
+}
+
+/* ------------------------------------------------------------
+   [4] 좌측 패널: Source / 문서 목록 / 업로드
+   ------------------------------------------------------------ */
+
+// Source 목록 로드 (페이지 진입 시 1회)
+async function loadSources() {
+  try {
+    const data = await api(CONFIG.EP.sources);
+    const sel = document.getElementById("sourceSelect");
+    sel.innerHTML = `<option value="">Source 선택...</option>`;
+    // [서버 확인 필요] 응답 구조 가정: { sources: [{source_id, name}] }
+    // 실제 응답이 배열이면 data 자체를 순회하도록 아래 한 줄만 수정
+    const list = data.sources || data.items || data || [];
+    list.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.source_id ?? s.id;
+      opt.textContent = s.name ?? s.source_name ?? opt.value;
+      sel.appendChild(opt);
+    });
+    log(`Source ${list.length}건 로드 완료`, "ok");
+    if (state.initialSourceId) {
+      const matched = list.find(s => String(s.source_id ?? s.id ?? "") === String(state.initialSourceId));
+      if (matched) {
+        sel.value = String(matched.source_id ?? matched.id ?? "");
+        log(`초기 Source 적용: ${sel.value}`, "info");
+        state.initialSourceId = null;
+        await loadDocuments();
+      }
+    }
+  } catch (e) {
+    log("Source 목록을 불러오지 못했습니다. CONFIG.EP.sources 경로를 확인하세요.", "err");
+  }
+}
+
+// 선택된 source의 문서 목록 로드
+async function loadDocuments() {
+  const sourceId = document.getElementById("sourceSelect").value;
+  state.sourceId = sourceId || null;
+  const listEl = document.getElementById("docList");
+  if (!sourceId) {
+    listEl.innerHTML = `<div style="color:var(--text-sub); font-size:12px; padding:10px;">Source를 선택하세요.</div>`;
+    return;
+  }
+  try {
+    const data = await api(`${CONFIG.EP.documents}?source_id=${encodeURIComponent(sourceId)}&limit=100`);
+    // 실제 응답 구조: { success: true, items: [...], total: N }
+    const docs = data.items || [];
+    listEl.innerHTML = "";
+    if (!docs.length) {
+      listEl.innerHTML = `<div style="color:var(--text-sub); font-size:12px; padding:10px;">문서가 없습니다. 파일을 업로드하세요.</div>`;
+      return;
+    }
+    docs.forEach(d => listEl.appendChild(renderDocItem(d)));
+    log(`문서 ${docs.length}건 / 전체 ${data.total || docs.length}건 로드 완료`, "ok");
+    if (state.initialDocId) {
+      const target = Array.from(listEl.querySelectorAll(".doc-item"))
+        .find(el => String(el.dataset.docId || "") === String(state.initialDocId));
+      if (target) {
+        target.click();
+        log(`초기 문서 적용: ${state.initialDocId}`, "info");
+      }
+      state.initialDocId = null;
+    }
+  } catch (e) { /* api()에서 이미 로그 출력됨 */ }
+}
+
+// 문서 1건을 카드 DOM으로 렌더링
+function renderDocItem(d) {
+  const id = d.document_id ?? d.id;
+  const name = d.filename ?? d.name ?? id;
+  const item = document.createElement("div");
+  item.className = "doc-item";
+  item.dataset.docId = id;
+
+  // 단계별 상태 배지: 서버가 주는 상태 필드를 배지 클래스로 변환
+  // [서버 확인 필요] 상태 필드명(ocr_status, chunk_status...)은 실제 응답에 맞출 것
+  const badge = (label, status) => {
+    const cls = status === "done" || status === "completed" || status === true ? "ok"
+              : status === "running" || status === "processing" ? "run"
+              : status === "error" || status === "failed" ? "err" : "";
+    return `<span class="badge ${cls}">${label}</span>`;
+  };
+
+  item.innerHTML = `
+    <div class="doc-name"></div>
+    <div class="doc-meta">id: ${id} ${d.page_count ? `/ ${d.page_count}p` : ""}</div>
+    <div class="badges">
+      ${badge("OCR",   d.ocr_status)}
+      ${badge("Chunk", d.chunk_status)}
+      ${badge("Embed", d.embed_status)}
+      ${badge("FAISS", d.faiss_status ?? d.rag_ready)}
+    </div>`;
+  item.querySelector(".doc-name").textContent = name; // 파일명은 textContent로 (XSS 방지)
+
+  // 클릭 시 작업 대상 문서로 선택
+  item.addEventListener("click", () => {
+    document.querySelectorAll(".doc-item").forEach(el => el.classList.remove("selected"));
+    item.classList.add("selected");
+    state.docId = id;
+    state.docName = name;
+    document.getElementById("textDocLabel").textContent = `선택: ${name}`;
+    log(`문서 선택: ${name} (id=${id})`);
+  });
+  return item;
+}
+
+// 파일 업로드 (기존 Step 1~3 업로드 API 활용)
+async function uploadFile() {
+  const input = document.getElementById("fileInput");
+  if (!input.files.length) { alert("업로드할 파일을 선택하세요."); return; }
+  const fd = new FormData();
+  fd.append("file", input.files[0]);
+  if (state.sourceId) fd.append("source_id", state.sourceId);
+
+  setPipeline("upload", "active");
+  try {
+    const data = await api(CONFIG.EP.upload, { method: "POST", body: fd });
+    log(`업로드 완료: ${input.files[0].name}`, "ok");
+    setPipeline("upload", "done");
+    input.value = "";
+    await loadDocuments(); // 업로드 후 목록 갱신
+  } catch (e) {
+    setPipeline("upload", "");
+  }
+}
+
+/* ------------------------------------------------------------
+   [5] 탭 1: 원문 보기
+   GET /step4/document/{id}/text
+   ------------------------------------------------------------ */
+async function loadText() {
+  requireDoc();
+  setPipeline("text", "active");
+  const box = document.getElementById("textResult");
+  box.textContent = "불러오는 중...";
+  try {
+    const data = await api(CONFIG.EP.docText(state.docId));
+    // [서버 확인 필요] 응답 구조 가정: { text: "..." } 또는 { content: "..." }
+    box.textContent = data.text ?? data.content ?? JSON.stringify(data, null, 2);
+    setPipeline("text", "done");
+    log("원문 로드 완료", "ok");
+  } catch (e) {
+    box.textContent = "원문을 불러오지 못했습니다. 콘솔을 확인하세요.";
+    setPipeline("text", "");
+  }
+}
+
+/* ------------------------------------------------------------
+   [6] 탭 2: OCR / 파싱 실행 + SSE 진행률
+   POST /step4/parse → job_id 수신 → SSE 스트림 구독
+   ------------------------------------------------------------ */
+async function runOcr() {
+  requireDoc();
+  setPipeline("ocr", "active");
+  updateProgress("ocr", 0, "요청 중...");
+  const box = document.getElementById("ocrResult");
+  box.textContent = "";
+
+  try {
+    const body = {
+      // 개별 문서 테스트가 목적이므로 단일 문서 ID 배열로 전달
+      document_ids: [state.docId],
+      source_id: state.sourceId,
+      force_reparse: false
+    };
+    const data = await api(CONFIG.EP.parse, { method: "POST", body: JSON.stringify(body) });
+
+    // 실제 응답 구조: { success: true, job_id: "...", message: "..." }
+    const jobId = data.job_id;
+    if (jobId) {
+      log(`OCR 작업 시작 (job_id=${jobId}), SSE 연결...`, "ok");
+      subscribeOcrStream(jobId);
+    } else {
+      // job_id 없이 동기 완료되는 서버 구현일 경우
+      updateProgress("ocr", 100, "완료");
+      box.textContent = JSON.stringify(data, null, 2);
+      setPipeline("ocr", "done");
+    }
+  } catch (e) {
+    updateProgress("ocr", 0, "오류");
+    setPipeline("ocr", "");
+  }
+}
+
+// SSE 스트림 구독: 진행률과 로그를 실시간 갱신
+function subscribeOcrStream(jobId) {
+  // 이전 연결이 남아있으면 닫는다 (중복 이벤트 방지)
+  if (state.sse) { state.sse.close(); state.sse = null; }
+
+  const url = CONFIG.API_BASE + CONFIG.EP.parseStream(jobId);
+  const es = new EventSource(url);
+  state.sse = es;
+  const box = document.getElementById("ocrResult");
+
+  es.onmessage = (ev) => {
+    // [서버 확인 필요] SSE data 구조 가정:
+    // { progress: 0~100, message: "...", status: "running|done|error", result: {...} }
+    let d;
+    try { d = JSON.parse(ev.data); } catch { d = { message: ev.data }; }
+
+    if (typeof d.progress === "number") {
+      updateProgress("ocr", d.progress, `${d.progress}% ${d.message ?? ""}`);
+    }
+    if (d.message) {
+      box.textContent += d.message + "\n";
+      box.scrollTop = box.scrollHeight;
+    }
+    if (d.status === "done" || d.status === "completed") {
+      updateProgress("ocr", 100, "완료");
+      if (d.result) box.textContent += "\n" + JSON.stringify(d.result, null, 2);
+      setPipeline("ocr", "done");
+      log("OCR/파싱 완료", "ok");
+      es.close(); state.sse = null;
+      loadDocuments(); // 상태 배지 갱신
+    }
+    if (d.status === "error" || d.status === "failed") {
+      updateProgress("ocr", 0, "오류");
+      setPipeline("ocr", "");
+      log(`OCR 오류: ${d.message ?? "상세 없음"}`, "err");
+      es.close(); state.sse = null;
+    }
+  };
+
+  es.onerror = () => {
+    // 서버가 스트림을 정상 종료해도 onerror가 올 수 있으므로 로그만 남기고 닫는다.
+    log("SSE 연결 종료됨 (완료 또는 네트워크 문제)", "info");
+    es.close();
+    if (state.sse === es) state.sse = null;
+  };
+}
+
+// 파싱 결과(parsed.json) 보기: 원문 보기 API 재사용 또는 status 조회
+async function viewParsed() {
+  requireDoc();
+  const box = document.getElementById("ocrResult");
+  try {
+    // Step4 상태 조회에 document_id 필터를 걸어 결과 요약을 표시
+    const data = await api(`${CONFIG.EP.status(4)}?document_id=${encodeURIComponent(state.docId)}`);
+    box.textContent = JSON.stringify(data, null, 2);
+    log("파싱 결과(상태) 조회 완료", "ok");
+  } catch (e) { /* 로그는 api()에서 처리 */ }
+}
+
+/* ------------------------------------------------------------
+   [7] 탭 3: 청킹 실행 + 청크 시각화
+   POST /step5/chunk → 상태 폴링 → 청크 목록 렌더링
+   ------------------------------------------------------------ */
+async function runChunk() {
+  requireDoc();
+  setPipeline("chunk", "active");
+  try {
+    const body = {
+      document_ids: [state.docId],
+      source_id: state.sourceId,
+      chunk_size: Number(document.getElementById("chunkSize").value),
+      chunk_overlap: Number(document.getElementById("chunkOverlap").value)
+    };
+    await api(CONFIG.EP.chunk, { method: "POST", body: JSON.stringify(body) });
+    log("청킹 요청 완료, 상태 폴링 시작", "ok");
+
+    // Step5는 SSE가 없으므로 status를 폴링하여 완료를 감지한다.
+    pollStatus(5, async () => {
+      setPipeline("chunk", "done");
+      await loadChunks(); // 완료되면 자동으로 청크 목록 표시
+      loadDocuments();
+    });
+  } catch (e) {
+    setPipeline("chunk", "");
+  }
+}
+
+// 청크 목록 조회 및 카드 렌더링
+async function loadChunks() {
+  requireDoc();
+  const grid = document.getElementById("chunkGrid");
+  grid.innerHTML = "";
+  try {
+    const data = await api(CONFIG.EP.chunkList(state.docId));
+    // [서버 확인 필요] 응답 구조 가정: { chunks: [{chunk_id, page_no, text, char_count}] }
+    const chunks = data.chunks || data.items || data || [];
+
+    // 통계 계산: 청크 수 / 평균·최대 글자 수
+    const lens = chunks.map(c => (c.text ?? "").length);
+    document.getElementById("statChunkCount").textContent = chunks.length;
+    document.getElementById("statChunkAvg").textContent =
+      lens.length ? Math.round(lens.reduce((a, b) => a + b, 0) / lens.length) : "-";
+    document.getElementById("statChunkMax").textContent =
+      lens.length ? Math.max(...lens) : "-";
+
+    // 청크 카드 렌더링
+    chunks.forEach((c, i) => {
+      const card = document.createElement("div");
+      card.className = "chunk-card";
+      card.innerHTML = `
+        <div class="chunk-head">
+          <b>#${i + 1}</b>
+          <span>chunk_id: ${c.chunk_id ?? "-"}</span>
+          <span>page: ${c.page_no ?? "-"}</span>
+          <span>${(c.text ?? "").length}자</span>
+        </div>
+        <div class="chunk-text"></div>`;
+      card.querySelector(".chunk-text").textContent = c.text ?? "";
+      grid.appendChild(card);
+    });
+    log(`청크 ${chunks.length}건 로드 완료`, "ok");
+  } catch (e) {
+    grid.innerHTML = `<div style="color:var(--text-sub); font-size:12px;">
+      청크 목록 API 경로(CONFIG.EP.chunkList)를 서버 구현에 맞게 확인하세요.</div>`;
+  }
+}
+
+/* ------------------------------------------------------------
+   [8] 탭 4: 임베딩 실행
+   POST /step6/embed → 상태 폴링
+   ------------------------------------------------------------ */
+async function runEmbed() {
+  requireDoc();
+  setPipeline("embed", "active");
+  updateProgress("embed", 0, "요청 중...");
+  try {
+    const body = {
+      document_ids: [state.docId],
+      source_id: state.sourceId,
+      model: document.getElementById("embedModel").value
+    };
+    await api(CONFIG.EP.embed, { method: "POST", body: JSON.stringify(body) });
+    log("임베딩 요청 완료, 상태 폴링 시작", "ok");
+
+    pollStatus(6, (data) => {
+      updateProgress("embed", 100, "완료");
+      setPipeline("embed", "done");
+      document.getElementById("embedResult").textContent = JSON.stringify(data, null, 2);
+      loadDocuments();
+    }, (data) => {
+      // 진행 중 콜백: 서버가 progress를 주면 반영
+      if (typeof data.progress === "number") {
+        updateProgress("embed", data.progress, `${data.progress}%`);
+      }
+    });
+  } catch (e) {
+    updateProgress("embed", 0, "오류");
+    setPipeline("embed", "");
+  }
+}
+
+// 임베딩 상태 단건 조회 버튼
+async function embedStatus() {
+  try {
+    const data = await api(CONFIG.EP.status(6));
+    document.getElementById("embedResult").textContent = JSON.stringify(data, null, 2);
+  } catch (e) {}
+}
+
+/* ------------------------------------------------------------
+   [9] 탭 5: FAISS 빌드
+   POST /step7/build → 상태 폴링
+   ------------------------------------------------------------ */
+async function runFaiss() {
+  setPipeline("faiss", "active");
+  try {
+    const body = {
+      source_id: state.sourceId,
+      // 미니 랩 전용 인덱스명: 운영 인덱스와 분리 (문서 7장 데이터 흐름 참조)
+      index_name: "ocr_lab",
+      index_type: document.getElementById("faissType").value
+    };
+    const data = await api(CONFIG.EP.faissBuild, { method: "POST", body: JSON.stringify(body) });
+    log("FAISS 빌드 요청 완료, 상태 폴링 시작", "ok");
+
+    pollStatus(7, (statusData) => {
+      setPipeline("faiss", "done");
+      document.getElementById("faissResult").textContent = JSON.stringify(statusData, null, 2);
+      log("FAISS 인덱스 빌드 완료 - 챗봇 테스트 가능", "ok");
+      loadDocuments();
+    });
+  } catch (e) {
+    setPipeline("faiss", "");
+  }
+}
+
+async function faissStatus() {
+  try {
+    const data = await api(CONFIG.EP.status(7));
+    document.getElementById("faissResult").textContent = JSON.stringify(data, null, 2);
+  } catch (e) {}
+}
+
+/* ------------------------------------------------------------
+   [10] 탭 6: 챗봇 테스트
+   문서 10장 요구사항: LLM 답변 이전에 "검색 결과가 제대로
+   나오는지"를 먼저 확인하는 기능이어야 한다.
+   → 기본 모드는 "검색만"으로 설정하고, Top-K 청크와
+     page/chunk 근거를 화면에 표시한다.
+   ------------------------------------------------------------ */
+async function askQuestion() {
+  const q = document.getElementById("chatQuestion").value.trim();
+  if (!q) { alert("질문을 입력하세요."); return; }
+  setPipeline("chat", "active");
+
+  const mode = document.getElementById("chatMode").value;
+  const topK = Number(document.getElementById("topK").value);
+  const answerEl = document.getElementById("chatAnswer");
+  const evList = document.getElementById("evidenceList");
+  answerEl.style.display = "none";
+  evList.innerHTML = `<div style="color:var(--text-sub); font-size:12px;">검색 중...</div>`;
+
+  try {
+    const endpoint = mode === "rag" ? CONFIG.EP.chat : CONFIG.EP.search;
+    const body = {
+      question: q,
+      query: q,          // 서버 구현에 따라 question 또는 query 필드를 사용하므로 둘 다 전달
+      top_k: topK,
+      index_name: "ocr_lab" // 미니 랩 인덱스만 대상으로 검색
+    };
+    const data = await api(endpoint, { method: "POST", body: JSON.stringify(body) });
+
+    // LLM 답변 표시 (rag 모드)
+    if (mode === "rag") {
+      answerEl.textContent = data.answer ?? data.response ?? "(답변 없음)";
+      answerEl.style.display = "block";
+    }
+
+    // 근거 청크 표시: 문서 10장의 화면 예시 형식 (page N / chunk M)
+    // [서버 확인 필요] 응답 구조 가정: { results|chunks|sources: [{page_no, chunk_id, text, score}] }
+    const results = data.results || data.chunks || data.sources || [];
+    evList.innerHTML = "";
+    if (!results.length) {
+      evList.innerHTML = `<div style="color:var(--text-sub); font-size:12px;">검색된 청크가 없습니다. FAISS 인덱스가 빌드되었는지 확인하세요.</div>`;
+    }
+    results.forEach((r, i) => {
+      const card = document.createElement("div");
+      card.className = "evidence-card";
+      card.innerHTML = `
+        <div class="ev-head">
+          <b>근거 ${i + 1}</b>
+          &nbsp; page ${r.page_no ?? "-"} / chunk ${r.chunk_id ?? r.chunk_no ?? "-"}
+          ${typeof r.score === "number" ? `&nbsp; 유사도 ${r.score.toFixed(4)}` : ""}
+        </div>
+        <div class="ev-text"></div>`;
+      card.querySelector(".ev-text").textContent = r.text ?? r.content ?? "";
+      evList.appendChild(card);
+    });
+    setPipeline("chat", "done");
+    log(`검색 완료: ${results.length}건 반환`, "ok");
+  } catch (e) {
+    evList.innerHTML = `<div style="color:var(--err); font-size:12px;">검색 실패. 콘솔을 확인하세요.</div>`;
+    setPipeline("chat", "");
+  }
+}
+
+/* ------------------------------------------------------------
+   [11] 공통: 진행률 바 / 상태 폴링
+   ------------------------------------------------------------ */
+
+// 진행률 바 갱신: prefix = "ocr" | "embed"
+function updateProgress(prefix, pct, text) {
+  document.getElementById(prefix + "Progress").style.width = pct + "%";
+  document.getElementById(prefix + "ProgressText").textContent = text;
+}
+
+// Step 5~7 상태 폴링: status가 완료가 될 때까지 주기적으로 조회
+// stepN: 5|6|7, onDone: 완료 콜백, onTick: 매 조회 콜백(선택)
+function pollStatus(stepN, onDone, onTick) {
+  // 기존 폴링이 돌고 있으면 중단 (중복 방지)
+  if (state.pollTimer) clearInterval(state.pollTimer);
+
+  state.pollTimer = setInterval(async () => {
+    try {
+      const data = await api(CONFIG.EP.status(stepN));
+      if (onTick) onTick(data);
+
+      // [서버 확인 필요] 완료 판정 필드 가정: status | state 값이
+      // done / completed / idle 중 하나이고 running이 아닐 때 완료
+      const st = (data.status ?? data.state ?? "").toString().toLowerCase();
+      if (st === "done" || st === "completed" || st === "idle" || st === "finished") {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+        onDone(data);
+      } else if (st === "error" || st === "failed") {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+        log(`Step${stepN} 처리 오류: ${data.message ?? "상세 없음"}`, "err");
+      }
+      // running/processing이면 다음 주기에 재조회
+    } catch (e) {
+      // 일시적 네트워크 오류는 폴링을 유지하되 로그만 남긴다.
+    }
+  }, CONFIG.POLL_INTERVAL);
+}
+
+/* ------------------------------------------------------------
+   [12] 탭 전환 + 이벤트 바인딩 + 초기화
+   ------------------------------------------------------------ */
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+  // 탭 버튼 활성 표시 전환
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  // 탭 콘텐츠 표시 전환
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  document.getElementById(btn.dataset.tab).classList.add("active");
+});
+
+// 버튼 이벤트 연결
+document.getElementById("sourceSelect").addEventListener("change", loadDocuments);
+document.getElementById("btnRefreshDocs").addEventListener("click", loadDocuments);
+document.getElementById("btnUpload").addEventListener("click", uploadFile);
+document.getElementById("btnLoadText").addEventListener("click", loadText);
+document.getElementById("btnRunOcr").addEventListener("click", runOcr);
+document.getElementById("btnViewParsed").addEventListener("click", viewParsed);
+document.getElementById("btnRunChunk").addEventListener("click", runChunk);
+document.getElementById("btnLoadChunks").addEventListener("click", loadChunks);
+document.getElementById("btnRunEmbed").addEventListener("click", runEmbed);
+document.getElementById("btnEmbedStatus").addEventListener("click", embedStatus);
+document.getElementById("btnRunFaiss").addEventListener("click", runFaiss);
+document.getElementById("btnFaissStatus").addEventListener("click", faissStatus);
+document.getElementById("btnAsk").addEventListener("click", askQuestion);
+// 질문 입력창에서 Enter로도 질문 실행
+document.getElementById("chatQuestion").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") askQuestion();
+});
+document.getElementById("btnClearConsole").addEventListener("click", () => {
+  document.getElementById("console").innerHTML = "";
+});
+
+// 페이지 이탈 시 SSE/폴링 정리 (리소스 누수 방지)
+window.addEventListener("beforeunload", () => {
+  if (state.sse) state.sse.close();
+  if (state.pollTimer) clearInterval(state.pollTimer);
+});
+
+// 초기화: Source 목록 로드
+log("OCR / Parser Lab 시작", "info");
+log(`API_BASE = ${CONFIG.API_BASE}`, "info");
+loadSources();
+</script>
+</body>
+</html>

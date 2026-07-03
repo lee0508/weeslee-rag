@@ -499,6 +499,10 @@
               <div class="wr-summary-label">🔍</div>
               <div class="wr-summary-value">FAISS 상태</div>
             </div>
+            <div class="wr-summary-card" style="cursor:pointer" onclick="openOcrParserLab()">
+              <div class="wr-summary-label">🧪</div>
+              <div class="wr-summary-value">OCR / Parser Lab</div>
+            </div>
           </div>
         </div>
 
@@ -12925,6 +12929,19 @@ LIMIT 10`;
       showWrPage('faiss-index');
       loadWrFaissOverview();
     }
+  }
+
+  function openOcrParserLab() {
+    const sourceId = getCurrentSourceId?.() || '';
+    const pathname = window.location.pathname || '';
+    const pagePath = /^\/weeslee-rag(?:\/|$)/.test(pathname)
+      ? '/weeslee-rag/frontend/ocr-parser-lab.html'
+      : '/frontend/ocr-parser-lab.html';
+    const url = new URL(pagePath, window.location.origin);
+    if (sourceId) {
+      url.searchParams.set('source_id', sourceId);
+    }
+    window.open(url.toString(), '_blank', 'noopener');
   }
 
   // ══════════════════════════════════════════════════════════════════
