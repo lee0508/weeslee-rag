@@ -327,32 +327,42 @@ async def generate_wiki_by_technology(source_id: Optional[str] = None):
     """기술별 Wiki 생성."""
     from app.services.metadata_db import metadata_db_service
 
+    def _normalize_technology_tags(value) -> list[str]:
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                value = []
+        return [tag.strip() for tag in (value or []) if isinstance(tag, str) and tag.strip()]
+
+    def _extract_technology_tags_from_doc(doc: dict) -> list[str]:
+        tech_tags: list[str] = []
+        for tag in doc.get("tags") or []:
+            if not isinstance(tag, dict):
+                continue
+            if str(tag.get("tag_type") or "").strip().lower() != "technology":
+                continue
+            tag_name = str(tag.get("tag_name") or "").strip()
+            if tag_name:
+                tech_tags.append(tag_name)
+        return list(dict.fromkeys(tech_tags))
+
     wiki_dir = _get_wiki_type_dir("technology", source_id)
     wiki_dir.mkdir(parents=True, exist_ok=True)
 
-    # SQLite에서 기술 태그별 문서 집계
+    # suggestion을 우선 사용하고, 없으면 document_metadata.tags에서 fallback 한다.
     documents = metadata_db_service.list_documents(limit=1000, source_id=source_id)
     tech_docs: dict[str, list] = {}
 
     for doc in documents:
-        # suggestion에서 technology_tags 조회
         suggestion = metadata_db_service.get_suggestion(doc["id"])
-        if not suggestion:
-            continue
-
-        tech_tags_raw = suggestion.get("technology_tags", "[]")
-        if isinstance(tech_tags_raw, str):
-            try:
-                tech_tags = json.loads(tech_tags_raw)
-            except json.JSONDecodeError:
-                tech_tags = []
-        else:
-            tech_tags = tech_tags_raw or []
+        tech_tags = []
+        if suggestion:
+            tech_tags = _normalize_technology_tags(suggestion.get("technology_tags", []))
+        if not tech_tags:
+            tech_tags = _extract_technology_tags_from_doc(doc)
 
         for tag in tech_tags:
-            tag = tag.strip()
-            if not tag:
-                continue
             if tag not in tech_docs:
                 tech_docs[tag] = []
             tech_docs[tag].append(doc)
