@@ -885,7 +885,9 @@ class HybridRAGService:
                 "category": category,
                 "organization": organization,
                 "year": year,
-                "organization_type": router_filters.get("organization_type") if isinstance(router_filters.get("organization_type"), str) else None,
+                # 질문문에서 추론한 organization_type은 strict filter로 쓰면
+                # 리콜이 급격히 떨어지므로 soft hint로만 사용한다.
+                "organization_type": None,
                 "project_type": strict_project_type,
                 "document_group": document_group or (router_filters.get("document_group") if isinstance(router_filters.get("document_group"), str) else None),
                 "document_category": document_category or router_document_section,
