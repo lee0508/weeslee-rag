@@ -307,19 +307,39 @@ class QueryRouter:
         - 복합 조건: Graph → FAISS 순차
         - 관계 추론 필요: Graph + FAISS + Wiki
         """
+        explicit_document_filters = any(
+            key in filters
+            for key in ("document_group", "document_section", "project_type", "organization_type", "topic")
+        )
+        section_or_group_filters = any(
+            key in filters
+            for key in ("document_group", "document_section")
+        )
+
         # 단순 질문: FAISS만
         if complexity == QueryComplexity.SIMPLE and not filters:
             return [SearchSource.FAISS], "faiss_only"
 
-        # 문서/섹션 찾기: Graph 우선
+        # 문서/섹션 찾기에서 명시적인 메타데이터 필터가 있으면
+        # Graph 후보에 FAISS가 과도하게 종속되지 않도록 검색 순서를 낮춘다.
         if intent in [QueryIntent.FIND_DOCUMENT, QueryIntent.FIND_SECTION]:
+            if section_or_group_filters:
+                if complexity == QueryComplexity.COMPLEX:
+                    return [SearchSource.FAISS, SearchSource.GRAPH, SearchSource.WIKI], "parallel"
+                return [SearchSource.FAISS, SearchSource.GRAPH], "faiss_first"
+            if explicit_document_filters:
+                return [SearchSource.FAISS, SearchSource.GRAPH], "faiss_first"
             if complexity == QueryComplexity.COMPLEX:
                 return [SearchSource.GRAPH, SearchSource.FAISS, SearchSource.WIKI], "graph_first"
             else:
                 return [SearchSource.GRAPH, SearchSource.FAISS], "graph_first"
 
-        # 예시/사례 찾기: Graph + Wiki
+        # 예시/사례 찾기라도 문서그룹/섹션/주제 필터가 명확하면 병렬 검색이 더 안정적이다.
         if intent in [QueryIntent.FIND_EXAMPLE, QueryIntent.COMPARE]:
+            if explicit_document_filters:
+                if complexity == QueryComplexity.COMPLEX:
+                    return [SearchSource.FAISS, SearchSource.GRAPH, SearchSource.WIKI], "parallel"
+                return [SearchSource.FAISS, SearchSource.GRAPH, SearchSource.WIKI], "faiss_first"
             return [SearchSource.GRAPH, SearchSource.WIKI, SearchSource.FAISS], "graph_first"
 
         # 요구사항 찾기: FAISS 우선 (원문 검색)
@@ -329,6 +349,12 @@ class QueryRouter:
         # 요약: Wiki 우선
         if intent == QueryIntent.SUMMARIZE:
             return [SearchSource.WIKI, SearchSource.FAISS], "wiki_first"
+
+        # 복합 조건이 있더라도 명시적인 문서 필터가 있으면 FAISS를 먼저 사용한다.
+        if explicit_document_filters:
+            if complexity == QueryComplexity.COMPLEX:
+                return [SearchSource.FAISS, SearchSource.GRAPH], "parallel"
+            return [SearchSource.FAISS, SearchSource.GRAPH], "faiss_first"
 
         # 복합 조건이 있으면 Graph 우선
         if complexity in [QueryComplexity.MODERATE, QueryComplexity.COMPLEX]:
