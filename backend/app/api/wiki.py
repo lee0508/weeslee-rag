@@ -245,6 +245,8 @@ def _get_wiki_type_dir(wiki_type: str, source_id: Optional[str] = None) -> Path:
     if wiki_type == "project":
         return _get_wiki_dir(source_id)
     if source_id:
+        if wiki_type == "technology":
+            return DATA_DIR / "wiki" / source_id / "technologies"
         return DATA_DIR / "wiki" / source_id / f"{wiki_type}s"
     if wiki_type == "organization":
         return WIKI_ORG_DIR
