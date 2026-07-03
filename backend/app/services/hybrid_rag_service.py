@@ -16,6 +16,7 @@ Phase 7에서 구현된 핵심 서비스로 다음을 수행한다.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -870,6 +871,9 @@ class HybridRAGService:
             literal_section_hint = self._extract_literal_section_hint(question)
             if literal_section_hint:
                 router_document_section = literal_section_hint
+            explicit_document_group_in_question = bool(
+                re.search(r"\bRFP\b|제안요청서|제안서|산출물", question, re.IGNORECASE)
+            )
 
             strict_project_type = inferred_project_type
             router_project_type = router_filters.get("project_type") if isinstance(router_filters.get("project_type"), str) else None
@@ -889,7 +893,11 @@ class HybridRAGService:
                 # 리콜이 급격히 떨어지므로 soft hint로만 사용한다.
                 "organization_type": None,
                 "project_type": strict_project_type,
-                "document_group": document_group or (router_filters.get("document_group") if isinstance(router_filters.get("document_group"), str) else None),
+                "document_group": document_group or (
+                    router_filters.get("document_group")
+                    if explicit_document_group_in_question and isinstance(router_filters.get("document_group"), str)
+                    else None
+                ),
                 "document_category": document_category or router_document_section,
                 "section_type": section_type or router_document_section,
             }
