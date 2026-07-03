@@ -239,7 +239,24 @@ class HybridRAGService:
         raw = str(value or "").strip()
         if not raw:
             return ""
-        normalized = re.sub(r"[+/|]+", " ", raw)
+        suffix_candidates = ("사례", "분석", "비교", "도입", "구축", "관리", "계획", "전략", "모델")
+
+        def expand_slash(match: re.Match[str]) -> str:
+            left = match.group(1).strip()
+            right = match.group(2).strip()
+            expanded = [left, right]
+            for suffix in suffix_candidates:
+                if right.endswith(suffix) and not left.endswith(suffix):
+                    expanded.insert(0, f"{left}{suffix}")
+                    break
+            return " ".join(dict.fromkeys(token for token in expanded if token))
+
+        normalized = re.sub(
+            r"([가-힣A-Za-z0-9]+)\s*/\s*([가-힣A-Za-z0-9]+)",
+            expand_slash,
+            raw,
+        )
+        normalized = re.sub(r"[+|]+", " ", normalized)
         normalized = re.sub(r"\s+", " ", normalized).strip()
         return normalized
 
