@@ -240,25 +240,33 @@ class HybridRAGService:
         if not raw:
             return ""
         suffix_candidates = ("사례", "분석", "비교", "도입", "구축", "관리", "계획", "전략", "모델")
+        normalized = re.sub(r"[+|]+", " ", raw)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
 
-        def expand_slash(match: re.Match[str]) -> str:
-            left = match.group(1).strip()
-            right = match.group(2).strip()
-            expanded = [left, right]
+        expanded_tokens: list[str] = []
+        for token in normalized.split():
+            if "/" not in token:
+                expanded_tokens.append(token)
+                continue
+
+            parts = [part.strip() for part in token.split("/") if part.strip()]
+            if len(parts) < 2:
+                expanded_tokens.append(token.replace("/", " "))
+                continue
+
+            left, right = parts[0], parts[1]
+            variant_tokens = []
             for suffix in suffix_candidates:
                 if right.endswith(suffix) and not left.endswith(suffix):
-                    expanded.insert(0, f"{left}{suffix}")
+                    variant_tokens.append(f"{left}{suffix}")
                     break
-            return " ".join(dict.fromkeys(token for token in expanded if token))
+            variant_tokens.extend(parts)
 
-        normalized = re.sub(
-            r"([가-힣A-Za-z0-9]+)\s*/\s*([가-힣A-Za-z0-9]+)",
-            expand_slash,
-            raw,
-        )
-        normalized = re.sub(r"[+|]+", " ", normalized)
-        normalized = re.sub(r"\s+", " ", normalized).strip()
-        return normalized
+            for variant in variant_tokens:
+                if variant and variant not in expanded_tokens:
+                    expanded_tokens.append(variant)
+
+        return " ".join(expanded_tokens)
 
     @staticmethod
     def _extract_literal_section_hint(question: str) -> Optional[str]:
