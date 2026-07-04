@@ -26,6 +26,7 @@ class ChunkBuildRequest(BaseModel):
     chunk_overlap: int = Field(50, ge=0, le=500, description="청크 오버랩 (토큰)")
     min_chunk_size: int = Field(100, ge=50, le=500, description="최소 청크 크기")
     force_rebuild: bool = Field(False, description="이미 청킹된 문서도 재처리")
+    chunking_mode: str = Field("auto", description="청킹 모드 (auto, semantic, plain)")
 
 
 class ChunkInfo(BaseModel):
@@ -240,6 +241,7 @@ async def build_chunks(
                 extracted_text = processed_text_store.get_text(str(document_id), format="txt")
                 extraction_result = processed_text_store.get_result(str(document_id))
                 report = processed_text_store.get_report(str(document_id)) or {}
+                structured_data = processed_text_store.get_structured_data(str(document_id)) or {}
 
                 # Step 4 품질 게이트 통과 문서만 청킹한다.
                 quality_ok, quality_error = validate_step4_quality(document_id, processed_text_store)
@@ -293,9 +295,22 @@ async def build_chunks(
                     "document_uid": doc.document_uid,
                     "relative_path": doc.relative_path,
                 }
+                semantic_tags = structured_data.get("semantic_tags") or {}
+                if semantic_tags:
+                    chunk_meta.update({
+                        "methodology": semantic_tags.get("methodology", ""),
+                        "domain": semantic_tags.get("domain", ""),
+                        "technology": semantic_tags.get("technology", ""),
+                    })
 
                 # 청킹 실행
-                if page_rows:
+                use_semantic = (
+                    req.chunking_mode == "semantic"
+                    or (req.chunking_mode == "auto" and bool(structured_data))
+                )
+                if use_semantic and structured_data:
+                    chunks = chunking_service.chunk_semantic_sections(structured_data, metadata=chunk_meta)
+                elif page_rows and req.chunking_mode != "plain":
                     chunks = chunking_service.chunk_pages(page_rows, metadata=chunk_meta)
                 else:
                     chunks = chunking_service.chunk_text(extracted_text, metadata=chunk_meta)

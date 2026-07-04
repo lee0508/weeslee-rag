@@ -69,6 +69,7 @@ class ProcessingResult:
     pages: list[dict] = field(default_factory=list)
     tables: list[dict] = field(default_factory=list)
     failed_pages: list[int] = field(default_factory=list)
+    structured_data: dict = field(default_factory=dict)
 
     # 시간 정보
     created_at: str = ""
@@ -100,6 +101,7 @@ class ProcessingResult:
             "text_length": self.text_length,
             "quality": self.quality,
             "failed_pages": self.failed_pages,
+            "structured_data": self.structured_data,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "processing_time_ms": self.processing_time_ms,
@@ -135,6 +137,7 @@ class ProcessingResult:
             pages=data.get("pages", []),
             tables=data.get("tables", []),
             failed_pages=data.get("failed_pages", []),
+            structured_data=data.get("structured_data", {}),
             created_at=data.get("created_at", ""),
             updated_at=data.get("updated_at", ""),
             processing_time_ms=data.get("processing_time_ms", 0),
@@ -221,6 +224,13 @@ class ProcessedTextStore:
                 encoding="utf-8"
             )
 
+            # 6. structured_data.json 저장
+            if result.structured_data:
+                (doc_dir / "structured_data.json").write_text(
+                    json.dumps(result.structured_data, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+
             return True
 
         except Exception as e:
@@ -275,6 +285,10 @@ class ProcessedTextStore:
                         if line.strip():
                             result.tables.append(json.loads(line))
 
+            structured_path = doc_dir / "structured_data.json"
+            if structured_path.exists():
+                result.structured_data = json.loads(structured_path.read_text(encoding="utf-8"))
+
             return result
 
         except Exception as e:
@@ -326,6 +340,16 @@ class ProcessedTextStore:
     def exists(self, document_id: str) -> bool:
         """처리 결과 존재 여부 확인."""
         return (self._doc_dir(document_id) / "ocr_report.json").exists()
+
+    def get_structured_data(self, document_id: str) -> Optional[dict]:
+        """구조화 데이터 조회."""
+        structured_path = self._doc_dir(document_id) / "structured_data.json"
+        if not structured_path.exists():
+            return None
+        try:
+            return json.loads(structured_path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
 
     def delete(self, document_id: str) -> bool:
         """처리 결과 삭제."""

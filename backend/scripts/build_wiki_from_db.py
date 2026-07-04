@@ -85,6 +85,33 @@ def get_text_snippet(document_id: int, max_length: int = 500) -> str:
         return ""
 
 
+def get_semantic_sections(document_id: int, max_sections: int = 12) -> List[str]:
+    """document_id의 structured_data.json에서 의미 섹션 요약을 가져온다."""
+    structured_path = PROCESSED_TEXT_DIR / str(document_id) / "structured_data.json"
+    if not structured_path.exists():
+        return []
+    try:
+        data = json.loads(structured_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+    section_lines: List[str] = []
+    for top in data.get("sections", []):
+        top_name = str(top.get("section_name") or "").strip()
+        for sub in top.get("subsections", []):
+            section_name = str(sub.get("section_name") or "").strip()
+            slide_label = str(sub.get("slide_label") or "").strip()
+            if not section_name:
+                continue
+            line = f"{top_name} > {section_name}"
+            if slide_label:
+                line += f" ({slide_label})"
+            section_lines.append(line)
+            if len(section_lines) >= max_sections:
+                return section_lines
+    return section_lines
+
+
 def generate_wiki_markdown(
     project_folder: str,
     project_name: str,
@@ -201,6 +228,14 @@ def generate_wiki_markdown(
                 lines.append("```")
                 lines.append(snippet)
                 lines.append("```")
+                lines.append("")
+
+            semantic_sections = get_semantic_sections(doc.document_id, max_sections=10)
+            if semantic_sections:
+                lines.append("**주요 의미 섹션**:")
+                lines.append("")
+                for section in semantic_sections[:10]:
+                    lines.append(f"- {section}")
                 lines.append("")
 
     lines.append("---")

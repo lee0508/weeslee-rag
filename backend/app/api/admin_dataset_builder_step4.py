@@ -23,6 +23,7 @@ from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus
 from app.services.processed_text_store import processed_text_store, ProcessingResult
+from app.services.semantic_structure_service import build_pptx_structure, infer_semantic_tags
 from app.extractors.extractor import DocumentExtractor
 from app.services.metadata_extractor import rule_based_extractor
 from app.services.dataset_context import get_source_dataset_context
@@ -274,6 +275,27 @@ async def parse_document(
             processing_result.ocr_required = metadata.get("is_scanned", False) or metadata.get("ocr_required", False)
             if metadata.get("pages"):
                 processing_result.pages = [{"page_num": i, "text": "", "char_count": 0} for i in range(1, metadata["pages"] + 1)]
+
+        if file_ext == ".pptx":
+            try:
+                structured_data = build_pptx_structure(file_path, processing_result.relative_path or file_name)
+                semantic_tags = infer_semantic_tags(structured_data)
+                structured_data["semantic_tags"] = semantic_tags
+                processing_result.structured_data = structured_data
+                processing_result.quality = {
+                    **(processing_result.quality or {}),
+                    "semantic_structure": True,
+                    "semantic_sections": sum(len(sec.get("subsections", [])) for sec in structured_data.get("sections", [])),
+                }
+                if semantic_tags.get("technology") and not processing_result.project_type:
+                    processing_result.project_type = semantic_tags.get("technology", "")
+            except Exception as structure_exc:
+                logger.warning(
+                    "[Step4] semantic structure build failed: document_id=%s file=%s error=%s",
+                    document_id,
+                    file_path,
+                    structure_exc,
+                )
 
         if not extract_result.get("success"):
             processing_result.error_message = extract_result.get("error") or "Extraction failed"

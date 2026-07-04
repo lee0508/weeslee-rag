@@ -251,6 +251,21 @@ def _build_snapshot_metadata_row(
         or ""
     )
     chunk_id = str(chunk_meta.get("chunk_id") or f"{doc.document_id}-chunk-{chunk_index:04d}")
+    top_section = str(chunk_meta.get("top_section") or "")
+    section_name = str(chunk_meta.get("section_name") or section_title or "")
+    subsection_titles = chunk_meta.get("subsection_titles") or []
+    if not isinstance(subsection_titles, list):
+        subsection_titles = [str(subsection_titles)]
+    semantic_keywords = chunk_meta.get("keywords") or []
+    if not isinstance(semantic_keywords, list):
+        semantic_keywords = [str(semantic_keywords)]
+    methodology = str(chunk_meta.get("methodology") or "")
+    phase = str(chunk_meta.get("phase") or "")
+    domain = str(chunk_meta.get("domain") or "")
+    technology = str(chunk_meta.get("technology") or "")
+    chunk_type = str(chunk_meta.get("chunk_type") or "")
+    slide_range = chunk_meta.get("slide_range") or []
+    slide_numbers = chunk_meta.get("slide_numbers") or []
 
     nested_metadata = {
         "document_id": str(doc.document_id),
@@ -270,6 +285,15 @@ def _build_snapshot_metadata_row(
         "section_heading": chunk_meta.get("section_heading") or "",
         "section_title": section_title,
         "section_id": section_id,
+        "top_section": top_section,
+        "section_name": section_name,
+        "subsection_titles": subsection_titles,
+        "keywords": semantic_keywords,
+        "methodology": methodology,
+        "phase": phase,
+        "domain": domain,
+        "technology": technology,
+        "chunk_type": chunk_type,
         "project_name": project_name,
         "project_type": project_type,
         "organization": organization,
@@ -280,6 +304,8 @@ def _build_snapshot_metadata_row(
         "file_name": file_name,
         "page_no": page_no,
         "slide_no": chunk_meta.get("slide_no"),
+        "slide_range": slide_range,
+        "slide_numbers": slide_numbers,
         "start_char": chunk.get("start_char", 0),
         "total_pages": total_pages,
         "matched_terms": [],
@@ -297,6 +323,15 @@ def _build_snapshot_metadata_row(
         "section_heading": chunk_meta.get("section_heading") or "",
         "section_title": section_title,
         "section_id": section_id,
+        "top_section": top_section,
+        "section_name": section_name,
+        "subsection_titles": subsection_titles,
+        "keywords": semantic_keywords,
+        "methodology": methodology,
+        "phase": phase,
+        "domain": domain,
+        "technology": technology,
+        "chunk_type": chunk_type,
         "section_type": section_type,
         "char_count": chunk.get("char_count") or len(content),
         "source_path": doc.file_path or "",
@@ -319,6 +354,8 @@ def _build_snapshot_metadata_row(
         "original_text_length": len(content),
         "page_no": page_no,
         "slide_no": chunk_meta.get("slide_no"),
+        "slide_range": slide_range,
+        "slide_numbers": slide_numbers,
         "start_char": chunk.get("start_char", 0),
         "total_pages": total_pages,
         "matched_terms": [],

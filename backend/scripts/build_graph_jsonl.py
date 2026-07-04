@@ -7,8 +7,8 @@ Output:
   data/indexes/graph/graph_edges.jsonl
   data/indexes/graph/graph_manifest.json
 
-Node types:  project | document | document_section | category | organization | technology | methodology | domain | chunk_section
-Edge types:  has_document | has_category | CONTAINS_SECTION | related_sequence | 발주 | 적용기술 | 사용방법론 | 관련도메인 | 동의어 | 유사기술 | APPEARS_IN | MENTIONS
+Node types:  project | document | document_section | category | organization | technology | methodology | domain | chunk_section | phase | strategy | output
+Edge types:  has_document | has_category | CONTAINS_SECTION | related_sequence | 발주 | 적용기술 | 사용방법론 | 관련도메인 | 동의어 | 유사기술 | APPEARS_IN | MENTIONS | HAS_PHASE | HAS_ACTIVITY | HAS_STRATEGY | HAS_OUTPUT
 
 Phase 2 enhancements:
 - chunk_section 노드: FAISS 청크의 section_heading 기반 섹션 노드 생성
@@ -478,8 +478,19 @@ def _chunks_from_faiss_meta(path: Path, allowed_doc_ids: set[str] | None = None)
                 "section_heading": row.get("section_heading", ""),
                 "section_title": row.get("section_title") or meta.get("section_title", ""),
                 "section_id": row.get("section_id") or meta.get("section_id"),
+                "top_section": row.get("top_section") or meta.get("top_section", ""),
+                "section_name": row.get("section_name") or meta.get("section_name", ""),
+                "subsection_titles": row.get("subsection_titles") or meta.get("subsection_titles", []),
+                "keywords": row.get("keywords") or meta.get("keywords", []),
+                "methodology": row.get("methodology") or meta.get("methodology", ""),
+                "phase": row.get("phase") or meta.get("phase", ""),
+                "domain": row.get("domain") or meta.get("domain", ""),
+                "technology": row.get("technology") or meta.get("technology", ""),
+                "chunk_type": row.get("chunk_type") or meta.get("chunk_type", ""),
                 "page_no": row.get("page_no") or meta.get("page_no", 0),
                 "slide_no": row.get("slide_no") or meta.get("slide_no"),
+                "slide_range": row.get("slide_range") or meta.get("slide_range", []),
+                "slide_numbers": row.get("slide_numbers") or meta.get("slide_numbers", []),
                 "char_count": row.get("char_count", 0),
             })
     return chunks
@@ -1317,6 +1328,147 @@ def _add_document_keyword_mentions(
     return mentions_count
 
 
+def _add_semantic_section_graph(
+    nodes: list[dict],
+    edges: list[dict],
+    chunks: list[dict],
+    node_ids: set[str],
+    edge_counter: list[int],
+) -> None:
+    """
+    semantic chunk metadata를 이용해 methodology/phase/strategy/output 관계를 추가한다.
+
+    목표:
+    - WIM2 -[HAS_PHASE]-> 환경분석
+    - 환경분석 -[HAS_ACTIVITY]-> 환경분석 절차 및 활동내용
+    - AI감사시스템 -[HAS_STRATEGY]-> 전략1/전략2 ...
+    - 방법론 절차에 따른 산출물 예시 -[HAS_OUTPUT]-> 환경분석 산출물
+    """
+
+    def add_node(n: dict) -> bool:
+        if n["id"] not in node_ids:
+            nodes.append(n)
+            node_ids.add(n["id"])
+            return True
+        return False
+
+    def add_edge(src: str, tgt: str, relation: str, **extra) -> None:
+        edge_id = f"{src}->{tgt}:{relation}"
+        if any(e["id"] == edge_id for e in edges):
+            return
+        edge_counter[0] += 1
+        edges.append({"id": edge_id, "source": src, "target": tgt, "relation": relation, **extra})
+
+    phase_titles = {"프로젝트 준비", "환경분석", "현황분석", "목표모델 수립", "이행계획 수립", "통합 실행계획 수립"}
+    strategy_pattern = re.compile(r"전략\s*\d+")
+    output_pattern = re.compile(r"산출물")
+
+    project_nodes_by_doc: dict[str, str] = {}
+    for edge in edges:
+        if edge.get("relation") == "has_document" and str(edge.get("target", "")).startswith("document:"):
+            project_nodes_by_doc[str(edge["target"]).replace("document:", "")] = str(edge["source"])
+
+    doc_section_nodes: dict[tuple[str, str], str] = {}
+    for node in nodes:
+        if node.get("type") == "document_section":
+            doc_section_nodes[(str(node.get("document_id") or ""), str(node.get("label") or ""))] = str(node["id"])
+
+    for chunk in chunks:
+        doc_id = str(chunk.get("document_id") or "")
+        if not doc_id:
+            continue
+
+        project_id = project_nodes_by_doc.get(doc_id)
+        methodology = _clean_text(chunk.get("methodology"))
+        phase = _clean_text(chunk.get("phase"))
+        section_name = _clean_text(chunk.get("section_name")) or _clean_text(chunk.get("section_title")) or _clean_text(chunk.get("section_heading"))
+        top_section = _clean_text(chunk.get("top_section"))
+        subsection_titles = chunk.get("subsection_titles") or []
+        if not isinstance(subsection_titles, list):
+            subsection_titles = [str(subsection_titles)]
+
+        clean_section = re.sub(r"^\d+(\.\d+)*\s*", "", section_name).strip()
+        clean_phase = re.sub(r"^\d+(\.\d+)*\s*", "", phase).strip()
+
+        if methodology:
+            method_id = f"methodology:{methodology}"
+            add_node({
+                "id": method_id,
+                "type": "methodology",
+                "label": methodology,
+                "synonyms": [],
+                "color": "#f59e0b",
+            })
+            if project_id:
+                add_edge(project_id, method_id, "사용방법론")
+
+        if clean_phase:
+            phase_id = f"phase:{clean_phase}"
+            add_node({
+                "id": phase_id,
+                "type": "phase",
+                "label": clean_phase,
+                "color": "#10b981",
+            })
+            if methodology:
+                add_edge(f"methodology:{methodology}", phase_id, "HAS_PHASE")
+            if project_id:
+                add_edge(project_id, phase_id, "HAS_PHASE")
+
+            if clean_section and clean_section != clean_phase:
+                section_node_id = doc_section_nodes.get((doc_id, clean_section)) or doc_section_nodes.get((doc_id, section_name))
+                if section_node_id:
+                    add_edge(phase_id, section_node_id, "HAS_ACTIVITY")
+
+        if project_id and clean_section:
+            if strategy_pattern.search(clean_section) or clean_section == "사업 추진전략":
+                strategy_id = f"strategy:{clean_section}"
+                add_node({
+                    "id": strategy_id,
+                    "type": "strategy",
+                    "label": clean_section,
+                    "color": "#8b5cf6",
+                })
+                add_edge(project_id, strategy_id, "HAS_STRATEGY")
+
+            if output_pattern.search(clean_section):
+                output_section_id = f"output:{clean_section}"
+                add_node({
+                    "id": output_section_id,
+                    "type": "output",
+                    "label": clean_section,
+                    "color": "#0ea5e9",
+                })
+                if top_section:
+                    top_node_id = doc_section_nodes.get((doc_id, top_section))
+                    if top_node_id:
+                        add_edge(top_node_id, output_section_id, "HAS_OUTPUT")
+                if clean_phase:
+                    add_edge(f"phase:{clean_phase}", output_section_id, "HAS_OUTPUT")
+
+                for sub_title in subsection_titles:
+                    clean_sub = re.sub(r"^\d+(\.\d+)*\s*", "", str(sub_title)).strip()
+                    if not clean_sub:
+                        continue
+                    child_output_id = f"output:{clean_sub}"
+                    add_node({
+                        "id": child_output_id,
+                        "type": "output",
+                        "label": clean_sub,
+                        "color": "#38bdf8",
+                    })
+                    add_edge(output_section_id, child_output_id, "HAS_OUTPUT")
+                    if clean_sub in phase_titles:
+                        phase_child_id = f"phase:{clean_sub}"
+                        add_node({
+                            "id": phase_child_id,
+                            "type": "phase",
+                            "label": clean_sub,
+                            "color": "#10b981",
+                        })
+                        add_edge(phase_child_id, child_output_id, "HAS_OUTPUT")
+
+
 # ── 유사 프로젝트 연결 (개선방안 5) ────────────────────────────────────────────────
 
 def _add_similar_project_edges(
@@ -1554,6 +1706,10 @@ def main() -> int:
         node_ids = {n["id"] for n in nodes}  # 새 노드 추가 후 갱신
         _add_chunk_section_nodes_and_edges(nodes, edges, chunks, node_ids, edge_counter)
 
+        print(json.dumps({"progress": 65, "current": 5, "total": 8, "stage": "Semantic Phase/Strategy/Output 관계 생성"}), flush=True)
+        node_ids = {n["id"] for n in nodes}
+        _add_semantic_section_graph(nodes, edges, chunks, node_ids, edge_counter)
+
         # Phase 3: MENTIONS 엣지 추가 (문서 텍스트 기반 키워드 추출)
         print(json.dumps({"progress": 70, "current": 5, "total": 7, "stage": "문서 텍스트 로드 및 MENTIONS 엣지 생성"}), flush=True)
         source_path_texts = _load_document_texts_by_source_path(allowed_source_paths=allowed_source_paths)
@@ -1578,9 +1734,16 @@ def main() -> int:
     document_count = sum(1 for n in nodes if n["type"] == "document")
     document_section_count = sum(1 for n in nodes if n["type"] == "document_section")
     chunk_section_count = sum(1 for n in nodes if n["type"] == "chunk_section")
+    phase_count = sum(1 for n in nodes if n["type"] == "phase")
+    strategy_count = sum(1 for n in nodes if n["type"] == "strategy")
+    output_count = sum(1 for n in nodes if n["type"] == "output")
     contains_section_count = sum(1 for e in edges if e["relation"] == "CONTAINS_SECTION")
     appears_in_count = sum(1 for e in edges if e["relation"] == "APPEARS_IN")
     mentions_edge_count = sum(1 for e in edges if e["relation"] == "MENTIONS")
+    has_phase_count = sum(1 for e in edges if e["relation"] == "HAS_PHASE")
+    has_activity_count = sum(1 for e in edges if e["relation"] == "HAS_ACTIVITY")
+    has_strategy_count = sum(1 for e in edges if e["relation"] == "HAS_STRATEGY")
+    has_output_count = sum(1 for e in edges if e["relation"] == "HAS_OUTPUT")
     integrity = _build_graph_integrity(docs, nodes)
 
     # 진행률 출력: 완료
@@ -1605,6 +1768,13 @@ def main() -> int:
         # Phase 2: Chunk Section 통계
         "chunk_section_count": chunk_section_count,
         "appears_in_edge_count": appears_in_count,
+        "phase_count": phase_count,
+        "strategy_count": strategy_count,
+        "output_count": output_count,
+        "has_phase_edge_count": has_phase_count,
+        "has_activity_edge_count": has_activity_count,
+        "has_strategy_edge_count": has_strategy_count,
+        "has_output_edge_count": has_output_count,
         # Phase 3: MENTIONS 통계
         "mentions_edge_count": mentions_edge_count,
         # 무결성 검증

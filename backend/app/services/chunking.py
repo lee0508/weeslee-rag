@@ -329,6 +329,99 @@ class ChunkingService:
 
         return all_chunks
 
+    def chunk_semantic_sections(
+        self,
+        structured_data: Dict[str, Any],
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> List[TextChunk]:
+        """
+        구조화된 의미 섹션 기준으로 청킹한다.
+
+        - 기본 단위는 subsection
+        - subsection 내부의 세부 항목이 있으면 메타에 포함
+        - 길이가 길면 기존 chunk_text로 fallback 분할
+        """
+        all_chunks: List[TextChunk] = []
+        chunk_index = 0
+        base_meta = metadata.copy() if metadata else {}
+        semantic_tags = {
+            "structure_mode": structured_data.get("structure_mode", "semantic_sections"),
+            "document_type": structured_data.get("document_type", ""),
+            "section_group": structured_data.get("section_group", ""),
+        }
+
+        for top in structured_data.get("sections", []):
+            top_section = str(top.get("section_name") or "")
+            for subsection in top.get("subsections", []):
+                section_id = str(subsection.get("section_id") or "")
+                section_name = str(subsection.get("section_name") or "")
+                content_items = [str(item).strip() for item in subsection.get("content_items") or [] if str(item).strip()]
+                leaf_sections = subsection.get("subsections") or []
+                leaf_titles = [str(item.get("title") or "").strip() for item in leaf_sections if str(item.get("title") or "").strip()]
+                slide_numbers = subsection.get("slide_numbers") or []
+                slide_range = subsection.get("slide_range") or []
+                page_or_slide = slide_numbers[0] if len(slide_numbers) == 1 else None
+                section_keywords = [str(item).strip() for item in subsection.get("keywords") or [] if str(item).strip()]
+
+                header_lines = [f"{section_id} {section_name}".strip()]
+                if top_section:
+                    header_lines.insert(0, f"상위섹션: {top_section}")
+                if leaf_titles:
+                    header_lines.append("세부항목:")
+                    header_lines.extend(f"- {title}" for title in leaf_titles)
+                if content_items:
+                    header_lines.append("핵심내용:")
+                    header_lines.extend(f"- {item}" for item in content_items)
+                semantic_text = "\n".join(line for line in header_lines if line).strip()
+                if not semantic_text:
+                    continue
+
+                section_meta = {
+                    **base_meta,
+                    **semantic_tags,
+                    "chunk_type": "semantic_section",
+                    "top_section": top_section,
+                    "section_id": section_id,
+                    "section_name": section_name,
+                    "section_title": section_name,
+                    "section_heading": section_name,
+                    "section_label": f"{top_section} > {section_name}" if top_section else section_name,
+                    "subsection_titles": leaf_titles,
+                    "keywords": section_keywords,
+                    "slide_range": slide_range,
+                    "slide_numbers": slide_numbers,
+                    "slide_no": page_or_slide,
+                    "page_no": page_or_slide,
+                    "methodology": "WIM2" if any("WIM2" in value for value in [top_section, section_name, semantic_text]) else base_meta.get("methodology", ""),
+                    "phase": section_name if section_name in {"프로젝트 준비", "환경분석", "현황분석", "목표모델 수립", "이행계획 수립", "통합 실행계획 수립"} else "",
+                    "domain": "감사" if "감사" in semantic_text else base_meta.get("domain", ""),
+                    "technology": "AI" if ("AI" in semantic_text or "인공지능" in semantic_text) else base_meta.get("technology", ""),
+                }
+
+                section_chunks = self.chunk_text(
+                    semantic_text,
+                    page_number=page_or_slide,
+                    metadata=section_meta,
+                )
+                if not section_chunks:
+                    section_chunks = [
+                        TextChunk(
+                            content=semantic_text,
+                            index=chunk_index,
+                            start_char=0,
+                            end_char=len(semantic_text),
+                            token_count=self.estimate_tokens(semantic_text),
+                            page_number=page_or_slide,
+                            metadata=section_meta,
+                        )
+                    ]
+                for chunk in section_chunks:
+                    chunk.index = chunk_index
+                    chunk_index += 1
+                all_chunks.extend(section_chunks)
+
+        return all_chunks
+
     def chunk_document(
         self,
         text: str,
