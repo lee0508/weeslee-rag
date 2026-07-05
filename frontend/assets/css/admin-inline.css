@@ -1,0 +1,23 @@
+﻿    .wizard-log {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 8px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      min-height: 72px;
+      max-height: 600px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .wizard-log.show {
+      display: block;
+    }
+
