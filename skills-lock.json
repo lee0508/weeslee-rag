@@ -42,6 +42,24 @@
       "sourceType": "local",
       "skillPath": ".claude/skills/ssh-connector/SKILL.md",
       "computedHash": ""
+    },
+    "weeslee-rag-docs": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".claude/skills/weeslee-rag-docs/SKILL.md",
+      "computedHash": ""
+    },
+    "weeslee-server-deploy": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".claude/skills/weeslee-server-deploy/SKILL.md",
+      "computedHash": ""
+    },
+    "weeslee-rag-deploy-precheck": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".claude/skills/weeslee-rag-deploy-precheck/SKILL.md",
+      "computedHash": ""
     }
   }
 }

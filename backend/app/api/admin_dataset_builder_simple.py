@@ -51,6 +51,10 @@ DOCUMENT_GROUP_MAP = mappings.DOCUMENT_GROUP_MAP
 PATH_METADATA_GENERATOR = MetadataAutoGenerator()
 PROCESSED_TEXT_STORE = ProcessedTextStore()
 
+# RFP 패턴 분석 강화 기능 (2026-07-04)
+from app.services.metadata_auto_generator_enhanced import metadata_auto_generator_enhanced
+ENHANCED_METADATA_GENERATOR = metadata_auto_generator_enhanced
+
 
 def normalize_numbered_name(name: str) -> str:
     """
@@ -235,6 +239,7 @@ class MetadataAutoRequest(BaseModel):
     source_id: Optional[str] = None
     only_missing: bool = True
     overwrite: bool = False
+    use_enhanced: bool = True  # RFP 패턴 분석 강화 기능 사용 여부
 
 
 class MetadataAutoResponse(BaseModel):
@@ -803,7 +808,18 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
 
             scan_meta = extract_scan_metadata(filename, relative_path)
             artifact_text = _build_metadata_source_text(metadata)
-            auto_meta = PATH_METADATA_GENERATOR.extract_metadata(relative_path, artifact_text)
+
+            # RFP 패턴 분석 강화 기능 사용 여부에 따라 분기 (2026-07-04)
+            if request.use_enhanced:
+                auto_meta = ENHANCED_METADATA_GENERATOR.extract_metadata(
+                    file_name=filename,
+                    file_content=artifact_text,
+                    relative_path=relative_path,
+                    use_rfp_patterns=True
+                )
+            else:
+                auto_meta = PATH_METADATA_GENERATOR.extract_metadata(relative_path, artifact_text)
+
             confidence_meta = enrich_confidence(relative_path, scan_meta["scan_project_name"] or "")
 
             if request.overwrite or not metadata.scan_project_name:
