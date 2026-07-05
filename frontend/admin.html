@@ -17547,6 +17547,22 @@ LIMIT 10`;
   }
 
   // Step 5: Chunk Build 실행
+  function getStep5ChunkRequestPayload(base = {}) {
+    const rawMethod = String(document.getElementById('dbStep5ChunkMethod')?.value || 'recursive').trim().toLowerCase();
+    const chunkSize = parseInt(document.getElementById('dbStep5ChunkSize')?.value || '1000', 10) || 1000;
+    const chunkOverlap = parseInt(document.getElementById('dbStep5ChunkOverlap')?.value || '200', 10) || 200;
+
+    // 현재 백엔드는 auto | semantic | plain 만 직접 처리한다.
+    const chunkingMode = rawMethod === 'semantic' ? 'semantic' : 'auto';
+
+    return {
+      ...base,
+      chunk_size: chunkSize,
+      chunk_overlap: chunkOverlap,
+      chunking_mode: chunkingMode,
+    };
+  }
+
   async function runStep5ChunkBuild() {
     showToast(`Chunk Build 실행 중... ${getRuntimeGpuModeLabel('chunk')}`, 'info');
     try {
@@ -17557,9 +17573,9 @@ LIMIT 10`;
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step5/chunk'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(getStep5ChunkRequestPayload({
           source_id: sourceId,
-        }),
+        })),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
@@ -19011,7 +19027,10 @@ LIMIT 10`;
         const chunkResponse = await fetch(`${API_BASE}/admin/dataset-builder/step5/chunk`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source_id: sourceId, force_rebuild: _wizardForceRebuild || false }),
+          body: JSON.stringify(getStep5ChunkRequestPayload({
+            source_id: sourceId,
+            force_rebuild: _wizardForceRebuild || false,
+          })),
         });
         const chunkData = await chunkResponse.json().catch(() => ({}));
         if (!chunkResponse.ok || chunkData.success === false) {
@@ -20599,11 +20618,9 @@ LIMIT 10`;
       const response = await fetch(`${API_BASE}/admin/dataset-builder/step5/chunk`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(getStep5ChunkRequestPayload({
           document_ids: documentIds,
-          chunk_size: 1000,
-          chunk_overlap: 200
-        })
+        }))
       });
 
       if (!response.ok) {
