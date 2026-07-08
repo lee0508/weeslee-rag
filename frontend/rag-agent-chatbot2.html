@@ -922,6 +922,7 @@ const conversation = {
   turns: [],          // [{question, docs, contentTerms, hints}]
   activeHints: {},    // 직전 턴에서 확정된 soft hint (후속질문 승계용)
 };
+let activeRunPromise = null;
 
 // 후속질문 지시어 / 리셋 신호
 const FOLLOW_WORDS = ['그 중','그중','거기서','그거','방금','위에서','그 결과'];
@@ -1893,7 +1894,12 @@ function submit(){
   if(sendBtn.disabled || !q) return;
   input.value = ''; autoGrow(); syncSendState();
   sendBtn.disabled = true;
-  runAgent(q).finally(() => { syncSendState(); input.focus(); });
+  activeRunPromise = runAgent(q)
+    .finally(() => {
+      activeRunPromise = null;
+      syncSendState();
+      input.focus();
+    });
 }
 sendBtn.addEventListener('click', submit);
 input.addEventListener('keydown', e => {
@@ -1954,6 +1960,7 @@ const Auth = (() => {
   let clientId = '';
   let displayName = '';
   let isRegisterMode = false;
+  let isLoggingOut = false;
 
   // localStorage 에서 토큰 로드
   function loadToken() {
@@ -2014,11 +2021,33 @@ const Auth = (() => {
     logoutBtn.hidden = false;
   }
 
-  function logout(message = '') {
-    clearToken();
-    SessionManager.startNewChat();
-    SessionManager.resetState();
-    showGate(message);
+  async function logout(message = '') {
+    if (isLoggingOut) return;
+    isLoggingOut = true;
+    logoutBtn.disabled = true;
+    logoutBtn.textContent = '저장 중...';
+    try {
+      if (activeRunPromise) {
+        try {
+          await activeRunPromise;
+        } catch (e) {
+          console.warn('로그아웃 전 실행 대기 실패:', e?.message || e);
+        }
+      }
+      const flushed = await SessionManager.flushUnsavedTurns();
+      if (!flushed) {
+        alert('대화 저장에 실패해 로그아웃을 중단했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      clearToken();
+      SessionManager.startNewChat();
+      SessionManager.resetState();
+      showGate(message);
+    } finally {
+      isLoggingOut = false;
+      logoutBtn.disabled = false;
+      logoutBtn.textContent = '로그아웃';
+    }
   }
 
   // 토큰 검증
@@ -2172,8 +2201,8 @@ const Auth = (() => {
   gateConfirmCode.addEventListener('keydown', e => {
     if (e.key === 'Enter') attemptRegister();
   });
-  logoutBtn.addEventListener('click', () => {
-    logout('로그아웃되었습니다. 다시 접속해 주세요.');
+  logoutBtn.addEventListener('click', async () => {
+    await logout('로그아웃되었습니다. 저장 후 다시 접속해 주세요.');
   });
 
   return {
@@ -2201,12 +2230,14 @@ const SessionManager = (() => {
   let sessions = [];
   let currentSessionId = null;
   let isReadonly = false;
+  let lastSavedTurnNo = -1;
 
   function resetState() {
     currentSessionId = null;
     isReadonly = false;
     currentScope = 'mine';
     sessions = [];
+    lastSavedTurnNo = -1;
     readonlyBanner.classList.add('hidden');
     input.disabled = false;
     syncSendState();
@@ -2368,6 +2399,7 @@ const SessionManager = (() => {
       // 대화 상태 저장
       conversation.turns.push({
         question: msg.question,
+        answer: msg.answer || '',
         docs,
         contentTerms: terms,
         hints: msg.hints || {}
@@ -2384,6 +2416,7 @@ const SessionManager = (() => {
       TabPanel.setPane('evidence', renderMiniCards(lastTurn.docs, lastTurn.contentTerms));
       wireMiniCards($('#paneEvidence'), conversation.turns.length - 1);
     }
+    lastSavedTurnNo = messages.length - 1;
 
     scrollToBottom();
   }
@@ -2408,6 +2441,7 @@ const SessionManager = (() => {
       const data = await res.json();
       currentSessionId = data.session_id;
       isReadonly = false;
+      lastSavedTurnNo = -1;
       readonlyBanner.classList.add('hidden');
       input.disabled = false;
       syncSendState();
@@ -2420,7 +2454,7 @@ const SessionManager = (() => {
 
   // 턴 저장
   async function saveTurn(turnNo, question, answer, docs, terms, hints, elapsedMs) {
-    if (!currentSessionId || isReadonly) return;
+    if (!currentSessionId || isReadonly) return false;
 
     try {
       const res = await fetch(
@@ -2448,15 +2482,42 @@ const SessionManager = (() => {
       if (res.status === 401) {
         Auth.clearToken();
         Auth.showGate('접속코드가 변경되었습니다. 다시 접속해 주세요.');
-        return;
+        return false;
       }
 
       if (!res.ok) {
         console.warn('턴 저장 실패:', res.status);
+        return false;
       }
+      lastSavedTurnNo = Math.max(lastSavedTurnNo, turnNo);
+      return true;
     } catch (e) {
       console.warn('턴 저장 실패:', e.message);
+      return false;
     }
+  }
+
+  async function flushUnsavedTurns() {
+    if (isReadonly || !conversation.turns.length) return true;
+    if (!currentSessionId) {
+      const newSessionId = await createSession(srcId());
+      if (!newSessionId) return false;
+    }
+
+    for (let i = lastSavedTurnNo + 1; i < conversation.turns.length; i++) {
+      const turn = conversation.turns[i];
+      const saved = await saveTurn(
+        i,
+        turn.question,
+        turn.answer || '',
+        turn.docs,
+        turn.contentTerms,
+        turn.hints,
+        0
+      );
+      if (!saved) return false;
+    }
+    return true;
   }
 
   // 새 대화 시작
@@ -2488,7 +2549,7 @@ const SessionManager = (() => {
     // 각 턴을 새 세션에 저장
     for (let i = 0; i < conversation.turns.length; i++) {
       const turn = conversation.turns[i];
-      await saveTurn(i, turn.question, '', turn.docs, turn.contentTerms, turn.hints, 0);
+      await saveTurn(i, turn.question, turn.answer || '', turn.docs, turn.contentTerms, turn.hints, 0);
     }
 
     // 읽기 전용 해제
@@ -2521,7 +2582,7 @@ const SessionManager = (() => {
 
   return {
     openDrawer, closeDrawer, loadSessions, loadSession,
-    createSession, saveTurn, startNewChat, forkSession, resetState,
+    createSession, saveTurn, flushUnsavedTurns, startNewChat, forkSession, resetState,
     getCurrentSessionId: () => currentSessionId,
     isSessionReadonly: () => isReadonly,
   };
