@@ -89,11 +89,19 @@ button{font-family:inherit; cursor:pointer}
 .brand .dot{width:10px; height:10px; border-radius:50%;
   background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
 .brand small{font-weight:600; color:var(--muted); letter-spacing:.02em}
-.header-right{display:flex; justify-content:flex-end}   /* 상태를 오른쪽 끝으로 */
+.header-right{
+  display:flex; justify-content:flex-end; align-items:center; gap:10px;
+}   /* 상태를 오른쪽 끝으로 */
 .health{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
 .health .pulse{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .health.online .pulse{background:var(--ok)}
 .health.offline .pulse{background:var(--danger)}
+.logout-btn{
+  border:1px solid var(--border); background:var(--surface-2);
+  padding:6px 10px; font-size:12px; font-weight:600;
+  border-radius:999px; color:var(--ink-soft); cursor:pointer;
+}
+.logout-btn:hover{border-color:var(--danger); color:var(--danger)}
 
 /* 본문: 채팅 + 결과 탭 패널 2단 */
 .main{flex:1; display:flex; min-height:0}
@@ -668,6 +676,7 @@ button{font-family:inherit; cursor:pointer}
     </div>
     <div class="header-right">
       <span class="user-badge" id="userBadge" hidden></span>
+      <button class="logout-btn" id="logoutBtn" hidden>로그아웃</button>
       <div class="health" id="health">
         <span class="pulse"></span><span id="healthText">확인 중</span>
       </div>
@@ -1694,8 +1703,9 @@ async function runAgent(question){
   s4.done();
 
   // ── 결과 반영: 탭(최신 턴 뷰) + 채팅(답변/칩) + 턴 저장 ──
+  const answerText = (resp && (resp.draft_answer || resp.answer)) || '';
   const turnIndex = conversation.turns.length;
-  conversation.turns.push({question, docs, contentTerms: terms,
+  conversation.turns.push({question, answer: answerText, docs, contentTerms: terms,
                            hints: analysis.softHints});
   // hint 승계 상태 갱신: 이번 턴에 유효한 hint 를 다음 턴 후보로 보관
   if(Object.keys(analysis.softHints).length){
@@ -1939,6 +1949,7 @@ const Auth = (() => {
   const gateHelp = $('#gateHelp');
   const gateError = $('#gateError');
   const userBadge = $('#userBadge');
+  const logoutBtn = $('#logoutBtn');
 
   let clientId = '';
   let displayName = '';
@@ -1968,6 +1979,9 @@ const Auth = (() => {
     CONFIG.token = '';
     clientId = '';
     displayName = '';
+    userBadge.hidden = true;
+    userBadge.textContent = '';
+    logoutBtn.hidden = true;
   }
 
   function setRegisterMode(nextMode) {
@@ -1997,6 +2011,14 @@ const Auth = (() => {
     gateError.classList.remove('show');
     userBadge.textContent = displayName || '익명';
     userBadge.hidden = false;
+    logoutBtn.hidden = false;
+  }
+
+  function logout(message = '') {
+    clearToken();
+    SessionManager.startNewChat();
+    SessionManager.resetState();
+    showGate(message);
   }
 
   // 토큰 검증
@@ -2150,9 +2172,12 @@ const Auth = (() => {
   gateConfirmCode.addEventListener('keydown', e => {
     if (e.key === 'Enter') attemptRegister();
   });
+  logoutBtn.addEventListener('click', () => {
+    logout('로그아웃되었습니다. 다시 접속해 주세요.');
+  });
 
   return {
-    loadToken, saveToken, clearToken, showGate, hideGate, verifyToken,
+    loadToken, saveToken, clearToken, showGate, hideGate, verifyToken, logout,
     getClientId: () => clientId,
     getDisplayName: () => displayName,
   };
@@ -2176,6 +2201,17 @@ const SessionManager = (() => {
   let sessions = [];
   let currentSessionId = null;
   let isReadonly = false;
+
+  function resetState() {
+    currentSessionId = null;
+    isReadonly = false;
+    currentScope = 'mine';
+    sessions = [];
+    readonlyBanner.classList.add('hidden');
+    input.disabled = false;
+    syncSendState();
+    closeDrawer();
+  }
 
   // 드로어 열기/닫기
   function openDrawer() {
@@ -2425,9 +2461,7 @@ const SessionManager = (() => {
 
   // 새 대화 시작
   function startNewChat() {
-    currentSessionId = null;
-    isReadonly = false;
-    readonlyBanner.classList.add('hidden');
+    resetState();
     messagesInner.innerHTML = `
       <div class="welcome" id="welcome">
         <h1>무엇을 찾아드릴까요?</h1>
@@ -2487,7 +2521,7 @@ const SessionManager = (() => {
 
   return {
     openDrawer, closeDrawer, loadSessions, loadSession,
-    createSession, saveTurn, startNewChat, forkSession,
+    createSession, saveTurn, startNewChat, forkSession, resetState,
     getCurrentSessionId: () => currentSessionId,
     isSessionReadonly: () => isReadonly,
   };
@@ -2505,8 +2539,7 @@ window.fetch = async function(...args) {
     const url = args[0];
     // 인증 관련 API 가 아닌 경우에만 게이트 표시
     if (!url.includes('/auth/')) {
-      Auth.clearToken();
-      Auth.showGate('접속코드가 변경되었습니다. 다시 접속해 주세요.');
+      Auth.logout('접속코드가 변경되었습니다. 다시 접속해 주세요.');
     }
   }
 
@@ -2538,7 +2571,7 @@ async function runAgentWithSession(question) {
       SessionManager.saveTurn(
         turnIndex,
         turn.question,
-        '', // answer 는 별도 저장 또는 생략
+        turn.answer || '',
         turn.docs,
         turn.contentTerms,
         turn.hints,
