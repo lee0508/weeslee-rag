@@ -724,7 +724,7 @@ button{font-family:inherit; cursor:pointer}
           <!-- ＋ 파일 첨부: Phase 1 은 CONFIG.features.upload=false 로 숨김 (해결안 3) -->
           <button class="icon-btn" id="attachBtn" title="파일 첨부" hidden>＋</button>
           <input type="file" id="fileInput" multiple hidden
-                 accept=".pdf,.pptx,.hwp,.hwpx,.docx,.xlsx,.txt">
+                 accept=".pdf,.docx,.txt">
 
           <textarea id="input" rows="1"
             placeholder="예) 공공기관을 고객으로 AI를 접목한 기술및기능 제안서를 찾아줘"></textarea>
@@ -801,6 +801,7 @@ const CONFIG = {
   endpoints: {
     analyzePrompt: '/rag/analyze-prompt',    // POST 질문 분석 (LLM — rag-assistant 와 동일)
     hybridQuery:   '/rag/hybrid-query',      // POST 하이브리드 검색 (+답변 생성)
+    rfpQuery:      '/rag/query-with-rfp',    // POST 업로드 파일 기반 검색
     stats:         '/rag/hybrid-query/stats',// GET  상태(그래프 노드 수 등)
     sources:       '/rag/sources',           // GET  활성 Collection 목록 (없으면 폴백)
     // [2026-07-08] rag-assistant.html 기능 추가
@@ -820,7 +821,7 @@ const CONFIG = {
   generateAnswer: true,// hybrid-query 가 llama3 답변까지 생성 (false = 검색 전용)
   // 기능 플래그 (해결안 3: 미완성 기능은 UI 에서 숨긴다)
   features: {
-    upload: false,   // ＋ 파일 첨부  — Phase 2 에서 true 로 전환
+    upload: true,    // ＋ 파일 첨부  — rag-assistant.html query-with-rfp 이식
     voice:  true,    // 🎙 음성 입력  — 브라우저 내장(Web Speech)이라 즉시 사용
     searchScopes: true, // [2026-07-08] Snapshot 다중 선택 기능 활성화
   },
@@ -1056,6 +1057,29 @@ async function callHybridQuery(question, analysis, sourceId){
   });
   if(!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
+}
+
+async function callRfpQuery(file){
+  const selectedSnapshotIds = getSelectedSnapshotIds();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('top_k', String(CONFIG.topK));
+  formData.append('top_docs', String(CONFIG.maxResults));
+  formData.append('mode', 'hybrid_rag');
+  formData.append('max_chunks_per_doc', '3');
+  formData.append('answer_provider', CONFIG.generateAnswer ? 'ollama' : 'none');
+  formData.append('answer_model', CONFIG.generateAnswer ? 'qwen3:8b' : '');
+  if (selectedSnapshotIds.length) {
+    formData.append('snapshot_ids', JSON.stringify(selectedSnapshotIds));
+  }
+
+  const res = await fetch(apiUrl(CONFIG.endpoints.rfpQuery), {
+    method: 'POST',
+    headers: CONFIG.token ? { 'Authorization': 'Bearer ' + CONFIG.token } : {},
+    body: formData,
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return transformHybridResponse(await res.json());
 }
 
 /* ── 응답 문서 정규화 ──
@@ -1686,7 +1710,12 @@ async function runAgent(question){
   const s3 = addStep(CONFIG.generateAnswer ? '문서 검색 및 답변 생성' : '문서 검색');
   let resp = null, docs = [], errText = '';
   try{
-    resp = await callHybridQuery(question, analysis, srcId());
+    if(attachedFiles.length){
+      s3.detail(`첨부 파일 분석 중 · ${escapeHtml(attachedFiles[0].name)}`);
+      resp = await callRfpQuery(attachedFiles[0]);
+    }else{
+      resp = await callHybridQuery(question, analysis, srcId());
+    }
     docs = extractDocuments(resp);
 
     // 하이라이트 용어 확정: 응답의 extracted_keywords(LLM)가 있으면 최우선
@@ -1758,6 +1787,10 @@ async function runAgent(question){
   const sec = ((performance.now() - t0) / 1000).toFixed(1);
   collapse(errText ? `검색 실패 · ${sec}s`
                    : `검색 완료 · 근거 ${docs.length}건 · ${sec}s`);
+  if(!errText && attachedFiles.length){
+    attachedFiles.length = 0;
+    renderAttachChips();
+  }
   scrollToBottom();
 }
 
@@ -1812,10 +1845,9 @@ if(CONFIG.features.upload){
   attachBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
     for(const f of fileInput.files){
-      // 같은 이름+크기 중복 첨부 방지
-      if(!attachedFiles.some(a => a.name === f.name && a.size === f.size)){
-        attachedFiles.push(f);
-      }
+      attachedFiles.length = 0;        // RFP 업로드는 1개 파일만 허용
+      attachedFiles.push(f);
+      break;
     }
     fileInput.value = '';               // 같은 파일 재선택 허용
     renderAttachChips();
@@ -1901,8 +1933,9 @@ function autoGrow(){
 input.addEventListener('input', () => { autoGrow(); syncSendState(); });
 
 function submit(){
-  const q = input.value.trim();
-  if(sendBtn.disabled || !q) return;
+  const raw = input.value.trim();
+  const q = raw || (attachedFiles[0] ? `${attachedFiles[0].name} 파일 분석` : '');
+  if(sendBtn.disabled || (!q && attachedFiles.length === 0)) return;
   input.value = ''; autoGrow(); syncSendState();
   sendBtn.disabled = true;
   activeRunPromise = runAgent(q)
