@@ -96,6 +96,51 @@ button{font-family:inherit; cursor:pointer}
 .health .pulse{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .health.online .pulse{background:var(--ok)}
 .health.offline .pulse{background:var(--danger)}
+.drawer-settings{
+  position:relative;
+}
+.settings-btn{
+  width:100%; height:42px; flex-shrink:0;
+  border:1px solid var(--border); border-radius:10px;
+  background:var(--surface-2); color:var(--ink-soft);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:0 12px; font-size:13px; line-height:1; font-weight:700;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.settings-btn:hover,
+.settings-btn[aria-expanded="true"]{
+  border-color:var(--accent); color:var(--accent-strong); background:var(--surface);
+}
+.settings-btn svg{width:18px; height:18px; flex-shrink:0}
+.settings-popup{
+  position:absolute; bottom:calc(100% + 10px); left:0; right:0; z-index:170;
+  width:auto; padding:14px;
+  border:1px solid var(--border); border-radius:12px;
+  background:var(--surface); box-shadow:var(--shadow);
+  display:none;
+}
+.settings-popup.open{display:block}
+.settings-popup h3{
+  margin:0 0 4px; font-size:14px; font-weight:700; color:var(--ink);
+}
+.settings-popup p{
+  margin:0 0 12px; font-size:12px; line-height:1.5; color:var(--ink-soft);
+}
+.settings-field label{
+  display:block; margin-bottom:6px;
+  font-size:12px; font-weight:700; color:var(--ink-soft);
+}
+.settings-select{
+  width:100%; height:38px;
+  padding:0 12px; font-family:inherit; font-size:13px;
+  color:var(--ink); background:var(--surface-2);
+  border:1px solid var(--border); border-radius:10px;
+}
+.settings-select:focus{outline:none; border-color:var(--accent); background:var(--surface)}
+.settings-current{
+  margin-top:10px; font-size:12px; color:var(--ink-soft);
+}
+.settings-current b{color:var(--accent-strong)}
 
 /* 본문: 채팅 + 결과 탭 패널 2단 */
 .main{flex:1; display:flex; min-height:0}
@@ -568,11 +613,11 @@ button{font-family:inherit; cursor:pointer}
   font-size:12px; line-height:1.5; color:var(--muted);
 }
 .drawer-logout{
-  width:100%; border:1px solid var(--border); background:var(--surface-2);
+  width:100%; border:1px solid #f78812; background:#fff8ef;
   padding:10px 12px; border-radius:10px; font-size:13px; font-weight:700;
-  color:var(--ink-soft); cursor:pointer;
+  color:#f78812; cursor:pointer;
 }
-.drawer-logout:hover{border-color:var(--danger); color:var(--danger)}
+.drawer-logout:hover{border-color:#d96f00; color:#d96f00; background:#fff2df}
 
 /* 세션 아이템 */
 .session-item{
@@ -671,6 +716,28 @@ button{font-family:inherit; cursor:pointer}
       </div>
       <div class="drawer-footer">
         <div class="drawer-note">질문 텍스트만 저장되며, 내 질문은 1주 후 자동 삭제됩니다.</div>
+        <div class="drawer-settings">
+          <button class="settings-btn" id="modelSettingsBtn" title="LLM 설정" aria-label="LLM 설정" aria-expanded="false" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+              <path d="M10.6 2h2.8l.5 2.2c.6.2 1.1.5 1.6.9l2.1-.9 1.9 1.9-.9 2.1c.4.5.7 1 .9 1.6L22 10.6v2.8l-2.2.5c-.2.6-.5 1.1-.9 1.6l.9 2.1-1.9 1.9-2.1-.9c-.5.4-1 .7-1.6.9L13.4 22h-2.8l-.5-2.2c-.6-.2-1.1-.5-1.6-.9l-2.1.9-1.9-1.9.9-2.1c-.4-.5-.7-1-.9-1.6L2 13.4v-2.8l2.2-.5c.2-.6.5-1.1.9-1.6l-.9-2.1 1.9-1.9 2.1.9c.5-.4 1-.7 1.6-.9L10.6 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            <span>LLM 모델 설정</span>
+          </button>
+          <div class="settings-popup" id="modelSettingsPopup" role="menu" aria-label="LLM 설정">
+            <h3>LLM 모델 설정</h3>
+            <p>이 페이지의 답변 생성 모델을 선택합니다.</p>
+            <div class="settings-field">
+              <label for="llmModelSelect">답변 모델</label>
+              <select class="settings-select" id="llmModelSelect">
+                <option value="qwen3:8b">qwen3:8b</option>
+                <option value="llama3:8b">llama3:8b</option>
+                <option value="gemma4:latest">gemma4:latest</option>
+              </select>
+            </div>
+            <div class="settings-current">현재 선택: <b id="llmModelCurrent">qwen3:8b</b></div>
+          </div>
+        </div>
         <button class="drawer-logout" id="logoutBtn" hidden>로그아웃</button>
       </div>
     </div>
@@ -815,6 +882,7 @@ const CONFIG = {
     chatMessages:  '/chat/sessions/',        // POST 턴 저장 (+ {id}/messages)
   },
   token: '',                                 // 사용자 인증 토큰 (localStorage 에서 로드)
+  answerModel: 'qwen3:8b',                   // 사용자 선택 LLM 모델 (헤더 설정)
   // 검색 파라미터 — rag-assistant.html runQuery() 기본값과 동일하게 맞춤
   topK: 20,            // 청크 후보 수 (top_k)
   maxResults: 5,       // 최종 문서 수 (max_results = top_docs)
@@ -1042,6 +1110,8 @@ async function callHybridQuery(question, analysis, sourceId){
     enable_graph: true,
     enable_wiki: true,
     generate_answer: CONFIG.generateAnswer,    // true 면 응답 answer 에 LLM 답변 포함
+    answer_provider: CONFIG.generateAnswer ? 'ollama' : 'none',
+    answer_model: CONFIG.generateAnswer ? LlmSettings.getModel() : '',
     // 분석 결과를 soft hint 로 동봉 (후보 제거가 아닌 가점용)
     inferred_organization:      analysis.organization     || '',
     inferred_project_type:      analysis.projectType      || '',
@@ -1068,7 +1138,7 @@ async function callRfpQuery(file){
   formData.append('mode', 'hybrid_rag');
   formData.append('max_chunks_per_doc', '3');
   formData.append('answer_provider', CONFIG.generateAnswer ? 'ollama' : 'none');
-  formData.append('answer_model', CONFIG.generateAnswer ? 'qwen3:8b' : '');
+  formData.append('answer_model', CONFIG.generateAnswer ? LlmSettings.getModel() : '');
   if (selectedSnapshotIds.length) {
     formData.append('snapshot_ids', JSON.stringify(selectedSnapshotIds));
   }
@@ -1970,6 +2040,109 @@ EXAMPLES.forEach(q => {
   exWrap.appendChild(b);
 });
 
+/* ============================================================
+   12-A. LLM 설정 팝업 — userBadge 옆 톱니바퀴
+   ============================================================ */
+const LlmSettings = (() => {
+  const STORAGE_KEY = 'rag_agent_answer_model';
+  const DEFAULT_MODEL = 'qwen3:8b';
+  const FALLBACK_MODELS = ['qwen3:8b', 'llama3:8b', 'gemma4:latest'];
+  const btn = $('#modelSettingsBtn');
+  const popup = $('#modelSettingsPopup');
+  const select = $('#llmModelSelect');
+  const current = $('#llmModelCurrent');
+  let loaded = false;
+
+  function normalizeModel(value){
+    return String(value || '').trim() || DEFAULT_MODEL;
+  }
+
+  function ensureOption(value){
+    const model = normalizeModel(value);
+    const exists = Array.from(select.options).some(opt => opt.value === model);
+    if(!exists){
+      const opt = document.createElement('option');
+      opt.value = model;
+      opt.textContent = model;
+      select.appendChild(opt);
+    }
+    return model;
+  }
+
+  function applyModel(value, persist = true){
+    const model = ensureOption(value);
+    CONFIG.answerModel = model;
+    select.value = model;
+    current.textContent = model;
+    if(persist) localStorage.setItem(STORAGE_KEY, model);
+  }
+
+  function hide(){
+    popup.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  }
+
+  function show(){
+    popup.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+  }
+
+  async function loadModels(){
+    if(loaded) return;
+    loaded = true;
+    try{
+      const res = await fetch(apiUrl('/health/ollama/models'));
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const models = Array.isArray(data?.models) ? data.models : [];
+      const names = models
+        .map(item => typeof item === 'string' ? item : (item?.name || item?.model || ''))
+        .map(name => String(name || '').trim())
+        .filter(Boolean);
+      const unique = Array.from(new Set([...FALLBACK_MODELS, ...names]));
+      select.innerHTML = unique.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+      applyModel(localStorage.getItem(STORAGE_KEY) || CONFIG.answerModel, false);
+    }catch(e){
+      console.warn('LLM 모델 목록 조회 실패:', e?.message || e);
+      FALLBACK_MODELS.forEach(ensureOption);
+      applyModel(localStorage.getItem(STORAGE_KEY) || CONFIG.answerModel, false);
+    }
+  }
+
+  function bind(){
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if(popup.classList.contains('open')){
+        hide();
+        return;
+      }
+      await loadModels();
+      show();
+    });
+    select.addEventListener('change', () => applyModel(select.value, true));
+    document.addEventListener('click', e => {
+      if(!popup.classList.contains('open')) return;
+      if(popup.contains(e.target) || btn.contains(e.target)) return;
+      hide();
+    });
+    document.addEventListener('keydown', e => {
+      if(e.key === 'Escape' && popup.classList.contains('open')) hide();
+    });
+  }
+
+  function init(){
+    applyModel(localStorage.getItem(STORAGE_KEY) || DEFAULT_MODEL, false);
+    bind();
+  }
+
+  function setVisible(visible){
+    btn.hidden = !visible;
+    if(!visible) hide();
+  }
+
+  return { init, setVisible, hide, getModel: () => CONFIG.answerModel };
+})();
+
 /* 서버 상태 확인 (그래프 노드 수가 보이면 online) — srcId() 로 참조 통일 */
 async function checkHealth(){
   const el = $('#health'), txt = $('#healthText');
@@ -2033,6 +2206,7 @@ const Auth = (() => {
     userBadge.hidden = true;
     userBadge.textContent = '';
     logoutBtn.hidden = true;
+    LlmSettings.setVisible(false);
   }
 
   function setRegisterMode(nextMode) {
@@ -2063,6 +2237,7 @@ const Auth = (() => {
     userBadge.textContent = displayName || '익명';
     userBadge.hidden = false;
     logoutBtn.hidden = false;
+    LlmSettings.setVisible(true);
   }
 
   async function logout(message = '') {
@@ -2697,6 +2872,7 @@ async function initAfterAuth() {
 }
 
 async function initApp() {
+  LlmSettings.init();
   // 토큰 로드 시도
   if (Auth.loadToken()) {
     // 토큰 검증
