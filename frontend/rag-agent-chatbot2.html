@@ -459,29 +459,80 @@ button{font-family:inherit; cursor:pointer}
    9. 모바일 / 접근성
    ============================================================ */
 @media (max-width:720px){
+  .app-header{
+    padding:10px 12px;
+    grid-template-columns:auto 1fr auto;
+    gap:8px;
+  }
+  .header-left{gap:6px}
   .brand small{display:none}             /* 좁은 화면: 소제목 숨겨 중앙 확보 */
-  .brand{font-size:14px}
+  .brand{
+    min-width:0; justify-content:center;
+    font-size:13px; gap:7px;
+  }
+  .brand{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .brand .dot{width:8px; height:8px; box-shadow:0 0 0 3px var(--accent-soft)}
+  .new-chat-btn{
+    width:34px; height:34px; padding:0;
+    display:grid; place-items:center;
+    font-size:0; border-radius:10px;
+  }
+  .new-chat-btn::before{
+    content:'+'; font-size:20px; line-height:1; color:currentColor;
+  }
+  .health{gap:0}
+  .health #healthText{display:none}
+  .messages-inner{padding:0 14px}
   /* 결과 패널: 하단 시트 */
   .result-panel.open{position:fixed; left:0; right:0; bottom:0; top:auto;
     width:100%; height:52vh; z-index:50; border-top:1px solid var(--border)}
   /* 모달: 전체 화면 (z-index 100 > 패널 50 유지) */
   .modal-backdrop{padding:0}
   .modal{max-width:none; max-height:none; height:100%; border-radius:0}
-  /* composer: 모바일 대응 - padding 축소, 전체 너비 사용 */
-  .composer{padding:10px 12px 14px; max-width:100%; box-sizing:border-box}
-  .composer textarea{min-width:0; width:100%; font-size:16px; padding:10px 12px}
-  /* 입력창: 데이터셋 폭 축소 + 입력 중에는 🎙 숨김 (해결안 8)
+  /* 모바일에서는 예시 질문을 숨겨 입력 영역에 집중 */
+  .examples{display:none}
+  .attach-list{padding:8px 12px 0; max-width:100%}
+  /* composer: 질문창 1행 + 도구행 1행으로 재배치 */
+  .composer{
+    padding:10px 12px 14px; max-width:100%; box-sizing:border-box;
+    flex-wrap:wrap; gap:8px;
+  }
+  .composer textarea{
+    order:1; flex:1 1 100%; min-width:0; width:100%;
+    min-height:50px; font-size:15px; padding:13px 14px;
+  }
+  #attachBtn{order:2}
+  #sourceSelect{order:3}
+  #micBtn{order:4}
+  #sendBtn{order:5}
+  /* 입력창: 데이터셋 폭 재조정 + 입력 중에는 🎙 숨김 (해결안 8)
      단, 녹음 중(.recording)에는 정지할 수 있어야 하므로 숨기지 않는다 */
-  .source-select{max-width:100px; font-size:11px}
+  .source-select{
+    flex:1 1 140px; max-width:none; min-width:120px; height:40px;
+    font-size:12px;
+  }
   .composer.has-text #micBtn:not(.recording){display:none}
-  /* 아이콘 버튼 크기 축소 */
-  .icon-btn{width:36px; height:36px; font-size:18px}
+  /* 도구 버튼 크기/터치 영역 재조정 */
+  .icon-btn, .send-btn{width:40px; height:40px; font-size:18px}
+  .send-btn{box-shadow:0 4px 12px rgba(14,110,134,.18)}
+  .welcome{margin:5vh auto 0; padding:0 18px}
+  .welcome h1{font-size:22px}
+  .welcome p{font-size:14px}
 }
 /* 태블릿 대응 (720px ~ 1024px) */
 @media (min-width:721px) and (max-width:1024px){
-  .composer{padding:10px 16px 16px; max-width:100%}
-  .composer textarea{font-size:15px}
-  .source-select{max-width:130px}
+  .app-header{padding:11px 16px; gap:10px}
+  .brand{font-size:15px}
+  .health{font-size:11px}
+  .messages-inner{padding:0 18px}
+  .examples{padding:10px 18px 0; gap:6px}
+  .ex-chip{font-size:12px; padding:6px 10px}
+  .attach-list{padding:8px 18px 0; max-width:100%}
+  .composer{padding:10px 18px 16px; max-width:100%; gap:7px}
+  .composer textarea{font-size:15px; padding:10px 13px}
+  .source-select{max-width:150px; font-size:12px}
+  .icon-btn, .send-btn{width:38px; height:38px}
+  .welcome{margin:6vh auto 0}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
 /* 키보드 포커스 가시화 (품질 기본선) */
