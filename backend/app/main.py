@@ -52,6 +52,9 @@ from app.api.admin_publish import router as admin_publish_router
 from app.api.admin_search_scopes import router as admin_search_scopes_router
 from app.api.install import router as install_router
 from app.api.qa_services import router as qa_services_router
+from app.api.system_runtime import router as system_runtime_router
+from app.api.user_auth import router as user_auth_router, init_user_auth_tables
+from app.api.chat_sessions import router as chat_sessions_router, init_chat_tables
 try:
     from app.api.vectorization import router as vectorization_router
     _vectorization_available = True
@@ -89,6 +92,11 @@ async def lifespan(app: FastAPI):
     try:
         init_db()
         print("Database initialized")
+        init_user_auth_tables()
+        print("User auth tables initialized")
+        # 채팅 세션 테이블 초기화 (Phase B)
+        init_chat_tables()
+        print("Chat session tables initialized")
     except Exception as exc:
         print(f"Database initialization skipped: {exc}")
 
@@ -160,12 +168,68 @@ app.include_router(admin_publish_router, prefix="/api", tags=["Admin - Publish"]
 app.include_router(admin_search_scopes_router, prefix="/api", tags=["Admin - Search Scopes"])
 app.include_router(install_router, prefix="/api", tags=["Install"])
 app.include_router(qa_services_router, prefix="/api", tags=["QA Services"])
+app.include_router(system_runtime_router, prefix="/api", tags=["System Runtime"])
+app.include_router(user_auth_router, prefix="/api", tags=["User Auth"])
+app.include_router(chat_sessions_router, prefix="/api", tags=["Chat Sessions"])
 if _ocr_results_available and ocr_results_router is not None:
     app.include_router(ocr_results_router, prefix="/api", tags=["OCR Results"])
 if _collections_available and collections_router is not None:
     app.include_router(collections_router, prefix="/api", tags=["Collections"])
 if _vectorization_available and vectorization_router is not None:
     app.include_router(vectorization_router, prefix="/api", tags=["Vectorization"])
+
+# [2026-07-08] /weeslee-rag/api prefix 지원 (프론트엔드 호환성)
+app.include_router(auth_router, prefix="/weeslee-rag/api", tags=["Auth"])
+app.include_router(health_router, prefix="/weeslee-rag/api", tags=["Health"])
+app.include_router(admin_router, prefix="/weeslee-rag/api", tags=["Admin"])
+app.include_router(admin_public_router, prefix="/weeslee-rag/api", tags=["Admin Public"])
+app.include_router(ocr_router, prefix="/weeslee-rag/api", tags=["OCR"])
+app.include_router(knowledge_sources_router, prefix="/weeslee-rag/api", tags=["Knowledge Sources"])
+app.include_router(rag_router, prefix="/weeslee-rag/api", tags=["RAG"])
+app.include_router(files_router, prefix="/weeslee-rag/api", tags=["Files"])
+app.include_router(documents_router, prefix="/weeslee-rag/api", tags=["Documents"])
+app.include_router(faiss_admin_router, prefix="/weeslee-rag/api", tags=["FAISS Admin"])
+app.include_router(faiss_sse_router, prefix="/weeslee-rag/api", tags=["FAISS Admin SSE"])
+app.include_router(graph_router, prefix="/weeslee-rag/api", tags=["Graph"])
+app.include_router(wiki_router, prefix="/weeslee-rag/api", tags=["Wiki"])
+app.include_router(wiki_search_router, prefix="/weeslee-rag/api", tags=["Wiki Search"])
+app.include_router(benchmark_router, prefix="/weeslee-rag/api", tags=["Benchmark"])
+app.include_router(review_router, prefix="/weeslee-rag/api", tags=["Review"])
+app.include_router(clients_router, prefix="/weeslee-rag/api", tags=["Platform - Clients"])
+app.include_router(document_sources_router, prefix="/weeslee-rag/api", tags=["Platform - Document Sources"])
+app.include_router(mounts_router, prefix="/weeslee-rag/api", tags=["Platform - Mounts"])
+app.include_router(templates_router, prefix="/weeslee-rag/api", tags=["Platform - Templates"])
+app.include_router(rag_source_admin_router, prefix="/weeslee-rag/api", tags=["RAG Source Admin"])
+app.include_router(tags_router, prefix="/weeslee-rag/api", tags=["Platform - Tags"])
+app.include_router(keywords_router, prefix="/weeslee-rag/api", tags=["Platform - Keywords"])
+app.include_router(query_logs_router, prefix="/weeslee-rag/api", tags=["Admin Query Logs"])
+app.include_router(admin_metadata_review_router, prefix="/weeslee-rag/api", tags=["Admin - Metadata Review"])
+app.include_router(admin_dataset_builder_settings_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Settings"])
+app.include_router(admin_dataset_builder_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder"])
+app.include_router(admin_dataset_builder_step4_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 4"])
+app.include_router(admin_dataset_builder_step4_sse_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 4 SSE"])
+app.include_router(admin_dataset_builder_step5_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 5"])
+app.include_router(admin_dataset_builder_step6_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 6"])
+app.include_router(admin_dataset_builder_step7_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 7"])
+app.include_router(admin_dataset_builder_step8_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 8"])
+app.include_router(admin_dataset_builder_step9_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 9"])
+app.include_router(admin_dataset_builder_step10_router, prefix="/weeslee-rag/api", tags=["Admin - Dataset Builder Step 10"])
+app.include_router(snapshot_admin_router, prefix="/weeslee-rag/api/admin", tags=["Admin - Snapshot"])
+app.include_router(admin_knowledge_graph_router, prefix="/weeslee-rag/api", tags=["Admin - Knowledge Graph"])
+app.include_router(admin_llm_wiki_router, prefix="/weeslee-rag/api", tags=["Admin - LLM Wiki"])
+app.include_router(admin_publish_router, prefix="/weeslee-rag/api", tags=["Admin - Publish"])
+app.include_router(admin_search_scopes_router, prefix="/weeslee-rag/api", tags=["Admin - Search Scopes"])
+app.include_router(install_router, prefix="/weeslee-rag/api", tags=["Install"])
+app.include_router(qa_services_router, prefix="/weeslee-rag/api", tags=["QA Services"])
+app.include_router(system_runtime_router, prefix="/weeslee-rag/api", tags=["System Runtime"])
+app.include_router(user_auth_router, prefix="/weeslee-rag/api", tags=["User Auth"])
+app.include_router(chat_sessions_router, prefix="/weeslee-rag/api", tags=["Chat Sessions"])
+if _ocr_results_available and ocr_results_router is not None:
+    app.include_router(ocr_results_router, prefix="/weeslee-rag/api", tags=["OCR Results"])
+if _collections_available and collections_router is not None:
+    app.include_router(collections_router, prefix="/weeslee-rag/api", tags=["Collections"])
+if _vectorization_available and vectorization_router is not None:
+    app.include_router(vectorization_router, prefix="/weeslee-rag/api", tags=["Vectorization"])
 
 # Serve the assistant UI under the requested path pattern:
 # /weeslee-rag/frontend/rag-assistant.html

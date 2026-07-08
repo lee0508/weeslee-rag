@@ -1,0 +1,2581 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  weeslee-rag  AI Agentic Chat  v2.0  (rag-agent-chat.html)
+  ------------------------------------------------------------
+  정부 제안서 컨설턴트용 에이전트형 RAG 챗봇 (단일 파일, 빌드 불필요)
+
+  [v2.0 변경 요약 — 기획 v1.0/v1.1/v1.2 + UI검토 해결안 1~8 반영]
+    1) 레이아웃  : 우측 단일 evidence-panel → 320px 탭 패널(근거/그래프/위키)
+    2) 상세보기  : 탭의 컴팩트 카드 클릭 → 중앙 모달(◀▶ 목록 순회, ESC, 포커스트랩)
+    3) 헤더      : 3분할 그리드 — [여백 | 브랜드 중앙 | 상태 우측]
+    4) 입력창    : [＋첨부(플래그)] [textarea] [데이터셋▾] [🎙] [⬆전송]
+    5) 멀티턴    : 턴별 검색 결과를 conversation.turns 에 저장 —
+                   과거 턴의 "근거 N건" 칩/각주 클릭 시 그 턴의 결과로 모달 직행
+                   (해결안 1·2: 탭은 '최신 턴 전용 뷰'로 역할 한정)
+    6) 타임라인  : 답변 완료 시 1줄 요약으로 자동 접힘, 클릭 시 재펼침 (해결안 6)
+    7) 패널 오픈 : 첫 결과 도착 시 1회만 자동 오픈, 0건이면 오픈 안 함 (해결안 7)
+    8) 기능 플래그: CONFIG.features — upload(Phase 2), voice(브라우저 내장이라 즉시)
+
+  [연결 대상]
+    같은 서버의 weeslee-rag FastAPI. 요청/응답 필드는 아래 CONFIG 에서 조정.
+    Phase 1 은 기존 /api/rag/hybrid-query 만 사용 (백엔드 변경 없음).
+
+  [설계 메모]
+    - 색: 딥 틸(분석가) + 앰버(근거 하이라이트) — v1 토큰 체계 계승
+    - 시그니처: 에이전트 진행 단계 타임라인 (신뢰 형성 요소)
+  ============================================================
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>weeslee-rag · 제안서 리서치 에이전트</title>
+
+<!-- 한국어 최적 폰트 Pretendard (실패 시 시스템 폰트로 폴백) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+
+<style>
+/* ============================================================
+   1. 디자인 토큰 (색/간격/타이포) — 모든 색은 여기서만 정의 (v1 계승)
+   ============================================================ */
+:root{
+  --bg:#EEF1F6;            /* 전체 배경(차가운 라이트) */
+  --surface:#FFFFFF;       /* 카드/표면 */
+  --surface-2:#F5F8FB;     /* 보조 표면 */
+  --ink:#0F1A2B;           /* 본문 잉크(딥 슬레이트) */
+  --ink-soft:#54607A;      /* 보조 텍스트 */
+  --muted:#8A93A6;         /* 흐린 텍스트 */
+  --border:#DCE2EC;        /* 경계선 */
+  --accent:#0E6E86;        /* 강조: 딥 틸 = 분석가 */
+  --accent-strong:#0A5567;
+  --accent-soft:#E0F0F3;
+  --evidence:#B9791A;      /* 근거 하이라이트 = 앰버 */
+  --evidence-soft:#FBEBC8;
+  --ok:#2E9E6B;
+  --warn:#C9781E;
+  --danger:#C6453E;
+  --radius:14px;
+  --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,26,43,.05), 0 8px 24px rgba(15,26,43,.06);
+  --font:'Pretendard','Pretendard Variable',-apple-system,BlinkMacSystemFont,
+         'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  --mono:'SFMono-Regular',Consolas,'D2Coding',monospace;
+}
+
+/* ============================================================
+   2. 리셋 & 레이아웃 골격
+   ============================================================ */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:var(--font); color:var(--ink);
+  background:var(--bg);
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+}
+button{font-family:inherit; cursor:pointer}
+
+/* ── 헤더 v1.2 (10장): 3분할 그리드로 브랜드 완전 중앙 고정 ──
+   1fr | auto | 1fr : 좌우 컬럼이 항상 같은 폭을 나눠 가지므로
+   우측 상태 텍스트 길이가 변해도 가운데 브랜드가 밀리지 않는다 */
+.app-header{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;   /* 좌 여백 | 브랜드 | 우 상태 */
+  align-items:center;
+  padding:12px 20px; background:var(--surface);
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:-.01em}
+.brand .dot{width:10px; height:10px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
+.brand small{font-weight:600; color:var(--muted); letter-spacing:.02em}
+.header-right{display:flex; justify-content:flex-end}   /* 상태를 오른쪽 끝으로 */
+.health{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
+.health .pulse{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.health.online .pulse{background:var(--ok)}
+.health.offline .pulse{background:var(--danger)}
+
+/* 본문: 채팅 + 결과 탭 패널 2단 */
+.main{flex:1; display:flex; min-height:0}
+.chat-col{flex:1; display:flex; flex-direction:column; min-width:0}
+.messages{flex:1; overflow-y:auto; padding:24px 0}
+.messages-inner{max-width:820px; margin:0 auto; padding:0 24px}
+
+/* ============================================================
+   3. 메시지 버블 + 턴 요약 칩 + 각주
+   ============================================================ */
+.msg{margin-bottom:22px; animation:rise .35s ease both}
+@keyframes rise{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+.msg.user{display:flex; justify-content:flex-end}
+.msg.user .bubble{
+  background:var(--ink); color:#fff; padding:12px 16px;
+  border-radius:16px 16px 4px 16px; max-width:78%;
+  font-size:15px; line-height:1.55; white-space:pre-wrap;
+}
+.msg.agent .bubble{max-width:100%}
+
+/* 에이전트 아바타 + 이름 */
+.agent-head{display:flex; align-items:center; gap:9px; margin-bottom:10px}
+.agent-avatar{
+  width:28px; height:28px; border-radius:8px; flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent-strong));
+  display:grid; place-items:center; color:#fff; font-weight:800; font-size:13px;
+}
+.agent-name{font-weight:700; font-size:13px}
+.agent-name span{color:var(--muted); font-weight:500; margin-left:6px}
+
+/* 각주 [n] — 답변 본문에 draft_answer 가 [n] 을 포함할 때 클릭 가능 배지로 변환
+   (해결안 2: 각주 클릭 = 해당 턴 근거 모달 즉시 오픈) */
+.fn{
+  display:inline-grid; place-items:center; min-width:18px; height:18px;
+  margin:0 1px; padding:0 4px; vertical-align:2px;
+  font-size:11px; font-weight:700; border-radius:6px;
+  background:var(--accent-soft); color:var(--accent-strong);
+  cursor:pointer; user-select:none;
+}
+.fn:hover{background:var(--accent); color:#fff}
+
+/* 턴 요약 칩: 답변 아래 "근거 N건" — 클릭 시 그 턴의 결과로 모달 직행 (해결안 1) */
+.turn-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+.turn-chip{
+  font-size:12px; padding:5px 11px; border-radius:20px;
+  border:1px solid var(--border); background:var(--surface);
+  color:var(--ink-soft); transition:border-color .15s, color .15s;
+}
+.turn-chip:hover{border-color:var(--accent); color:var(--accent-strong)}
+
+/* ============================================================
+   4. 시그니처: 에이전트 진행 단계 타임라인 (+ 접힘 요약, 해결안 6)
+   ============================================================ */
+.trace-wrap{position:relative}
+.trace{
+  border-left:2px solid var(--border); margin-left:13px;
+  padding:2px 0 2px 20px; position:relative;
+}
+/* 접힘 상태: 타임라인 본체를 숨기고 요약 바만 표시 */
+.trace-wrap.collapsed .trace{display:none}
+.trace-summary{
+  display:none;                          /* 완료 전에는 숨김 */
+  align-items:center; gap:8px;
+  font-size:12.5px; color:var(--ink-soft);
+  padding:7px 12px; margin-left:13px;
+  border:1px solid var(--border); border-radius:20px;
+  background:var(--surface-2); cursor:pointer; width:fit-content;
+  transition:border-color .15s;
+}
+.trace-summary:hover{border-color:var(--accent)}
+.trace-summary .ok-dot{width:7px; height:7px; border-radius:50%; background:var(--ok)}
+.trace-wrap.collapsed .trace-summary,
+.trace-wrap.done .trace-summary{display:flex}
+/* 완료 후 펼쳐본 상태에서는 요약 바를 위에 두고 아래에 타임라인 표시 */
+.trace-wrap.done:not(.collapsed) .trace{margin-top:8px}
+
+.step{position:relative; padding:8px 0; font-size:13.5px; color:var(--ink-soft)}
+.step::before{
+  content:''; position:absolute; left:-26px; top:12px;
+  width:10px; height:10px; border-radius:50%;
+  background:var(--surface); border:2px solid var(--border);
+}
+.step.active::before{border-color:var(--accent); background:var(--accent)}
+.step.done::before{border-color:var(--ok); background:var(--ok)}
+.step .step-title{font-weight:700; color:var(--ink)}
+.step .step-detail{margin-top:3px; color:var(--ink-soft); font-size:13px; line-height:1.5}
+.step.active .step-title::after{
+  content:''; display:inline-block; width:12px; height:12px; margin-left:8px;
+  border:2px solid var(--accent-soft); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* soft hint / 분석 배지 (질문 분석 단계에서 표시) */
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+.chip{
+  font-size:12px; padding:3px 9px; border-radius:20px;
+  background:var(--surface-2); border:1px solid var(--border); color:var(--ink-soft);
+}
+.chip b{color:var(--ink); font-weight:700}
+
+/* ============================================================
+   5. 종합 답변 + 0건/오류 안내
+   ============================================================ */
+.answer{
+  margin-top:14px; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow);
+  font-size:15px; line-height:1.65;
+}
+.answer .answer-label{
+  font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:8px;
+}
+/* 비어있음(0건)/오류 안내 — 실패를 방향 제시로 (문구는 사용자 기준, 해결안 11) */
+.empty{
+  margin-top:14px; background:#FFF8F0; border:1px solid var(--evidence-soft);
+  border-radius:var(--radius); padding:16px 18px; font-size:14px; line-height:1.6; color:var(--ink);
+}
+.empty b{color:var(--evidence)}
+
+/* 메타 배지: 차원별로 색을 살짝 달리해 스캔이 쉽게 (v1 계승, 모달에서 사용) */
+.badges{display:flex; flex-wrap:wrap; gap:6px}
+.badge{font-size:11.5px; padding:3px 8px; border-radius:6px; font-weight:600; border:1px solid transparent}
+.badge.group{background:#EEF1F6; color:#3B4761; border-color:#DCE2EC}
+.badge.section{background:var(--accent-soft); color:var(--accent-strong)}
+.badge.orgtype{background:#EDEAF9; color:#5B4B9E}
+.badge.projtype{background:var(--evidence-soft); color:var(--evidence)}
+.badge.org{background:#F5F8FB; color:var(--ink-soft); border-color:var(--border)}
+
+/* ============================================================
+   6. 결과 패널 320px + 탭 + 컴팩트 카드 (v1.1)
+   ============================================================ */
+.result-panel{
+  width:0; flex-shrink:0;               /* 닫힘 상태: 폭 0 */
+  background:var(--surface); border-left:1px solid var(--border);
+  overflow:hidden; transition:width .25s ease;
+  display:flex; flex-direction:column;
+}
+.result-panel.open{width:320px}
+
+/* 탭 버튼 줄 — 320px 에 3탭 균등 분할 + 우측 접기 버튼 */
+.tabs{display:flex; align-items:stretch; border-bottom:1px solid var(--border); flex-shrink:0}
+.tab{
+  flex:1; border:none; background:none; padding:11px 2px;
+  font-size:13px; font-weight:600; color:var(--muted);
+  border-bottom:2px solid transparent; white-space:nowrap;
+}
+.tab.active{color:var(--accent-strong); border-bottom-color:var(--accent)}
+.tab-badge{
+  display:inline-block; min-width:18px; margin-left:4px; padding:1px 5px;
+  font-size:11px; border-radius:9px;
+  background:var(--accent-soft); color:var(--accent-strong);
+}
+.tab-badge.empty{background:var(--surface-2); color:var(--muted)}
+.panel-close{
+  border:none; background:none; width:34px; color:var(--muted); font-size:14px;
+}
+.panel-close:hover{color:var(--ink)}
+
+.tab-panes{flex:1; overflow-y:auto; padding:4px 0 12px}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.pane-note{padding:16px 14px; font-size:13px; color:var(--ink-soft); line-height:1.6}
+
+/* 컴팩트 카드 — 파일명 2줄 클램프 (해결안 5: 유사 파일명 구분) */
+.mini-card{
+  padding:10px 12px; margin:8px 10px; cursor:pointer;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  transition:border-color .15s;
+}
+.mini-card:hover, .mini-card:focus-visible{border-color:var(--accent); outline:none}
+.mini-card .t{
+  font-size:13px; font-weight:700; line-height:1.4;
+  display:-webkit-box; -webkit-line-clamp:2;        /* 파일명 2줄 허용 */
+  -webkit-box-orient:vertical; overflow:hidden; word-break:break-all;
+}
+.mini-card .s{
+  margin-top:4px; font-size:12px; color:var(--ink-soft); line-height:1.5;
+  display:-webkit-box; -webkit-line-clamp:2;
+  -webkit-box-orient:vertical; overflow:hidden;
+}
+.mini-card .m{                          /* 배지 최대 2개 + +N + 점수 */
+  margin-top:6px; display:flex; align-items:center; gap:5px; flex-wrap:wrap;
+}
+.mini-card .m .badge{font-size:10.5px; padding:2px 6px}
+.mini-card .more{font-size:11px; color:var(--muted)}
+.mini-card .score{
+  margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--muted);
+  background:var(--surface-2); padding:1px 6px; border-radius:6px;
+}
+
+/* ============================================================
+   7. 상세보기 모달 — 근거/그래프/위키 공용 (v1.1 + 포커스트랩)
+   ============================================================ */
+.modal-backdrop{
+  position:fixed; inset:0; z-index:100;
+  background:rgba(15,26,43,.45);
+  display:none; align-items:center; justify-content:center; padding:24px;
+}
+.modal-backdrop.open{display:flex}
+.modal{
+  width:100%; max-width:720px; max-height:86vh;
+  background:var(--surface); border-radius:var(--radius);
+  box-shadow:0 24px 64px rgba(15,26,43,.25);
+  display:flex; flex-direction:column;
+  animation:pop .22s ease both;
+}
+@keyframes pop{from{opacity:0; transform:translateY(14px) scale(.98)}
+               to  {opacity:1; transform:none}}
+.modal-head{
+  display:flex; align-items:center; gap:8px;
+  padding:14px 18px; border-bottom:1px solid var(--border);
+}
+.modal-title{flex:1; font-weight:700; font-size:15px; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.modal-nav, .modal-close{
+  border:1px solid var(--border); background:var(--surface-2);
+  width:30px; height:30px; border-radius:8px; color:var(--ink-soft); font-size:13px;
+}
+.modal-nav:hover:not(:disabled), .modal-close:hover{border-color:var(--accent); color:var(--accent-strong)}
+.modal-nav:disabled{opacity:.35; cursor:not-allowed}
+.modal-body{flex:1; overflow-y:auto; padding:18px 20px; font-size:14px; line-height:1.75}
+.modal-foot{padding:8px 18px; border-top:1px solid var(--border);
+  font-size:12px; color:var(--muted); text-align:right}
+
+/* 모달 본문 요소 */
+.ev-path{font-family:var(--mono); font-size:11px; color:var(--muted);
+  word-break:break-all; margin:12px 0 14px; line-height:1.5}
+.ev-text{font-size:14px; line-height:1.75; color:var(--ink); white-space:pre-wrap}
+.ev-text mark{background:var(--evidence-soft); color:var(--evidence);
+  padding:1px 2px; border-radius:3px; font-weight:600}
+
+/* ============================================================
+   8. 입력창 v1.2 — [＋] textarea [데이터셋▾] [🎙] [⬆]
+   ============================================================ */
+.composer-wrap{flex-shrink:0; border-top:1px solid var(--border); background:var(--surface)}
+.examples{max-width:820px; margin:0 auto; padding:12px 24px 0;
+  display:flex; flex-wrap:wrap; gap:7px}
+.ex-chip{
+  font-size:12.5px; padding:6px 11px; border:1px solid var(--border);
+  border-radius:20px; background:var(--surface-2); color:var(--ink-soft);
+  transition:border-color .15s, color .15s;
+}
+.ex-chip:hover{border-color:var(--accent); color:var(--accent-strong)}
+
+/* 첨부 칩 영역 — 파일 첨부 시에만 표시 (upload 플래그 on 일 때) */
+.attach-list{
+  max-width:820px; margin:0 auto; padding:8px 24px 0;
+  display:flex; flex-wrap:wrap; gap:6px;
+}
+.attach-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; padding:5px 8px 5px 10px;
+  background:var(--accent-soft); color:var(--accent-strong);
+  border:1px solid var(--border); border-radius:8px;
+}
+.attach-chip .size{color:var(--muted); font-size:11px}
+.attach-chip button{border:none; background:none; color:var(--accent-strong);
+  font-size:13px; padding:0 2px}
+
+.composer{
+  max-width:820px; margin:0 auto; padding:10px 24px 18px;
+  display:flex; gap:8px; align-items:flex-end;    /* textarea 늘어나도 하단 정렬 */
+}
+.composer textarea{
+  flex:1; resize:none; border:1px solid var(--border); border-radius:12px;
+  padding:11px 14px; font-family:inherit; font-size:15px; line-height:1.5;
+  color:var(--ink); background:var(--surface-2); max-height:140px; min-height:44px;
+}
+.composer textarea:focus{outline:none; border-color:var(--accent); background:var(--surface)}
+
+/* ＋ / 🎙 공용 아이콘 버튼 — 원형, 낮은 존재감 */
+.icon-btn{
+  width:40px; height:40px; flex-shrink:0;
+  border:1px solid var(--border); border-radius:50%;
+  background:var(--surface-2); color:var(--ink-soft);
+  display:grid; place-items:center; font-size:20px; line-height:1;
+  transition:border-color .15s, color .15s, box-shadow .15s;
+}
+.icon-btn:hover{border-color:var(--accent); color:var(--accent-strong)}
+.icon-btn.recording{                     /* 🎙 녹음 중: 붉은 펄스 */
+  border-color:var(--danger); color:var(--danger);
+  animation:micPulse 1.1s ease infinite;
+}
+@keyframes micPulse{50%{box-shadow:0 0 0 6px rgba(198,69,62,.15)}}
+
+/* 데이터셋 드롭다운 — textarea 우측, 낮은 톤 */
+.source-select{
+  flex-shrink:0; max-width:180px; height:40px;
+  padding:0 26px 0 10px; font-family:inherit; font-size:12.5px;
+  color:var(--ink-soft); background:var(--surface-2);
+  border:1px solid var(--border); border-radius:10px;
+  appearance:none;                       /* 기본 화살표 제거 후 커스텀 ▾ */
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' stroke='%238A93A6' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat:no-repeat; background-position:right 10px center;
+  text-overflow:ellipsis; white-space:nowrap; overflow:hidden;
+}
+.source-select:focus{outline:none; border-color:var(--accent)}
+
+/* ⬆ 전송 버튼 — 원형. 활성/비활성 상태가 명확해야 함 */
+.send-btn{
+  width:40px; height:40px; flex-shrink:0;
+  border:none; border-radius:50%;
+  background:var(--accent); color:#fff;
+  display:grid; place-items:center; transition:background .15s, transform .1s;
+}
+.send-btn:hover:not(:disabled){background:var(--accent-strong); transform:translateY(-1px)}
+.send-btn:disabled{background:var(--border); color:var(--muted); cursor:not-allowed}
+
+/* 웰컴 화면 */
+.welcome{max-width:640px; margin:8vh auto 0; text-align:center; padding:0 24px}
+.welcome h1{font-size:26px; letter-spacing:-.02em; margin:0 0 10px}
+.welcome p{color:var(--ink-soft); font-size:15px; line-height:1.7; margin:0}
+
+/* ============================================================
+   9. 모바일 / 접근성
+   ============================================================ */
+@media (max-width:720px){
+  .brand small{display:none}             /* 좁은 화면: 소제목 숨겨 중앙 확보 */
+  .brand{font-size:14px}
+  /* 결과 패널: 하단 시트 */
+  .result-panel.open{position:fixed; left:0; right:0; bottom:0; top:auto;
+    width:100%; height:52vh; z-index:50; border-top:1px solid var(--border)}
+  /* 모달: 전체 화면 (z-index 100 > 패널 50 유지) */
+  .modal-backdrop{padding:0}
+  .modal{max-width:none; max-height:none; height:100%; border-radius:0}
+  /* composer: 모바일 대응 - padding 축소, 전체 너비 사용 */
+  .composer{padding:10px 12px 14px; max-width:100%; box-sizing:border-box}
+  .composer textarea{min-width:0; width:100%; font-size:16px; padding:10px 12px}
+  /* 입력창: 데이터셋 폭 축소 + 입력 중에는 🎙 숨김 (해결안 8)
+     단, 녹음 중(.recording)에는 정지할 수 있어야 하므로 숨기지 않는다 */
+  .source-select{max-width:100px; font-size:11px}
+  .composer.has-text #micBtn:not(.recording){display:none}
+  /* 아이콘 버튼 크기 축소 */
+  .icon-btn{width:36px; height:36px; font-size:18px}
+}
+/* 태블릿 대응 (720px ~ 1024px) */
+@media (min-width:721px) and (max-width:1024px){
+  .composer{padding:10px 16px 16px; max-width:100%}
+  .composer textarea{font-size:15px}
+  .source-select{max-width:130px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+/* 키보드 포커스 가시화 (품질 기본선) */
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ============================================================
+   10. 접속 게이트 (Phase A — 다중 사용자 공용 접속코드)
+   ============================================================ */
+.access-gate{
+  position:fixed; inset:0; z-index:200;
+  background:linear-gradient(135deg, #1B3A6B 0%, #0E6E86 100%);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+}
+.access-gate.hidden{display:none}
+.gate-card{
+  background:var(--surface); border-radius:var(--radius);
+  box-shadow:0 24px 64px rgba(15,26,43,.35);
+  width:100%; max-width:400px; padding:36px 32px;
+  animation:pop .25s ease both;
+}
+.gate-brand{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+.gate-brand .dot{width:12px; height:12px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
+.gate-brand h1{font-size:20px; font-weight:800; margin:0}
+.gate-sub{color:var(--ink-soft); font-size:14px; margin-bottom:24px}
+.gate-notice{
+  background:var(--evidence-soft); border:1px solid var(--evidence);
+  border-radius:var(--radius-sm); padding:12px 14px;
+  font-size:13px; color:var(--evidence); margin-bottom:20px; line-height:1.5;
+}
+.gate-notice b{font-weight:700}
+.gate-field{margin-bottom:16px}
+.gate-field label{display:block; font-size:13px; font-weight:600;
+  color:var(--ink-soft); margin-bottom:6px}
+.gate-field input{
+  width:100%; padding:12px 14px; font-size:15px; font-family:inherit;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  background:var(--surface-2); color:var(--ink);
+}
+.gate-field input:focus{outline:none; border-color:var(--accent); background:var(--surface)}
+.gate-btn{
+  width:100%; padding:14px; font-size:15px; font-weight:700;
+  border:none; border-radius:var(--radius-sm);
+  background:var(--accent); color:#fff; cursor:pointer;
+  transition:background .15s;
+}
+.gate-btn:hover:not(:disabled){background:var(--accent-strong)}
+.gate-btn:disabled{background:var(--border); color:var(--muted); cursor:not-allowed}
+.gate-links{
+  margin-top:12px; text-align:center; font-size:13px;
+}
+.gate-link{
+  border:none; background:none; padding:0;
+  color:var(--accent-strong); cursor:pointer; font:inherit;
+  text-decoration:underline;
+}
+.gate-link:hover{color:var(--accent)}
+.gate-link-row{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+}
+.gate-help{
+  margin-top:10px; font-size:12px; line-height:1.5;
+  color:var(--ink-soft); text-align:center; display:none;
+}
+.gate-help.show{display:block}
+.gate-error{
+  color:var(--danger); font-size:13px; margin-top:12px;
+  text-align:center; display:none;
+}
+.gate-error.show{display:block}
+
+/* ============================================================
+   11. 대화 세션 드로어 (Phase B — 저장/복원)
+   ============================================================ */
+.header-left{display:flex; align-items:center; gap:8px}
+.drawer-toggle{
+  border:none; background:none; width:36px; height:36px;
+  border-radius:8px; font-size:18px; color:var(--ink-soft);
+  display:grid; place-items:center; cursor:pointer;
+}
+.drawer-toggle:hover{background:var(--surface-2); color:var(--ink)}
+.new-chat-btn{
+  border:1px solid var(--border); background:var(--surface-2);
+  padding:6px 12px; font-size:13px; font-weight:600;
+  border-radius:8px; color:var(--ink-soft); cursor:pointer;
+}
+.new-chat-btn:hover{border-color:var(--accent); color:var(--accent-strong)}
+
+/* 드로어 오버레이 */
+.session-drawer-backdrop{
+  position:fixed; inset:0; z-index:150;
+  background:rgba(15,26,43,.35);
+  display:none;
+}
+.session-drawer-backdrop.open{display:block}
+.session-drawer{
+  position:fixed; left:0; top:0; bottom:0;
+  width:320px; max-width:85vw;
+  background:var(--surface); box-shadow:4px 0 24px rgba(15,26,43,.12);
+  transform:translateX(-100%); transition:transform .25s ease;
+  display:flex; flex-direction:column; z-index:151;
+}
+.session-drawer-backdrop.open .session-drawer{transform:translateX(0)}
+.drawer-head{
+  padding:16px 18px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.drawer-head h2{margin:0; font-size:16px; font-weight:700}
+.drawer-close{border:none; background:none; font-size:18px;
+  color:var(--muted); cursor:pointer}
+.drawer-close:hover{color:var(--ink)}
+
+/* 드로어 탭 */
+.drawer-tabs{display:flex; border-bottom:1px solid var(--border)}
+.drawer-tab{
+  flex:1; padding:10px 8px; font-size:13px; font-weight:600;
+  border:none; background:none; color:var(--muted);
+  border-bottom:2px solid transparent; cursor:pointer;
+}
+.drawer-tab.active{color:var(--accent-strong); border-bottom-color:var(--accent)}
+.drawer-content{flex:1; overflow-y:auto; padding:8px 0}
+
+/* 세션 아이템 */
+.session-item{
+  padding:12px 16px; cursor:pointer;
+  border-bottom:1px solid var(--border);
+  transition:background .1s;
+}
+.session-item:hover{background:var(--surface-2)}
+.session-item.active{background:var(--accent-soft)}
+.session-item .title{font-size:14px; font-weight:600; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.session-item .meta{font-size:12px; color:var(--muted); margin-top:4px;
+  display:flex; gap:8px}
+.session-item .owner{color:var(--ink-soft)}
+.session-empty{padding:24px 16px; text-align:center;
+  color:var(--muted); font-size:14px}
+
+/* 읽기 전용 배너 (타인 세션) */
+.readonly-banner{
+  background:var(--evidence-soft); border:1px solid var(--evidence);
+  border-radius:var(--radius-sm); padding:10px 14px;
+  margin:0 24px 12px; display:flex; align-items:center;
+  justify-content:space-between; gap:12px;
+}
+.readonly-banner.hidden{display:none}
+.readonly-banner .text{font-size:13px; color:var(--evidence)}
+.readonly-banner .fork-btn{
+  border:1px solid var(--evidence); background:none;
+  padding:5px 10px; font-size:12px; font-weight:600;
+  border-radius:6px; color:var(--evidence); cursor:pointer;
+  white-space:nowrap;
+}
+.readonly-banner .fork-btn:hover{background:var(--evidence); color:#fff}
+
+/* 사용자 표시 */
+.user-badge{
+  font-size:12px; padding:4px 10px; border-radius:20px;
+  background:var(--surface-2); border:1px solid var(--border);
+  color:var(--ink-soft);
+}
+</style>
+</head>
+
+<body>
+  <!-- ── 접속 게이트 (Phase A — 공용 접속코드) ── -->
+  <div class="access-gate" id="accessGate">
+    <div class="gate-card">
+      <div class="gate-brand">
+        <span class="dot"></span>
+        <h1>제안서 리서치 에이전트</h1>
+      </div>
+      <div class="gate-sub">weeslee-rag 컨설턴트 전용</div>
+      <div class="gate-notice">
+        <b>📢 공유 안내</b><br>
+        이곳의 대화 기록은 회사 구성원 모두에게 공유됩니다.
+      </div>
+      <div class="gate-field">
+        <label for="gateCode">접속코드</label>
+        <input type="password" id="gateCode" placeholder="접속코드를 입력하세요" autocomplete="off">
+      </div>
+      <div class="gate-field">
+        <label for="gateName">표시 이름</label>
+        <input type="text" id="gateName" placeholder="예: 김수정" maxlength="20" autocomplete="name">
+      </div>
+      <div class="gate-field" id="gateConfirmWrap" hidden>
+        <label for="gateConfirmCode">접속코드 확인</label>
+        <input type="password" id="gateConfirmCode" placeholder="접속코드를 다시 입력하세요" autocomplete="off">
+      </div>
+      <button class="gate-btn" id="gateSubmit">접속하기</button>
+      <div class="gate-links">
+        <button type="button" class="gate-link" id="gateRegisterLink">등록하기</button>
+        <div class="gate-link-row" id="gateRegisterActions" hidden>
+          <button type="button" class="gate-link" id="gateCancelRegister">취소</button>
+        </div>
+        <div class="gate-help" id="gateHelp">
+          표시 이름과 접속코드를 등록한 뒤 같은 정보로 다시 접속할 수 있습니다.
+        </div>
+      </div>
+      <div class="gate-error" id="gateError"></div>
+    </div>
+  </div>
+
+  <!-- ── 세션 드로어 (Phase B — 대화 목록) ── -->
+  <div class="session-drawer-backdrop" id="drawerBackdrop">
+    <div class="session-drawer">
+      <div class="drawer-head">
+        <h2>대화 기록</h2>
+        <button class="drawer-close" id="drawerClose" title="닫기">✕</button>
+      </div>
+      <div class="drawer-tabs">
+        <button class="drawer-tab active" data-scope="mine">내 대화</button>
+        <button class="drawer-tab" data-scope="all">전체 대화</button>
+      </div>
+      <div class="drawer-content" id="drawerContent">
+        <div class="session-empty">대화 기록이 없습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 헤더: [좌 버튼] [브랜드 중앙] [상태 우측] ── -->
+  <header class="app-header">
+    <div class="header-left">
+      <button class="drawer-toggle" id="drawerToggle" title="대화 기록">☰</button>
+      <button class="new-chat-btn" id="newChatBtn">+ 새 대화</button>
+    </div>
+    <div class="brand">
+      <span class="dot"></span> 제안서 리서치 에이전트
+      <small>weeslee-rag</small>
+    </div>
+    <div class="header-right">
+      <span class="user-badge" id="userBadge" hidden></span>
+      <div class="health" id="health">
+        <span class="pulse"></span><span id="healthText">확인 중</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 본문: 채팅 + 결과 탭 패널 ── -->
+  <div class="main">
+    <div class="chat-col">
+      <div class="messages" id="messages">
+        <!-- 읽기 전용 배너 (타인 세션 열람 시) -->
+        <div class="readonly-banner hidden" id="readonlyBanner">
+          <span class="text" id="readonlyText">○○님의 대화 (읽기 전용)</span>
+          <button class="fork-btn" id="forkBtn">이 대화 이어가기</button>
+        </div>
+        <div class="messages-inner" id="messagesInner">
+          <!-- 웰컴 -->
+          <div class="welcome" id="welcome">
+            <h1>무엇을 찾아드릴까요?</h1>
+            <p>정부 제안서를 작성하며 떠오르는 질문을 자연어로 물어보세요.
+               에이전트가 질문을 분석하고, 관련 제안서·산출물·RFP를 근거와 함께 찾아드립니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 입력창 -->
+      <div class="composer-wrap">
+        <div class="examples" id="examples"><!-- 예시 질문 칩 JS 주입 --></div>
+
+        <!-- 첨부 칩 영역 (upload 플래그 on + 파일 있을 때만 표시) -->
+        <div class="attach-list" id="attachList" hidden></div>
+
+        <div class="composer" id="composer">
+          <!-- ＋ 파일 첨부: Phase 1 은 CONFIG.features.upload=false 로 숨김 (해결안 3) -->
+          <button class="icon-btn" id="attachBtn" title="파일 첨부" hidden>＋</button>
+          <input type="file" id="fileInput" multiple hidden
+                 accept=".pdf,.pptx,.hwp,.hwpx,.docx,.xlsx,.txt">
+
+          <textarea id="input" rows="1"
+            placeholder="예) 공공기관을 고객으로 AI를 접목한 기술및기능 제안서를 찾아줘"></textarea>
+
+          <!-- 데이터셋 선택: 활성 Collection 드롭다운 -->
+          <select class="source-select" id="sourceSelect" title="검색 대상 데이터셋">
+            <option value="">데이터셋 로딩…</option>
+          </select>
+
+          <!-- 🎙 음성 입력: Web Speech API(브라우저 내장). 미지원이면 JS 가 숨김 -->
+          <button class="icon-btn" id="micBtn" title="음성으로 입력">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M5 10a7 7 0 0 0 14 0M12 17v4"/>
+            </svg>
+          </button>
+
+          <!-- ⬆ 전송: 입력 없으면 비활성 -->
+          <button class="send-btn" id="sendBtn" title="보내기" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.4"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19V5M5 12l7-7 7 7"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 결과 탭 패널 (320px): 최신 턴 전용 뷰 ── -->
+    <aside class="result-panel" id="resultPanel">
+      <div class="tabs">
+        <button class="tab active" data-tab="evidence">근거<span class="tab-badge empty" id="badgeEvidence">0</span></button>
+        <button class="tab" data-tab="graph">그래프<span class="tab-badge empty" id="badgeGraph">–</span></button>
+        <button class="tab" data-tab="wiki">위키<span class="tab-badge empty" id="badgeWiki">–</span></button>
+        <button class="panel-close" id="panelClose" title="패널 접기">⟩</button>
+      </div>
+      <div class="tab-panes">
+        <div class="tab-pane active" data-tab="evidence" id="paneEvidence">
+          <div class="pane-note">검색을 실행하면 근거 문서 목록이 여기에 표시됩니다.</div>
+        </div>
+        <div class="tab-pane" data-tab="graph" id="paneGraph">
+          <div class="pane-note">그래프 탐색(기관·사업·문서 관계)은 다음 업데이트에서 제공됩니다.</div>
+        </div>
+        <div class="tab-pane" data-tab="wiki" id="paneWiki">
+          <div class="pane-note">사업·기관 위키는 다음 업데이트에서 제공됩니다.</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ── 상세보기 공용 모달: 근거/그래프/위키가 함께 사용 ── -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <div class="modal-title" id="modalTitle"></div>
+        <button class="modal-nav"   id="modalPrev"  title="이전 문서 (←)">◀</button>
+        <button class="modal-nav"   id="modalNext"  title="다음 문서 (→)">▶</button>
+        <button class="modal-close" id="modalClose" title="닫기 (Esc)">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalPos"></div>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   0. CONFIG — 서버 환경에 맞게 여기만 고치면 된다
+   ============================================================ */
+const CONFIG = {
+  // 백엔드 베이스 경로 (config.js 의 window.__API_BASE__ 가 있으면 우선 사용)
+  base: (window.__API_BASE__ || '/weeslee-rag/api').replace(/\/+$/, ''),
+  endpoints: {
+    analyzePrompt: '/rag/analyze-prompt',    // POST 질문 분석 (LLM — rag-assistant 와 동일)
+    hybridQuery:   '/rag/hybrid-query',      // POST 하이브리드 검색 (+답변 생성)
+    stats:         '/rag/hybrid-query/stats',// GET  상태(그래프 노드 수 등)
+    sources:       '/rag/sources',           // GET  활성 Collection 목록 (없으면 폴백)
+    // [2026-07-08] rag-assistant.html 기능 추가
+    searchScopes:  '/rag/search-scopes',     // GET  검색 범위 목록 (Snapshot 다중 선택용)
+    // [2026-07-08] Phase A/B — 다중 사용자 인증 + 대화 세션
+    authAccess:    '/auth/access',           // POST 접속코드 인증 → token/client_id
+    authRegister:  '/auth/register',         // POST 사용자별 접속코드 등록
+    authVerify:    '/auth/verify',           // GET  토큰 검증
+    chatSessions:  '/chat/sessions',         // GET/POST 세션 목록/생성
+    chatSession:   '/chat/sessions/',        // GET/PUT/DELETE 세션 상세 (+ {id})
+    chatMessages:  '/chat/sessions/',        // POST 턴 저장 (+ {id}/messages)
+  },
+  token: '',                                 // 사용자 인증 토큰 (localStorage 에서 로드)
+  // 검색 파라미터 — rag-assistant.html runQuery() 기본값과 동일하게 맞춤
+  topK: 20,            // 청크 후보 수 (top_k)
+  maxResults: 5,       // 최종 문서 수 (max_results = top_docs)
+  generateAnswer: true,// hybrid-query 가 llama3 답변까지 생성 (false = 검색 전용)
+  // 기능 플래그 (해결안 3: 미완성 기능은 UI 에서 숨긴다)
+  features: {
+    upload: false,   // ＋ 파일 첨부  — Phase 2 에서 true 로 전환
+    voice:  true,    // 🎙 음성 입력  — 브라우저 내장(Web Speech)이라 즉시 사용
+    searchScopes: true, // [2026-07-08] Snapshot 다중 선택 기능 활성화
+  },
+  // 데이터셋 목록 API 부재 시 폴백 (관리자 페이지의 활성 source_id 를 기입)
+  fallbackSources: [
+    {source_id:'src_20260706_071433_e6bc57', name:'RAG 소스(운영)'},
+  ],
+};
+
+/* ============================================================
+   1. 질의 분해기 (v1 계승) — 자연어 → softHints + 내용어 + 동의어확장
+      * 추론된 분류는 hard filter 가 아니라 soft hint 로만 쓴다
+   ============================================================ */
+const CLASS_DICT = {
+  document_group: {
+    'RFP':['RFP','제안요청서','과업지시서'],
+    '제안서':['제안서'], '산출물':['산출물'],
+  },
+  section_type: {
+    '기술및기능':['기술및기능','기술 및 기능'],
+    '환경분석':['환경분석','환경 분석'],
+    '현황분석':['현황분석','현황 분석'],
+    '프로젝트관리':['프로젝트관리','프로젝트 관리'],
+    '전략및방법론':['전략및방법론','전략 및 방법론'],
+    '이행계획':['이행계획','이행 계획'],
+  },
+  organization_type: {
+    '연구기관':['연구기관','연구소','연구원'],
+    '공공기관':['공공기관','공기업','정부기관'],
+    '민간':['민간','민간기업'],
+  },
+  project_type: {
+    '컨설팅':['컨설팅'], '구축':['구축'], '개선':['개선'], '고도화':['고도화'],
+    'AI도입':['AI를 접목','AI 접목','AI 도입','인공지능','AI'],
+    'ISP':['ISP','정보화전략계획'], 'ISMP':['ISMP'],
+  },
+};
+const STRUCTURAL = new Set(['document_group','section_type','organization_type']);
+const SYNONYMS = [ ['개선','고도화'], ['선진사례','유사사례','벤치마킹'], ['도입','접목','적용'] ];
+const STOP_MULTI = ['에 관련된','에 관한','에 대한','관련된','관련','관한','찾아줘','알려줘',
+  '사업','폴더','안에서','안에','내용을','내용','파일을','파일','중에서','진행한','하여',
+  '고객으로','고객','원하는','또는','있는','것을','그리고','대한'];
+const PARTICLES = new Set(['이','가','은','는','을','를','에','의','도','만','와','과','로','으로','중']);
+
+function stripOrderPrefix(s){ return String(s||'').replace(/^\s*\d+\.\s*/,'').trim(); }
+
+function decompose(question){
+  const softHints = {}; const detected = []; const removeFromContent = [];
+
+  // (1) 사전으로 분류 용어 탐지 — 긴 alias 우선 매칭
+  for(const dim in CLASS_DICT){
+    for(const canon in CLASS_DICT[dim]){
+      const aliases = [...CLASS_DICT[dim][canon]].sort((a,b)=>b.length-a.length);
+      for(const alias of aliases){
+        if(question.toLowerCase().includes(alias.toLowerCase())){
+          (softHints[dim] = softHints[dim]||[]);
+          if(!softHints[dim].includes(canon)) softHints[dim].push(canon);
+          detected.push(alias);
+          if(STRUCTURAL.has(dim)) removeFromContent.push(alias);
+          break;
+        }
+      }
+    }
+  }
+  // (2) 구조 분류어 + 지시어 제거 → 내용 후보
+  let content = question;
+  for(const t of [...removeFromContent, ...STOP_MULTI].sort((a,b)=>b.length-a.length)){
+    content = content.split(t).join(' ');
+  }
+  // (3) 기호/공백 정리 + 독립 조사 토큰 제거
+  content = content.replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+  content = content.split(' ').filter(tok=>tok && !PARTICLES.has(tok)).join(' ');
+
+  // (4) 동의어 확장
+  let expanded = content;
+  for(const group of SYNONYMS){
+    const hay = content + ' ' + detected.join(' ');
+    if(group.some(g=>hay.includes(g))){
+      for(const g of group){ if(!expanded.includes(g)) expanded += ' ' + g; }
+    }
+  }
+  return {softHints, contentQuery:content, expandedQuery:expanded.trim(), detected};
+}
+
+/* ============================================================
+   2. 도구 라우터 — Phase 1 은 RAG 고정, Phase 2 에서 graph/wiki 분기 활성
+      (규칙 기반 판단 결과를 타임라인에 표시해 에이전트의 '선택'을 보여준다)
+   ============================================================ */
+function routeQuestion(question){
+  const graphSignals = ['어떤 사업','관계','연결','몇 건','건수','목록','현황'];
+  const wikiSignals  = ['뭐야','무엇','요약','설명해','개요','정리해'];
+  // Phase 1: 판단은 기록하되 실행 도구는 rag(hybrid-query)만 사용
+  const wantGraph = graphSignals.some(s => question.includes(s));
+  const wantWiki  = wikiSignals.some(s => question.includes(s));
+  return {
+    tools: ['rag'],                                        // Phase 1 실행 도구
+    primary: 'rag',
+    note: wantWiki  ? '요약형 질문 — 위키 연동은 다음 업데이트에서 지원'
+        : wantGraph ? '관계형 질문 — 그래프 탐색은 다음 업데이트에서 지원'
+        : '문서 탐색형 — 하이브리드 검색(FAISS+그래프 병합)',
+  };
+}
+
+/* ============================================================
+   3. 멀티턴 대화 상태 (해결안 1)
+      - turns[n] 에 그 턴의 질문/결과/하이라이트 용어를 통째로 저장
+      - 과거 턴의 칩/각주 클릭 시 turns[n].docs 로 모달을 직접 연다
+   ============================================================ */
+const conversation = {
+  turns: [],          // [{question, docs, contentTerms, hints}]
+  activeHints: {},    // 직전 턴에서 확정된 soft hint (후속질문 승계용)
+};
+
+// 후속질문 지시어 / 리셋 신호
+const FOLLOW_WORDS = ['그 중','그중','거기서','그거','방금','위에서','그 결과'];
+const RESET_WORDS  = ['처음부터','새로','전체에서','다시 전체'];
+
+/* decompose 결과에 직전 턴 hint 를 승계/리셋하는 규칙 (v1.0 §7.2)
+   1) 새 분류어가 탐지되면 → 새 값으로 교체
+   2) 분류어 없음 + 지시어 있음 → 직전 hint 승계
+   3) 리셋 신호 → 초기화 */
+function mergeWithHistory(question, decomposed){
+  if(RESET_WORDS.some(w => question.includes(w))){
+    conversation.activeHints = {};
+    return {...decomposed, inherited:false};
+  }
+  const hasNewHints = Object.keys(decomposed.softHints).length > 0;
+  const isFollowUp  = FOLLOW_WORDS.some(w => question.includes(w));
+  if(!hasNewHints && isFollowUp && Object.keys(conversation.activeHints).length){
+    // 직전 hint 를 그대로 승계 (사본으로)
+    return {...decomposed,
+            softHints: JSON.parse(JSON.stringify(conversation.activeHints)),
+            inherited:true};
+  }
+  return {...decomposed, inherited:false};
+}
+
+/* ============================================================
+   4. API 계층 — 백엔드 호출 (방어적 파싱, v1 계승)
+   ============================================================ */
+const $ = sel => document.querySelector(sel);
+function apiUrl(path){ return CONFIG.base + path; }
+function headers(){
+  const h = {'Content-Type':'application/json'};
+  if(CONFIG.token) h['Authorization'] = 'Bearer ' + CONFIG.token;
+  return h;
+}
+
+/* ── 질문 분석: 서버 LLM(rag-assistant 와 동일한 /rag/analyze-prompt) ──
+   실패 시 로컬 decompose() 규칙 분석으로 폴백 → 서버가 죽어도 검색은 진행 */
+async function callAnalyzePrompt(question){
+  const res = await fetch(apiUrl(CONFIG.endpoints.analyzePrompt), {
+    method:'POST', headers:headers(),
+    body:JSON.stringify({query: question}),        // rag-assistant 계약: {query}
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+/* 서버 분석(우선) + 로컬 decompose(폴백/보강) → 통합 분석 객체 반환
+   반환 필드는 callHybridQuery 의 inferred_* 필드와 1:1 대응한다 */
+async function analyzeQuestion(question){
+  const local = decompose(question);               // 로컬 규칙 분석 (항상 수행)
+  let server = null;
+  try{
+    server = await callAnalyzePrompt(question);    // LLM 분석 (키워드/필터 감지)
+  }catch(e){
+    console.warn('analyze-prompt 실패 → 로컬 분석 사용:', e.message);
+  }
+
+  // softHints: 로컬 감지값 기반 + 서버 감지값을 우선 덮어씀 (칩 표시/멀티턴 승계용)
+  const hints = JSON.parse(JSON.stringify(local.softHints));
+  if(server){
+    if(server.detected_document_group)
+      hints.document_group = [stripOrderPrefix(server.detected_document_group)];
+    if(server.detected_project_type)
+      hints.project_type = [server.detected_project_type];
+  }
+
+  // 하이라이트/inferred_terms 용 키워드: LLM 추출 우선, 없으면 로컬 내용어 폴백
+  //  (rag-assistant highlightQueryTerms 의 우선순위와 동일)
+  const localTerms = (local.contentQuery || question)
+                       .split(' ').filter(t => t.length >= 2);
+  const keywords = (server && Array.isArray(server.extracted_keywords)
+                    && server.extracted_keywords.length)
+                   ? server.extracted_keywords : localTerms;
+
+  return {
+    fromServer: !!server,                          // 분석 출처 (칩에 표시)
+    softHints: hints,
+    contentQuery: local.contentQuery,
+    expandedQuery: (server && server.expanded_query) || local.expandedQuery || question,
+    keywords,
+    organization:     (server && server.detected_organization)      || '',
+    projectType:      (server && server.detected_project_type)      || '',
+    documentGroup:    (server && server.detected_document_group)
+                      || (hints.document_group ? hints.document_group[0] : ''),
+    documentCategory: (server && server.detected_document_category) || '',
+    modeNote: (server && server.mode_detection && server.mode_detection.reason) || '',
+  };
+}
+
+/* ── 하이브리드 검색 호출 ──
+   [2026-07-08] rag-assistant.html runQuery() 의 hybridPayload 와 동일 계약
+   snapshot_ids 파라미터 추가로 Snapshot 다중 선택 지원 */
+async function callHybridQuery(question, analysis, sourceId){
+  // [2026-07-08] 선택된 Snapshot IDs 가져오기
+  const selectedSnapshotIds = getSelectedSnapshotIds();
+
+  const body = {
+    question,
+    expanded_query: analysis.expandedQuery || '',
+    top_k: CONFIG.topK,                        // 청크 후보 수 (기본 20)
+    max_results: CONFIG.maxResults,            // 최종 문서 수 (기본 5)
+    merge_strategy: 'score_based',             // hybrid_rag 모드 병합 전략
+    force_search_order: null,
+    enable_graph: true,
+    enable_wiki: true,
+    generate_answer: CONFIG.generateAnswer,    // true 면 응답 answer 에 LLM 답변 포함
+    // 분석 결과를 soft hint 로 동봉 (후보 제거가 아닌 가점용)
+    inferred_organization:      analysis.organization     || '',
+    inferred_project_type:      analysis.projectType      || '',
+    inferred_document_group:    analysis.documentGroup    || '',
+    inferred_document_category: analysis.documentCategory || '',
+    inferred_terms: analysis.keywords || [],
+    // [2026-07-08] 소스/스냅샷 선택 처리
+    ...(selectedSnapshotIds.length ? {snapshot_ids: selectedSnapshotIds} : {}),
+    ...(sourceId && !selectedSnapshotIds.length ? {source_id: sourceId} : {}),
+  };
+  const res = await fetch(apiUrl(CONFIG.endpoints.hybridQuery), {
+    method:'POST', headers:headers(), body:JSON.stringify(body),
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+/* ── 응답 문서 정규화 ──
+   [2026-07-08] rag-assistant.html normalizeDocumentForUI() 와 동일한 필드/폴백 순서 적용
+   핵심: metadata 중첩 객체까지 참조해야 배지/경로가 누락되지 않는다 */
+function extractDocuments(resp){
+  const arr = resp.merged_documents || resp.results || resp.documents || [];
+  return arr.map((r, idx) => normalizeDocumentForUI(r, idx));
+}
+
+// [2026-07-08] rag-assistant.html 에서 이식한 문서 정규화 함수
+function normalizeDocGroupLabel(raw) {
+  const s = String(raw || '').replace(/^\d+\.\s*/, '').trim().toLowerCase();
+  if (s.includes('rfp') || s.includes('제안요청서') || s.includes('과업지시서')) return 'RFP';
+  if (s.includes('제안서')) return '제안서';
+  if (s.includes('산출물')) return '산출물';
+  return raw;
+}
+
+function resolveProjectName(metadata, r) {
+  return (
+    r?.project_name || metadata?.project_name ||
+    metadata?.folder_project || r?.folder_project ||
+    metadata?.final_project_name || ''
+  );
+}
+
+function resolveProjectId(projectName, metadata, r) {
+  return (
+    r?.project_id || metadata?.project_id ||
+    (projectName ? `project:${projectName}` : '')
+  );
+}
+
+function normalizeDocumentForUI(r, idx = 0) {
+  const metadata = r?.metadata || {};
+  const baseScore = r?.score || r?.final_score || r?.faiss_score || 0;
+  const faissScore = r?.faiss_score || 0;
+  const graphScore = r?.graph_score || 0;
+  const rankingScore = r?.ranking_score || (baseScore * 5.0 + (r?.source === 'graph' ? 1.5 : 1.0));
+  const projectName = resolveProjectName(metadata, r);
+  const projectId = resolveProjectId(projectName, metadata, r);
+  const documentGroupRaw = r?.document_group || metadata?.document_group || r?.category || metadata?.category || '';
+  const documentGroup = normalizeDocGroupLabel(documentGroupRaw);
+  const documentCategory = r?.document_category || metadata?.document_category || metadata?.section_label || '';
+  const categoryRaw = metadata?.category || r?.category || '';
+  const category = normalizeDocGroupLabel(categoryRaw);
+
+  // 섹션: 제안서 섹션 → 산출물 섹션 → 섹션 제목/헤딩 순
+  const sectionRaw = r?.proposal_section ?? metadata?.proposal_section
+                     ?? r?.deliverable_section ?? metadata?.deliverable_section
+                     ?? r?.section_title ?? metadata?.section_title
+                     ?? metadata?.section_heading ?? '';
+
+  return {
+    // 기본 식별자
+    documentId: r?.document_id || `hybrid_${idx}`,
+    document_id: r?.document_id || `hybrid_${idx}`,
+    chunkId: r?.chunk_id ?? metadata?.chunk_id ?? null,
+    fileName: r?.file_name || r?.title || r?.document_id || '(파일명 없음)',
+    file_name: r?.file_name || r?.title || r?.document_id || '(파일명 없음)',
+
+    // 프로젝트 정보
+    projectName,
+    project_name: projectName,
+    projectId,
+    project_id: projectId,
+    organization: r?.organization || metadata?.organization || '',
+    organizationType: r?.organization_type ?? metadata?.organization_type ?? r?.client_type ?? metadata?.client_type ?? '',
+    projectType: r?.project_type ?? metadata?.project_type ?? '',
+    project_year: r?.project_year || metadata?.folder_year || metadata?.year || '',
+
+    // 분류 정보
+    documentGroup: stripOrderPrefix(documentGroup),
+    document_group: stripOrderPrefix(documentGroup),
+    documentCategory,
+    document_category: documentCategory,
+    category,
+    sectionType: stripOrderPrefix(sectionRaw),
+    section_title: r?.section_title || metadata?.section_title || metadata?.section_heading || '',
+    section_id: r?.section_id || metadata?.section_id || '',
+    proposal_section: r?.proposal_section || metadata?.proposal_section || '',
+    deliverable_section: r?.deliverable_section || metadata?.deliverable_section || '',
+
+    // 경로 정보
+    path: r?.original_source_path ?? metadata?.original_source_path
+          ?? r?.source_path ?? metadata?.source_path
+          ?? r?.file_path ?? r?.relative_path ?? metadata?.relative_path ?? '',
+    file_path: r?.file_path || r?.source_path || metadata?.source_path || '',
+    source_path: r?.source_path || metadata?.source_path || r?.file_path || '',
+    original_source_path: r?.original_source_path || metadata?.original_source_path || '',
+    input_path: r?.input_path || metadata?.input_path || '',
+    relative_path: r?.relative_path || metadata?.relative_path || '',
+
+    // 소스/스냅샷 정보
+    source_id: r?.source_id || metadata?.source_id || '',
+    dataset_id: r?.dataset_id || metadata?.dataset_id || '',
+    snapshot_id: r?.snapshot_id || metadata?.snapshot_id || metadata?.faiss_snapshot || '',
+    document_uid: r?.document_uid || metadata?.document_uid || '',
+    collection_key: r?.collection_key || metadata?.collection_key || '',
+    collection: r?.collection || metadata?.collection_name || '',
+
+    // 콘텐츠
+    snippet: r?.text_preview ?? r?.evidence ?? r?.snippet ?? r?.chunk_text ?? metadata?.section_heading ?? '',
+    chunks: r?.chunks || [],
+    evidence_snippets: r?.evidence_snippets || [],
+    summary: r?.summary || '',
+    summary_available: r?.summary_available || false,
+    page_no: r?.page_no || metadata?.page_no || '',
+    slide_no: r?.slide_no || metadata?.slide_no || '',
+
+    // 점수
+    score: baseScore,
+    best_score: baseScore,
+    ranking_score: rankingScore,
+    faissScore,
+    faiss_score: faissScore,
+    graphScore,
+    graph_score: graphScore,
+    sourceKind: r?.source || 'hybrid',
+    source: r?.source || 'hybrid',
+
+    // 그래프/메타
+    metadata,
+    graph_relations: r?.graph_relations || [],
+    graph_context: r?.graph_context || r?.relations || r?.graph_relations || [],
+    graph_available: r?.graph_available || !!(r?.document_id)
+  };
+}
+
+// [2026-07-08] rag-assistant.html 에서 이식한 Hybrid 응답 변환 함수
+function transformHybridResponse(hybridData) {
+  if (!hybridData) return { success: false, error: 'No hybrid data' };
+
+  const rawDocs = hybridData.merged_documents || hybridData.results || [];
+  const documents = rawDocs.map((r, idx) => normalizeDocumentForUI(r, idx));
+
+  // graph_context 변환
+  const cypherQueries = hybridData.graph_cypher || [];
+  const graphContext = cypherQueries.length > 0 ? [{
+    project_name: '',
+    cypher_query: cypherQueries.join('\n'),
+    retry_count: hybridData.graph_retry_count || 0,
+    question_type: hybridData.graph_question_type || '',
+    related_docs: documents.filter(d => d.source === 'graph' || d.graph_score > 0)
+  }] : [];
+
+  const stats = hybridData.statistics || {};
+  const timing = hybridData.timing || {};
+
+  return {
+    success: hybridData.success !== false,
+    documents,
+    total_chunks: stats.merged_count || documents.length,
+    expanded_query: hybridData.question || '',
+    extracted_keywords: hybridData.extracted_keywords || [],
+    graph_context: graphContext,
+    hybrid_metadata: {
+      faiss_count: stats.faiss_count || 0,
+      graph_count: stats.graph_count || 0,
+      wiki_count: stats.wiki_count || 0,
+      merge_strategy: hybridData.merge_strategy || 'score_based',
+      search_order: hybridData.search_order || '',
+      sources_used: hybridData.sources_used || [],
+      search_time_ms: timing.total_time_ms || 0,
+      timing: timing
+    },
+    retrieval_summary: {
+      resolved_snapshot_count: hybridData.resolved_snapshot_ids?.length || 0,
+      skipped_snapshot_count: hybridData.skipped_snapshot_ids?.length || 0,
+      resolved_category_filter: hybridData.applied_filters?.category || '',
+      no_result_reason: documents.length ? '' : 'index_search_returned_no_hits',
+    },
+    evidence: hybridData.evidence || [],
+    draft_answer: hybridData.answer || ''
+  };
+}
+
+// [2026-07-08] rag-assistant.html 에서 이식한 검색 실행 요약 함수
+function buildSearchExecutionSummary(data) {
+  const summary = data?.retrieval_summary || {};
+  const diagnostics = data?.retrieval_diagnostics || {};
+  return {
+    resolvedScopeLabel: data?.resolved_search_scope_label || data?.search_scope_label || '-',
+    resolvedSnapshotCount: data?.resolved_snapshot_ids?.length || summary.resolved_snapshot_count || 0,
+    skippedSnapshotCount: data?.skipped_snapshot_ids?.length || summary.skipped_snapshot_count || 0,
+    categoryFilter: data?.resolved_category_filter || summary.resolved_category_filter || '-',
+    noResultReason: summary.no_result_reason || diagnostics.no_result_reason || '',
+  };
+}
+
+async function callStats(sourceId){
+  const url = apiUrl(CONFIG.endpoints.stats) + '?' +
+              new URLSearchParams({source_id: sourceId});
+  const res = await fetch(url, {headers:headers()});
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+/* ============================================================
+   5. 데이터셋(활성 Collection) 드롭다운
+      [2026-07-08] rag-assistant.html loadSearchScopes() 로직 이식
+      - 목록 API 가 있으면 로드, 없으면 CONFIG.fallbackSources 폴백
+      - 모든 검색/상태 호출은 srcId() 하나만 참조 (참조 통일)
+   ============================================================ */
+const sourceSelect = $('#sourceSelect');
+function srcId(){ return sourceSelect.value; }
+
+// [2026-07-08] 검색 범위 및 Snapshot 선택 상태 관리
+let _searchScopes = [];
+let _selectedSnapshotIds = [];
+
+function getSelectedSnapshotIds() {
+  return [..._selectedSnapshotIds];
+}
+
+function setSelectedSnapshotIds(ids) {
+  _selectedSnapshotIds = Array.isArray(ids) ? [...ids] : [];
+}
+
+// [2026-07-08] rag-assistant.html 에서 이식한 검색 범위 로드 함수
+async function loadSearchScopes() {
+  if (!CONFIG.features.searchScopes) {
+    return loadSources(); // 기능 비활성화 시 기존 loadSources 사용
+  }
+
+  try {
+    const res = await fetch(apiUrl(CONFIG.endpoints.searchScopes), {headers:headers()});
+    if (res.ok) {
+      const data = await res.json();
+      _searchScopes = Array.isArray(data.scopes) ? data.scopes : [];
+
+      // 소스 목록 추출하여 드롭다운 갱신
+      const sources = data.sources || [];
+      if (sources.length) {
+        sourceSelect.innerHTML = sources.map(source => {
+          const snapshots = Array.isArray(source.snapshots)
+            ? source.snapshots.filter(s => s.queryable)
+            : [];
+          const activeSnapshot = snapshots.find(s => s.is_active);
+          const sourceLabel = source.source_name || source.source_id || 'Source';
+          const docCount = activeSnapshot?.doc_count || source.doc_count || 0;
+          return `<option value="${escapeHtml(source.source_id)}">${escapeHtml(sourceLabel)}${docCount ? ` (${docCount})` : ''}</option>`;
+        }).join('');
+      } else {
+        // sources 없으면 scopes 기반 옵션 생성
+        sourceSelect.innerHTML = _searchScopes.map(scope =>
+          `<option value="${escapeHtml(scope.scope_id)}">${escapeHtml(scope.label || scope.scope_id)}</option>`
+        ).join('');
+      }
+
+      console.log('검색 범위 로드 완료:', _searchScopes.length, '개 scope,', sources.length, '개 source');
+      checkHealth();
+      return;
+    }
+  } catch(e) {
+    console.warn('search-scopes API 실패, sources API 폴백:', e.message);
+  }
+
+  // 폴백: 기존 loadSources 로직
+  await loadSources();
+}
+
+async function loadSources(){
+  let list = CONFIG.fallbackSources;
+  try{
+    const res = await fetch(apiUrl(CONFIG.endpoints.sources), {headers:headers()});
+    if(res.ok){
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : (data.sources || []);
+      if(arr.length) list = arr;
+    }
+  }catch(e){
+    console.warn('sources API 미사용, 폴백 목록 적용:', e.message);
+  }
+  sourceSelect.innerHTML = list.map(s =>
+    `<option value="${escapeHtml(s.source_id)}">`+
+    `${escapeHtml(s.name || s.source_id)}${s.doc_count ? ` (${s.doc_count})` : ''}`+
+    `</option>`).join('');
+  checkHealth();
+}
+sourceSelect.addEventListener('change', () => {
+  checkHealth();
+  // 데이터셋을 바꾸면 대화 문맥 승계를 초기화 (타 Collection 에 필터 오염 방지)
+  conversation.activeHints = {};
+  _selectedSnapshotIds = []; // Snapshot 선택도 초기화
+});
+
+/* ============================================================
+   6. TabPanel — 우측 결과 탭 관리 (최신 턴 전용 뷰)
+      - 자동 오픈은 '첫 결과' 1회만, 0건이면 오픈 안 함 (해결안 7)
+      - 사용자가 직접 접으면(manualClosed) 이후 자동 오픈하지 않음
+   ============================================================ */
+const TabPanel = (() => {
+  const panel = $('#resultPanel');
+  const tabs  = panel.querySelectorAll('.tab');
+  const panes = panel.querySelectorAll('.tab-pane');
+  let autoOpened = false;      // 첫 자동 오픈 완료 여부
+  let manualClosed = false;    // 사용자가 직접 닫았는지
+
+  tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+  $('#panelClose').addEventListener('click', () => {
+    panel.classList.remove('open');
+    manualClosed = true;       // 이후 자동 오픈 억제 — 배지로만 알림
+  });
+
+  function activate(name){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    panes.forEach(p => p.classList.toggle('active', p.dataset.tab === name));
+  }
+  /* 결과 도착 시 호출 — 자동 오픈 정책을 여기서 일괄 판단 */
+  function maybeOpen(hasResults){
+    if(!hasResults) return;                    // 0건: 열지 않음 (채팅 안내로 충분)
+    if(panel.classList.contains('open')) return;
+    if(manualClosed) return;                   // 사용자가 닫았으면 존중
+    if(autoOpened) return;                     // 자동 오픈은 1회만
+    panel.classList.add('open');
+    autoOpened = true;
+  }
+  function open(name){                          // 명시적 오픈 (칩 클릭 등)
+    panel.classList.add('open'); manualClosed = false;
+    if(name) activate(name);
+  }
+  function setBadge(name, text){
+    const b = $('#badge' + name[0].toUpperCase() + name.slice(1));
+    if(b){ b.textContent = text;
+           b.classList.toggle('empty', text === '0' || text === '–'); }
+  }
+  function setPane(name, html){
+    $('#pane' + name[0].toUpperCase() + name.slice(1)).innerHTML = html;
+  }
+  return {maybeOpen, open, activate, setBadge, setPane};
+})();
+
+/* ============================================================
+   7. Modal — 상세보기 공용 (◀▶ 순회 + ESC + 포커스 트랩, 해결안 4)
+   ============================================================ */
+const Modal = (() => {
+  const backdrop = $('#modalBackdrop');
+  const modalEl  = backdrop.querySelector('.modal');
+  const titleEl  = $('#modalTitle');
+  const bodyEl   = $('#modalBody');
+  const posEl    = $('#modalPos');
+  const prevBtn  = $('#modalPrev');
+  const nextBtn  = $('#modalNext');
+  const closeBtn = $('#modalClose');
+
+  let items = [], idx = 0, renderFn = null;
+  let lastFocused = null;                       // 닫을 때 포커스 복원용
+
+  function render(){
+    const {title, html} = renderFn(items[idx]);
+    titleEl.textContent = title;
+    bodyEl.innerHTML = html;
+    bodyEl.scrollTop = 0;
+    posEl.textContent = `${idx+1} / ${items.length}`;
+    prevBtn.disabled = (idx === 0);
+    nextBtn.disabled = (idx === items.length - 1);
+  }
+  function openList(list, startIndex, fn){
+    if(!list || !list.length) return;
+    items = list; idx = Math.min(Math.max(startIndex,0), list.length-1); renderFn = fn;
+    render();
+    lastFocused = document.activeElement;       // 배경 포커스 저장
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';    // 배경 스크롤 잠금
+    closeBtn.focus();                           // 포커스를 모달 안으로 이동
+  }
+  function close(){
+    if(!backdrop.classList.contains('open')) return;
+    backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    if(lastFocused && lastFocused.focus) lastFocused.focus();  // 포커스 복원
+  }
+  function move(delta){
+    const next = idx + delta;
+    if(next < 0 || next >= items.length) return;
+    idx = next; render();
+  }
+
+  prevBtn.addEventListener('click', () => move(-1));
+  nextBtn.addEventListener('click', () => move(+1));
+  closeBtn.addEventListener('click', close);
+  backdrop.addEventListener('click', e => { if(e.target === backdrop) close(); });
+
+  /* 키보드: ESC 닫기, ←→ 순회, Tab 은 모달 내부에서만 순환(포커스 트랩) */
+  document.addEventListener('keydown', e => {
+    if(!backdrop.classList.contains('open')) return;
+    if(e.key === 'Escape'){ close(); return; }
+    if(e.key === 'ArrowLeft'){ move(-1); return; }
+    if(e.key === 'ArrowRight'){ move(+1); return; }
+    if(e.key === 'Tab'){
+      // 모달 안의 포커스 가능한 요소만 순환시킨다
+      const focusables = modalEl.querySelectorAll('button:not(:disabled)');
+      if(!focusables.length) return;
+      const first = focusables[0], last = focusables[focusables.length-1];
+      if(e.shiftKey && document.activeElement === first){
+        e.preventDefault(); last.focus();
+      }else if(!e.shiftKey && document.activeElement === last){
+        e.preventDefault(); first.focus();
+      }
+    }
+  });
+
+  return {openList, close};
+})();
+
+/* ============================================================
+   8. 렌더링 함수들
+   ============================================================ */
+function labelOf(dim){
+  return {document_group:'문서', section_type:'섹션',
+          organization_type:'기관', project_type:'사업'}[dim] || dim;
+}
+function renderHintChips(a){
+  const parts = [];
+  // 분류 힌트 (문서/섹션/기관유형/사업유형)
+  for(const dim in a.softHints){
+    for(const v of a.softHints[dim]){
+      parts.push(`<span class="chip"><b>${labelOf(dim)}</b> ${escapeHtml(v)}</span>`);
+    }
+  }
+  // LLM 이 감지한 기관명 (분류가 아닌 고유명사)
+  if(a.organization)
+    parts.push(`<span class="chip"><b>기관명</b> ${escapeHtml(a.organization)}</span>`);
+  // 추출 키워드 (최대 6개 — 하이라이트/inferred_terms 로 사용됨)
+  (a.keywords || []).slice(0, 6).forEach(k =>
+    parts.push(`<span class="chip">${escapeHtml(k)}</span>`));
+  if(a.inherited)
+    parts.push(`<span class="chip"><b>승계</b> 이전 질문의 조건 유지</span>`);
+  // 서버 LLM 분석 실패 → 로컬 규칙 분석으로 진행했음을 표시
+  if(!a.fromServer)
+    parts.push(`<span class="chip"><b>로컬</b> 규칙 기반 분석</span>`);
+  return `<div class="chips">${parts.join('')||'<span class="chip">분류 힌트 없음 · 내용 검색</span>'}</div>`;
+}
+
+/* 배지 배열 생성 (모달/카드 공용) */
+function badgeList(doc){
+  return [
+    ['group',    doc.documentGroup], ['section',  doc.sectionType],
+    ['orgtype',  doc.organizationType], ['projtype', doc.projectType],
+    ['org',      doc.organization],
+  ].filter(([,v]) => v);
+}
+
+/* 근거 탭: 컴팩트 카드 목록 — 배지는 최대 2개 + "+N" (320px 제약) */
+function renderMiniCards(docs, terms){
+  if(!docs.length){
+    return `<div class="pane-note">이 질문에 맞는 문서를 찾지 못했습니다.</div>`;
+  }
+  return docs.map((doc, i) => {
+    const all = badgeList(doc);
+    const shown = all.slice(0,2).map(([cls,v]) =>
+      `<span class="badge ${cls}">${escapeHtml(v)}</span>`).join('');
+    const more = all.length > 2 ? `<span class="more">+${all.length-2}</span>` : '';
+    const score = doc.score!=null ? `<span class="score">${Number(doc.score).toFixed(3)}</span>` : '';
+    return `<div class="mini-card" data-idx="${i}" tabindex="0"
+                 role="button" aria-label="${escapeHtml(doc.fileName)} 상세보기">
+      <div class="t">${escapeHtml(doc.fileName)}</div>
+      <div class="s">${highlight(escapeHtml(doc.snippet || '미리보기 없음'), terms)}</div>
+      <div class="m">${shown}${more}${score}</div>
+    </div>`;
+  }).join('');
+}
+
+/* 모달 본문: 근거 문서 상세 (배지 전체 + 경로 + 원문 하이라이트)
+   doc._terms 에 해당 턴의 하이라이트 용어가 실려 온다 (해결안 1: 턴별 용어) */
+function renderEvidenceDetail(doc){
+  const badges = badgeList(doc).map(([cls,v]) =>
+    `<span class="badge ${cls}">${escapeHtml(v)}</span>`).join('');
+  return {
+    title: doc.fileName,
+    html: `<div class="badges">${badges}</div>
+           <div class="ev-path">${escapeHtml(doc.path || '')}</div>
+           <div class="ev-text">${highlight(
+             escapeHtml(doc.snippet || '원문 미리보기가 없습니다.'),
+             doc._terms || [])}</div>`,
+    /* Phase 2: doc.chunkId 가 있으면 /api/rag/chunk 로 청크 전체를 지연 로드 */
+  };
+}
+
+/* 0건 안내 — 실패를 방향 제시로 (v1 계승) */
+function renderEmpty(d){
+  const hints = Object.keys(d.softHints).map(labelOf).join(', ') || '없음';
+  return `<div class="empty">
+    조건에 맞는 문서를 찾지 못했습니다.<br>
+    이 질문은 <b>${hints}</b> 분류에 의존합니다. 분류어(제안서·기술및기능 등)를 빼고
+    내용어만으로 다시 물어보시면 범위가 넓어집니다.
+  </div>`;
+}
+
+/* 답변 렌더: draft_answer 의 [n] 을 클릭 가능한 각주로 변환 (해결안 2)
+   Phase 1 은 백엔드가 draft_answer 를 줄 때만 표시됨 */
+function renderAnswer(resp, docCount){
+  const draft = resp.draft_answer || resp.answer || '';
+  if(!draft) return '';
+  let html = escapeHtml(draft).replace(/\n/g,'<br>');
+  // [숫자] 패턴 → <sup class="fn"> 배지 (근거 범위 내 번호만)
+  html = html.replace(/\[(\d{1,2})\]/g, (m, n) => {
+    const ref = Number(n);
+    return (ref >= 1 && ref <= docCount)
+      ? `<sup class="fn" data-ref="${ref}" title="근거 ${ref} 보기">${ref}</sup>`
+      : m;   // 근거 범위 밖 번호는 그대로 둔다
+  });
+  return `<div class="answer"><div class="answer-label">종합 답변</div>${html}</div>`;
+}
+
+/* 질문 내용어를 <mark> 하이라이트 — 턴별 terms 를 인자로 받는다 (전역 제거) */
+function highlight(text, terms){
+  let out = text;
+  const uniq = [...new Set(terms||[])].filter(t=>t.length>=2)
+                 .sort((a,b)=>b.length-a.length);
+  for(const t of uniq){
+    const re = new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','g');
+    out = out.replace(re, '<mark>$1</mark>');
+  }
+  return out;
+}
+
+/* ============================================================
+   9. 메시지 DOM 헬퍼 (+ 타임라인 접힘, 해결안 6)
+   ============================================================ */
+const messagesInner = $('#messagesInner');
+
+function addUserMessage(text){
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+  messagesInner.appendChild(el); scrollToBottom();
+}
+
+/* 에이전트 메시지 = 헤더 + (요약바 + 타임라인) + 답변 슬롯 */
+function addAgentMessage(){
+  const el = document.createElement('div');
+  el.className = 'msg agent';
+  el.innerHTML =
+    `<div class="agent-head">
+       <div class="agent-avatar">W</div>
+       <div class="agent-name">리서치 에이전트<span>· 하이브리드 RAG</span></div>
+     </div>
+     <div class="bubble">
+       <div class="trace-wrap">
+         <button class="trace-summary" title="진행 단계 펼치기/접기">
+           <span class="ok-dot"></span><span class="sum-text"></span>
+         </button>
+         <div class="trace"></div>
+       </div>
+       <div class="answer-slot"></div>
+     </div>`;
+  messagesInner.appendChild(el);
+  const wrap  = el.querySelector('.trace-wrap');
+  const trace = el.querySelector('.trace');
+  const answerSlot = el.querySelector('.answer-slot');
+
+  // 요약바 클릭 → 타임라인 펼침/접힘 토글
+  wrap.querySelector('.trace-summary').addEventListener('click', () => {
+    wrap.classList.toggle('collapsed');
+  });
+
+  function addStep(title){
+    const step = document.createElement('div');
+    step.className = 'step active';
+    step.innerHTML = `<div class="step-title">${escapeHtml(title)}</div>`;
+    trace.appendChild(step); scrollToBottom();
+    return {
+      detail(html){
+        const d = document.createElement('div');
+        d.className = 'step-detail'; d.innerHTML = html;
+        step.appendChild(d); scrollToBottom();
+      },
+      done(){ step.classList.remove('active'); step.classList.add('done'); },
+    };
+  }
+  /* 모든 단계 완료 시 호출 — 1줄 요약으로 접는다 */
+  function collapse(summaryText){
+    wrap.querySelector('.sum-text').textContent = summaryText;
+    wrap.classList.add('done','collapsed');
+  }
+  return {addStep, collapse, answerSlot};
+}
+
+function hideWelcome(){ const w = $('#welcome'); if(w) w.remove(); }
+function scrollToBottom(){ const m = $('#messages'); m.scrollTop = m.scrollHeight; }
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,
+  c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ============================================================
+   10. 에이전트 오케스트레이터 — 단계를 '보여주며' 실행
+   ============================================================ */
+const wait = ms => new Promise(r=>setTimeout(r, ms));
+
+async function runAgent(question){
+  Modal.close();                 // 모달 열린 채 전송 방지 (v1.1 주의사항 2)
+  hideWelcome();
+  addUserMessage(question);
+
+  const t0 = performance.now();
+  const {addStep, collapse, answerSlot} = addAgentMessage();
+
+  // ── 단계 1: 질문 분석 — 서버 LLM(/rag/analyze-prompt) 우선, 실패 시 로컬 규칙 ──
+  const s1 = addStep('질문 분석');
+  const analysis = mergeWithHistory(question, await analyzeQuestion(question));
+  // 승계된 턴이면 hint 를 inferred_* 값에도 반영 (검색 필터 일관성 유지)
+  if(analysis.inherited){
+    analysis.documentGroup = (analysis.softHints.document_group || [])[0]
+                             || analysis.documentGroup;
+    analysis.projectType   = (analysis.softHints.project_type || [])[0]
+                             || analysis.projectType;
+  }
+  let terms = analysis.keywords;              // 하이라이트 용어 (LLM 추출 우선)
+  s1.detail(renderHintChips(analysis));
+  s1.done();
+
+  // ── 단계 2: 검색 전략 ──
+  const s2 = addStep('검색 전략 수립');
+  const route = routeQuestion(question);
+  await wait(250);
+  s2.detail(
+    `${escapeHtml(analysis.modeNote || route.note)}<br>`+
+    `추론한 분류는 <b>참고 힌트(soft)</b>로만 적용해 후보를 제거하지 않습니다. `+
+    `확장 질의: <span style="font-family:var(--mono);font-size:12px">`+
+    escapeHtml(analysis.expandedQuery || question) + `</span>`
+  );
+  s2.done();
+
+  // ── 단계 3: 하이브리드 검색 (+ generate_answer=true 면 LLM 답변까지 단일 호출) ──
+  //    rag-assistant 의 hybrid_rag 경로와 동일: 답변은 응답의 answer 필드로 온다
+  const s3 = addStep(CONFIG.generateAnswer ? '문서 검색 및 답변 생성' : '문서 검색');
+  let resp = null, docs = [], errText = '';
+  try{
+    resp = await callHybridQuery(question, analysis, srcId());
+    docs = extractDocuments(resp);
+
+    // 하이라이트 용어 확정: 응답의 extracted_keywords(LLM)가 있으면 최우선
+    //  (rag-assistant transformHybridResponse → highlightQueryTerms 와 동일 순서)
+    if(Array.isArray(resp.extracted_keywords) && resp.extracted_keywords.length){
+      terms = resp.extracted_keywords;
+    }
+    // 턴별 하이라이트 용어를 각 doc 에 실어 모달 렌더러가 사용 (해결안 1)
+    docs.forEach(d => { d._terms = terms; });
+
+    const st = resp.statistics || {};
+    s3.detail(
+      `FAISS ${st.faiss_count ?? '-'}건 · 그래프 ${st.graph_count ?? '-'}건 · `+
+      `위키 ${st.wiki_count ?? '-'}건 → 병합 <b>${docs.length}건</b>`
+    );
+  }catch(e){
+    errText = e.message;
+    s3.detail(`<span style="color:var(--danger)">검색 호출에 실패했습니다.</span>`);
+    console.error('hybrid-query 실패:', e);   // 상세 원인은 콘솔로 (해결안 11)
+  }
+  s3.done();
+
+  // ── 단계 4: 근거 정리 ──
+  const s4 = addStep('근거 정리');
+  await wait(200);
+  s4.done();
+
+  // ── 결과 반영: 탭(최신 턴 뷰) + 채팅(답변/칩) + 턴 저장 ──
+  const turnIndex = conversation.turns.length;
+  conversation.turns.push({question, docs, contentTerms: terms,
+                           hints: analysis.softHints});
+  // hint 승계 상태 갱신: 이번 턴에 유효한 hint 를 다음 턴 후보로 보관
+  if(Object.keys(analysis.softHints).length){
+    conversation.activeHints = analysis.softHints;
+  }
+
+  // 결과 탭 갱신 (최신 턴 전용 뷰)
+  TabPanel.setBadge('evidence', String(docs.length));
+  TabPanel.setPane('evidence', renderMiniCards(docs, terms));
+  wireMiniCards($('#paneEvidence'), turnIndex);
+  TabPanel.maybeOpen(docs.length > 0);       // 첫 결과 1회만 자동 오픈, 0건은 안 엶
+
+  // 채팅 답변 슬롯
+  if(errText){
+    answerSlot.innerHTML =
+      `<div class="empty">검색 서비스에 연결하지 못했습니다.<br>`+
+      `잠시 후 다시 시도하시고, 계속 실패하면 관리자에게 문의해 주세요.</div>`;
+  }else if(docs.length === 0){
+    answerSlot.innerHTML = renderEmpty(analysis);
+  }else{
+    // 종합 답변: generate_answer=true → resp.answer, (구버전 호환: draft_answer)
+    // 답변 요청을 했는데 answer 가 비어 오면 상태 안내 (assistant 의
+    // answer_missing_generated 와 같은 취지의 사용자 문구)
+    const answerHtml = renderAnswer(resp, docs.length);
+    const missingNote = (CONFIG.generateAnswer && !answerHtml)
+      ? `<div class="empty">검색 결과는 찾았지만 AI 답변이 생성되지 않았습니다.<br>`+
+        `아래 근거 문서를 직접 확인해 주세요.</div>` : '';
+    answerSlot.innerHTML =
+      answerHtml + missingNote +
+      `<div class="turn-chips">
+         <button class="turn-chip" data-turn="${turnIndex}">📄 근거 ${docs.length}건 보기</button>
+       </div>`;
+    wireTurnChips(answerSlot, turnIndex);
+    wireFootnotes(answerSlot, turnIndex);
+  }
+
+  // 타임라인 접힘: 1줄 요약으로 (해결안 6)
+  const sec = ((performance.now() - t0) / 1000).toFixed(1);
+  collapse(errText ? `검색 실패 · ${sec}s`
+                   : `검색 완료 · 근거 ${docs.length}건 · ${sec}s`);
+  scrollToBottom();
+}
+
+/* ── 클릭 배선: 턴 기반 모달 직행 (해결안 1·2) ──
+   과거 턴의 칩/각주를 눌러도 '그 턴에 저장된 docs' 로 모달이 열린다 */
+function wireTurnChips(container, turnIndex){
+  container.querySelectorAll('.turn-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const turn = conversation.turns[Number(chip.dataset.turn)];
+      if(turn && turn.docs.length) Modal.openList(turn.docs, 0, renderEvidenceDetail);
+    });
+  });
+}
+function wireFootnotes(container, turnIndex){
+  container.querySelectorAll('.fn').forEach(fn => {
+    fn.addEventListener('click', () => {
+      const turn = conversation.turns[turnIndex];
+      const i = Number(fn.dataset.ref) - 1;       // [1] → docs[0]
+      if(turn && turn.docs[i]) Modal.openList(turn.docs, i, renderEvidenceDetail);
+    });
+  });
+}
+/* 근거 탭 카드 → 모달 (탭은 항상 최신 턴이므로 해당 턴 번호를 캡처) */
+function wireMiniCards(paneEl, turnIndex){
+  paneEl.querySelectorAll('.mini-card').forEach(card => {
+    const openIt = () => {
+      const turn = conversation.turns[turnIndex];
+      Modal.openList(turn.docs, Number(card.dataset.idx), renderEvidenceDetail);
+    };
+    card.addEventListener('click', openIt);
+    card.addEventListener('keydown', e => {       // Enter/Space 접근성
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openIt(); }
+    });
+  });
+}
+
+/* ============================================================
+   11. 입력창 — ＋첨부(플래그) / 🎙음성 / ⬆전송 상태
+   ============================================================ */
+const input   = $('#input');
+const sendBtn = $('#sendBtn');
+const composer = $('#composer');
+
+/* ── ＋ 파일 첨부: features.upload 가 true 일 때만 노출 (해결안 3) ── */
+const attachedFiles = [];
+const attachList = $('#attachList');
+const fileInput  = $('#fileInput');
+const attachBtn  = $('#attachBtn');
+
+if(CONFIG.features.upload){
+  attachBtn.hidden = false;
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    for(const f of fileInput.files){
+      // 같은 이름+크기 중복 첨부 방지
+      if(!attachedFiles.some(a => a.name === f.name && a.size === f.size)){
+        attachedFiles.push(f);
+      }
+    }
+    fileInput.value = '';               // 같은 파일 재선택 허용
+    renderAttachChips();
+  });
+}
+function renderAttachChips(){
+  attachList.hidden = attachedFiles.length === 0;
+  attachList.innerHTML = attachedFiles.map((f, i) =>
+    `<span class="attach-chip">📄 ${escapeHtml(f.name)}`+
+    `<span class="size">${(f.size/1024/1024).toFixed(1)}MB</span>`+
+    `<button data-i="${i}" title="첨부 삭제">✕</button></span>`).join('');
+  attachList.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => {
+      attachedFiles.splice(Number(b.dataset.i), 1);
+      renderAttachChips(); syncSendState();
+    }));
+  syncSendState();
+}
+
+/* ── 🎙 음성 입력: Web Speech API(ko-KR). 미지원/플래그 off → 숨김 ── */
+const micBtn = $('#micBtn');
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(!CONFIG.features.voice || !SR){
+  micBtn.hidden = true;
+}else{
+  /* ── 모바일 안정형 구현 ──
+     Android Chrome 은 onresult 마다 '지금까지의 결과 전체'를 다시 보내므로
+     이어붙이기 대신 [세션 시작 텍스트 + 전체 재조립] 방식으로 중복을 방지한다.
+     중간(interim) 결과도 실시간 미리보기로 표시해 "듣고 있다"는 피드백을 준다. */
+  let rec = null, recording = false;
+  let baseText = '';                            // 녹음 시작 시점의 기존 입력
+  let finalBuf = '';                            // 이번 세션에서 확정된 텍스트
+
+  micBtn.addEventListener('click', () => {
+    if(recording){ rec.stop(); return; }        // 녹음 중 재클릭 → 종료
+    rec = new SR();
+    rec.lang = 'ko-KR';                         // 한국어 인식
+    rec.continuous = false;                     // 모바일: 한 발화 단위가 안정적
+    rec.interimResults = true;                  // 중간 결과 수신 (미리보기용)
+    baseText = input.value.trim();              // 기존 입력 보존
+    finalBuf = '';
+
+    rec.onstart = () => { recording = true;  micBtn.classList.add('recording'); };
+    rec.onresult = e => {
+      // 결과 전체를 매번 재조립 (Android 재전송 특성 대응 → 중복 없음)
+      finalBuf = ''; let interim = '';
+      for(const r of e.results){
+        if(r.isFinal) finalBuf += r[0].transcript;
+        else          interim  += r[0].transcript;
+      }
+      // 확정분 + 중간분을 합쳐 실시간 미리보기 표시
+      input.value = [baseText, finalBuf, interim].filter(Boolean).join(' ').trim();
+      autoGrow(); syncSendState();
+    };
+    rec.onend = () => {
+      recording = false; micBtn.classList.remove('recording');
+      // 세션 종료: 중간분은 버리고 확정분만 남긴다
+      input.value = [baseText, finalBuf].filter(Boolean).join(' ').trim();
+      autoGrow(); syncSendState(); input.focus();
+    };
+    rec.onerror = ev => {
+      recording = false; micBtn.classList.remove('recording');
+      // 'no-speech'(무음)와 'aborted'(사용자 중단)는 정상 흐름이므로 조용히 무시
+      if(ev.error !== 'no-speech' && ev.error !== 'aborted'){
+        console.warn('음성 인식 오류:', ev.error); // not-allowed(권한 거부) 등
+      }
+    };
+    rec.start();
+  });
+}
+
+/* ── ⬆ 전송 상태: 텍스트 또는 첨부가 있어야 활성 ── */
+function syncSendState(){
+  const hasText = input.value.trim() !== '';
+  sendBtn.disabled = (!hasText && attachedFiles.length === 0);
+  // 모바일: 입력 중에는 🎙 를 숨겨 공간 확보 (해결안 8, CSS 와 연동)
+  composer.classList.toggle('has-text', hasText);
+}
+function autoGrow(){
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+}
+input.addEventListener('input', () => { autoGrow(); syncSendState(); });
+
+function submit(){
+  const q = input.value.trim();
+  if(sendBtn.disabled || !q) return;
+  input.value = ''; autoGrow(); syncSendState();
+  sendBtn.disabled = true;
+  runAgent(q).finally(() => { syncSendState(); input.focus(); });
+}
+sendBtn.addEventListener('click', submit);
+input.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); submit(); }
+});
+
+/* ============================================================
+   12. 예시 질문 + 상태 확인 + 초기화
+   ============================================================ */
+const EXAMPLES = [
+  '프로젝트관리 폴더 안에서 의사소통 관리에 대한 내용을 찾아줘',
+  '업무시스템 개선에 관련된 사업의 기술및기능 제안서를 찾아줘',
+  '업무시스템 개선에 관련된 사업의 환경분석 산출물을 찾아줘',
+  '연구기관을 고객으로 진행한 컨설팅 사업 알려줘',
+  '플랫폼 개선 또는 고도화에 관련된 사업 현황분석 산출물을 찾아줘',
+  '공공기관을 고객으로 AI를 접목한 기술및기능 제안서에서 선진사례 분석 내용을 찾아줘',
+];
+const exWrap = $('#examples');
+EXAMPLES.forEach(q => {
+  const b = document.createElement('button');
+  b.className = 'ex-chip'; b.textContent = q.length>30 ? q.slice(0,30)+'…' : q;
+  b.title = q;
+  b.addEventListener('click', () => { input.value = q; syncSendState(); submit(); });
+  exWrap.appendChild(b);
+});
+
+/* 서버 상태 확인 (그래프 노드 수가 보이면 online) — srcId() 로 참조 통일 */
+async function checkHealth(){
+  const el = $('#health'), txt = $('#healthText');
+  if(!srcId()){ el.className='health'; txt.textContent='확인 중'; return; }
+  try{
+    const st = await callStats(srcId());
+    const g = (st.graph && st.graph.node_count) ?? st.graph_count ?? '?';
+    el.className='health online'; txt.textContent = `연결됨 · 그래프 ${g} 노드`;
+  }catch(e){
+    el.className='health offline'; txt.textContent = '연결 안 됨';
+  }
+}
+
+/* ============================================================
+   13. Phase A — 접속 게이트 인증 (공용 접속코드)
+   ============================================================ */
+const Auth = (() => {
+  const gate = $('#accessGate');
+  const gateCode = $('#gateCode');
+  const gateName = $('#gateName');
+  const gateConfirmWrap = $('#gateConfirmWrap');
+  const gateConfirmCode = $('#gateConfirmCode');
+  const gateSubmit = $('#gateSubmit');
+  const gateRegisterLink = $('#gateRegisterLink');
+  const gateRegisterActions = $('#gateRegisterActions');
+  const gateCancelRegister = $('#gateCancelRegister');
+  const gateHelp = $('#gateHelp');
+  const gateError = $('#gateError');
+  const userBadge = $('#userBadge');
+
+  let clientId = '';
+  let displayName = '';
+  let isRegisterMode = false;
+
+  // localStorage 에서 토큰 로드
+  function loadToken() {
+    const token = localStorage.getItem('user_token');
+    if (token) {
+      CONFIG.token = token;
+      return true;
+    }
+    return false;
+  }
+
+  // 토큰 저장
+  function saveToken(token, cid, name) {
+    localStorage.setItem('user_token', token);
+    CONFIG.token = token;
+    clientId = cid;
+    displayName = name;
+  }
+
+  // 토큰 삭제
+  function clearToken() {
+    localStorage.removeItem('user_token');
+    CONFIG.token = '';
+    clientId = '';
+    displayName = '';
+  }
+
+  function setRegisterMode(nextMode) {
+    isRegisterMode = !!nextMode;
+    gateConfirmWrap.hidden = !isRegisterMode;
+    gateRegisterLink.hidden = isRegisterMode;
+    gateRegisterActions.hidden = !isRegisterMode;
+    gateHelp.classList.toggle('show', isRegisterMode);
+    gateSubmit.textContent = isRegisterMode ? '등록 후 접속하기' : '접속하기';
+    if (!isRegisterMode) gateConfirmCode.value = '';
+  }
+
+  // 게이트 표시/숨김
+  function showGate(message = '') {
+    gate.classList.remove('hidden');
+    gateCode.value = '';
+    gateName.value = '';
+    gateConfirmCode.value = '';
+    setRegisterMode(false);
+    gateError.textContent = message;
+    gateError.classList.toggle('show', !!message);
+    gateCode.focus();
+  }
+
+  function hideGate() {
+    gate.classList.add('hidden');
+    gateError.classList.remove('show');
+    userBadge.textContent = displayName || '익명';
+    userBadge.hidden = false;
+  }
+
+  // 토큰 검증
+  async function verifyToken() {
+    if (!CONFIG.token) return false;
+    try {
+      const res = await fetch(apiUrl(CONFIG.endpoints.authVerify), {
+        headers: headers()
+      });
+      if (!res.ok) {
+        clearToken();
+        return false;
+      }
+      const data = await res.json();
+      clientId = data.client_id || '';
+      displayName = data.display_name || '익명';
+      return true;
+    } catch (e) {
+      console.warn('토큰 검증 실패:', e.message);
+      return false;
+    }
+  }
+
+  // 접속 시도
+  async function attemptAccess() {
+    const code = gateCode.value.trim();
+    const name = gateName.value.trim() || '익명';
+
+    if (!code) {
+      gateError.textContent = '접속코드를 입력해 주세요.';
+      gateError.classList.add('show');
+      gateCode.focus();
+      return;
+    }
+
+    gateSubmit.disabled = true;
+    gateSubmit.textContent = '접속 중...';
+    gateError.classList.remove('show');
+
+    try {
+      const res = await fetch(apiUrl(CONFIG.endpoints.authAccess), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, display_name: name })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        gateError.textContent = data.detail || '접속에 실패했습니다.';
+        gateError.classList.add('show');
+        gateSubmit.disabled = false;
+        gateSubmit.textContent = '접속하기';
+        return;
+      }
+
+      saveToken(data.token, data.client_id, data.display_name);
+      hideGate();
+      initAfterAuth();
+    } catch (e) {
+      gateError.textContent = '서버에 연결할 수 없습니다.';
+      gateError.classList.add('show');
+      console.error('접속 실패:', e);
+    } finally {
+      gateSubmit.disabled = false;
+      gateSubmit.textContent = '접속하기';
+    }
+  }
+
+  async function attemptRegister() {
+    const code = gateCode.value.trim();
+    const confirm = gateConfirmCode.value.trim();
+    const name = gateName.value.trim();
+
+    if (!name) {
+      gateError.textContent = '표시 이름을 입력해 주세요.';
+      gateError.classList.add('show');
+      gateName.focus();
+      return;
+    }
+    if (!code) {
+      gateError.textContent = '등록할 접속코드를 입력해 주세요.';
+      gateError.classList.add('show');
+      gateCode.focus();
+      return;
+    }
+    if (code.length < 4) {
+      gateError.textContent = '접속코드는 4자 이상 입력해 주세요.';
+      gateError.classList.add('show');
+      gateCode.focus();
+      return;
+    }
+    if (code !== confirm) {
+      gateError.textContent = '접속코드 확인이 일치하지 않습니다.';
+      gateError.classList.add('show');
+      gateConfirmCode.focus();
+      return;
+    }
+
+    gateSubmit.disabled = true;
+    gateSubmit.textContent = '등록 중...';
+    gateError.classList.remove('show');
+
+    try {
+      const registerRes = await fetch(apiUrl(CONFIG.endpoints.authRegister), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, display_name: name })
+      });
+      const registerData = await registerRes.json();
+
+      if (!registerRes.ok) {
+        gateError.textContent = registerData.detail || '등록에 실패했습니다.';
+        gateError.classList.add('show');
+        return;
+      }
+
+      setRegisterMode(false);
+      await attemptAccess();
+    } catch (e) {
+      gateError.textContent = '서버에 연결할 수 없습니다.';
+      gateError.classList.add('show');
+      console.error('등록 실패:', e);
+    } finally {
+      gateSubmit.disabled = false;
+      gateSubmit.textContent = isRegisterMode ? '등록 후 접속하기' : '접속하기';
+    }
+  }
+
+  // 이벤트 바인딩
+  gateSubmit.addEventListener('click', () => {
+    if (isRegisterMode) attemptRegister();
+    else attemptAccess();
+  });
+  gateRegisterLink.addEventListener('click', () => {
+    setRegisterMode(true);
+    gateError.classList.remove('show');
+    gateConfirmCode.focus();
+  });
+  gateCancelRegister.addEventListener('click', () => {
+    setRegisterMode(false);
+    gateError.classList.remove('show');
+    gateCode.focus();
+  });
+  gateCode.addEventListener('keydown', e => { if (e.key === 'Enter') gateName.focus(); });
+  gateName.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    if (isRegisterMode) gateConfirmCode.focus();
+    else attemptAccess();
+  });
+  gateConfirmCode.addEventListener('keydown', e => {
+    if (e.key === 'Enter') attemptRegister();
+  });
+
+  return {
+    loadToken, saveToken, clearToken, showGate, hideGate, verifyToken,
+    getClientId: () => clientId,
+    getDisplayName: () => displayName,
+  };
+})();
+
+/* ============================================================
+   14. Phase B — 대화 세션 드로어 + 저장/복원
+   ============================================================ */
+const SessionManager = (() => {
+  const backdrop = $('#drawerBackdrop');
+  const toggle = $('#drawerToggle');
+  const closeBtn = $('#drawerClose');
+  const content = $('#drawerContent');
+  const tabs = backdrop.querySelectorAll('.drawer-tab');
+  const newChatBtn = $('#newChatBtn');
+  const readonlyBanner = $('#readonlyBanner');
+  const readonlyText = $('#readonlyText');
+  const forkBtn = $('#forkBtn');
+
+  let currentScope = 'mine';
+  let sessions = [];
+  let currentSessionId = null;
+  let isReadonly = false;
+
+  // 드로어 열기/닫기
+  function openDrawer() {
+    backdrop.classList.add('open');
+    loadSessions(currentScope);
+  }
+  function closeDrawer() {
+    backdrop.classList.remove('open');
+  }
+
+  // 탭 전환
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentScope = tab.dataset.scope;
+      loadSessions(currentScope);
+    });
+  });
+
+  // 세션 목록 로드
+  async function loadSessions(scope = 'mine') {
+    content.innerHTML = '<div class="session-empty">불러오는 중...</div>';
+    try {
+      const res = await fetch(
+        apiUrl(CONFIG.endpoints.chatSessions) + '?scope=' + scope,
+        { headers: headers() }
+      );
+
+      if (res.status === 401) {
+        Auth.clearToken();
+        Auth.showGate('접속코드가 변경되었습니다. 다시 접속해 주세요.');
+        closeDrawer();
+        return;
+      }
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const data = await res.json();
+      sessions = data.sessions || [];
+
+      if (!sessions.length) {
+        content.innerHTML = '<div class="session-empty">대화 기록이 없습니다.</div>';
+        return;
+      }
+
+      content.innerHTML = sessions.map(s => `
+        <div class="session-item${s.session_id === currentSessionId ? ' active' : ''}"
+             data-id="${escapeHtml(s.session_id)}">
+          <div class="title">${escapeHtml(s.title || '새 대화')}</div>
+          <div class="meta">
+            ${scope === 'all' ? `<span class="owner">${escapeHtml(s.display_name || '익명')}</span>` : ''}
+            <span>${formatDate(s.updated_at)}</span>
+            <span>${s.turn_count || 0}턴</span>
+          </div>
+        </div>
+      `).join('');
+
+      content.querySelectorAll('.session-item').forEach(item => {
+        item.addEventListener('click', () => {
+          loadSession(item.dataset.id);
+          closeDrawer();
+        });
+      });
+    } catch (e) {
+      content.innerHTML = '<div class="session-empty">불러오기 실패</div>';
+      console.error('세션 목록 로드 실패:', e);
+    }
+  }
+
+  // 세션 상세 로드 (복원)
+  async function loadSession(sessionId) {
+    try {
+      const res = await fetch(
+        apiUrl(CONFIG.endpoints.chatSession + sessionId),
+        { headers: headers() }
+      );
+
+      if (res.status === 401) {
+        Auth.clearToken();
+        Auth.showGate('접속코드가 변경되었습니다. 다시 접속해 주세요.');
+        return;
+      }
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const data = await res.json();
+      currentSessionId = sessionId;
+      isReadonly = !data.is_mine;
+
+      // 읽기 전용 배너 처리
+      if (isReadonly) {
+        readonlyText.textContent = `${data.session.display_name || '익명'}님의 대화 (읽기 전용)`;
+        readonlyBanner.classList.remove('hidden');
+        input.disabled = true;
+        sendBtn.disabled = true;
+      } else {
+        readonlyBanner.classList.add('hidden');
+        input.disabled = false;
+        syncSendState();
+      }
+
+      // 대화 복원
+      restoreConversation(data.messages || [], data.session.source_id || '');
+    } catch (e) {
+      console.error('세션 로드 실패:', e);
+    }
+  }
+
+  // 대화 복원 (DOM 렌더링)
+  function restoreConversation(messages, sourceId) {
+    // 기존 대화 초기화
+    hideWelcome();
+    messagesInner.innerHTML = '';
+    conversation.turns = [];
+    conversation.activeHints = {};
+
+    // 소스 선택 복원
+    if (sourceId && sourceSelect.querySelector(`option[value="${sourceId}"]`)) {
+      sourceSelect.value = sourceId;
+    }
+
+    // 턴별 복원
+    messages.forEach((msg, idx) => {
+      // 사용자 메시지
+      addUserMessage(msg.question);
+
+      // 에이전트 메시지 (간략 버전)
+      const el = document.createElement('div');
+      el.className = 'msg agent';
+
+      const docs = msg.docs || [];
+      const terms = msg.terms || [];
+      docs.forEach(d => { d._terms = terms; });
+
+      const answerHtml = msg.answer
+        ? `<div class="answer"><div class="answer-label">종합 답변</div>${escapeHtml(msg.answer).replace(/\n/g,'<br>')}</div>`
+        : '';
+
+      el.innerHTML = `
+        <div class="agent-head">
+          <div class="agent-avatar">W</div>
+          <div class="agent-name">리서치 에이전트<span>· 하이브리드 RAG</span></div>
+        </div>
+        <div class="bubble">
+          ${answerHtml}
+          <div class="turn-chips">
+            <button class="turn-chip" data-turn="${idx}">📄 근거 ${docs.length}건 보기</button>
+          </div>
+        </div>`;
+
+      messagesInner.appendChild(el);
+
+      // 대화 상태 저장
+      conversation.turns.push({
+        question: msg.question,
+        docs,
+        contentTerms: terms,
+        hints: msg.hints || {}
+      });
+
+      // 칩 이벤트 바인딩
+      wireTurnChips(el, idx);
+    });
+
+    // 마지막 턴 결과를 탭에 표시
+    if (messages.length) {
+      const lastTurn = conversation.turns[conversation.turns.length - 1];
+      TabPanel.setBadge('evidence', String(lastTurn.docs.length));
+      TabPanel.setPane('evidence', renderMiniCards(lastTurn.docs, lastTurn.contentTerms));
+      wireMiniCards($('#paneEvidence'), conversation.turns.length - 1);
+    }
+
+    scrollToBottom();
+  }
+
+  // 새 세션 생성
+  async function createSession(sourceId) {
+    try {
+      const res = await fetch(apiUrl(CONFIG.endpoints.chatSessions), {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ source_id: sourceId || '' })
+      });
+
+      if (res.status === 401) {
+        Auth.clearToken();
+        Auth.showGate('접속코드가 변경되었습니다. 다시 접속해 주세요.');
+        return null;
+      }
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const data = await res.json();
+      currentSessionId = data.session_id;
+      isReadonly = false;
+      readonlyBanner.classList.add('hidden');
+      input.disabled = false;
+      syncSendState();
+      return data.session_id;
+    } catch (e) {
+      console.error('세션 생성 실패:', e);
+      return null;
+    }
+  }
+
+  // 턴 저장
+  async function saveTurn(turnNo, question, answer, docs, terms, hints, elapsedMs) {
+    if (!currentSessionId || isReadonly) return;
+
+    try {
+      const res = await fetch(
+        apiUrl(CONFIG.endpoints.chatMessages + currentSessionId + '/messages'),
+        {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({
+            turn_no: turnNo,
+            question,
+            answer: answer || '',
+            docs: (docs || []).slice(0, 10).map(d => ({
+              fileName: d.fileName,
+              snippet: d.snippet,
+              path: d.path,
+              score: d.score
+            })),
+            terms: terms || [],
+            hints: hints || {},
+            elapsed_ms: Math.round(elapsedMs || 0)
+          })
+        }
+      );
+
+      if (res.status === 401) {
+        Auth.clearToken();
+        Auth.showGate('접속코드가 변경되었습니다. 다시 접속해 주세요.');
+        return;
+      }
+
+      if (!res.ok) {
+        console.warn('턴 저장 실패:', res.status);
+      }
+    } catch (e) {
+      console.warn('턴 저장 실패:', e.message);
+    }
+  }
+
+  // 새 대화 시작
+  function startNewChat() {
+    currentSessionId = null;
+    isReadonly = false;
+    readonlyBanner.classList.add('hidden');
+    messagesInner.innerHTML = `
+      <div class="welcome" id="welcome">
+        <h1>무엇을 찾아드릴까요?</h1>
+        <p>정부 제안서를 작성하며 떠오르는 질문을 자연어로 물어보세요.
+           에이전트가 질문을 분석하고, 관련 제안서·산출물·RFP를 근거와 함께 찾아드립니다.</p>
+      </div>`;
+    conversation.turns = [];
+    conversation.activeHints = {};
+    TabPanel.setBadge('evidence', '0');
+    TabPanel.setPane('evidence', '<div class="pane-note">검색을 실행하면 근거 문서 목록이 여기에 표시됩니다.</div>');
+    input.disabled = false;
+    syncSendState();
+    input.focus();
+  }
+
+  // 이어가기 (타인 세션 복제)
+  async function forkSession() {
+    if (!currentSessionId) return;
+
+    // 현재 세션의 턴들을 복사해 새 세션 생성
+    const newSessionId = await createSession(srcId());
+    if (!newSessionId) return;
+
+    // 각 턴을 새 세션에 저장
+    for (let i = 0; i < conversation.turns.length; i++) {
+      const turn = conversation.turns[i];
+      await saveTurn(i, turn.question, '', turn.docs, turn.contentTerms, turn.hints, 0);
+    }
+
+    // 읽기 전용 해제
+    isReadonly = false;
+    readonlyBanner.classList.add('hidden');
+    input.disabled = false;
+    syncSendState();
+    input.focus();
+  }
+
+  // 이벤트 바인딩
+  toggle.addEventListener('click', openDrawer);
+  closeBtn.addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeDrawer(); });
+  newChatBtn.addEventListener('click', startNewChat);
+  forkBtn.addEventListener('click', forkSession);
+
+  // 날짜 포맷
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 60000) return '방금 전';
+    if (diff < 3600000) return Math.floor(diff / 60000) + '분 전';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + '시간 전';
+    if (diff < 604800000) return Math.floor(diff / 86400000) + '일 전';
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  }
+
+  return {
+    openDrawer, closeDrawer, loadSessions, loadSession,
+    createSession, saveTurn, startNewChat, forkSession,
+    getCurrentSessionId: () => currentSessionId,
+    isSessionReadonly: () => isReadonly,
+  };
+})();
+
+/* ============================================================
+   15. 401 에러 처리 래퍼 — 모든 API 호출에 적용
+   ============================================================ */
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+  const res = await originalFetch.apply(this, args);
+
+  // 401 응답 시 토큰 무효화 처리
+  if (res.status === 401 && args[0] && typeof args[0] === 'string') {
+    const url = args[0];
+    // 인증 관련 API 가 아닌 경우에만 게이트 표시
+    if (!url.includes('/auth/')) {
+      Auth.clearToken();
+      Auth.showGate('접속코드가 변경되었습니다. 다시 접속해 주세요.');
+    }
+  }
+
+  return res;
+};
+
+/* ============================================================
+   16. runAgent 수정 — 세션 저장 통합
+   ============================================================ */
+const originalRunAgent = runAgent;
+async function runAgentWithSession(question) {
+  const t0 = performance.now();
+
+  // 세션이 없으면 새로 생성
+  if (!SessionManager.getCurrentSessionId() && !SessionManager.isSessionReadonly()) {
+    await SessionManager.createSession(srcId());
+  }
+
+  // 기존 에이전트 실행
+  await originalRunAgent(question);
+
+  // 완료 후 턴 저장 (읽기 전용이 아닌 경우)
+  if (!SessionManager.isSessionReadonly()) {
+    const turnIndex = conversation.turns.length - 1;
+    if (turnIndex >= 0) {
+      const turn = conversation.turns[turnIndex];
+      const elapsed = performance.now() - t0;
+      // 비동기 저장 (실패해도 대화 계속)
+      SessionManager.saveTurn(
+        turnIndex,
+        turn.question,
+        '', // answer 는 별도 저장 또는 생략
+        turn.docs,
+        turn.contentTerms,
+        turn.hints,
+        elapsed
+      ).catch(e => console.warn('턴 저장 실패:', e.message));
+    }
+  }
+}
+// runAgent 교체
+runAgent = runAgentWithSession;
+
+/* ============================================================
+   17. 초기화 — 인증 확인 후 앱 시작
+   ============================================================ */
+async function initAfterAuth() {
+  await loadSearchScopes();
+  input.focus();
+}
+
+async function initApp() {
+  // 토큰 로드 시도
+  if (Auth.loadToken()) {
+    // 토큰 검증
+    const valid = await Auth.verifyToken();
+    if (valid) {
+      Auth.hideGate();
+      initAfterAuth();
+      return;
+    }
+  }
+
+  // 토큰 없거나 무효 → 게이트 표시
+  Auth.showGate();
+}
+
+// 앱 시작
+initApp();
+</script>
+</body>
+</html>
