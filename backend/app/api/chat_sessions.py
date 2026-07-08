@@ -1,7 +1,6 @@
 # 대화 세션 저장/복원 + 사용 로그 (Phase B/D)
-import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +12,7 @@ from app.core.database import Base, get_db, engine
 from app.api.user_auth import verify_user
 
 router = APIRouter(prefix="/chat", tags=["Chat Sessions"])
+RETENTION_DAYS = 7
 
 
 # ============================================================
@@ -106,6 +106,29 @@ class OkResponse(BaseModel):
     ok: bool
 
 
+def purge_expired_user_sessions(db: Session, client_id: str) -> None:
+    """현재 사용자의 7일 지난 질문 세션을 정리한다."""
+    cutoff = datetime.now() - timedelta(days=RETENTION_DAYS)
+    expired_sessions = db.query(ChatSession).filter(
+        ChatSession.client_id == client_id,
+        ChatSession.updated_at < cutoff,
+    ).all()
+    if not expired_sessions:
+        return
+
+    expired_session_ids = [s.session_id for s in expired_sessions]
+    db.query(ChatMessage).filter(
+        ChatMessage.session_id.in_(expired_session_ids)
+    ).delete(synchronize_session=False)
+    db.query(QueryLog).filter(
+        QueryLog.client_id == client_id,
+        QueryLog.created_at < cutoff,
+    ).delete(synchronize_session=False)
+    for session in expired_sessions:
+        db.delete(session)
+    db.commit()
+
+
 # ============================================================
 # API 엔드포인트
 # ============================================================
@@ -117,8 +140,9 @@ async def list_sessions(
 ):
     """세션 목록 조회 — scope=mine(기본): 내 것만 / scope=all: 전사 전체"""
     try:
+        purge_expired_user_sessions(db, user["client_id"])
         if scope == "all":
-            # 전사 전체 (작성자 이름 포함)
+            # 공용 질문 목록 (작성자 이름 포함)
             sessions = db.query(ChatSession).order_by(
                 ChatSession.updated_at.desc()
             ).limit(50).all()
@@ -160,6 +184,7 @@ async def create_session(
     db: Session = Depends(get_db)
 ):
     """새 세션 생성"""
+    purge_expired_user_sessions(db, user["client_id"])
     session_id = str(uuid.uuid4())
     session = ChatSession(
         session_id=session_id,
@@ -179,6 +204,7 @@ async def get_session(
     db: Session = Depends(get_db)
 ):
     """세션 상세 조회 (전사 공유: 누구나 열람 가능)"""
+    purge_expired_user_sessions(db, user["client_id"])
     session = db.query(ChatSession).filter(
         ChatSession.session_id == session_id
     ).first()
@@ -199,10 +225,10 @@ async def get_session(
         msg_list.append({
             "turn_no": m.turn_no,
             "question": m.question,
-            "answer": m.answer or "",
-            "docs": json.loads(m.docs_json or "[]"),
-            "terms": json.loads(m.terms_json or "[]"),
-            "hints": json.loads(m.hints_json or "{}"),
+            "answer": "",
+            "docs": [],
+            "terms": [],
+            "hints": {},
             "elapsed_ms": m.elapsed_ms or 0,
             "created_at": m.created_at.isoformat() if m.created_at else None
         })
@@ -229,7 +255,8 @@ async def save_turn(
     user: dict = Depends(verify_user),
     db: Session = Depends(get_db)
 ):
-    """턴 저장 (소유자만)"""
+    """질문 텍스트만 저장 (소유자만)"""
+    purge_expired_user_sessions(db, user["client_id"])
     # 세션 조회 및 소유권 확인
     session = db.query(ChatSession).filter(
         ChatSession.session_id == session_id
@@ -247,18 +274,15 @@ async def save_turn(
             detail="본인 대화만 수정할 수 있습니다"
         )
 
-    # 문서 최대 10개 제한
-    docs = body.docs[:10] if body.docs else []
-
-    # 메시지 저장
+    # 질문 텍스트만 저장한다. 답변/근거/힌트는 저장하지 않는다.
     message = ChatMessage(
         session_id=session_id,
         turn_no=body.turn_no,
         question=body.question,
-        answer=body.answer or "",
-        docs_json=json.dumps(docs, ensure_ascii=False),
-        terms_json=json.dumps(body.terms or [], ensure_ascii=False),
-        hints_json=json.dumps(body.hints or {}, ensure_ascii=False),
+        answer="",
+        docs_json="[]",
+        terms_json="[]",
+        hints_json="{}",
         elapsed_ms=body.elapsed_ms or 0
     )
     db.add(message)
@@ -269,19 +293,6 @@ async def save_turn(
 
     # updated_at 갱신
     session.updated_at = datetime.now()
-    db.commit()
-
-    # 사용 로그 기록 (Phase D)
-    log = QueryLog(
-        client_id=user["client_id"],
-        display_name=user["name"],
-        question=body.question,
-        source_id=session.source_id or "",
-        result_count=len(docs),
-        answered=1 if body.answer else 0,
-        elapsed_ms=body.elapsed_ms or 0
-    )
-    db.add(log)
     db.commit()
 
     return TurnResponse(ok=True, turn_no=body.turn_no)
@@ -323,6 +334,7 @@ async def delete_session(
     db: Session = Depends(get_db)
 ):
     """세션 삭제 (소유자만)"""
+    purge_expired_user_sessions(db, user["client_id"])
     session = db.query(ChatSession).filter(
         ChatSession.session_id == session_id
     ).first()
