@@ -709,6 +709,160 @@ button{font-family:inherit; cursor:pointer}
   background:var(--surface-2); border:1px solid var(--border);
   color:var(--ink-soft);
 }
+
+/* ============================================================
+   11. 문서 미리보기 팝업 (rag-assistant.html에서 이식)
+   ============================================================ */
+.preview-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 9000;
+  align-items: center;
+  justify-content: center;
+}
+.preview-overlay.open { display: flex; }
+.preview-modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  width: min(92vw, 1100px);
+  height: min(90vh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  gap: 12px;
+  flex-shrink: 0;
+}
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+.preview-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.preview-close:hover { background: var(--border); color: var(--ink); }
+.preview-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.preview-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 18px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.preview-tab {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.preview-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.preview-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+.preview-text {
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 24px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ink-soft);
+  font-size: 14px;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+}
+.preview-message-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.preview-footer a, .preview-footer button {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.preview-footer a {
+  background: var(--accent);
+  color: #fff;
+}
+.preview-footer a:hover { background: var(--accent-strong); }
+.preview-footer button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+}
+.preview-footer button:hover { background: var(--surface-2); color: var(--ink); }
+/* 검색어 하이라이트 */
+.query-highlight {
+  background: var(--evidence-soft);
+  color: var(--evidence);
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-weight: 600;
+}
 </style>
 </head>
 
@@ -906,6 +1060,22 @@ button{font-family:inherit; cursor:pointer}
       </div>
       <div class="modal-body" id="modalBody"></div>
       <div class="modal-foot" id="modalPos"></div>
+    </div>
+  </div>
+
+  <!-- ── 파일 미리보기 모달 (rag-assistant.html에서 이식) ── -->
+  <div id="previewOverlay" class="preview-overlay" role="dialog" aria-modal="true">
+    <div class="preview-modal">
+      <div class="preview-header">
+        <span class="preview-title" id="previewTitle">문서 미리보기</span>
+        <button class="preview-close" onclick="closePreview()" title="닫기 (Esc)">✕</button>
+      </div>
+      <div class="preview-tabs" id="previewTabs" style="display:none"></div>
+      <div class="preview-body" id="previewBody"></div>
+      <div class="preview-footer">
+        <a id="previewDlBtn" href="#" target="_blank" download>다운로드</a>
+        <button id="previewPrintBtn" onclick="printPreview()" style="display:none">인쇄</button>
+      </div>
     </div>
   </div>
 
@@ -1671,13 +1841,20 @@ function renderMiniCards(docs, terms){
 function renderEvidenceDetail(doc){
   const badges = badgeList(doc).map(([cls,v]) =>
     `<span class="badge ${cls}">${escapeHtml(v)}</span>`).join('');
+  const sourcePath = doc.sourcePath || doc.source_path || doc.path || '';
+  const inputPath = doc.inputPath || doc.input_path || '';
+  const docId = doc.documentId || doc.document_id || '';
+  const previewBtn = docId || sourcePath
+    ? `<button class="preview-tab" style="margin-top:12px" onclick="openFilePreview('${escapeHtml(sourcePath)}','${escapeHtml(inputPath)}','${escapeHtml(docId)}')">📄 문서 미리보기</button>`
+    : '';
   return {
     title: doc.fileName,
     html: `<div class="badges">${badges}</div>
            <div class="ev-path">${escapeHtml(doc.path || '')}</div>
            <div class="ev-text">${highlight(
              escapeHtml(doc.snippet || '원문 미리보기가 없습니다.'),
-             doc._terms || [])}</div>`,
+             doc._terms || [])}</div>
+           ${previewBtn}`,
     /* Phase 2: doc.chunkId 가 있으면 /api/rag/chunk 로 청크 전체를 지연 로드 */
   };
 }
@@ -1796,6 +1973,7 @@ async function runAgent(question){
   Modal.close();                 // 모달 열린 채 전송 방지 (v1.1 주의사항 2)
   hideWelcome();
   addUserMessage(question);
+  _currentSearchQuery = question;  // 하이라이트용 쿼리 저장
 
   const t0 = performance.now();
   const {addStep, collapse, answerSlot} = addAgentMessage();
@@ -2915,7 +3093,282 @@ async function runAgentWithSession(question) {
 runAgent = runAgentWithSession;
 
 /* ============================================================
-   17. 초기화 — 인증 확인 후 앱 시작
+   17. 파일 미리보기 모달 (rag-assistant.html에서 이식)
+   ============================================================ */
+// 현재 검색 쿼리 (하이라이트용)
+let _currentSearchQuery = '';
+
+function _fileExt(sourcePath) {
+  if (!sourcePath) return '';
+  const m = sourcePath.match(/\.([^./\\]+)$/);
+  return m ? m[1].toLowerCase() : '';
+}
+
+function _canInlineOriginal(ext) {
+  return ext === 'pdf';
+}
+
+function _isOfficeLike(ext) {
+  return ['ppt', 'pptx', 'doc', 'docx', 'hwp', 'hwpx', 'xls', 'xlsx'].includes(ext);
+}
+
+const _previewState = {
+  docId: '',
+  sourcePath: '',
+  inputPath: '',
+  fileName: '',
+  formats: [],
+  format: '',
+  content: '',
+  mode: 'text',
+  lastLoad: null,
+};
+
+function _fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+function _renderPreviewMessage(kind, message, actions = '') {
+  const color = kind === 'error' ? 'var(--danger)' : 'var(--ink-soft)';
+  return `
+    <div class="preview-loading" style="color:${color}">
+      <div>${escapeHtml(message)}</div>
+      ${actions ? `<div class="preview-message-actions">${actions}</div>` : ''}
+    </div>
+  `;
+}
+
+function _previewActionButtons(retryCall = '') {
+  const downloadUrl = _previewDownloadUrl(
+    _previewState.docId,
+    _previewState.format || 'original',
+    _previewState.inputPath || _previewState.sourcePath
+  );
+  return `
+    ${retryCall ? `<button class="preview-tab" type="button" onclick="${retryCall}">다시 시도</button>` : ''}
+    <a class="preview-tab" href="${escapeHtml(downloadUrl)}" download>다운로드</a>
+  `;
+}
+
+function _previewFormats(detail) {
+  const formats = [];
+  if (detail?.available_formats?.html) formats.push({ id: 'html', label: 'HTML' });
+  if (detail?.available_formats?.summary) formats.push({ id: 'summary', label: '요약' });
+  if (detail?.available_formats?.md) formats.push({ id: 'md', label: 'Markdown' });
+  if (detail?.available_formats?.txt) formats.push({ id: 'txt', label: 'TXT' });
+  return formats;
+}
+
+function _previewDownloadUrl(docId, format, fallbackPath) {
+  if (docId) return `${apiUrl('/documents/' + encodeURIComponent(docId) + '/download?format=' + encodeURIComponent(format))}`;
+  return `${apiUrl('/files/download?path=' + encodeURIComponent(fallbackPath || ''))}`;
+}
+
+function _renderPreviewTabs(formats, active) {
+  const bar = document.getElementById('previewTabs');
+  if (!bar) return;
+  if (!formats.length) {
+    bar.innerHTML = '';
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = '';
+  bar.innerHTML = formats.map(fmt => `
+    <button class="preview-tab ${fmt.id === active ? 'active' : ''}" type="button"
+      onclick="loadPreviewFormat('${fmt.id}')">${fmt.label}</button>
+  `).join('');
+}
+
+// 검색어 하이라이트 함수
+function highlightQueryTerms(text, query) {
+  if (!text || !query) return escapeHtml(text || '');
+  const terms = query.split(/\s+/).filter(t => t.length >= 2);
+  if (!terms.length) return escapeHtml(text);
+  let result = escapeHtml(text);
+  terms.forEach(term => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escaped})`, 'gi');
+    result = result.replace(regex, '<span class="query-highlight">$1</span>');
+  });
+  return result;
+}
+
+async function openFilePreview(sourcePath, inputPath, docId, preferOriginal = false) {
+  const resolvedPath = inputPath || sourcePath;
+  const ext = _fileExt(resolvedPath);
+  const modal = document.getElementById('previewOverlay');
+  const title = document.getElementById('previewTitle');
+  const body  = document.getElementById('previewBody');
+  const dlBtn = document.getElementById('previewDlBtn');
+  const printBtn = document.getElementById('previewPrintBtn');
+
+  _previewState.docId = docId || '';
+  _previewState.sourcePath = sourcePath || '';
+  _previewState.inputPath = inputPath || '';
+  _previewState.fileName = (resolvedPath || '').split(/[/\\]/).pop() || docId || '';
+  _previewState.formats = [];
+  _previewState.format = '';
+  _previewState.content = '';
+  _previewState.mode = 'text';
+
+  title.textContent = _previewState.fileName;
+  body.innerHTML = _renderPreviewMessage('loading', '문서 정보를 불러오는 중입니다.');
+  dlBtn.href = _previewDownloadUrl(docId, 'original', resolvedPath);
+  printBtn.style.display = 'none';
+  _renderPreviewTabs([], '');
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  if (preferOriginal) {
+    if (_canInlineOriginal(ext) && resolvedPath) {
+      const viewUrl = `${apiUrl('/files/view?path=' + encodeURIComponent(resolvedPath))}`;
+      body.innerHTML = `<iframe src="${escapeHtml(viewUrl)}" title="${escapeHtml(_previewState.fileName)}"></iframe>`;
+      _previewState.mode = 'iframe';
+      _previewState.format = 'original';
+      dlBtn.href = _previewDownloadUrl(docId, 'original', resolvedPath);
+      printBtn.style.display = '';
+      return;
+    }
+    if (_isOfficeLike(ext)) {
+      body.innerHTML = _renderPreviewMessage(
+        'loading',
+        `${ext.toUpperCase()} 파일은 브라우저 원문 보기 제한이 있어 추출본 미리보기로 전환합니다.`
+      );
+    }
+  }
+
+  if (!docId) {
+    if (ext === 'pdf') {
+      const viewUrl = `${apiUrl('/files/view?path=' + encodeURIComponent(resolvedPath))}`;
+      body.innerHTML = `<iframe src="${escapeHtml(viewUrl)}" title="${escapeHtml(_previewState.fileName)}"></iframe>`;
+      _previewState.mode = 'iframe';
+      printBtn.style.display = '';
+      return;
+    }
+    body.innerHTML = `<div class="preview-text">문서 ID가 없어 추출 파일을 불러올 수 없습니다.\n\n원본 다운로드만 가능합니다.</div>`;
+    return;
+  }
+
+  try {
+    _previewState.lastLoad = () => openFilePreview(sourcePath, inputPath, docId);
+    const detailRes = await _fetchWithTimeout(apiUrl('/documents/' + encodeURIComponent(docId)), {}, 10000);
+    if (!detailRes.ok) throw new Error(`HTTP ${detailRes.status}`);
+    const detail = await detailRes.json();
+    title.textContent = detail.file_name || _previewState.fileName;
+    _previewState.formats = _previewFormats(detail);
+    const initialFormat = _previewState.formats.find(item => item.id === 'html')?.id || _previewState.formats[0]?.id || 'txt';
+    _renderPreviewTabs(_previewState.formats, initialFormat);
+    await loadPreviewFormat(initialFormat);
+  } catch (err) {
+    const message = err.name === 'AbortError'
+      ? '문서 정보 조회 시간이 초과되었습니다. 다시 시도하거나 원본을 다운로드하세요.'
+      : `문서 미리보기를 불러오지 못했습니다: ${err.message}`;
+    body.innerHTML = _renderPreviewMessage('error', message, _previewActionButtons(`openFilePreview('${escapeHtml(sourcePath)}','${escapeHtml(inputPath || '')}','${escapeHtml(docId || '')}', ${preferOriginal ? 'true' : 'false'})`));
+  }
+}
+
+async function loadPreviewFormat(format) {
+  const body = document.getElementById('previewBody');
+  const dlBtn = document.getElementById('previewDlBtn');
+  const printBtn = document.getElementById('previewPrintBtn');
+  const docId = _previewState.docId;
+  if (!docId) return;
+
+  _previewState.format = format;
+  _previewState.lastLoad = () => loadPreviewFormat(format);
+  _renderPreviewTabs(_previewState.formats, format);
+  const loadingText = format === 'html'
+    ? 'HTML 미리보기를 불러오는 중입니다.'
+    : format === 'summary'
+      ? '요약을 불러오는 중입니다.'
+      : format === 'md'
+        ? 'Markdown 추출본을 불러오는 중입니다.'
+        : '텍스트 추출본을 불러오는 중입니다. 파일이 크면 시간이 걸릴 수 있습니다.';
+  body.innerHTML = _renderPreviewMessage('loading', loadingText);
+  dlBtn.href = _previewDownloadUrl(docId, format, _previewState.inputPath || _previewState.sourcePath);
+
+  const endpoint = format === 'html'
+    ? apiUrl('/documents/' + encodeURIComponent(docId) + '/html')
+    : format === 'summary'
+      ? apiUrl('/documents/' + encodeURIComponent(docId) + '/summary')
+    : format === 'md'
+      ? apiUrl('/documents/' + encodeURIComponent(docId) + '/markdown')
+      : apiUrl('/documents/' + encodeURIComponent(docId) + '/text');
+
+  try {
+    const res = await _fetchWithTimeout(endpoint, {}, 15000);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (format === 'html') {
+      _previewState.mode = 'iframe';
+      _previewState.content = data.html || '';
+      body.innerHTML = `<iframe id="previewFrame" srcdoc="${escapeHtml(_previewState.content)}" title="${escapeHtml(_previewState.fileName)}"></iframe>`;
+    } else {
+      _previewState.mode = 'text';
+      _previewState.content = format === 'summary'
+        ? (data.summary || '')
+        : format === 'md'
+          ? (data.markdown || '')
+          : (data.text || '');
+      body.innerHTML = `<div class="preview-text">${highlightQueryTerms(_previewState.content, _currentSearchQuery)}</div>`;
+    }
+    printBtn.style.display = '';
+  } catch (err) {
+    printBtn.style.display = 'none';
+    const message = err.name === 'AbortError'
+      ? '미리보기 조회 시간이 초과되었습니다. 다시 시도하거나 원본을 다운로드하세요.'
+      : `미리보기를 불러오지 못했습니다: ${err.message}`;
+    body.innerHTML = _renderPreviewMessage('error', message, _previewActionButtons(`loadPreviewFormat('${escapeHtml(format)}')`));
+  }
+}
+
+function printPreview() {
+  if (!_previewState.content) return;
+  if (_previewState.mode === 'iframe') {
+    const frame = document.getElementById('previewFrame');
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    }
+    return;
+  }
+
+  const printWindow = window.open('', '_blank', 'width=1000,height=800');
+  if (!printWindow) return;
+  printWindow.document.write(`<html><head><meta charset="UTF-8"><title>${escapeHtml(_previewState.fileName)}</title></head><body><pre style="white-space:pre-wrap;font-family:Consolas,'Courier New',monospace;">${escapeHtml(_previewState.content)}</pre></body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+function closePreview() {
+  const modal = document.getElementById('previewOverlay');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+  const previewBody = document.getElementById('previewBody'); if (previewBody) previewBody.innerHTML = '';
+  const previewTabs = document.getElementById('previewTabs');
+  if (previewTabs) { previewTabs.innerHTML = ''; previewTabs.style.display = 'none'; }
+  const previewPrintBtn = document.getElementById('previewPrintBtn'); if (previewPrintBtn) previewPrintBtn.style.display = 'none';
+}
+
+// 미리보기 모달 이벤트 리스너
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('previewOverlay');
+  if (overlay) {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closePreview();
+    });
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closePreview(); }
+});
+
+/* ============================================================
+   18. 초기화 — 인증 확인 후 앱 시작
    ============================================================ */
 async function initAfterAuth() {
   await loadSearchScopes();
