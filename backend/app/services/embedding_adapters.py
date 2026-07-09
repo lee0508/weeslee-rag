@@ -53,19 +53,24 @@ class BGEM3Embedder(BaseEmbedder):
     sentence-transformers 기반 BGE-M3 임베더
     - 한국어에 최적화된 다국어 임베딩 모델
     - 1024차원, 코사인 유사도 안정화
+    - 최대 토큰: 8192 (초과 시 자동 잘림 + 경고)
     """
+    MAX_TOKENS = 8192  # BGE-M3 최대 토큰
 
     def __init__(
         self,
         model_name: str = "BAAI/bge-m3",
         normalize: bool = True,
         batch_size: int = 32,
+        max_tokens: int = 8192,
     ):
         self.model_name = model_name
         self.normalize = normalize
         self.batch_size = batch_size
+        self.max_tokens = max_tokens
         self._model = None
         self._dim = 1024  # bge-m3 기본 차원
+        self._truncation_warned = set()  # 중복 경고 방지
 
     def _ensure_loaded(self):
         if self._model is None:
@@ -85,8 +90,34 @@ class BGEM3Embedder(BaseEmbedder):
     def dim(self) -> int:
         return self._dim
 
+    def _estimate_tokens(self, text: str) -> int:
+        """토큰 수 추정 (한국어 1.8자/토큰, 영어 0.75단어/토큰)"""
+        import re
+        korean_chars = len(re.findall(r'[가-힣]', text))
+        korean_tokens = korean_chars / 1.8
+        other_text = re.sub(r'[가-힣]', '', text)
+        other_tokens = len(other_text.split()) * 0.75
+        return int(korean_tokens + other_tokens)
+
+    def _warn_truncation(self, text: str, idx: int) -> None:
+        """토큰 초과 시 경고 (중복 방지)"""
+        text_hash = hash(text[:200])
+        if text_hash not in self._truncation_warned:
+            estimated = self._estimate_tokens(text)
+            logger.warning(
+                "⚠️ BGE-M3 임베딩 텍스트 #%d가 최대 토큰(%d)을 초과합니다: ~%d 토큰. "
+                "뒷부분이 잘려 검색 품질이 저하될 수 있습니다. 텍스트 앞부분: %s...",
+                idx, self.max_tokens, estimated, text[:80].replace('\n', ' ')
+            )
+            self._truncation_warned.add(text_hash)
+
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         self._ensure_loaded()
+        # 토큰 초과 경고
+        for i, text in enumerate(texts):
+            if self._estimate_tokens(text) > self.max_tokens:
+                self._warn_truncation(text, i)
+
         vectors = self._model.encode(
             texts,
             batch_size=self.batch_size,

@@ -2,10 +2,26 @@
 """
 Text Chunking Service for RAG preprocessing
 Splits documents into optimal chunks for embedding and retrieval
+
+개선사항 (2026-07-09):
+- 한국어 문장 단위 청킹 (kss 라이브러리) 지원
+- 임베딩 모델 최대 토큰 제한 검증
+- 토큰 초과 시 경고 로깅
 """
+import logging
 import re
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+# kss 라이브러리 (한국어 문장 분리) - 선택적 의존성
+try:
+    import kss
+    KSS_AVAILABLE = True
+except ImportError:
+    KSS_AVAILABLE = False
+    logger.info("kss 라이브러리 미설치 - 한국어 문장 단위 청킹 비활성화")
 
 
 @dataclass
@@ -28,13 +44,17 @@ class ChunkingService:
     KOREAN_CHARS_PER_TOKEN = 1.8
     # English words per token (approximate)
     ENGLISH_WORDS_PER_TOKEN = 0.75
+    # 임베딩 모델 최대 토큰 (BGE-M3 기준 8192)
+    MAX_EMBEDDING_TOKENS = 8192
 
     def __init__(
         self,
         chunk_size: int = 512,
         chunk_overlap: int = 50,
         min_chunk_size: int = 100,
-        separators: Optional[List[str]] = None
+        separators: Optional[List[str]] = None,
+        use_korean_sentence_split: bool = True,
+        max_embedding_tokens: int = 8192,
     ):
         """
         Initialize chunking service
@@ -44,10 +64,14 @@ class ChunkingService:
             chunk_overlap: Number of overlapping tokens between chunks
             min_chunk_size: Minimum chunk size (smaller chunks are merged)
             separators: List of separators for splitting (in priority order)
+            use_korean_sentence_split: 한국어 문장 단위 분리 사용 여부 (kss)
+            max_embedding_tokens: 임베딩 모델 최대 토큰 수 (초과 시 경고)
         """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.min_chunk_size = min_chunk_size
+        self.use_korean_sentence_split = use_korean_sentence_split and KSS_AVAILABLE
+        self.max_embedding_tokens = max_embedding_tokens
         self.separators = separators or [
             "\n\n\n",      # Multiple newlines (section breaks)
             "\n\n",        # Paragraph breaks
@@ -85,6 +109,36 @@ class ChunkingService:
         other_tokens = len(other_text.split()) * self.ENGLISH_WORDS_PER_TOKEN
 
         return int(korean_tokens + other_tokens)
+
+    def _split_korean_sentences(self, text: str) -> List[str]:
+        """
+        한국어 문장 단위 분리 (kss 라이브러리 사용)
+        kss가 없으면 기본 구분자 기반 분리로 fallback
+        """
+        if not self.use_korean_sentence_split:
+            return [text]
+        try:
+            sentences = kss.split_sentences(text)
+            return sentences if sentences else [text]
+        except Exception as e:
+            logger.warning("kss 문장 분리 실패, fallback 사용: %s", e)
+            return [text]
+
+    def _validate_chunk_tokens(self, chunk: str, chunk_index: int) -> str:
+        """
+        청크가 임베딩 모델 최대 토큰을 초과하는지 검증하고 경고 로깅
+        """
+        token_count = self.estimate_tokens(chunk)
+        if token_count > self.max_embedding_tokens:
+            logger.warning(
+                "⚠️ 청크 #%d가 임베딩 모델 최대 토큰(%d)을 초과합니다: %d 토큰. "
+                "임베딩 시 뒷부분이 잘릴 수 있습니다. 청크 앞부분: %s...",
+                chunk_index,
+                self.max_embedding_tokens,
+                token_count,
+                chunk[:100].replace('\n', ' ')
+            )
+        return chunk
 
     def _split_text(self, text: str, separator: str) -> List[str]:
         """Split text by separator"""
@@ -263,8 +317,14 @@ class ChunkingService:
         text = text.strip()
         text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
 
-        # Split into chunks
-        raw_chunks = self._recursive_split(text, self.separators, self.chunk_size)
+        # 한국어 문장 단위 분리 (kss 사용 시)
+        if self.use_korean_sentence_split:
+            sentences = self._split_korean_sentences(text)
+            # 문장들을 청크 크기에 맞게 병합
+            raw_chunks = self._merge_splits(sentences, " ", self.chunk_size)
+        else:
+            # Split into chunks
+            raw_chunks = self._recursive_split(text, self.separators, self.chunk_size)
 
         # Filter out empty/small chunks
         raw_chunks = [c.strip() for c in raw_chunks if c.strip()]
@@ -273,11 +333,14 @@ class ChunkingService:
         # Add overlap
         overlapped_chunks = self._add_overlap(raw_chunks)
 
-        # Create TextChunk objects
+        # Create TextChunk objects with token validation
         result = []
         char_position = 0
 
         for i, chunk_text in enumerate(overlapped_chunks):
+            # 토큰 초과 경고 검증
+            self._validate_chunk_tokens(chunk_text, i)
+
             chunk = TextChunk(
                 content=chunk_text,
                 index=i,
