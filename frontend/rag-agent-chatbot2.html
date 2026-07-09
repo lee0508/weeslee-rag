@@ -34,6 +34,8 @@
 
 <!-- 한국어 최적 폰트 Pretendard (실패 시 시스템 폰트로 폴백) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<!-- Cytoscape.js for Knowledge Graph Visualization -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 
 <style>
 /* ============================================================
@@ -863,6 +865,150 @@ button{font-family:inherit; cursor:pointer}
   border-radius: 3px;
   font-weight: 600;
 }
+
+/* ── Knowledge Graph Visualization ── */
+#paneGraph {
+  height: 100%;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+#graphCanvas {
+  flex: 1;
+  min-height: 260px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.graph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 10px;
+  color: var(--ink-soft);
+  flex: 1;
+}
+.graph-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.graph-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.btn-graph-popup {
+  padding: 5px 10px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.btn-graph-popup:hover {
+  background: var(--accent-dark);
+  transform: translateY(-1px);
+}
+.graph-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: center;
+  padding: 30px;
+}
+.graph-empty-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+/* ── Wiki 탭 스타일 ── */
+.wiki-empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.wiki-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.wiki-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--surface);
+}
+.wiki-item:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.wiki-item-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.wiki-item-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.wiki-detail {
+  padding: 8px;
+}
+.wiki-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.wiki-detail-content {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.wiki-detail-content h2 { font-size: 16px; margin: 14px 0 6px; font-weight: 700; }
+.wiki-detail-content h3 { font-size: 14px; margin: 10px 0 5px; font-weight: 600; }
+.wiki-detail-content h4 { font-size: 12px; margin: 8px 0 4px; font-weight: 600; }
+.wiki-detail-content table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11px; }
+.wiki-detail-content td { padding: 5px 7px; border: 1px solid var(--border); }
+.wiki-detail-content tr:first-child td { background: var(--surface-2); font-weight: 600; }
+.wiki-filter-note {
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
 </style>
 </head>
 
@@ -1040,10 +1186,27 @@ button{font-family:inherit; cursor:pointer}
           <div class="pane-note">검색을 실행하면 근거 문서 목록이 여기에 표시됩니다.</div>
         </div>
         <div class="tab-pane" data-tab="graph" id="paneGraph">
-          <div class="pane-note">그래프 탐색(기관·사업·문서 관계)은 다음 업데이트에서 제공됩니다.</div>
+          <div class="graph-header">
+            <div class="graph-legend">
+              <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#22c55e"></div>기관</div>
+              <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#E8971F"></div>프로젝트</div>
+              <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#3b82f6"></div>문서</div>
+              <div class="graph-legend-item"><div class="graph-legend-dot" style="background:#8b5cf6"></div>기술</div>
+            </div>
+            <button class="btn-graph-popup" onclick="openGraphPopup()" title="그래프를 팝업 창으로 보기">
+              <span>🔍</span> 팝업
+            </button>
+          </div>
+          <div id="graphCanvas">
+            <div class="graph-empty">
+              <div class="graph-empty-icon">🔗</div>
+              <div>검색을 실행하면 관계 그래프가 표시됩니다.</div>
+            </div>
+          </div>
         </div>
         <div class="tab-pane" data-tab="wiki" id="paneWiki">
-          <div class="pane-note">사업·기관 위키는 다음 업데이트에서 제공됩니다.</div>
+          <div class="wiki-empty">Wiki 검색 결과가 없습니다.</div>
+          <div class="wiki-results" id="wikiResults" style="display:none"></div>
         </div>
       </div>
     </aside>
@@ -1680,6 +1843,13 @@ const TabPanel = (() => {
   function activate(name){
     tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     panes.forEach(p => p.classList.toggle('active', p.dataset.tab === name));
+    // Graph/Wiki 탭 활성화 시 데이터 로드
+    if (name === 'graph' && _kgCy) {
+      setTimeout(() => _kgCy.resize(), 50);
+    }
+    if (name === 'wiki') {
+      loadWikiProjects();
+    }
   }
   /* 결과 도착 시 호출 — 자동 오픈 정책을 여기서 일괄 판단 */
   function maybeOpen(hasResults){
@@ -2057,6 +2227,11 @@ async function runAgent(question){
   TabPanel.setPane('evidence', renderMiniCards(docs, terms));
   wireMiniCards($('#paneEvidence'), turnIndex);
   TabPanel.maybeOpen(docs.length > 0);       // 첫 결과 1회만 자동 오픈, 0건은 안 엶
+
+  // Graph/Wiki 데이터 로드 (검색 결과 기반)
+  if (docs.length > 0) {
+    loadGraphFromQuery(question, docs);
+  }
 
   // 채팅 답변 슬롯
   if(errText){
@@ -3390,6 +3565,383 @@ async function initApp() {
 
   // 토큰 없거나 무효 → 게이트 표시
   Auth.showGate();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ▸ Knowledge Graph Visualization (rag-assistant.html에서 이식)
+// ══════════════════════════════════════════════════════════════════════════
+let _kgCy = null;
+let _lastSearchDocuments = [];
+let _activeSnapshot = '';
+
+function initKnowledgeGraphCy() {
+  if (_kgCy) { _kgCy.destroy(); _kgCy = null; }
+  const container = document.getElementById('graphCanvas');
+  if (!container) return;
+  container.innerHTML = '';
+  _kgCy = cytoscape({
+    container: container,
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': 'data(color)',
+          'label': 'data(label)',
+          'width': 'data(size)',
+          'height': 'data(size)',
+          'font-size': '9px',
+          'color': '#0F1A2B',
+          'text-valign': 'bottom',
+          'text-halign': 'center',
+          'text-wrap': 'wrap',
+          'text-max-width': '80px',
+          'text-margin-y': 4,
+        }
+      },
+      {
+        selector: 'node[?isCenter]',
+        style: {
+          'border-width': 4,
+          'border-color': '#E8971F',
+        }
+      },
+      {
+        selector: 'node[type="project"]',
+        style: {
+          'font-weight': 'bold',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'color': '#fff',
+        }
+      },
+      {
+        selector: 'node[type="organization"]',
+        style: { 'shape': 'roundrectangle' }
+      },
+      {
+        selector: 'node[type="methodology"]',
+        style: { 'shape': 'diamond' }
+      },
+      {
+        selector: 'node[type="technology"]',
+        style: { 'shape': 'hexagon' }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 1.5,
+          'line-color': '#8FA3C8',
+          'target-arrow-color': '#8FA3C8',
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'bezier',
+          'opacity': 0.7,
+          'label': 'data(label)',
+          'font-size': '8px',
+          'color': '#4A6A9A',
+          'text-rotation': 'autorotate',
+          'text-background-color': '#FFFFFF',
+          'text-background-opacity': 1,
+          'text-background-padding': '4px',
+        }
+      },
+      {
+        selector: ':selected',
+        style: {
+          'border-width': 3,
+          'border-color': '#E8971F',
+          'opacity': 1,
+        }
+      },
+    ],
+    layout: { name: 'cose', padding: 30, nodeRepulsion: 8000, idealEdgeLength: 80 },
+    minZoom: 0.3,
+    maxZoom: 3,
+  });
+
+  _kgCy.on('tap', 'node', (evt) => {
+    const data = evt.target.data();
+    showToast(`${data.type}: ${data.label}`, 'info');
+  });
+}
+
+function renderGraphEmptyState(message, icon = '🔍') {
+  const container = document.getElementById('graphCanvas');
+  if (!container) return;
+  container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">${icon}</div><div>${message}</div></div>`;
+}
+
+function resolveGraphSourceId(documents = []) {
+  const fromDocument = documents
+    .map(d => d.source_id || d.sourceId || '')
+    .find(Boolean);
+  if (fromDocument) return fromDocument;
+  const match = (_activeSnapshot || '').match(/^snapshot_\d{8}_(src_[^_]+_[^_]+_[^_]+)(?:_V\d+)?$/i);
+  return match ? match[1] : '';
+}
+
+async function fetchGraphStatus(sourceId) {
+  const normalized = String(sourceId || '').trim();
+  if (!normalized) return null;
+  try {
+    const response = await fetch(`${CONFIG.apiBase}/graph/status?source_id=${encodeURIComponent(normalized)}`, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (err) {
+    console.warn('Graph status precheck failed:', err);
+    return null;
+  }
+}
+
+function normalizeGraphEdgeElement(edge) {
+  const d = edge.data || edge;
+  const relationLabel = formatGraphArrowLabel(d.relation_type, d.label || d.type);
+  return { data: { ...d, label: relationLabel } };
+}
+
+function formatGraphArrowLabel(rawType, fallbackLabel) {
+  const text = resolveGraphRelationLabel(rawType, fallbackLabel);
+  return text ? `→ ${text}` : '→';
+}
+
+function resolveGraphRelationLabel(rawType, fallbackLabel) {
+  const RELATION_MAP = {
+    'HAS_METHODOLOGY': '방법론 적용',
+    'USES_TECHNOLOGY': '기술 활용',
+    'BELONGS_TO': '소속',
+    'RELATED_TO': '관련',
+    'REFERENCES': '참조',
+    'EXECUTED_BY': '수행',
+    'PRODUCED': '산출',
+  };
+  const normalized = String(rawType || '').toUpperCase().replace(/\s+/g, '_');
+  return RELATION_MAP[normalized] || fallbackLabel || rawType || '';
+}
+
+async function loadGraphFromQuery(query, documents = []) {
+  _lastSearchDocuments = documents;
+  const container = document.getElementById('graphCanvas');
+  if (!container) return;
+
+  try {
+    if (!documents || documents.length === 0) {
+      renderGraphEmptyState('검색 결과가 없습니다.');
+      return;
+    }
+
+    const graphSourceId = resolveGraphSourceId(documents);
+    const graphStatus = await fetchGraphStatus(graphSourceId);
+    if (!graphStatus || !graphStatus.available) {
+      renderGraphEmptyState(
+        `선택한 Source의 Knowledge Graph 데이터가 아직 생성되지 않았습니다.<br>Dataset Builder에서 "Knowledge Graph 실행" 후 다시 확인하세요.`,
+        '⚠️'
+      );
+      return;
+    }
+
+    container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">⏳</div><div>그래프 로딩 중...</div></div>`;
+
+    const docIds = documents.map(d => d.document_id || d.id || '').filter(Boolean);
+    const response = await fetch(`${CONFIG.apiBase}/graph/cytoscape/documents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document_ids: docIds, depth: 2 }),
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    if (!data.nodes || data.nodes.length === 0) {
+      renderGraphEmptyState('현재 검색 결과와 연결된 그래프 노드가 없습니다.', '📭');
+      return;
+    }
+
+    initKnowledgeGraphCy();
+    const elements = [
+      ...data.nodes.map(n => ({ data: n.data })),
+      ...data.edges.map(e => normalizeGraphEdgeElement(e)),
+    ];
+    _kgCy.add(elements);
+    _kgCy.layout({ name: 'cose', padding: 30, nodeRepulsion: 8000, idealEdgeLength: 80, animate: false }).run();
+    _kgCy.fit(undefined, 30);
+
+    // Badge 업데이트
+    const badge = document.getElementById('badgeGraph');
+    if (badge) {
+      badge.textContent = data.nodes.length;
+      badge.classList.remove('empty');
+    }
+
+    showToast(`그래프 로드 완료: 노드 ${data.nodes.length}개, 엣지 ${data.edges.length}개`, 'success');
+
+  } catch (err) {
+    console.error('Graph load error:', err);
+    renderGraphEmptyState(`그래프 로드 실패<br>${escapeHtml(err.message)}`, '❌');
+  }
+}
+
+function openGraphPopup() {
+  const sourceId = resolveGraphSourceId(_lastSearchDocuments || []);
+  const url = `${CONFIG.apiBase.replace('/api', '')}/frontend/graph-viewer.html?source_id=${encodeURIComponent(sourceId)}`;
+  window.open(url, 'graphPopup', 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ▸ Wiki 탭 기능 (rag-assistant.html에서 이식)
+// ══════════════════════════════════════════════════════════════════════════
+
+function resolveWikiSourceId() {
+  return resolveGraphSourceId(_lastSearchDocuments || []);
+}
+
+function extractProjectNamesFromDocs(documents) {
+  if (!documents || !documents.length) return new Set();
+  const projectNames = new Set();
+  documents.forEach(doc => {
+    const meta = doc.metadata || {};
+    if (meta.project_name) projectNames.add(meta.project_name.toLowerCase());
+    if (meta.organization) projectNames.add(meta.organization.toLowerCase());
+
+    const fileName = doc.file_name || '';
+    const prefixMatch = fileName.match(/^[^_]+_(.+)\.(pptx?|docx?|pdf|hwp|xlsx?)$/i);
+    if (prefixMatch) {
+      const projectName = prefixMatch[1].trim().toLowerCase();
+      if (projectName.length > 3) projectNames.add(projectName);
+      const keywords = projectName.match(/isp|ismp|고도화|구축|전략계획|수립|재구축/gi);
+      if (keywords) keywords.forEach(k => projectNames.add(k.toLowerCase()));
+      const orgMatch = projectName.match(/(한국[가-힣]+|[가-힣]+공사|[가-힣]+원|[가-힣]+청|[가-힣]+부)/);
+      if (orgMatch) projectNames.add(orgMatch[1].toLowerCase());
+    }
+  });
+  return projectNames;
+}
+
+async function loadWikiProjects() {
+  const wikiEmpty = document.querySelector('.wiki-empty');
+  const wikiResults = document.getElementById('wikiResults');
+  if (!wikiResults) return;
+
+  try {
+    const sourceId = resolveWikiSourceId();
+    const url = sourceId
+      ? `${CONFIG.apiBase}/wiki/projects?source_id=${encodeURIComponent(sourceId)}`
+      : `${CONFIG.apiBase}/wiki/projects`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Wiki API 오류');
+    const data = await response.json();
+
+    if (!data.pages || data.pages.length === 0) {
+      wikiEmpty.style.display = 'block';
+      wikiResults.style.display = 'none';
+      return;
+    }
+
+    // 검색 결과 기반 필터링
+    let filteredPages = data.pages;
+    if (_lastSearchDocuments && _lastSearchDocuments.length > 0) {
+      const projectNames = extractProjectNamesFromDocs(_lastSearchDocuments);
+      if (projectNames.size > 0) {
+        filteredPages = data.pages.filter(page => {
+          const slug = (page.slug || '').toLowerCase();
+          const title = (page.title || '').toLowerCase();
+          for (const pname of projectNames) {
+            if (slug.includes(pname) || title.includes(pname) || pname.includes(slug)) {
+              return true;
+            }
+          }
+          return false;
+        });
+      }
+    }
+
+    if (filteredPages.length === 0) {
+      wikiEmpty.textContent = _lastSearchDocuments?.length > 0
+        ? '검색 결과와 관련된 Wiki 항목이 없습니다.'
+        : '등록된 Wiki 항목이 없습니다.';
+      wikiEmpty.style.display = 'block';
+      wikiResults.style.display = 'none';
+      // Badge 업데이트
+      const badge = document.getElementById('badgeWiki');
+      if (badge) { badge.textContent = '0'; badge.classList.add('empty'); }
+      return;
+    }
+
+    wikiEmpty.style.display = 'none';
+    wikiResults.style.display = 'block';
+    const totalNote = _lastSearchDocuments?.length > 0 && filteredPages.length < data.pages.length
+      ? `<div class="wiki-filter-note">검색 결과 기반 ${filteredPages.length}개 프로젝트 (전체 ${data.pages.length}개 중)</div>`
+      : '';
+    wikiResults.innerHTML = totalNote + filteredPages.map(page => `
+      <div class="wiki-item" onclick="loadWikiDetail('${escapeHtml(page.slug)}')">
+        <div class="wiki-item-title">${escapeHtml(page.title || page.slug)}</div>
+        <div class="wiki-item-meta">
+          <span class="wiki-item-date">${escapeHtml(page.generated_at || '')}</span>
+          <span class="wiki-item-size">${Math.round((page.size_bytes || 0) / 1024)}KB</span>
+        </div>
+      </div>
+    `).join('');
+
+    // Badge 업데이트
+    const badge = document.getElementById('badgeWiki');
+    if (badge) {
+      badge.textContent = filteredPages.length;
+      badge.classList.remove('empty');
+    }
+
+  } catch (error) {
+    console.error('Wiki 로드 오류:', error);
+    wikiEmpty.textContent = 'Wiki 로드 실패';
+    wikiEmpty.style.display = 'block';
+    wikiResults.style.display = 'none';
+  }
+}
+
+async function loadWikiDetail(slug) {
+  const wikiResults = document.getElementById('wikiResults');
+  if (!wikiResults) return;
+
+  try {
+    const sourceId = resolveWikiSourceId();
+    const url = sourceId
+      ? `${CONFIG.apiBase}/wiki/projects/${encodeURIComponent(slug)}?source_id=${encodeURIComponent(sourceId)}`
+      : `${CONFIG.apiBase}/wiki/projects/${encodeURIComponent(slug)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Wiki 상세 조회 실패');
+    const data = await response.json();
+
+    wikiResults.innerHTML = `
+      <div class="wiki-detail">
+        <div class="wiki-detail-header">
+          <button class="btn btn-outline btn-sm" onclick="loadWikiProjects()" style="padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;">← 목록</button>
+          <span style="font-size:11px;color:var(--muted)">${escapeHtml(data.generated_at || '')}</span>
+        </div>
+        <div class="wiki-detail-content">${renderWikiMarkdown(data.markdown || '')}</div>
+      </div>
+    `;
+  } catch (error) {
+    showToast('Wiki 상세 로드 실패: ' + error.message, 'error');
+  }
+}
+
+function renderWikiMarkdown(md) {
+  return md
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hlutp])/gm, '<p>')
+    .replace(/(?<![>])$/gm, '</p>')
+    .replace(/<p><\/p>/g, '')
+    .replace(/\|(.+)\|/g, (match) => {
+      const cells = match.split('|').filter(c => c.trim());
+      if (cells.every(c => /^-+$/.test(c.trim()))) return '';
+      return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+    });
 }
 
 // 앱 시작
