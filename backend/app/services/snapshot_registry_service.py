@@ -14,6 +14,7 @@ from app.models.snapshot_manifest import SnapshotManifest
 from app.services.active_snapshot_state import get_active_snapshot_id
 from app.services.rag_runtime import get_active_snapshot as get_runtime_active_snapshot
 from app.services.platform_store import get_record, update_record
+from app.services.source_data_paths import get_source_paths
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -27,7 +28,52 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _index_exists(snapshot_id: str, faiss_index_id: Optional[str] = None) -> bool:
+def _safe_path(path_value: Optional[str]) -> Optional[Path]:
+    value = str(path_value or "").strip()
+    if not value:
+        return None
+    try:
+        return Path(value).expanduser()
+    except Exception:
+        return None
+
+
+def _explicit_index_exists(index_file: Optional[str], metadata_file: Optional[str]) -> bool:
+    index_path = _safe_path(index_file)
+    meta_path = _safe_path(metadata_file)
+    if not index_path or not meta_path:
+        return False
+    return index_path.exists() and meta_path.exists()
+
+
+def _source_index_exists(source_id: Optional[str]) -> bool:
+    sid = str(source_id or "").strip()
+    if not sid:
+        return False
+    try:
+        paths = get_source_paths(sid)
+    except Exception:
+        return False
+    if paths.active_faiss_index.exists() and paths.active_metadata_jsonl.exists():
+        return True
+    if paths.faiss_index.exists() and paths.faiss_metadata_jsonl.exists():
+        return True
+    return False
+
+
+def _index_exists(
+    snapshot_id: str,
+    faiss_index_id: Optional[str] = None,
+    *,
+    source_id: Optional[str] = None,
+    index_file: Optional[str] = None,
+    metadata_file: Optional[str] = None,
+) -> bool:
+    if _explicit_index_exists(index_file, metadata_file):
+        return True
+    if _source_index_exists(source_id):
+        return True
+
     base_id = str(faiss_index_id or snapshot_id or "").strip()
     if not base_id:
         return False
@@ -48,7 +94,13 @@ def _index_exists(snapshot_id: str, faiss_index_id: Optional[str] = None) -> boo
 def _serialize_row(row: PlatformSnapshot) -> dict[str, Any]:
     active_snapshot_id = get_runtime_active_snapshot() or get_active_snapshot_id()
     is_active = (row.snapshot_id == active_snapshot_id) if active_snapshot_id else bool(row.is_active)
-    queryable = _index_exists(row.snapshot_id, row.faiss_index_id) or bool(row.queryable)
+    queryable = _index_exists(
+        row.snapshot_id,
+        row.faiss_index_id,
+        source_id=row.source_id,
+        index_file=row.index_file,
+        metadata_file=row.metadata_file,
+    ) or bool(row.queryable)
     return {
         "snapshot_id": row.snapshot_id,
         "snapshot_name": row.snapshot_name or row.snapshot_id,
@@ -91,7 +143,13 @@ def _payload_from_manifest(snapshot: SnapshotManifest) -> dict[str, Any]:
         "faiss_index_id": snapshot.rag_build.faiss_index_id or snapshot.snapshot_id,
         "status": snapshot.status.value,
         "is_active": bool(snapshot.is_active),
-        "queryable": _index_exists(snapshot.snapshot_id, snapshot.rag_build.faiss_index_id),
+        "queryable": _index_exists(
+            snapshot.snapshot_id,
+            snapshot.rag_build.faiss_index_id,
+            source_id=snapshot.dataset.source_id,
+            index_file=snapshot.rag_build.index_file,
+            metadata_file=snapshot.rag_build.metadata_file,
+        ),
         "vector_count": int(snapshot.rag_build.vector_count or 0),
         "chunk_count": int(snapshot.rag_build.chunk_count or 0),
         "document_count": int(snapshot.dataset.document_count or 0),

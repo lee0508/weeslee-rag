@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from app.models.document_metadata import DocumentMetadata, MetaStatus, Processin
 from app.services.dataset_context import get_source_dataset_context
 from app.services.processed_text_store import processed_text_store
 from app.services.snapshot_registry_service import list_snapshot_registry
+from app.services.source_data_paths import get_source_paths
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -38,6 +40,55 @@ def _safe_exists(path_value: str | Path | None) -> bool:
         return False
 
 
+def _count_document_ids_from_jsonl(path: Path, *keys: str) -> set[str]:
+    if not path.exists():
+        return set()
+    document_ids: set[str] = set()
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except Exception:
+                continue
+            candidate: Any = row
+            for key in keys:
+                if isinstance(candidate, dict):
+                    candidate = candidate.get(key)
+                else:
+                    candidate = None
+                if candidate is None:
+                    break
+            if candidate:
+                document_ids.add(str(candidate))
+    except Exception:
+        return set()
+    return document_ids
+
+
+def _count_chunk_document_ids(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    document_ids: set[str] = set()
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except Exception:
+                continue
+            document_id = row.get("document_id")
+            if not document_id:
+                document_id = (row.get("metadata") or {}).get("document_id")
+            if document_id:
+                document_ids.add(str(document_id))
+    except Exception:
+        return set()
+    return document_ids
+
+
 def _count_wiki_files(source_id: str) -> dict[str, int]:
     project_dir = _get_wiki_type_dir("project", source_id)
     organization_dir = _get_wiki_type_dir("organization", source_id)
@@ -56,6 +107,7 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
         return {}
 
     dataset_context = get_source_dataset_context(source_id)
+    source_paths = get_source_paths(source_id)
     rows = (
         db.query(DocumentMetadata)
         .filter(DocumentMetadata.source_id == source_id)
@@ -82,8 +134,23 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
     final_metadata_count = 0
     sample_documents: list[dict[str, Any]] = []
 
+    source_chunk_doc_ids = _count_chunk_document_ids(source_paths.chunks_jsonl) | _count_chunk_document_ids(source_paths.active_chunks_jsonl)
+    source_embedding_doc_ids = (
+        _count_document_ids_from_jsonl(source_paths.faiss_metadata_jsonl, "document_id")
+        | _count_document_ids_from_jsonl(source_paths.active_metadata_jsonl, "document_id")
+    )
+
     for row in rows:
         doc_id = str(row.document_id)
+        source_doc_dir = source_paths.document_dir(doc_id)
+        source_ocr_report_path = source_paths.document_ocr_report(doc_id)
+        source_full_text_path = source_paths.document_full_text(doc_id)
+        source_structured_path = source_paths.document_structured_json(doc_id)
+        source_id_contract_path = source_doc_dir / "id_contract.json"
+        source_run_config_path = source_doc_dir / "run_config" / "latest.json"
+        source_pages_path = source_doc_dir / "pages.jsonl"
+        legacy_doc_root = processed_text_store.get_document_root(doc_id)
+
         if row.document_uid:
             document_uid_count += 1
         if dataset_id and str(row.dataset_id or "").strip() == dataset_id:
@@ -100,29 +167,36 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
         ]):
             final_metadata_count += 1
 
-        ocr_report = processed_text_store.get_report(doc_id)
-        if ocr_report:
+        ocr_report_exists = source_ocr_report_path.exists() or processed_text_store.get_report(doc_id) is not None
+        if ocr_report_exists:
             ocr_report_count += 1
-        if processed_text_store.get_text(doc_id, "txt"):
+        full_text_exists = source_full_text_path.exists() or bool(processed_text_store.get_text(doc_id, "txt"))
+        if full_text_exists:
             ocr_text_count += 1
-        if processed_text_store.get_stage_file_path(doc_id, "ocr", "pages.jsonl"):
+        pages_exists = source_pages_path.exists() or processed_text_store.get_stage_file_path(doc_id, "ocr", "pages.jsonl") is not None
+        if pages_exists:
             ocr_pages_count += 1
-        if processed_text_store.get_structured_data(doc_id):
+        structured_exists = source_structured_path.exists() or processed_text_store.get_structured_data(doc_id) is not None
+        if structured_exists:
             structured_data_count += 1
-        if processed_text_store.get_stage_file_path(doc_id, "chunk", "chunks.json"):
+        chunk_ready = doc_id in source_chunk_doc_ids or processed_text_store.get_stage_file_path(doc_id, "chunk", "chunks.json") is not None
+        if chunk_ready:
             chunk_file_count += 1
-        if processed_text_store.get_stage_file_path(doc_id, "chunk", "chunk_pages.json"):
+        chunk_pages_exists = processed_text_store.get_stage_file_path(doc_id, "chunk", "chunk_pages.json") is not None
+        if chunk_pages_exists:
             chunk_pages_count += 1
-        if processed_text_store.get_stage_file_path(doc_id, "embedding", "embeddings.pkl"):
+        embedding_ready = doc_id in source_embedding_doc_ids or processed_text_store.get_stage_file_path(doc_id, "embedding", "embeddings.pkl") is not None
+        if embedding_ready:
             embedding_file_count += 1
         embedding_meta = processed_text_store.load_embedding_metadata(doc_id)
-        if embedding_meta:
+        if doc_id in source_embedding_doc_ids or embedding_meta:
             embedding_meta_count += 1
 
-        doc_root = processed_text_store.get_document_root(doc_id)
-        if (doc_root / "id_contract.json").exists():
+        id_contract_exists = source_id_contract_path.exists() or (legacy_doc_root / "id_contract.json").exists()
+        if id_contract_exists:
             id_contract_count += 1
-        if (doc_root / "run_config" / "latest.json").exists():
+        run_config_exists = source_run_config_path.exists() or (legacy_doc_root / "run_config" / "latest.json").exists()
+        if run_config_exists:
             run_config_latest_count += 1
 
         if len(sample_documents) < 5:
@@ -134,10 +208,10 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
                     "meta_status": row.meta_status or "",
                     "dataset_id": row.dataset_id or "",
                     "faiss_snapshot": row.faiss_snapshot or "",
-                    "id_contract": (doc_root / "id_contract.json").exists(),
-                    "ocr_report": bool(ocr_report),
-                    "chunk_file": processed_text_store.get_stage_file_path(doc_id, "chunk", "chunks.json") is not None,
-                    "embedding_file": processed_text_store.get_stage_file_path(doc_id, "embedding", "embeddings.pkl") is not None,
+                    "id_contract": id_contract_exists,
+                    "ocr_report": ocr_report_exists,
+                    "chunk_file": chunk_ready,
+                    "embedding_file": embedding_ready,
                 }
             )
 
@@ -182,19 +256,42 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
     active_count = 0
     snapshot_artifact_complete = 0
     for item in snapshots:
+        snapshot_id = str(item.get("snapshot_id") or "").strip()
+        snapshot_source_id = str(item.get("source_id") or source_id).strip()
+        snapshot_source_paths = get_source_paths(snapshot_source_id) if snapshot_source_id else None
         index_file_exists = _safe_exists(item.get("index_file"))
         metadata_file_exists = _safe_exists(item.get("metadata_file"))
         manifest_exists = _safe_exists(item.get("manifest_path"))
-        staged_chunks_exists = (DATA_DIR / "staged" / "chunks" / f"{item.get('snapshot_id')}_chunks.jsonl").exists()
+        source_step6_exists = bool(
+            snapshot_source_paths
+            and snapshot_source_paths.faiss_index.exists()
+            and snapshot_source_paths.faiss_metadata_jsonl.exists()
+        )
+        source_active_exists = bool(
+            snapshot_source_paths
+            and snapshot_source_paths.active_faiss_index.exists()
+            and snapshot_source_paths.active_metadata_jsonl.exists()
+        )
+        source_snapshot_state_exists = bool(
+            snapshot_source_paths
+            and (snapshot_source_paths.latest_snapshot_json.exists() or snapshot_source_paths.snapshots_json.exists())
+        )
+        staged_chunks_exists = (DATA_DIR / "staged" / "chunks" / f"{snapshot_id}_chunks.jsonl").exists()
+        if snapshot_source_paths and not staged_chunks_exists:
+            staged_chunks_exists = snapshot_source_paths.chunks_jsonl.exists() or snapshot_source_paths.active_chunks_jsonl.exists()
         if item.get("queryable"):
             queryable_count += 1
         if item.get("is_active"):
             active_count += 1
-        if index_file_exists and metadata_file_exists and manifest_exists:
+        if (
+            (index_file_exists and metadata_file_exists and manifest_exists)
+            or (source_step6_exists and source_snapshot_state_exists)
+            or (source_active_exists and source_snapshot_state_exists)
+        ):
             snapshot_artifact_complete += 1
         snapshot_artifacts.append(
             {
-                "snapshot_id": item.get("snapshot_id"),
+                "snapshot_id": snapshot_id,
                 "dataset_id": item.get("dataset_id"),
                 "status": item.get("status"),
                 "queryable": bool(item.get("queryable")),
@@ -202,6 +299,8 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
                 "index_file_exists": index_file_exists,
                 "metadata_file_exists": metadata_file_exists,
                 "manifest_exists": manifest_exists,
+                "source_step6_exists": source_step6_exists,
+                "source_active_exists": source_active_exists,
                 "staged_chunks_exists": staged_chunks_exists,
             }
         )
@@ -247,6 +346,7 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
                 "chunk_file_count": chunk_file_count,
                 "chunk_pages_count": chunk_pages_count,
                 "chunk_db_count": chunk_db_count,
+                "source_chunk_document_count": len(source_chunk_doc_ids),
                 "snapshot_linked_count": snapshot_linked_count,
             },
             "embedding": {
@@ -254,6 +354,7 @@ def build_source_validation_report(source_id: str, db: Session) -> dict[str, Any
                 "status_ready_count": embedding_ready_count,
                 "embedding_file_count": embedding_file_count,
                 "embedding_meta_count": embedding_meta_count,
+                "source_embedding_document_count": len(source_embedding_doc_ids),
             },
             "faiss": {
                 "state": _stage_state(snapshot_artifact_complete, len(snapshots), allow_empty=True),
