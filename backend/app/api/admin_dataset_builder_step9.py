@@ -144,7 +144,7 @@ async def build_wiki(
             # organization wiki 생성은 API 직접 호출
             from app.api.wiki import generate_wiki_by_organization
 
-            result = await generate_wiki_by_organization()
+            result = await generate_wiki_by_organization(source_id=request.source_id)
 
             end_time = datetime.now()
             processing_time = (end_time - start_time).total_seconds()
@@ -162,7 +162,7 @@ async def build_wiki(
             # technology wiki 생성은 API 직접 호출
             from app.api.wiki import generate_wiki_by_technology
 
-            result = await generate_wiki_by_technology()
+            result = await generate_wiki_by_technology(source_id=request.source_id)
 
             end_time = datetime.now()
             processing_time = (end_time - start_time).total_seconds()
@@ -208,7 +208,7 @@ async def get_step9_status(source_id: Optional[str] = None):
     try:
         from app.api.wiki import get_wiki_stats
 
-        stats = await get_wiki_stats()
+        stats = await get_wiki_stats(source_id=source_id)
 
         return Step9StatusResponse(
             project_wikis=stats.get("project_count", 0),
@@ -267,17 +267,17 @@ async def list_wikis(
             return await list_wiki_projects(source_id=source_id)
         else:
             # organization, technology는 별도 디렉토리에서 조회
-            project_root = Path(__file__).resolve().parents[3]
+            from app.api.wiki import _get_wiki_type_dir
 
             if wiki_type == "organization":
-                wiki_dir = project_root / "data" / "wiki" / "organizations"
+                wiki_dir = _get_wiki_type_dir("organization", source_id)
             elif wiki_type == "technology":
-                wiki_dir = project_root / "data" / "wiki" / "technologies"
+                wiki_dir = _get_wiki_type_dir("technology", source_id)
             else:
                 raise HTTPException(status_code=400, detail=f"Invalid wiki_type: {wiki_type}")
 
             if not wiki_dir.exists():
-                return {"pages": [], "count": 0, "wiki_type": wiki_type}
+                return {"pages": [], "count": 0, "wiki_type": wiki_type, "source_id": source_id or "default"}
 
             pages = []
             for md_file in sorted(wiki_dir.glob("*.md")):
@@ -290,7 +290,8 @@ async def list_wikis(
             return {
                 "pages": pages,
                 "count": len(pages),
-                "wiki_type": wiki_type
+                "wiki_type": wiki_type,
+                "source_id": source_id or "default",
             }
 
     except HTTPException:

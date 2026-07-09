@@ -1,0 +1,2352 @@
+{
+  "file_name": "RFP_AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립.hwp",
+  "section_group": "01. RFP",
+  "document_type": "hwp",
+  "total_slides": 59,
+  "structure_mode": "manual_rfp_sample",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "사업개요",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "사업개요"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "2",
+      "section_name": "제안요청 내용",
+      "slide_range": [
+        6,
+        6
+      ],
+      "slide_numbers": [
+        6
+      ],
+      "slide_label": "페이지 6",
+      "keywords": [
+        "제안요청 내용"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "3",
+      "section_name": "제안서 평가 및 선정 안내",
+      "slide_range": [
+        23,
+        23
+      ],
+      "slide_numbers": [
+        23
+      ],
+      "slide_label": "페이지 23",
+      "keywords": [
+        "제안서 평가 및 선정 안내"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "4",
+      "section_name": "제안서 작성 안내",
+      "slide_range": [
+        28,
+        28
+      ],
+      "slide_numbers": [
+        28
+      ],
+      "slide_label": "페이지 28",
+      "keywords": [
+        "제안서 작성 안내"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "5",
+      "section_name": "[붙임1] 보안 준수사항",
+      "slide_range": [
+        33,
+        33
+      ],
+      "slide_numbers": [
+        33
+      ],
+      "slide_label": "페이지 33",
+      "keywords": [
+        "[붙임1] 보안 준수사항"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "6",
+      "section_name": "[붙임2] 기술적용계획표",
+      "slide_range": [
+        42,
+        42
+      ],
+      "slide_numbers": [
+        42
+      ],
+      "slide_label": "페이지 42",
+      "keywords": [
+        "[붙임2] 기술적용계획표"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "7",
+      "section_name": "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+      "slide_range": [
+        50,
+        50
+      ],
+      "slide_numbers": [
+        50
+      ],
+      "slide_label": "페이지 50",
+      "keywords": [
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "8",
+      "section_name": "[붙임4] 제안서 작성 관련 서식",
+      "slide_range": [
+        52,
+        52
+      ],
+      "slide_numbers": [
+        52
+      ],
+      "slide_label": "페이지 52",
+      "keywords": [
+        "[붙임4] 제안서 작성 관련 서식"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "9",
+      "section_name": "사업개요",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "사업개요",
+        "추진배경 및 개요",
+        "추진배경",
+        "사업개요",
+        "(사업명) AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+        "(사업기간) 계약일로부터 270일",
+        "(소요예산) 289백만원(부가가치세 포함)",
+        "예산과목 : 089-2600-2640-300-260-01(일반연구비)",
+        "(계약방법) 일반경쟁, 협상에 의한 계약",
+        "(긴급입찰) 국가 재정정책상 예산의 조기집행을 위해 필요한 경우",
+        "복지사각지대 발굴시스템"
+      ],
+      "subsections": [
+        {
+          "section_id": "9.1",
+          "section_name": "추진배경 및 개요",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진배경 및 개요"
+          ],
+          "keywords": [
+            "추진배경 및 개요"
+          ]
+        },
+        {
+          "section_id": "9.2",
+          "section_name": "추진배경",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진배경"
+          ],
+          "keywords": [
+            "추진배경"
+          ]
+        },
+        {
+          "section_id": "9.3",
+          "section_name": "사업개요",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업개요"
+          ],
+          "keywords": [
+            "사업개요"
+          ]
+        },
+        {
+          "section_id": "9.4",
+          "section_name": "(사업명) AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(사업명) AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립"
+          ],
+          "keywords": [
+            "(사업명) AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립"
+          ]
+        },
+        {
+          "section_id": "9.5",
+          "section_name": "(사업기간) 계약일로부터 270일",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(사업기간) 계약일로부터 270일"
+          ],
+          "keywords": [
+            "(사업기간) 계약일로부터 270일"
+          ]
+        },
+        {
+          "section_id": "9.6",
+          "section_name": "(소요예산) 289백만원(부가가치세 포함)",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(소요예산) 289백만원(부가가치세 포함)"
+          ],
+          "keywords": [
+            "(소요예산) 289백만원(부가가치세 포함)"
+          ]
+        },
+        {
+          "section_id": "9.7",
+          "section_name": "예산과목 : 089-2600-2640-300-260-01(일반연구비)",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "예산과목 : 089-2600-2640-300-260-01(일반연구비)"
+          ],
+          "keywords": [
+            "예산과목 : 089-2600-2640-300-260-01(일반연구비)"
+          ]
+        },
+        {
+          "section_id": "9.8",
+          "section_name": "(계약방법) 일반경쟁, 협상에 의한 계약",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(계약방법) 일반경쟁, 협상에 의한 계약"
+          ],
+          "keywords": [
+            "(계약방법) 일반경쟁, 협상에 의한 계약"
+          ]
+        },
+        {
+          "section_id": "9.9",
+          "section_name": "(긴급입찰) 국가 재정정책상 예산의 조기집행을 위해 필요한 경우",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(긴급입찰) 국가 재정정책상 예산의 조기집행을 위해 필요한 경우"
+          ],
+          "keywords": [
+            "(긴급입찰) 국가 재정정책상 예산의 조기집행을 위해 필요한 경우"
+          ]
+        },
+        {
+          "section_id": "9.10",
+          "section_name": "복지사각지대 발굴시스템",
+          "parent_section": "사업개요",
+          "slide_range": [
+            2,
+            2
+          ],
+          "slide_numbers": [
+            2
+          ],
+          "slide_label": "페이지 2",
+          "subsections": [],
+          "content_items": [
+            "복지사각지대 발굴시스템"
+          ],
+          "keywords": [
+            "복지사각지대 발굴시스템"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "10",
+      "section_name": "세부 사업내용",
+      "slide_range": [
+        3,
+        3
+      ],
+      "slide_numbers": [
+        3
+      ],
+      "slide_label": "페이지 3",
+      "keywords": [
+        "세부 사업내용",
+        "환경분석",
+        "현황분석",
+        "미래 모델 설계(업무설계)",
+        "이행계획 수립",
+        "정보시스템 타당성 분석",
+        "전문가자문단 구성 및 운영"
+      ],
+      "subsections": [
+        {
+          "section_id": "10.1",
+          "section_name": "환경분석",
+          "parent_section": "세부 사업내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "환경분석"
+          ],
+          "keywords": [
+            "환경분석"
+          ]
+        },
+        {
+          "section_id": "10.2",
+          "section_name": "현황분석",
+          "parent_section": "세부 사업내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "현황분석"
+          ],
+          "keywords": [
+            "현황분석"
+          ]
+        },
+        {
+          "section_id": "10.3",
+          "section_name": "미래 모델 설계(업무설계)",
+          "parent_section": "세부 사업내용",
+          "slide_range": [
+            3,
+            4
+          ],
+          "slide_numbers": [
+            3,
+            4
+          ],
+          "slide_label": "페이지 3~4",
+          "subsections": [],
+          "content_items": [
+            "미래 모델 설계(업무설계)"
+          ],
+          "keywords": [
+            "미래 모델 설계(업무설계)"
+          ]
+        },
+        {
+          "section_id": "10.4",
+          "section_name": "이행계획 수립",
+          "parent_section": "세부 사업내용",
+          "slide_range": [
+            4,
+            4
+          ],
+          "slide_numbers": [
+            4
+          ],
+          "slide_label": "페이지 4",
+          "subsections": [],
+          "content_items": [
+            "이행계획 수립"
+          ],
+          "keywords": [
+            "이행계획 수립"
+          ]
+        },
+        {
+          "section_id": "10.5",
+          "section_name": "정보시스템 타당성 분석",
+          "parent_section": "세부 사업내용",
+          "slide_range": [
+            4,
+            4
+          ],
+          "slide_numbers": [
+            4
+          ],
+          "slide_label": "페이지 4",
+          "subsections": [],
+          "content_items": [
+            "정보시스템 타당성 분석"
+          ],
+          "keywords": [
+            "정보시스템 타당성 분석"
+          ]
+        },
+        {
+          "section_id": "10.6",
+          "section_name": "전문가자문단 구성 및 운영",
+          "parent_section": "세부 사업내용",
+          "slide_range": [
+            4,
+            4
+          ],
+          "slide_numbers": [
+            4
+          ],
+          "slide_label": "페이지 4",
+          "subsections": [],
+          "content_items": [
+            "전문가자문단 구성 및 운영"
+          ],
+          "keywords": [
+            "전문가자문단 구성 및 운영"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "11",
+      "section_name": "사업추진 체계",
+      "slide_range": [
+        5,
+        5
+      ],
+      "slide_numbers": [
+        5
+      ],
+      "slide_label": "페이지 5",
+      "keywords": [
+        "사업추진 체계",
+        "추진체계 구성도",
+        "추진체계별 역할 및 기능",
+        "추진일정"
+      ],
+      "subsections": [
+        {
+          "section_id": "11.1",
+          "section_name": "추진체계 구성도",
+          "parent_section": "사업추진 체계",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진체계 구성도"
+          ],
+          "keywords": [
+            "추진체계 구성도"
+          ]
+        },
+        {
+          "section_id": "11.2",
+          "section_name": "추진체계별 역할 및 기능",
+          "parent_section": "사업추진 체계",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진체계별 역할 및 기능"
+          ],
+          "keywords": [
+            "추진체계별 역할 및 기능"
+          ]
+        },
+        {
+          "section_id": "11.3",
+          "section_name": "추진일정",
+          "parent_section": "사업추진 체계",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진일정"
+          ],
+          "keywords": [
+            "추진일정"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "12",
+      "section_name": "제안요청 내용",
+      "slide_range": [
+        6,
+        6
+      ],
+      "slide_numbers": [
+        6
+      ],
+      "slide_label": "페이지 6",
+      "keywords": [
+        "제안요청 내용",
+        "공통내용",
+        "요구사항 요약",
+        "세부일정",
+        "제안요청 내용",
+        "컨설팅 요구사항",
+        "보안 요구사항",
+        "품질 요구사항",
+        "프로젝트 관리 요구사항",
+        "프로젝트 지원 요구사항",
+        "제약사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "12.1",
+          "section_name": "공통내용",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "공통내용"
+          ],
+          "keywords": [
+            "공통내용"
+          ]
+        },
+        {
+          "section_id": "12.2",
+          "section_name": "요구사항 요약",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "요구사항 요약"
+          ],
+          "keywords": [
+            "요구사항 요약"
+          ]
+        },
+        {
+          "section_id": "12.3",
+          "section_name": "세부일정",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            7,
+            7
+          ],
+          "slide_numbers": [
+            7
+          ],
+          "slide_label": "페이지 7",
+          "subsections": [],
+          "content_items": [
+            "세부일정"
+          ],
+          "keywords": [
+            "세부일정"
+          ]
+        },
+        {
+          "section_id": "12.4",
+          "section_name": "제안요청 내용",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            8,
+            8
+          ],
+          "slide_numbers": [
+            8
+          ],
+          "slide_label": "페이지 8",
+          "subsections": [],
+          "content_items": [
+            "제안요청 내용"
+          ],
+          "keywords": [
+            "제안요청 내용"
+          ]
+        },
+        {
+          "section_id": "12.5",
+          "section_name": "컨설팅 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            8,
+            14
+          ],
+          "slide_numbers": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "slide_label": "페이지 8~14",
+          "subsections": [],
+          "content_items": [
+            "컨설팅 요구사항"
+          ],
+          "keywords": [
+            "컨설팅 요구사항"
+          ]
+        },
+        {
+          "section_id": "12.6",
+          "section_name": "보안 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            14,
+            16
+          ],
+          "slide_numbers": [
+            14,
+            15,
+            16
+          ],
+          "slide_label": "페이지 14~16",
+          "subsections": [],
+          "content_items": [
+            "보안 요구사항"
+          ],
+          "keywords": [
+            "보안 요구사항"
+          ]
+        },
+        {
+          "section_id": "12.7",
+          "section_name": "품질 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            16,
+            17
+          ],
+          "slide_numbers": [
+            16,
+            17
+          ],
+          "slide_label": "페이지 16~17",
+          "subsections": [],
+          "content_items": [
+            "품질 요구사항"
+          ],
+          "keywords": [
+            "품질 요구사항"
+          ]
+        },
+        {
+          "section_id": "12.8",
+          "section_name": "프로젝트 관리 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            17,
+            20
+          ],
+          "slide_numbers": [
+            17,
+            18,
+            19,
+            20
+          ],
+          "slide_label": "페이지 17~20",
+          "subsections": [],
+          "content_items": [
+            "프로젝트 관리 요구사항"
+          ],
+          "keywords": [
+            "프로젝트 관리 요구사항"
+          ]
+        },
+        {
+          "section_id": "12.9",
+          "section_name": "프로젝트 지원 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            20,
+            20
+          ],
+          "slide_numbers": [
+            20
+          ],
+          "slide_label": "페이지 20",
+          "subsections": [],
+          "content_items": [
+            "프로젝트 지원 요구사항"
+          ],
+          "keywords": [
+            "프로젝트 지원 요구사항"
+          ]
+        },
+        {
+          "section_id": "12.10",
+          "section_name": "제약사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            20,
+            22
+          ],
+          "slide_numbers": [
+            20,
+            21,
+            22
+          ],
+          "slide_label": "페이지 20~22",
+          "subsections": [],
+          "content_items": [
+            "제약사항"
+          ],
+          "keywords": [
+            "제약사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "13",
+      "section_name": "제안서 평가 및 선정 안내 - page 23 -",
+      "slide_range": [
+        23,
+        23
+      ],
+      "slide_numbers": [
+        23
+      ],
+      "slide_label": "페이지 23",
+      "keywords": [
+        "제안서 평가 및 선정 안내 - page 23 -",
+        "입찰 관련 정보",
+        "입찰 참가자격",
+        "입찰 및 낙찰방식",
+        "제안서 평가 방법",
+        "평가 기준",
+        "기술평가",
+        "제안서 기술평가 기준",
+        "평가방법",
+        "가격평가 점수 산출 방법",
+        "협상 적격자 선정 및 협상",
+        "계약조건",
+        "입찰시 유의사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "13.1",
+          "section_name": "입찰 관련 정보",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            23,
+            23
+          ],
+          "slide_numbers": [
+            23
+          ],
+          "slide_label": "페이지 23",
+          "subsections": [],
+          "content_items": [
+            "입찰 관련 정보"
+          ],
+          "keywords": [
+            "입찰 관련 정보"
+          ]
+        },
+        {
+          "section_id": "13.2",
+          "section_name": "입찰 참가자격",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "입찰 참가자격"
+          ],
+          "keywords": [
+            "입찰 참가자격"
+          ]
+        },
+        {
+          "section_id": "13.3",
+          "section_name": "입찰 및 낙찰방식",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            23,
+            23
+          ],
+          "slide_numbers": [
+            23
+          ],
+          "slide_label": "페이지 23",
+          "subsections": [],
+          "content_items": [
+            "입찰 및 낙찰방식"
+          ],
+          "keywords": [
+            "입찰 및 낙찰방식"
+          ]
+        },
+        {
+          "section_id": "13.4",
+          "section_name": "제안서 평가 방법",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            24,
+            24
+          ],
+          "slide_numbers": [
+            24
+          ],
+          "slide_label": "페이지 24",
+          "subsections": [],
+          "content_items": [
+            "제안서 평가 방법"
+          ],
+          "keywords": [
+            "제안서 평가 방법"
+          ]
+        },
+        {
+          "section_id": "13.5",
+          "section_name": "평가 기준",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            24,
+            24
+          ],
+          "slide_numbers": [
+            24
+          ],
+          "slide_label": "페이지 24",
+          "subsections": [],
+          "content_items": [
+            "평가 기준"
+          ],
+          "keywords": [
+            "평가 기준"
+          ]
+        },
+        {
+          "section_id": "13.6",
+          "section_name": "기술평가",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            24,
+            24
+          ],
+          "slide_numbers": [
+            24
+          ],
+          "slide_label": "페이지 24",
+          "subsections": [],
+          "content_items": [
+            "기술평가"
+          ],
+          "keywords": [
+            "기술평가"
+          ]
+        },
+        {
+          "section_id": "13.7",
+          "section_name": "제안서 기술평가 기준",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            25,
+            26
+          ],
+          "slide_numbers": [
+            25,
+            26
+          ],
+          "slide_label": "페이지 25~26",
+          "subsections": [],
+          "content_items": [
+            "제안서 기술평가 기준"
+          ],
+          "keywords": [
+            "제안서 기술평가 기준"
+          ]
+        },
+        {
+          "section_id": "13.8",
+          "section_name": "평가방법",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            26,
+            26
+          ],
+          "slide_numbers": [
+            26
+          ],
+          "slide_label": "페이지 26",
+          "subsections": [],
+          "content_items": [
+            "평가방법"
+          ],
+          "keywords": [
+            "평가방법"
+          ]
+        },
+        {
+          "section_id": "13.9",
+          "section_name": "가격평가 점수 산출 방법",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "가격평가 점수 산출 방법"
+          ],
+          "keywords": [
+            "가격평가 점수 산출 방법"
+          ]
+        },
+        {
+          "section_id": "13.10",
+          "section_name": "협상 적격자 선정 및 협상",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            26,
+            26
+          ],
+          "slide_numbers": [
+            26
+          ],
+          "slide_label": "페이지 26",
+          "subsections": [],
+          "content_items": [
+            "협상 적격자 선정 및 협상"
+          ],
+          "keywords": [
+            "협상 적격자 선정 및 협상"
+          ]
+        },
+        {
+          "section_id": "13.11",
+          "section_name": "계약조건",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            27,
+            27
+          ],
+          "slide_numbers": [
+            27
+          ],
+          "slide_label": "페이지 27",
+          "subsections": [],
+          "content_items": [
+            "계약조건"
+          ],
+          "keywords": [
+            "계약조건"
+          ]
+        },
+        {
+          "section_id": "13.12",
+          "section_name": "입찰시 유의사항",
+          "parent_section": "제안서 평가 및 선정 안내 - page 23 -",
+          "slide_range": [
+            27,
+            27
+          ],
+          "slide_numbers": [
+            27
+          ],
+          "slide_label": "페이지 27",
+          "subsections": [],
+          "content_items": [
+            "입찰시 유의사항"
+          ],
+          "keywords": [
+            "입찰시 유의사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "14",
+      "section_name": "제안서 작성 안내",
+      "slide_range": [
+        28,
+        28
+      ],
+      "slide_numbers": [
+        28
+      ],
+      "slide_label": "페이지 28",
+      "keywords": [
+        "제안서 작성 안내",
+        "일반사항",
+        "제안서 작성요령",
+        "제안서 목차",
+        "세부 작성지침",
+        "제안서의 효력",
+        "제안서 제출"
+      ],
+      "subsections": [
+        {
+          "section_id": "14.1",
+          "section_name": "일반사항",
+          "parent_section": "제안서 작성 안내",
+          "slide_range": [
+            28,
+            28
+          ],
+          "slide_numbers": [
+            28
+          ],
+          "slide_label": "페이지 28",
+          "subsections": [],
+          "content_items": [
+            "일반사항"
+          ],
+          "keywords": [
+            "일반사항"
+          ]
+        },
+        {
+          "section_id": "14.2",
+          "section_name": "제안서 작성요령",
+          "parent_section": "제안서 작성 안내",
+          "slide_range": [
+            28,
+            29
+          ],
+          "slide_numbers": [
+            28,
+            29
+          ],
+          "slide_label": "페이지 28~29",
+          "subsections": [],
+          "content_items": [
+            "제안서 작성요령"
+          ],
+          "keywords": [
+            "제안서 작성요령"
+          ]
+        },
+        {
+          "section_id": "14.3",
+          "section_name": "제안서 목차",
+          "parent_section": "제안서 작성 안내",
+          "slide_range": [
+            29,
+            29
+          ],
+          "slide_numbers": [
+            29
+          ],
+          "slide_label": "페이지 29",
+          "subsections": [],
+          "content_items": [
+            "제안서 목차"
+          ],
+          "keywords": [
+            "제안서 목차"
+          ]
+        },
+        {
+          "section_id": "14.4",
+          "section_name": "세부 작성지침",
+          "parent_section": "제안서 작성 안내",
+          "slide_range": [
+            30,
+            31
+          ],
+          "slide_numbers": [
+            30,
+            31
+          ],
+          "slide_label": "페이지 30~31",
+          "subsections": [],
+          "content_items": [
+            "세부 작성지침"
+          ],
+          "keywords": [
+            "세부 작성지침"
+          ]
+        },
+        {
+          "section_id": "14.5",
+          "section_name": "제안서의 효력",
+          "parent_section": "제안서 작성 안내",
+          "slide_range": [
+            32,
+            32
+          ],
+          "slide_numbers": [
+            32
+          ],
+          "slide_label": "페이지 32",
+          "subsections": [],
+          "content_items": [
+            "제안서의 효력"
+          ],
+          "keywords": [
+            "제안서의 효력"
+          ]
+        },
+        {
+          "section_id": "14.6",
+          "section_name": "제안서 제출",
+          "parent_section": "제안서 작성 안내",
+          "slide_range": [
+            32,
+            32
+          ],
+          "slide_numbers": [
+            32
+          ],
+          "slide_label": "페이지 32",
+          "subsections": [],
+          "content_items": [
+            "제안서 제출"
+          ],
+          "keywords": [
+            "제안서 제출"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "15",
+      "section_name": "[붙임1] 보안 준수 사항",
+      "slide_range": [
+        33,
+        33
+      ],
+      "slide_numbers": [
+        33
+      ],
+      "slide_label": "페이지 33",
+      "keywords": [
+        "[붙임1] 보안 준수 사항",
+        "외부 용역업체 보안특약"
+      ],
+      "subsections": [
+        {
+          "section_id": "15.1",
+          "section_name": "외부 용역업체 보안특약",
+          "parent_section": "[붙임1] 보안 준수 사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "외부 용역업체 보안특약"
+          ],
+          "keywords": [
+            "외부 용역업체 보안특약"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "16",
+      "section_name": "[별표 1] 사업자 보안위규 처리기준",
+      "slide_range": [
+        34,
+        35
+      ],
+      "slide_numbers": [
+        34,
+        35
+      ],
+      "slide_label": "페이지 34~35",
+      "keywords": [
+        "[별표 1] 사업자 보안위규 처리기준"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "17",
+      "section_name": "[별표 2] 보안 위약금 부과 기준",
+      "slide_range": [
+        36,
+        36
+      ],
+      "slide_numbers": [
+        36
+      ],
+      "slide_label": "페이지 36",
+      "keywords": [
+        "[별표 2] 보안 위약금 부과 기준"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "18",
+      "section_name": "[별표 3] 누출금지 대상정보",
+      "slide_range": [
+        37,
+        38
+      ],
+      "slide_numbers": [
+        37,
+        38
+      ],
+      "slide_label": "페이지 37~38",
+      "keywords": [
+        "[별표 3] 누출금지 대상정보",
+        "누출금지 대상정보"
+      ],
+      "subsections": [
+        {
+          "section_id": "18.1",
+          "section_name": "누출금지 대상정보",
+          "parent_section": "[별표 3] 누출금지 대상정보",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "누출금지 대상정보"
+          ],
+          "keywords": [
+            "누출금지 대상정보"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "19",
+      "section_name": "[별표 5] 보안서약서",
+      "slide_range": [
+        39,
+        39
+      ],
+      "slide_numbers": [
+        39
+      ],
+      "slide_label": "페이지 39",
+      "keywords": [
+        "[별표 5] 보안서약서",
+        "보안서약서"
+      ],
+      "subsections": [
+        {
+          "section_id": "19.1",
+          "section_name": "보안서약서",
+          "parent_section": "[별표 5] 보안서약서",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "보안서약서"
+          ],
+          "keywords": [
+            "보안서약서"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "20",
+      "section_name": "[별표 6] 보안확약서",
+      "slide_range": [
+        40,
+        40
+      ],
+      "slide_numbers": [
+        40
+      ],
+      "slide_label": "페이지 40",
+      "keywords": [
+        "[별표 6] 보안확약서",
+        "보안확약서"
+      ],
+      "subsections": [
+        {
+          "section_id": "20.1",
+          "section_name": "보안확약서",
+          "parent_section": "[별표 6] 보안확약서",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "보안확약서"
+          ],
+          "keywords": [
+            "보안확약서"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "21",
+      "section_name": "[별표 7] 누출금지 정보 파기 확인서",
+      "slide_range": [
+        41,
+        41
+      ],
+      "slide_numbers": [
+        41
+      ],
+      "slide_label": "페이지 41",
+      "keywords": [
+        "[별표 7] 누출금지 정보 파기 확인서",
+        "누출금지 정보 파기 확인서"
+      ],
+      "subsections": [
+        {
+          "section_id": "21.1",
+          "section_name": "누출금지 정보 파기 확인서",
+          "parent_section": "[별표 7] 누출금지 정보 파기 확인서",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "누출금지 정보 파기 확인서"
+          ],
+          "keywords": [
+            "누출금지 정보 파기 확인서"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "22",
+      "section_name": "[붙임2] 기술적용계획표",
+      "slide_range": [
+        42,
+        49
+      ],
+      "slide_numbers": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "slide_label": "페이지 42~49",
+      "keywords": [
+        "[붙임2] 기술적용계획표"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "23",
+      "section_name": "[붙임3] 소프트웨어사업 영향평가 결과서",
+      "slide_range": [
+        50,
+        51
+      ],
+      "slide_numbers": [
+        50,
+        51
+      ],
+      "slide_label": "페이지 50~51",
+      "keywords": [
+        "[붙임3] 소프트웨어사업 영향평가 결과서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "24",
+      "section_name": "[붙임4] 제안서 작성 관련 서식",
+      "slide_range": [
+        52,
+        52
+      ],
+      "slide_numbers": [
+        52
+      ],
+      "slide_label": "페이지 52",
+      "keywords": [
+        "[붙임4] 제안서 작성 관련 서식"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "25",
+      "section_name": "[제2호 서식]  프로젝트 수행 조직",
+      "slide_range": [
+        53,
+        53
+      ],
+      "slide_numbers": [
+        53
+      ],
+      "slide_label": "페이지 53",
+      "keywords": [
+        "[제2호 서식]  프로젝트 수행 조직"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "26",
+      "section_name": "[제3호 서식] 핵심인력의 자격 및 경력요약",
+      "slide_range": [
+        54,
+        54
+      ],
+      "slide_numbers": [
+        54
+      ],
+      "slide_label": "페이지 54",
+      "keywords": [
+        "[제3호 서식] 핵심인력의 자격 및 경력요약"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "27",
+      "section_name": "[제4호 서식] 핵심인력 및 이력사항",
+      "slide_range": [
+        55,
+        55
+      ],
+      "slide_numbers": [
+        55
+      ],
+      "slide_label": "페이지 55",
+      "keywords": [
+        "[제4호 서식] 핵심인력 및 이력사항"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "28",
+      "section_name": "[제5호 서식] 하도급 대금지급 비율 명세서",
+      "slide_range": [
+        56,
+        56
+      ],
+      "slide_numbers": [
+        56
+      ],
+      "slide_label": "페이지 56",
+      "keywords": [
+        "[제5호 서식] 하도급 대금지급 비율 명세서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "29",
+      "section_name": "[제6호 서식] 하도급계약의 적정성 판단 세부기준",
+      "slide_range": [
+        57,
+        57
+      ],
+      "slide_numbers": [
+        57
+      ],
+      "slide_label": "페이지 57",
+      "keywords": [
+        "[제6호 서식] 하도급계약의 적정성 판단 세부기준",
+        "하도급 적정성 판단 자기평가표"
+      ],
+      "subsections": [
+        {
+          "section_id": "29.1",
+          "section_name": "하도급 적정성 판단 자기평가표",
+          "parent_section": "[제6호 서식] 하도급계약의 적정성 판단 세부기준",
+          "slide_range": [
+            58,
+            58
+          ],
+          "slide_numbers": [
+            58
+          ],
+          "slide_label": "페이지 58",
+          "subsections": [],
+          "content_items": [
+            "하도급 적정성 판단 자기평가표"
+          ],
+          "keywords": [
+            "하도급 적정성 판단 자기평가표"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "30",
+      "section_name": "[제7호 서식]",
+      "slide_range": [
+        59,
+        59
+      ],
+      "slide_numbers": [
+        59
+      ],
+      "slide_label": "페이지 59",
+      "keywords": [
+        "[제7호 서식]"
+      ],
+      "subsections": []
+    }
+  ],
+  "cover_page": {
+    "title": "제안요청서",
+    "organization": "보건복지부 복지정보기획과",
+    "project_name": "",
+    "date": "",
+    "document_type": "제안요청서",
+    "confidence": 0.9
+  },
+  "toc": {
+    "sections": [
+      {
+        "level": 1,
+        "title": "목차",
+        "page": null
+      }
+    ],
+    "section_titles": [
+      "목차"
+    ],
+    "keywords": [
+      "목차"
+    ],
+    "confidence": 0.9
+  },
+  "detected_sections": [
+    "사업개요",
+    "제안요청 내용",
+    "제안서 평가 및 선정 안내",
+    "제안서 작성 안내",
+    "[붙임1] 보안 준수사항",
+    "[붙임2] 기술적용계획표",
+    "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+    "[붙임4] 제안서 작성 관련 서식",
+    "사업개요",
+    "세부 사업내용",
+    "사업추진 체계",
+    "제안요청 내용",
+    "제안서 평가 및 선정 안내 - page 23 -",
+    "제안서 작성 안내",
+    "[붙임1] 보안 준수 사항",
+    "[별표 1] 사업자 보안위규 처리기준",
+    "[별표 2] 보안 위약금 부과 기준",
+    "[별표 3] 누출금지 대상정보",
+    "[별표 5] 보안서약서",
+    "[별표 6] 보안확약서",
+    "[별표 7] 누출금지 정보 파기 확인서",
+    "[붙임2] 기술적용계획표",
+    "[붙임3] 소프트웨어사업 영향평가 결과서",
+    "[붙임4] 제안서 작성 관련 서식",
+    "[제2호 서식]  프로젝트 수행 조직",
+    "[제3호 서식] 핵심인력의 자격 및 경력요약",
+    "[제4호 서식] 핵심인력 및 이력사항",
+    "[제5호 서식] 하도급 대금지급 비율 명세서",
+    "[제6호 서식] 하도급계약의 적정성 판단 세부기준",
+    "[제7호 서식]"
+  ],
+  "document_summary": "AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립 | 표지내용: - page 1 1. 제목: 제안요청서 2 사업명: AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립 3. 주관기관: 보건복지부 복지정보기획과 4. 년도: 2022. 3. 5. 복지정보기획과, 6. 과장  장은섭 7. 사무관  백승대 8. 주무관  신동일 9. FAX : 044-202-3170 10. TEL : 044-202",
+  "page_types": [
+    "cover"
+  ],
+  "manual_sample": {
+    "original_lines": [
+      "경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "파일명: RFP_AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립.hwp",
+      "표지내용: - page 1",
+      "1. 제목: 제안요청서",
+      "2 사업명: AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+      "3. 주관기관: 보건복지부 복지정보기획과",
+      "4. 년도: 2022. 3.",
+      "5. 복지정보기획과,",
+      "6. 과장  장은섭",
+      "7. 사무관  백승대",
+      "8. 주무관  신동일",
+      "9. FAX : 044-202-3170",
+      "10. TEL : 044-202-3172",
+      "11. TEL : 044-202-3168",
+      "목차 - page 2",
+      "사업개요 - page 1",
+      "제안요청 내용 - page 6",
+      "제안서 평가 및 선정 안내 - page 23",
+      "제안서 작성 안내 - page 28",
+      "[붙임1] 보안 준수사항 - page 33",
+      "[붙임2] 기술적용계획표 - page 42",
+      "[붙임3] 소프트웨어사업 영향평가 검토결과서 - page 50",
+      "[붙임4] 제안서 작성 관련 서식 - page 52",
+      "사업개요 - page 1",
+      " - 추진배경 및 개요",
+      "  - 추진배경",
+      "  - 사업개요",
+      "     - (사업명) AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+      "     - (사업기간) 계약일로부터 270일",
+      "     - (소요예산) 289백만원(부가가치세 포함)",
+      "        - 예산과목 : 089-2600-2640-300-260-01(일반연구비)",
+      "     - (계약방법) 일반경쟁, 협상에 의한 계약",
+      "       - (긴급입찰) 국가 재정정책상 예산의 조기집행을 위해 필요한 경우",
+      "  - 복지사각지대 발굴시스템 - page 2",
+      "세부 사업내용 - page 3",
+      "  - 환경분석",
+      "  - 현황분석",
+      "  - 미래 모델 설계(업무설계) - page 3 - 4",
+      "  - 이행계획 수립 - page 4",
+      "  - 정보시스템 타당성 분석 - page 4",
+      "  - 전문가자문단 구성 및 운영 - page 4",
+      "사업추진 체계 - page 5",
+      "  - 추진체계 구성도",
+      "  - 추진체계별 역할 및 기능",
+      "  - 추진일정",
+      "제안요청 내용 - page 6",
+      "  - 공통내용",
+      "  - 요구사항 요약",
+      "  - 세부일정 - page 7",
+      "  - 제안요청 내용 - page 8",
+      "    - 컨설팅 요구사항 - page 8 - 14",
+      "    - 보안 요구사항 - page 14 - 16",
+      "    - 품질 요구사항 - page 16 - 17",
+      "    - 프로젝트 관리 요구사항 - page 17 - 20",
+      "    - 프로젝트 지원 요구사항 - page 20",
+      "    - 제약사항 - page 20 - 22",
+      "제안서 평가 및 선정 안내 - page 23 -",
+      " - 입찰 관련 정보 - page 23",
+      "   - 입찰 참가자격",
+      "   - 입찰 및 낙찰방식 - page 23",
+      " - 제안서 평가 방법 - page 24",
+      "   - 평가 기준 - page 24",
+      "   - 기술평가 - page 24",
+      "     - 제안서 기술평가 기준 - page 25 - 26",
+      "     - 평가방법 - page 26",
+      "        - 가격평가 점수 산출 방법",
+      "  - 협상 적격자 선정 및 협상 - page 26",
+      "  - 계약조건 - page 27",
+      "  - 입찰시 유의사항 - page 27",
+      "제안서 작성 안내 - page 28",
+      " - 일반사항 - page 28",
+      " - 제안서 작성요령 - page 28 - 29",
+      " - 제안서 목차 - page 29",
+      " - 세부 작성지침 - page 30 - 31",
+      " - 제안서의 효력 - page 32",
+      " - 제안서 제출 - page 32",
+      "[붙임1] 보안 준수 사항 - page 33",
+      "   - 외부 용역업체 보안특약",
+      "[별표 1] 사업자 보안위규 처리기준 - page 34 - 35",
+      "[별표 2] 보안 위약금 부과 기준 - page 36",
+      "[별표 3] 누출금지 대상정보 - page 37 - 38",
+      "   - 누출금지 대상정보",
+      "[별표 5] 보안서약서 - page 39",
+      "   - 보안서약서",
+      "[별표 6] 보안확약서 - page 40",
+      "   - 보안확약서",
+      "[별표 7] 누출금지 정보 파기 확인서 - page 41",
+      "   - 누출금지 정보 파기 확인서",
+      "[붙임2] 기술적용계획표 - page 42 - 49",
+      "[붙임3] 소프트웨어사업 영향평가 결과서  - page 50 - 51",
+      "[붙임4] 제안서 작성 관련 서식 - page 52",
+      "[제2호 서식]  프로젝트 수행 조직 - page 53",
+      "[제3호 서식] 핵심인력의 자격 및 경력요약 - page 54",
+      "[제4호 서식] 핵심인력 및 이력사항 - page 55",
+      "[제5호 서식] 하도급 대금지급 비율 명세서 - page 56",
+      "[제6호 서식] 하도급계약의 적정성 판단 세부기준 - page 57",
+      "     - 하도급 적정성 판단 자기평가표 - page 58",
+      "[제7호 서식] - page 59"
+    ],
+    "cover_lines": [
+      "1. 제목: 제안요청서",
+      "2 사업명: AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+      "3. 주관기관: 보건복지부 복지정보기획과",
+      "4. 년도: 2022. 3.",
+      "5. 복지정보기획과,",
+      "6. 과장  장은섭",
+      "7. 사무관  백승대",
+      "8. 주무관  신동일",
+      "9. FAX : 044-202-3170",
+      "10. TEL : 044-202-3172",
+      "11. TEL : 044-202-3168"
+    ],
+    "toc_lines": [
+      "목차 - page 2"
+    ]
+  },
+  "pattern_metadata": {
+    "project_name": "AI(인공지능)복지사 정보시스템을 위한 정보전략계획()",
+    "project_type": "ISP",
+    "category": "",
+    "document_type": "RFP",
+    "organization": "보건복지부",
+    "year": 2022,
+    "technology_keywords": [
+      "AI",
+      "인공지능",
+      "시스템"
+    ],
+    "domain": "복지",
+    "detected_sections": [
+      "사업개요",
+      "제안요청 내용",
+      "제안서 평가 및 선정 안내",
+      "제안서 작성 안내",
+      "[붙임1] 보안 준수사항",
+      "[붙임2] 기술적용계획표",
+      "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+      "[붙임4] 제안서 작성 관련 서식",
+      "복지사각지대 발굴시스템",
+      "세부 사업내용",
+      "미래 모델 설계(업무설계)",
+      "이행계획 수립",
+      "정보시스템 타당성 분석",
+      "전문가자문단 구성 및 운영",
+      "사업추진 체계",
+      "세부일정",
+      "컨설팅 요구사항",
+      "보안 요구사항",
+      "품질 요구사항",
+      "프로젝트 관리 요구사항"
+    ],
+    "keywords": [
+      "RFP",
+      "AI",
+      "인공지능",
+      "복지사",
+      "정보시스템",
+      "구축을",
+      "위한",
+      "정보전략계획",
+      "ISP",
+      "수립",
+      "붙임",
+      "유의사항",
+      "제안요청서",
+      "평가",
+      "파기",
+      "작성",
+      "입찰",
+      "품질",
+      "업무설계",
+      "제약사항",
+      "제안요청",
+      "목차",
+      "안내",
+      "서식",
+      "page",
+      "효력",
+      "타당성",
+      "분석",
+      "이행계획",
+      "수행"
+    ],
+    "summary": "AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립 | 표지내용: - page 1 1. 제목: 제안요청서 2 사업명: AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립 3. 주관기관: 보건복지부 복지정보기획과 4. 년도: 2022. 3. 5. 복지정보기획과, 6. 과장  장은섭 7. 사무관  백승대 8. 주무관  신동일 9. FAX : 044-202-3170 10. TEL : 044-202",
+    "confidence": 1.0,
+    "metadata_source": "rfp_pattern_analyzer",
+    "cover_page": {
+      "title": "제안요청서",
+      "organization": "보건복지부",
+      "project_name": "AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+      "date": "2022년 3월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "제안요청서"
+      ],
+      "confidence": 1.0
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업개요",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "제안요청 내용",
+          "page": 6
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가 및 선정 안내",
+          "page": 23
+        },
+        {
+          "level": 1,
+          "title": "제안서 작성 안내",
+          "page": 28
+        },
+        {
+          "level": 1,
+          "title": "[붙임1] 보안 준수사항",
+          "page": 33
+        },
+        {
+          "level": 1,
+          "title": "[붙임2] 기술적용계획표",
+          "page": 42
+        },
+        {
+          "level": 1,
+          "title": "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+          "page": 50
+        },
+        {
+          "level": 1,
+          "title": "[붙임4] 제안서 작성 관련 서식",
+          "page": 52
+        },
+        {
+          "level": 2,
+          "title": "복지사각지대 발굴시스템",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "세부 사업내용",
+          "page": 3
+        },
+        {
+          "level": 2,
+          "title": "미래 모델 설계(업무설계)",
+          "page": 3
+        },
+        {
+          "level": 2,
+          "title": "이행계획 수립",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "정보시스템 타당성 분석",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "전문가자문단 구성 및 운영",
+          "page": 4
+        },
+        {
+          "level": 1,
+          "title": "사업추진 체계",
+          "page": 5
+        },
+        {
+          "level": 2,
+          "title": "세부일정",
+          "page": 7
+        },
+        {
+          "level": 2,
+          "title": "컨설팅 요구사항",
+          "page": 8
+        },
+        {
+          "level": 2,
+          "title": "보안 요구사항",
+          "page": 14
+        },
+        {
+          "level": 2,
+          "title": "품질 요구사항",
+          "page": 16
+        },
+        {
+          "level": 2,
+          "title": "프로젝트 관리 요구사항",
+          "page": 17
+        },
+        {
+          "level": 2,
+          "title": "프로젝트 지원 요구사항",
+          "page": 20
+        },
+        {
+          "level": 2,
+          "title": "제약사항",
+          "page": 20
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가 및 선정 안내 - page 23 -",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "입찰 관련 정보",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "입찰 및 낙찰방식",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "제안서 평가 방법",
+          "page": 24
+        },
+        {
+          "level": 2,
+          "title": "평가 기준",
+          "page": 24
+        },
+        {
+          "level": 2,
+          "title": "기술평가",
+          "page": 24
+        },
+        {
+          "level": 2,
+          "title": "제안서 기술평가 기준",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "평가방법",
+          "page": 26
+        }
+      ],
+      "section_titles": [
+        "사업개요",
+        "제안요청 내용",
+        "제안서 평가 및 선정 안내",
+        "제안서 작성 안내",
+        "[붙임1] 보안 준수사항",
+        "[붙임2] 기술적용계획표",
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+        "[붙임4] 제안서 작성 관련 서식",
+        "복지사각지대 발굴시스템",
+        "세부 사업내용",
+        "미래 모델 설계(업무설계)",
+        "이행계획 수립",
+        "정보시스템 타당성 분석",
+        "전문가자문단 구성 및 운영",
+        "사업추진 체계",
+        "세부일정",
+        "컨설팅 요구사항",
+        "보안 요구사항",
+        "품질 요구사항",
+        "프로젝트 관리 요구사항",
+        "프로젝트 지원 요구사항",
+        "제약사항",
+        "제안서 평가 및 선정 안내 - page 23 -",
+        "입찰 관련 정보",
+        "입찰 및 낙찰방식",
+        "제안서 평가 방법",
+        "평가 기준",
+        "기술평가",
+        "제안서 기술평가 기준",
+        "평가방법",
+        "협상 적격자 선정 및 협상",
+        "계약조건",
+        "입찰시 유의사항",
+        "일반사항",
+        "제안서 작성요령",
+        "제안서 목차",
+        "세부 작성지침",
+        "제안서의 효력",
+        "제안서 제출",
+        "[붙임1] 보안 준수 사항",
+        "[별표 1] 사업자 보안위규 처리기준",
+        "[별표 2] 보안 위약금 부과 기준",
+        "[별표 3] 누출금지 대상정보",
+        "[별표 5] 보안서약서",
+        "[별표 6] 보안확약서",
+        "[별표 7] 누출금지 정보 파기 확인서",
+        "[붙임3] 소프트웨어사업 영향평가 결과서",
+        "[제2호 서식]  프로젝트 수행 조직",
+        "[제3호 서식] 핵심인력의 자격 및 경력요약",
+        "[제4호 서식] 핵심인력 및 이력사항",
+        "[제5호 서식] 하도급 대금지급 비율 명세서",
+        "[제6호 서식] 하도급계약의 적정성 판단 세부기준",
+        "하도급 적정성 판단 자기평가표",
+        "[제7호 서식]"
+      ],
+      "keywords": [
+        "붙임",
+        "유의사항",
+        "파기",
+        "품질",
+        "업무설계",
+        "제약사항",
+        "제안요청",
+        "목차",
+        "효력",
+        "수립",
+        "타당성",
+        "분석",
+        "이행계획",
+        "수행",
+        "제안서의",
+        "핵심인력의",
+        "부과",
+        "관련",
+        "운영",
+        "사업내용"
+      ],
+      "confidence": 1.0
+    }
+  },
+  "metadata_auto": {
+    "document_type": "RFP",
+    "project_name": "AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+    "organization": "보건복지부",
+    "project_year": "2022",
+    "business_domain": "ISP, 컨설팅, 운영",
+    "technology_tags": [
+      "AI",
+      "인공지능",
+      "시스템",
+      "RAG"
+    ],
+    "business_tags": [
+      "ISP",
+      "컨설팅",
+      "운영"
+    ],
+    "deliverable_tags": [],
+    "summary": "AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립 | 표지내용: - page 1 1. 제목: 제안요청서 2 사업명: AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립 3. 주관기관: 보건복지부 복지정보기획과 4. 년도: 2022. 3. 5. 복지정보기획과, 6. 과장  장은섭 7. 사무관  백승대 8. 주무관  신동일 9. FAX : 044-202-3170 10. TEL : 044-202",
+    "reuse_level": "high",
+    "confidence": 1.0,
+    "reason": "RFP 패턴 분석 기반; 문서 그룹: RFP; 감지된 섹션: 20개; 표지 정보 포함; 목차 정보 포함",
+    "year": 2022,
+    "project_type": "ISP",
+    "domain": "복지",
+    "detected_sections": [
+      "세부 작성지침",
+      "[제2호 서식]  프로젝트 수행 조직",
+      "제안서 기술평가 기준",
+      "[별표 2] 보안 위약금 부과 기준",
+      "[제5호 서식] 하도급 대금지급 비율 명세서",
+      "제안서 작성요령",
+      "일반사항",
+      "컨설팅 요구사항",
+      "[별표 3] 누출금지 대상정보",
+      "프로젝트 관리 요구사항",
+      "미래 모델 설계(업무설계)",
+      "제약사항",
+      "[붙임1] 보안 준수사항",
+      "기술평가",
+      "제안서 평가 및 선정 안내 - page 23 -",
+      "[붙임3] 소프트웨어사업 영향평가 결과서",
+      "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+      "[제3호 서식] 핵심인력의 자격 및 경력요약",
+      "[별표 1] 사업자 보안위규 처리기준",
+      "복지사각지대 발굴시스템"
+    ],
+    "keywords": [
+      "붙임",
+      "위한",
+      "ISP",
+      "유의사항",
+      "제안요청서",
+      "평가",
+      "파기",
+      "작성",
+      "인공지능",
+      "정보전략계획",
+      "입찰",
+      "품질",
+      "업무설계",
+      "제약사항",
+      "제안요청",
+      "RFP",
+      "목차",
+      "AI",
+      "안내",
+      "복지사",
+      "서식",
+      "수립",
+      "page",
+      "효력",
+      "타당성",
+      "분석",
+      "이행계획",
+      "수행",
+      "구축을",
+      "정보시스템"
+    ],
+    "cover_page": {
+      "title": "제안요청서",
+      "organization": "보건복지부",
+      "project_name": "AI(인공지능)복지사 정보시스템 구축을 위한 정보전략계획(ISP) 수립",
+      "date": "2022년 3월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "제안요청서"
+      ],
+      "confidence": 1.0
+    },
+    "title": "제안요청서",
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업개요",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "제안요청 내용",
+          "page": 6
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가 및 선정 안내",
+          "page": 23
+        },
+        {
+          "level": 1,
+          "title": "제안서 작성 안내",
+          "page": 28
+        },
+        {
+          "level": 1,
+          "title": "[붙임1] 보안 준수사항",
+          "page": 33
+        },
+        {
+          "level": 1,
+          "title": "[붙임2] 기술적용계획표",
+          "page": 42
+        },
+        {
+          "level": 1,
+          "title": "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+          "page": 50
+        },
+        {
+          "level": 1,
+          "title": "[붙임4] 제안서 작성 관련 서식",
+          "page": 52
+        },
+        {
+          "level": 2,
+          "title": "복지사각지대 발굴시스템",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "세부 사업내용",
+          "page": 3
+        },
+        {
+          "level": 2,
+          "title": "미래 모델 설계(업무설계)",
+          "page": 3
+        },
+        {
+          "level": 2,
+          "title": "이행계획 수립",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "정보시스템 타당성 분석",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "전문가자문단 구성 및 운영",
+          "page": 4
+        },
+        {
+          "level": 1,
+          "title": "사업추진 체계",
+          "page": 5
+        },
+        {
+          "level": 2,
+          "title": "세부일정",
+          "page": 7
+        },
+        {
+          "level": 2,
+          "title": "컨설팅 요구사항",
+          "page": 8
+        },
+        {
+          "level": 2,
+          "title": "보안 요구사항",
+          "page": 14
+        },
+        {
+          "level": 2,
+          "title": "품질 요구사항",
+          "page": 16
+        },
+        {
+          "level": 2,
+          "title": "프로젝트 관리 요구사항",
+          "page": 17
+        },
+        {
+          "level": 2,
+          "title": "프로젝트 지원 요구사항",
+          "page": 20
+        },
+        {
+          "level": 2,
+          "title": "제약사항",
+          "page": 20
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가 및 선정 안내 - page 23 -",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "입찰 관련 정보",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "입찰 및 낙찰방식",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "제안서 평가 방법",
+          "page": 24
+        },
+        {
+          "level": 2,
+          "title": "평가 기준",
+          "page": 24
+        },
+        {
+          "level": 2,
+          "title": "기술평가",
+          "page": 24
+        },
+        {
+          "level": 2,
+          "title": "제안서 기술평가 기준",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "평가방법",
+          "page": 26
+        }
+      ],
+      "section_titles": [
+        "사업개요",
+        "제안요청 내용",
+        "제안서 평가 및 선정 안내",
+        "제안서 작성 안내",
+        "[붙임1] 보안 준수사항",
+        "[붙임2] 기술적용계획표",
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+        "[붙임4] 제안서 작성 관련 서식",
+        "복지사각지대 발굴시스템",
+        "세부 사업내용",
+        "미래 모델 설계(업무설계)",
+        "이행계획 수립",
+        "정보시스템 타당성 분석",
+        "전문가자문단 구성 및 운영",
+        "사업추진 체계",
+        "세부일정",
+        "컨설팅 요구사항",
+        "보안 요구사항",
+        "품질 요구사항",
+        "프로젝트 관리 요구사항",
+        "프로젝트 지원 요구사항",
+        "제약사항",
+        "제안서 평가 및 선정 안내 - page 23 -",
+        "입찰 관련 정보",
+        "입찰 및 낙찰방식",
+        "제안서 평가 방법",
+        "평가 기준",
+        "기술평가",
+        "제안서 기술평가 기준",
+        "평가방법",
+        "협상 적격자 선정 및 협상",
+        "계약조건",
+        "입찰시 유의사항",
+        "일반사항",
+        "제안서 작성요령",
+        "제안서 목차",
+        "세부 작성지침",
+        "제안서의 효력",
+        "제안서 제출",
+        "[붙임1] 보안 준수 사항",
+        "[별표 1] 사업자 보안위규 처리기준",
+        "[별표 2] 보안 위약금 부과 기준",
+        "[별표 3] 누출금지 대상정보",
+        "[별표 5] 보안서약서",
+        "[별표 6] 보안확약서",
+        "[별표 7] 누출금지 정보 파기 확인서",
+        "[붙임3] 소프트웨어사업 영향평가 결과서",
+        "[제2호 서식]  프로젝트 수행 조직",
+        "[제3호 서식] 핵심인력의 자격 및 경력요약",
+        "[제4호 서식] 핵심인력 및 이력사항",
+        "[제5호 서식] 하도급 대금지급 비율 명세서",
+        "[제6호 서식] 하도급계약의 적정성 판단 세부기준",
+        "하도급 적정성 판단 자기평가표",
+        "[제7호 서식]"
+      ],
+      "keywords": [
+        "붙임",
+        "유의사항",
+        "파기",
+        "품질",
+        "업무설계",
+        "제약사항",
+        "제안요청",
+        "목차",
+        "효력",
+        "수립",
+        "타당성",
+        "분석",
+        "이행계획",
+        "수행",
+        "제안서의",
+        "핵심인력의",
+        "부과",
+        "관련",
+        "운영",
+        "사업내용"
+      ],
+      "confidence": 1.0
+    },
+    "metadata_source": "enhanced",
+    "primary_source": "rfp_pattern",
+    "document_group": "RFP",
+    "category": "제안요청서",
+    "folder_name": "00. RAG 소스\\01. RFP"
+  }
+}

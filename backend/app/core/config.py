@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # Admin Auth
     admin_username: str = "admin"
-    admin_password: str = "changeme"
+    admin_password: str = "1234"
     jwt_secret_key: str = "dev-jwt-secret-change-in-production"
     jwt_expire_hours: int = 8
 
@@ -50,11 +50,16 @@ class Settings(BaseSettings):
     # Ollama
     embedding_provider: str = "ollama"
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "llama3:8b"
+    ollama_model: str = "qwen3:8b"
     ollama_embed_model: str = "nomic-embed-text"
     embedding_dim: int = 768
     max_embed_chars: int = 8000
     ollama_api_key: Optional[str] = None
+    late_chunk_model: str = "BAAI/bge-m3"
+    late_chunk_model_max_length: int = 8192
+    late_chunk_macro_overlap_tokens: int = 128
+    contextual_retrieval_model: str = "exaone3.5"
+    contextual_retrieval_doc_chars: int = 6000
 
     # OpenAI API
     openai_api_key: Optional[str] = None
@@ -67,7 +72,7 @@ class Settings(BaseSettings):
 
     # Answer generation defaults
     answer_provider: str = "ollama"
-    answer_model: str = "llama3:8b"
+    answer_model: str = "qwen3:8b"
 
     # ChromaDB
     chroma_host: str = "localhost"

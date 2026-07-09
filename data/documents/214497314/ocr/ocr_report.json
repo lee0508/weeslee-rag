@@ -1,0 +1,323 @@
+{
+  "document_id": "214497314",
+  "file_name": "RFP_K-water形 고유플렛폼 구축 전략계획 수립 용역.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_K-water形 고유플렛폼 구축 전략계획 수립 용역.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_214497314",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_K-water形 고유플렛폼 구축 전략계획 수립 용역.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 19301,
+  "quality": {
+    "text_length": 19301,
+    "char_count": 13318,
+    "korean_count": 10879,
+    "english_count": 607,
+    "number_count": 444,
+    "special_count": 1388,
+    "garbage_count": 0,
+    "korean_ratio": 0.8169,
+    "english_ratio": 0.0456,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_K-water形 고유플렛폼 구축 전략계획 수립 용역.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_K-water形 고유플렛폼 구축 전략계획 수립 용역.hwp",
+    "section_group": "RFP_K-water形 고유플렛폼 구축 전략계획 수립 용역.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "(RFP",
+          "Request For Proposal)",
+          "<표>",
+          ". 10.",
+          "<그림>",
+          "목 차",
+          ". 제안공모요강",
+          ". 일반사항"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "(RFP : Request For Proposal)",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "<표>",
+              "2022. 10.",
+              "<그림>",
+              "<표>",
+              "목 차",
+              "1. 제안공모요강",
+              "1.1. 일반사항"
+            ],
+            "keywords": [
+              "(RFP",
+              "Request For Proposal)",
+              "<표>",
+              ". 10.",
+              "<그림>",
+              "목 차",
+              ". 제안공모요강",
+              ". 일반사항"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<표>",
+      "organization": "제안요청",
+      "project_name": "",
+      "date": "2022년 10월",
+      "document_type": "제안요청서",
+      "keywords": [],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 2,
+          "title": "제안참가자격",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "수행방법 : 일괄도급용역",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "공동도급",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "하자보수보증금율 및 하자담보책임기간",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "사업자 선정방식",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제안참가안내",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제안참가신청",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "<표>",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "- 제출데이터의 요건",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "․ 파일은 파일크기가 불필요하게 증가하지 않도록 불필요한 내용이 포함되지 않도록 저장한다",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "- 유의사항",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "․ 질의사항은 반드시 서면질의하고 전화문의 또는 구두로 질의 응답한 사항은 법적 효력을 갖",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "※ 제안관련 문의 : K-water 플랫폼사업처 안영헌 과장 (☎ 042-629-2933)",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "․ 제안된 내용의 검토를 위하여 필요한 경우 K-water의 요구에 따라 추가자료 제출 및",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제안 시 전제조건 및 제안서의 효력",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "2) 제안사는 이 과업을 수행함에 있어 발생하는 저작권, 사용권 또는 특허권 등 문제에 대",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "3) 본 과업 수행에 필요한 각종 물품은 제안사가 자체적으로 확보하되 과업추진 장소는 K-",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "4) K-water는 제안사의 제안내용에 대한 확인ㆍ검증이 필요한 경우 제안사에 입증자료를",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "5) 본 과업과 관련된 인․허가 등 모든 행정업무는 제안사에서 K-water를 대행하여 수",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "6) 평가대상 기술자는 반드시 당해용역 수행에 참여하여야 하며, 당해용역에 참여하지 아니하",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "7) 참여기술자는 입찰공고일 기준으로 그 이전에 고용되어 현재 재직 중인 자만 인정한다",
+          "page": 8
+        },
+        {
+          "level": 2,
+          "title": "9) 본 제안과 관련하여 용어 또는 해석상의 견해 차이 또는 이의가 발생할 때는 상호 협",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "제안참가자격",
+        "수행방법 : 일괄도급용역",
+        "공동도급",
+        "하자보수보증금율 및 하자담보책임기간",
+        "사업자 선정방식",
+        "제안참가안내",
+        "제안참가신청",
+        "<표>",
+        "- 제출데이터의 요건",
+        "․ 파일은 파일크기가 불필요하게 증가하지 않도록 불필요한 내용이 포함되지 않도록 저장한다",
+        "- 유의사항",
+        "․ 질의사항은 반드시 서면질의하고 전화문의 또는 구두로 질의 응답한 사항은 법적 효력을 갖",
+        "※ 제안관련 문의 : K-water 플랫폼사업처 안영헌 과장 (☎ 042-629-2933)",
+        "․ 제안된 내용의 검토를 위하여 필요한 경우 K-water의 요구에 따라 추가자료 제출 및",
+        "제안 시 전제조건 및 제안서의 효력",
+        "2) 제안사는 이 과업을 수행함에 있어 발생하는 저작권, 사용권 또는 특허권 등 문제에 대",
+        "3) 본 과업 수행에 필요한 각종 물품은 제안사가 자체적으로 확보하되 과업추진 장소는 K-",
+        "4) K-water는 제안사의 제안내용에 대한 확인ㆍ검증이 필요한 경우 제안사에 입증자료를",
+        "5) 본 과업과 관련된 인․허가 등 모든 행정업무는 제안사에서 K-water를 대행하여 수",
+        "6) 평가대상 기술자는 반드시 당해용역 수행에 참여하여야 하며, 당해용역에 참여하지 아니하",
+        "7) 참여기술자는 입찰공고일 기준으로 그 이전에 고용되어 현재 재직 중인 자만 인정한다",
+        "9) 본 제안과 관련하여 용어 또는 해석상의 견해 차이 또는 이의가 발생할 때는 상호 협"
+      ],
+      "keywords": [
+        "대한",
+        "과장",
+        "증가하지",
+        "제안참가자격",
+        "기술자는",
+        "전제조건",
+        "제안관련",
+        "제안사는",
+        "하며",
+        "때는",
+        "행정업무는",
+        "참여하여야",
+        "사용권",
+        "효력",
+        "질의사항은",
+        "서면질의하고",
+        "발생할",
+        "관련된",
+        "불필요한",
+        "자체적으로"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "제안참가자격",
+      "수행방법 : 일괄도급용역",
+      "공동도급",
+      "하자보수보증금율 및 하자담보책임기간",
+      "사업자 선정방식",
+      "제안참가안내",
+      "제안참가신청",
+      "<표>",
+      "- 제출데이터의 요건",
+      "․ 파일은 파일크기가 불필요하게 증가하지 않도록 불필요한 내용이 포함되지 않도록 저장한다",
+      "- 유의사항",
+      "․ 질의사항은 반드시 서면질의하고 전화문의 또는 구두로 질의 응답한 사항은 법적 효력을 갖",
+      "※ 제안관련 문의 : K-water 플랫폼사업처 안영헌 과장 (☎ 042-629-2933)",
+      "․ 제안된 내용의 검토를 위하여 필요한 경우 K-water의 요구에 따라 추가자료 제출 및",
+      "제안 시 전제조건 및 제안서의 효력",
+      "2) 제안사는 이 과업을 수행함에 있어 발생하는 저작권, 사용권 또는 특허권 등 문제에 대",
+      "3) 본 과업 수행에 필요한 각종 물품은 제안사가 자체적으로 확보하되 과업추진 장소는 K-",
+      "4) K-water는 제안사의 제안내용에 대한 확인ㆍ검증이 필요한 경우 제안사에 입증자료를",
+      "5) 본 과업과 관련된 인․허가 등 모든 행정업무는 제안사에서 K-water를 대행하여 수",
+      "6) 평가대상 기술자는 반드시 당해용역 수행에 참여하여야 하며, 당해용역에 참여하지 아니하"
+    ],
+    "document_summary": "<표> | <표>  <표>  (RFP : Request For Proposal)  2022. 10.  <그림>  <표>  목 차  1. 제안공모요강  1.1. 일반사항  1.2. 제안참가안내  1.3. 제안요구사항  1.4. 제안서 작성요령  1.5. 기타사항  2. 제안자를 위한 정보  2.1. K-water 일반정보  2.2. K-water 정보화현황  3. 제안",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:03:39",
+  "updated_at": "2026-07-07T15:03:39",
+  "processing_time_ms": 4337
+}

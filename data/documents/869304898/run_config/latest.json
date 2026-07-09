@@ -1,0 +1,17 @@
+{
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_869304898",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_인공지능 활용을 통한 과학기술정보통신부 행정의 생산성 및 효율성 강화 방안 연구.hwp",
+  "snapshot_id": "",
+  "ocr": {
+    "engine": "tesseract",
+    "dpi": 300,
+    "language": "kor+eng",
+    "min_text_length": 50,
+    "parser_type": "hwp5txt_direct"
+  },
+  "document_id": "869304898",
+  "updated_at": "2026-07-07T15:05:53.585796",
+  "created_at": "2026-07-07T15:05:53.572946"
+}

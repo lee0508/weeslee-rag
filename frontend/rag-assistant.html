@@ -2599,6 +2599,7 @@
       answer_panel:'답변 패널', draft_answer:'초안 답변', result:'결과',
       no_answer:'아직 답변이 없습니다.',
       answer_search_only:'검색 전용 모드입니다. 아래 근거 파일을 검토하세요.',
+      answer_missing_generated:'검색 결과는 있으나 AI 답변이 생성되지 않았습니다. Answer Mode와 모델 상태를 확인하세요.',
       answer_evidence_title:'근거 파일',
       answer_found_files:'LLM이 찾은 관련 파일',
       answer_no_evidence:'근거 파일을 찾지 못했습니다.',
@@ -2689,6 +2690,7 @@
       answer_panel:'\uB2F5\uBCC0 \uD328\uB110', draft_answer:'\uCD08\uC548 \uB2F5\uBCC0', result:'\uACB0\uACFC',
       no_answer:'\uC544\uC9C1 \uB2F5\uBCC0\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.',
       answer_search_only:'\uAC80\uC0C9 \uC804\uC6A9 \uBAA8\uB4DC\uC785\uB2C8\uB2E4. \uC544\uB798 \uADFC\uAC70 \uD30C\uC77C\uC744 \uAC80\uD1A0\uD558\uC138\uC694.',
+      answer_missing_generated:'\uAC80\uC0C9 \uACB0\uACFC\uB294 \uC788\uC73C\uB098 AI \uB2F5\uBCC0\uC774 \uC0DD\uC131\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. Answer Mode\uC640 \uBAA8\uB378 \uC0C1\uD0DC\uB97C \uD655\uC778\uD558\uC138\uC694.',
       answer_evidence_title:'\uADFC\uAC70 \uD30C\uC77C',
       answer_found_files:'LLM\uC774 \uCC3E\uC740 \uAD00\uB828 \uD30C\uC77C',
       answer_no_evidence:'\uADFC\uAC70 \uD30C\uC77C\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
@@ -2805,6 +2807,7 @@
         answer_panel:'답변 패널', draft_answer:'초안 답변', result:'결과',
         no_answer:'아직 답변이 없습니다.',
         answer_search_only:'검색 전용 모드입니다. 아래 근거 파일을 검토하세요.',
+        answer_missing_generated:'검색 결과는 있으나 AI 답변이 생성되지 않았습니다. Answer Mode와 모델 상태를 확인하세요.',
         answer_evidence_title:'근거 파일',
         answer_found_files:'LLM이 찾은 관련 파일',
         answer_no_evidence:'근거 파일을 찾지 못했습니다.',
@@ -2895,6 +2898,7 @@
         answer_panel:'Answer Panel', draft_answer:'Draft Answer', result:'Result',
         no_answer:'No answer yet.',
         answer_search_only:'Search-only mode. Review the evidence files below.',
+        answer_missing_generated:'Search results exist, but no AI answer was generated. Check the answer mode and model state.',
         answer_evidence_title:'Evidence Files',
         answer_found_files:'Relevant files found by retrieval',
         answer_no_evidence:'No evidence files found.',
@@ -3386,7 +3390,10 @@
 
         // 소스 제목
         const title = document.createElement('div');
-        title.textContent = source.source_name || source.source_id || 'Source';
+        const sourceTitle = source.source_name || source.source_id || 'Source';
+        const datasetBadge = source.dataset_id ? ` · ${source.dataset_id}` : '';
+        const datasetStatus = source.dataset_status ? ` (${source.dataset_status})` : '';
+        title.textContent = `${sourceTitle}${datasetBadge}${datasetStatus}`;
         title.style.cssText = 'font-size:11px;color:var(--gray-400);margin-bottom:6px;font-weight:700;';
         group.appendChild(title);
 
@@ -3421,7 +3428,8 @@
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
           checkbox.dataset.snapshotId = snapshot.snapshot_id;
-          checkbox.dataset.snapshotLabel = `${snapshot.snapshot_id}${snapshot.is_active ? ' [active]' : ''}`;
+          const snapshotStatusLabel = snapshot.is_active ? ' [active]' : (snapshot.status ? ` [${snapshot.status}]` : '');
+          checkbox.dataset.snapshotLabel = `${sourceTitle} · ${snapshot.snapshot_id}${snapshotStatusLabel}`;
           checkbox.checked = selectedIds.has(snapshot.snapshot_id);
           checkbox.addEventListener('change', (e) => {
             e.stopPropagation();
@@ -3455,7 +3463,7 @@
           const tdStatus = document.createElement('td');
           tdStatus.style.cssText = tdStyle + 'text-align:center;';
           const statusColor = snapshot.is_active ? '#22c55e' : (snapshot.queryable ? '#3b82f6' : '#6b7280');
-          const statusText = snapshot.is_active ? 'Active' : (snapshot.queryable ? 'Ready' : snapshot.status || '-');
+          const statusText = snapshot.is_active ? 'Active' : (snapshot.status || (snapshot.queryable ? 'Ready' : '-'));
           tdStatus.innerHTML = `<span style="color:${statusColor};font-size:10px;">${escapeHtml(statusText)}</span>`;
           tr.appendChild(tdStatus);
 
@@ -3548,6 +3556,10 @@
         }
         renderSnapshotMultiSelect(data.sources || []);
 
+        const activeDatasetCount = Array.isArray(data.datasets)
+          ? data.datasets.filter(item => item && item.selected_snapshot_id).length
+          : 0;
+
         const currentValue = selectEl.value;
         const hasInitialized = selectEl.dataset.initialized === '1';
         selectEl.innerHTML = '';
@@ -3579,6 +3591,9 @@
         selectEl.value = nextValue;
         selectEl.dataset.initialized = '1';
         updateSearchScopeHint();
+        if (hintEl && activeDatasetCount > 0 && getSelectedSnapshotIds().length === 0 && selectEl.value === 'active_snapshot') {
+          hintEl.textContent = `${hintEl.textContent} · DB 등록 데이터셋 ${activeDatasetCount}개 기준으로 Snapshot이 고정됩니다.`;
+        }
       } catch (error) {
         console.error('loadSearchScopes error:', error);
         _searchScopes = [{
@@ -4254,6 +4269,14 @@
         renderSequentialResults(groupedResults, _currentSearchQuery);
         switchAnswerTab('rag');
 
+        // 순차 검색 완료 후 전체 문서로 그래프 로드
+        const allDocuments = groupedResults.flatMap(g => g.documents || []);
+        // Wiki/Graph 필터링용 문서 목록 저장
+        _lastSearchDocuments = allDocuments;
+        if (allDocuments.length > 0) {
+          loadGraphFromQuery(_currentSearchQuery, allDocuments);
+        }
+
         if (status) {
           status.textContent = totalDocCount > 0
             ? `순차 검색 완료 · ${groupedResults.length}개 검색 모드에서 총 ${totalDocCount}건 문서 검색됨`
@@ -4576,7 +4599,7 @@
             merge_strategy: isGraphPrimaryMode ? 'graph_first' : 'score_based',
             force_search_order: isGraphPrimaryMode ? 'graph_first' : null,
             enable_graph: true,
-            enable_wiki: false,
+            enable_wiki: !isGraphPrimaryMode,
             generate_answer: answerProvider !== 'none',
             inferred_organization: analysisData?.detected_organization || '',
             inferred_project_type: analysisData?.detected_project_type || '',
@@ -4636,6 +4659,10 @@
           : '';
         if (status) status.textContent = t('done_top', { n: data.documents?.length || 0 }) + expandedNote + scopeNote + snapshotNote + skipNote + noResultNote;
         _hasAnswer = answerProvider === 'none';
+        // Wiki/Graph 필터링용 문서 목록 저장 (개별 검색 모드)
+        if (!options.sequentialChild) {
+          _lastSearchDocuments = data.documents || [];
+        }
         if (!options.suppressRender) {
           renderAnswerPanel(data, answerProvider === 'none' ? '' : t('generating'), answerProvider === 'none');
           renderResultPanel(data);
@@ -4780,9 +4807,12 @@
       if (!answerPanel) return;
       const evidenceDocsRaw = payload?.evidence_documents || payload?.documents || [];
       const evidenceDocs = evidenceDocsRaw.map((doc, idx) => normalizeDocumentForUI(doc, idx));
+      const emptyAnswerNote = searchOnly
+        ? t('answer_search_only')
+        : (evidenceDocs.length > 0 ? t('answer_missing_generated') : t('no_answer'));
       const answerBody = answerText
         ? `<div class="answer-body">${escapeHtml(answerText)}</div>`
-        : `<div class="answer-note">${t(searchOnly ? 'answer_search_only' : 'no_answer')}</div>`;
+        : `<div class="answer-note">${emptyAnswerNote}</div>`;
 
       const evidenceHtml = evidenceDocs.length
         ? evidenceDocs.slice(0, 5).map(doc => {
@@ -4860,6 +4890,34 @@
     }
 
     // ── Wiki 탭 기능 ──
+    // 검색 결과 문서에서 프로젝트명 추출
+    function extractProjectNamesFromDocs(documents) {
+      if (!documents || !documents.length) return new Set();
+      const projectNames = new Set();
+      documents.forEach(doc => {
+        // metadata에서 project_name 또는 organization 추출
+        const meta = doc.metadata || {};
+        if (meta.project_name) projectNames.add(meta.project_name.toLowerCase());
+        if (meta.organization) projectNames.add(meta.organization.toLowerCase());
+
+        // file_name에서 사업명 추출 (예: 프로젝트관리_전화시스템 고도화를 위한 ISP 사업.pptx)
+        const fileName = doc.file_name || '';
+        // 패턴: 접두어_사업명.확장자 형태
+        const prefixMatch = fileName.match(/^[^_]+_(.+)\.(pptx?|docx?|pdf|hwp|xlsx?)$/i);
+        if (prefixMatch) {
+          const projectName = prefixMatch[1].trim().toLowerCase();
+          if (projectName.length > 3) projectNames.add(projectName);
+          // 사업명에서 핵심 키워드 추출 (ISP, ISMP, 고도화, 구축 등)
+          const keywords = projectName.match(/isp|ismp|고도화|구축|전략계획|수립|재구축/gi);
+          if (keywords) keywords.forEach(k => projectNames.add(k.toLowerCase()));
+          // 기관명 추출 (예: 한국수자원공사, 건강보험심사평가원)
+          const orgMatch = projectName.match(/(한국[가-힣]+|[가-힣]+공사|[가-힣]+원|[가-힣]+청|[가-힣]+부|[가-힣]+교육청)/);
+          if (orgMatch) projectNames.add(orgMatch[1].toLowerCase());
+        }
+      });
+      return projectNames;
+    }
+
     async function loadWikiProjects() {
       const wikiEmpty = document.querySelector('.wiki-empty');
       const wikiResults = document.getElementById('wikiResults');
@@ -4880,9 +4938,40 @@
           return;
         }
 
+        // 검색 결과 기반 필터링
+        let filteredPages = data.pages;
+        if (_lastSearchDocuments && _lastSearchDocuments.length > 0) {
+          const projectNames = extractProjectNamesFromDocs(_lastSearchDocuments);
+          if (projectNames.size > 0) {
+            filteredPages = data.pages.filter(page => {
+              const slug = (page.slug || '').toLowerCase();
+              const title = (page.title || '').toLowerCase();
+              // 프로젝트명이 Wiki slug 또는 title에 포함되는지 확인
+              for (const pname of projectNames) {
+                if (slug.includes(pname) || title.includes(pname) || pname.includes(slug)) {
+                  return true;
+                }
+              }
+              return false;
+            });
+          }
+        }
+
+        if (filteredPages.length === 0) {
+          wikiEmpty.textContent = _lastSearchDocuments?.length > 0
+            ? '검색 결과와 관련된 Wiki 항목이 없습니다.'
+            : '등록된 Wiki 항목이 없습니다.';
+          wikiEmpty.style.display = 'block';
+          wikiResults.style.display = 'none';
+          return;
+        }
+
         wikiEmpty.style.display = 'none';
         wikiResults.style.display = 'block';
-        wikiResults.innerHTML = data.pages.map(page => `
+        const totalNote = _lastSearchDocuments?.length > 0 && filteredPages.length < data.pages.length
+          ? `<div class="wiki-filter-note" style="padding: 8px 12px; background: var(--background-secondary); border-radius: 4px; margin-bottom: 8px; font-size: 0.85em; color: var(--text-secondary);">검색 결과 기반 ${filteredPages.length}개 프로젝트 (전체 ${data.pages.length}개 중)</div>`
+          : '';
+        wikiResults.innerHTML = totalNote + filteredPages.map(page => `
           <div class="wiki-item" onclick="loadWikiDetail('${escapeHtml(page.slug)}')">
             <div class="wiki-item-title">${escapeHtml(page.title || page.slug)}</div>
             <div class="wiki-item-meta">
@@ -5231,6 +5320,8 @@
 
     // 현재 검색 쿼리 저장 (하이라이트용)
     var _currentSearchQuery = '';
+    // 현재 검색 결과 문서 목록 (Wiki/Graph 필터링용)
+    var _lastSearchDocuments = [];
     // LLM 추출 키워드 (하이라이트용)
     var _extractedKeywords = [];
     var _excludedKeywords = new Set(); // 사용자가 제외한 키워드

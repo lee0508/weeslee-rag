@@ -76,7 +76,9 @@ def save_chunks(self, document_id: int, chunks: List[Dict[str, Any]]) -> bool:
         저장 성공 여부
     """
     try:
-        doc_dir = self._doc_dir(str(document_id))
+        doc_id = str(document_id)
+        doc_dir = self._chunk_dir(doc_id)
+        doc_dir.mkdir(parents=True, exist_ok=True)
         chunks_file = doc_dir / "chunks.json"
         chunk_file_path = doc_dir / "chunk_file.json"
         chunk_pages_path = doc_dir / "chunk_pages.json"
@@ -106,6 +108,22 @@ def save_chunks(self, document_id: int, chunks: List[Dict[str, Any]]) -> bool:
                 "created_at": payload["created_at"],
             }, f, ensure_ascii=False, indent=2)
 
+        self.save_id_contract(doc_id, payload)
+        self.save_run_config(
+            doc_id,
+            {
+                "source_id": str(id_contract.get("source_id") or ""),
+                "dataset_id": str(id_contract.get("dataset_id") or ""),
+                "document_uid": str(id_contract.get("document_uid") or ""),
+                "relative_path": str(id_contract.get("relative_path") or ""),
+                "snapshot_id": str(id_contract.get("snapshot_id") or ""),
+                "chunk": {
+                    "chunks_count": len(chunks),
+                },
+            },
+            snapshot_id=str(id_contract.get("snapshot_id") or ""),
+        )
+
         return True
     except Exception as e:
         print(f"Error saving chunks for document {document_id}: {e}")
@@ -123,10 +141,8 @@ def load_chunks(self, document_id: int) -> List[Dict[str, Any]]:
         청크 목록
     """
     try:
-        doc_dir = self._doc_dir(str(document_id))
-        chunks_file = doc_dir / "chunks.json"
-
-        if not chunks_file.exists():
+        chunks_file = self.get_stage_file_path(str(document_id), "chunk", "chunks.json")
+        if not chunks_file or not chunks_file.exists():
             return []
 
         with open(chunks_file, "r", encoding="utf-8") as f:
@@ -140,9 +156,8 @@ def load_chunks(self, document_id: int) -> List[Dict[str, Any]]:
 def load_chunk_file(self, document_id: int) -> Optional[Dict[str, Any]]:
     """문서 단위 청크 JSON 로드."""
     try:
-        doc_dir = self._doc_dir(str(document_id))
-        chunk_file = doc_dir / "chunk_file.json"
-        if not chunk_file.exists():
+        chunk_file = self.get_stage_file_path(str(document_id), "chunk", "chunk_file.json")
+        if not chunk_file or not chunk_file.exists():
             return None
         with open(chunk_file, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -154,9 +169,8 @@ def load_chunk_file(self, document_id: int) -> Optional[Dict[str, Any]]:
 def load_chunk_pages(self, document_id: int) -> List[Dict[str, Any]]:
     """페이지 단위 청크 JSON 로드."""
     try:
-        doc_dir = self._doc_dir(str(document_id))
-        chunk_pages_file = doc_dir / "chunk_pages.json"
-        if not chunk_pages_file.exists():
+        chunk_pages_file = self.get_stage_file_path(str(document_id), "chunk", "chunk_pages.json")
+        if not chunk_pages_file or not chunk_pages_file.exists():
             return []
         with open(chunk_pages_file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -185,7 +199,9 @@ def save_embeddings(
         저장 성공 여부
     """
     try:
-        doc_dir = self._doc_dir(str(document_id))
+        doc_id = str(document_id)
+        doc_dir = self._embedding_dir(doc_id)
+        doc_dir.mkdir(parents=True, exist_ok=True)
         embeddings_file = doc_dir / "embeddings.pkl"
         metadata_file = doc_dir / "embeddings_metadata.json"
 
@@ -204,11 +220,41 @@ def save_embeddings(
             "document_uid": str((metadata or {}).get("document_uid") or ""),
             "relative_path": str((metadata or {}).get("relative_path") or ""),
             "snapshot_id": str((metadata or {}).get("snapshot_id") or ""),
+            "embedding_provider": str((metadata or {}).get("embedding_provider") or ""),
+            "embedding_strategy": str((metadata or {}).get("embedding_strategy") or ""),
+            "contextual_retrieval_mode": str((metadata or {}).get("contextual_retrieval_mode") or ""),
+            "contextual_model": str((metadata or {}).get("contextual_model") or ""),
+            "late_chunking_applied": bool((metadata or {}).get("late_chunking_applied") or False),
+            "contextual_chunks": int((metadata or {}).get("contextual_chunks") or 0),
             "created_at": datetime.now().isoformat()
         }
 
         with open(metadata_file, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+        self.save_id_contract(doc_id, metadata)
+        self.save_run_config(
+            doc_id,
+            {
+                "source_id": metadata["source_id"],
+                "dataset_id": metadata["dataset_id"],
+                "document_uid": metadata["document_uid"],
+                "relative_path": metadata["relative_path"],
+                "snapshot_id": metadata["snapshot_id"],
+                "embedding": {
+                    "provider": metadata["embedding_provider"],
+                    "model": metadata["model"],
+                    "embedding_dim": metadata["embedding_dim"],
+                    "embeddings_count": metadata["embeddings_count"],
+                    "embedding_strategy": metadata["embedding_strategy"],
+                    "contextual_retrieval_mode": metadata["contextual_retrieval_mode"],
+                    "contextual_model": metadata["contextual_model"],
+                    "late_chunking_applied": metadata["late_chunking_applied"],
+                    "contextual_chunks": metadata["contextual_chunks"],
+                },
+            },
+            snapshot_id=metadata["snapshot_id"],
+        )
 
         return True
     except Exception as e:
@@ -227,10 +273,8 @@ def load_embeddings(self, document_id: int) -> List[List[float]]:
         임베딩 벡터 목록
     """
     try:
-        doc_dir = self._doc_dir(str(document_id))
-        embeddings_file = doc_dir / "embeddings.pkl"
-
-        if not embeddings_file.exists():
+        embeddings_file = self.get_stage_file_path(str(document_id), "embedding", "embeddings.pkl")
+        if not embeddings_file or not embeddings_file.exists():
             return []
 
         with open(embeddings_file, "rb") as f:
@@ -251,10 +295,8 @@ def load_embedding_metadata(self, document_id: int) -> Optional[Dict[str, Any]]:
         메타데이터 딕셔너리
     """
     try:
-        doc_dir = self._doc_dir(str(document_id))
-        metadata_file = doc_dir / "embeddings_metadata.json"
-
-        if not metadata_file.exists():
+        metadata_file = self.get_stage_file_path(str(document_id), "embedding", "embeddings_metadata.json")
+        if not metadata_file or not metadata_file.exists():
             return None
 
         with open(metadata_file, "r", encoding="utf-8") as f:
@@ -266,14 +308,14 @@ def load_embedding_metadata(self, document_id: int) -> Optional[Dict[str, Any]]:
 
 def chunks_exist(self, document_id: int) -> bool:
     """청크 존재 여부 확인"""
-    doc_dir = self._doc_dir(str(document_id))
-    return (doc_dir / "chunks.json").exists()
+    chunks_file = self.get_stage_file_path(str(document_id), "chunk", "chunks.json")
+    return bool(chunks_file and chunks_file.exists())
 
 
 def embeddings_exist(self, document_id: int) -> bool:
     """임베딩 존재 여부 확인"""
-    doc_dir = self._doc_dir(str(document_id))
-    return (doc_dir / "embeddings.pkl").exists()
+    embeddings_file = self.get_stage_file_path(str(document_id), "embedding", "embeddings.pkl")
+    return bool(embeddings_file and embeddings_file.exists())
 
 
 # ProcessedTextStore 클래스에 메서드 추가

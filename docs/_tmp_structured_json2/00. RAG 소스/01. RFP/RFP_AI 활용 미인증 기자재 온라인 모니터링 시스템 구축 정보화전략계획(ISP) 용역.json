@@ -1,0 +1,1562 @@
+{
+  "file_name": "RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx",
+  "section_group": "01. RFP",
+  "document_type": "hwpx",
+  "total_slides": 42,
+  "structure_mode": "manual_rfp_sample",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "사업안내",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "사업안내"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "2",
+      "section_name": "추진방안",
+      "slide_range": [
+        3,
+        3
+      ],
+      "slide_numbers": [
+        3
+      ],
+      "slide_label": "페이지 3",
+      "keywords": [
+        "추진방안"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "3",
+      "section_name": "제안요청내용",
+      "slide_range": [
+        7,
+        7
+      ],
+      "slide_numbers": [
+        7
+      ],
+      "slide_label": "페이지 7",
+      "keywords": [
+        "제안요청내용"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "4",
+      "section_name": "제안서 작성요령",
+      "slide_range": [
+        26,
+        26
+      ],
+      "slide_numbers": [
+        26
+      ],
+      "slide_label": "페이지 26",
+      "keywords": [
+        "제안서 작성요령"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "5",
+      "section_name": "제안안내 사랑",
+      "slide_range": [
+        35,
+        35
+      ],
+      "slide_numbers": [
+        35
+      ],
+      "slide_label": "페이지 35",
+      "keywords": [
+        "제안안내 사랑"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "6",
+      "section_name": "별첨",
+      "slide_range": [
+        37,
+        37
+      ],
+      "slide_numbers": [
+        37
+      ],
+      "slide_label": "페이지 37",
+      "keywords": [
+        "별첨"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "7",
+      "section_name": "사업안내",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "사업안내",
+        "사업개요",
+        "사업명: AI 활용 미인증 기자재 온라인 모니터링 시스템 구축을 위한 정보화전략계획(ISP) 수립",
+        "사업금액: 76,000,000 원 (VAT 포함)",
+        "업기간: 계약일로부터 4개월",
+        "사업목적",
+        "추진배경 및 필요성",
+        "미인증 기자재 유통 증가",
+        "인력 중심 온라인 모니터링의 구조적 한계",
+        "AI 기반 상시 모니터링 체계 전환 필요",
+        "정보화전략계획(ISP) 수립을 통한 체계적 기획 필요",
+        "기대효과"
+      ],
+      "subsections": [
+        {
+          "section_id": "7.1",
+          "section_name": "사업개요",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업개요"
+          ],
+          "keywords": [
+            "사업개요"
+          ]
+        },
+        {
+          "section_id": "7.2",
+          "section_name": "사업명: AI 활용 미인증 기자재 온라인 모니터링 시스템 구축을 위한 정보화전략계획(ISP) 수립",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업명: AI 활용 미인증 기자재 온라인 모니터링 시스템 구축을 위한 정보화전략계획(ISP) 수립"
+          ],
+          "keywords": [
+            "사업명: AI 활용 미인증 기자재 온라인 모니터링 시스템 구축을 위한 정보화전략계획(ISP) 수립"
+          ]
+        },
+        {
+          "section_id": "7.3",
+          "section_name": "사업금액: 76,000,000 원 (VAT 포함)",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업금액: 76,000,000 원 (VAT 포함)"
+          ],
+          "keywords": [
+            "사업금액: 76,000,000 원 (VAT 포함)"
+          ]
+        },
+        {
+          "section_id": "7.4",
+          "section_name": "업기간: 계약일로부터 4개월",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "업기간: 계약일로부터 4개월"
+          ],
+          "keywords": [
+            "업기간: 계약일로부터 4개월"
+          ]
+        },
+        {
+          "section_id": "7.5",
+          "section_name": "사업목적",
+          "parent_section": "사업안내",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "사업목적"
+          ],
+          "keywords": [
+            "사업목적"
+          ]
+        },
+        {
+          "section_id": "7.6",
+          "section_name": "추진배경 및 필요성",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진배경 및 필요성"
+          ],
+          "keywords": [
+            "추진배경 및 필요성"
+          ]
+        },
+        {
+          "section_id": "7.7",
+          "section_name": "미인증 기자재 유통 증가",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "미인증 기자재 유통 증가"
+          ],
+          "keywords": [
+            "미인증 기자재 유통 증가"
+          ]
+        },
+        {
+          "section_id": "7.8",
+          "section_name": "인력 중심 온라인 모니터링의 구조적 한계",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "인력 중심 온라인 모니터링의 구조적 한계"
+          ],
+          "keywords": [
+            "인력 중심 온라인 모니터링의 구조적 한계"
+          ]
+        },
+        {
+          "section_id": "7.9",
+          "section_name": "AI 기반 상시 모니터링 체계 전환 필요",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "AI 기반 상시 모니터링 체계 전환 필요"
+          ],
+          "keywords": [
+            "AI 기반 상시 모니터링 체계 전환 필요"
+          ]
+        },
+        {
+          "section_id": "7.10",
+          "section_name": "정보화전략계획(ISP) 수립을 통한 체계적 기획 필요",
+          "parent_section": "사업안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "정보화전략계획(ISP) 수립을 통한 체계적 기획 필요"
+          ],
+          "keywords": [
+            "정보화전략계획(ISP) 수립을 통한 체계적 기획 필요"
+          ]
+        },
+        {
+          "section_id": "7.11",
+          "section_name": "기대효과",
+          "parent_section": "사업안내",
+          "slide_range": [
+            2,
+            2
+          ],
+          "slide_numbers": [
+            2
+          ],
+          "slide_label": "페이지 2",
+          "subsections": [],
+          "content_items": [
+            "기대효과"
+          ],
+          "keywords": [
+            "기대효과"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "8",
+      "section_name": "추진 방안",
+      "slide_range": [
+        3,
+        3
+      ],
+      "slide_numbers": [
+        3
+      ],
+      "slide_label": "페이지 3",
+      "keywords": [
+        "추진 방안",
+        "추진 전략",
+        "추진 체계",
+        "사업 범위",
+        "사업기간",
+        "주요 추진내용",
+        "추진일정"
+      ],
+      "subsections": [
+        {
+          "section_id": "8.1",
+          "section_name": "추진 전략",
+          "parent_section": "추진 방안",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진 전략"
+          ],
+          "keywords": [
+            "추진 전략"
+          ]
+        },
+        {
+          "section_id": "8.2",
+          "section_name": "추진 체계",
+          "parent_section": "추진 방안",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진 체계"
+          ],
+          "keywords": [
+            "추진 체계"
+          ]
+        },
+        {
+          "section_id": "8.3",
+          "section_name": "사업 범위",
+          "parent_section": "추진 방안",
+          "slide_range": [
+            5,
+            5
+          ],
+          "slide_numbers": [
+            5
+          ],
+          "slide_label": "페이지 5",
+          "subsections": [],
+          "content_items": [
+            "사업 범위"
+          ],
+          "keywords": [
+            "사업 범위"
+          ]
+        },
+        {
+          "section_id": "8.4",
+          "section_name": "사업기간",
+          "parent_section": "추진 방안",
+          "slide_range": [
+            5,
+            5
+          ],
+          "slide_numbers": [
+            5
+          ],
+          "slide_label": "페이지 5",
+          "subsections": [],
+          "content_items": [
+            "사업기간"
+          ],
+          "keywords": [
+            "사업기간"
+          ]
+        },
+        {
+          "section_id": "8.5",
+          "section_name": "주요 추진내용",
+          "parent_section": "추진 방안",
+          "slide_range": [
+            5,
+            5
+          ],
+          "slide_numbers": [
+            5
+          ],
+          "slide_label": "페이지 5",
+          "subsections": [],
+          "content_items": [
+            "주요 추진내용"
+          ],
+          "keywords": [
+            "주요 추진내용"
+          ]
+        },
+        {
+          "section_id": "8.6",
+          "section_name": "추진일정",
+          "parent_section": "추진 방안",
+          "slide_range": [
+            6,
+            6
+          ],
+          "slide_numbers": [
+            6
+          ],
+          "slide_label": "페이지 6",
+          "subsections": [],
+          "content_items": [
+            "추진일정"
+          ],
+          "keywords": [
+            "추진일정"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "9",
+      "section_name": "제안요청 내용",
+      "slide_range": [
+        7,
+        7
+      ],
+      "slide_numbers": [
+        7
+      ],
+      "slide_label": "페이지 7",
+      "keywords": [
+        "제안요청 내용",
+        "제안요청 개요",
+        "요구사항 목록표",
+        "요구사항 목록",
+        "상세 요구사항",
+        "컨설팅 요구사항 (CSR)",
+        "데이터 요구사항(DAR)",
+        "프로젝트 관리 요구사항(PMR)",
+        "프로젝트 지원 요구사항(PSR)",
+        "품질 요구사항(QUR)",
+        "제약사항(COR)",
+        "기타 요구사항",
+        "과업변경 법령 및 규정 준수",
+        "하도급 제한",
+        "SW사업(ISP 용역) 작업장소"
+      ],
+      "subsections": [
+        {
+          "section_id": "9.1",
+          "section_name": "제안요청 개요",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            7,
+            7
+          ],
+          "slide_numbers": [
+            7
+          ],
+          "slide_label": "페이지 7",
+          "subsections": [],
+          "content_items": [
+            "제안요청 개요"
+          ],
+          "keywords": [
+            "제안요청 개요"
+          ]
+        },
+        {
+          "section_id": "9.2",
+          "section_name": "요구사항 목록표",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "요구사항 목록표"
+          ],
+          "keywords": [
+            "요구사항 목록표"
+          ]
+        },
+        {
+          "section_id": "9.3",
+          "section_name": "요구사항 목록",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "요구사항 목록"
+          ],
+          "keywords": [
+            "요구사항 목록"
+          ]
+        },
+        {
+          "section_id": "9.4",
+          "section_name": "상세 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            8,
+            8
+          ],
+          "slide_numbers": [
+            8
+          ],
+          "slide_label": "페이지 8",
+          "subsections": [],
+          "content_items": [
+            "상세 요구사항"
+          ],
+          "keywords": [
+            "상세 요구사항"
+          ]
+        },
+        {
+          "section_id": "9.5",
+          "section_name": "컨설팅 요구사항 (CSR)",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            8,
+            11
+          ],
+          "slide_numbers": [
+            8,
+            9,
+            10,
+            11
+          ],
+          "slide_label": "페이지 8~11",
+          "subsections": [],
+          "content_items": [
+            "컨설팅 요구사항 (CSR)"
+          ],
+          "keywords": [
+            "컨설팅 요구사항 (CSR)"
+          ]
+        },
+        {
+          "section_id": "9.6",
+          "section_name": "데이터 요구사항(DAR)",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            12,
+            14
+          ],
+          "slide_numbers": [
+            12,
+            13,
+            14
+          ],
+          "slide_label": "페이지 12~14",
+          "subsections": [],
+          "content_items": [
+            "데이터 요구사항(DAR)"
+          ],
+          "keywords": [
+            "데이터 요구사항(DAR)"
+          ]
+        },
+        {
+          "section_id": "9.7",
+          "section_name": "프로젝트 관리 요구사항(PMR)",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            15,
+            16
+          ],
+          "slide_numbers": [
+            15,
+            16
+          ],
+          "slide_label": "페이지 15~16",
+          "subsections": [],
+          "content_items": [
+            "프로젝트 관리 요구사항(PMR)"
+          ],
+          "keywords": [
+            "프로젝트 관리 요구사항(PMR)"
+          ]
+        },
+        {
+          "section_id": "9.8",
+          "section_name": "프로젝트 지원 요구사항(PSR)",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            17,
+            17
+          ],
+          "slide_numbers": [
+            17
+          ],
+          "slide_label": "페이지 17",
+          "subsections": [],
+          "content_items": [
+            "프로젝트 지원 요구사항(PSR)"
+          ],
+          "keywords": [
+            "프로젝트 지원 요구사항(PSR)"
+          ]
+        },
+        {
+          "section_id": "9.9",
+          "section_name": "품질 요구사항(QUR)",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            18,
+            18
+          ],
+          "slide_numbers": [
+            18
+          ],
+          "slide_label": "페이지 18",
+          "subsections": [],
+          "content_items": [
+            "품질 요구사항(QUR)"
+          ],
+          "keywords": [
+            "품질 요구사항(QUR)"
+          ]
+        },
+        {
+          "section_id": "9.10",
+          "section_name": "제약사항(COR)",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            19,
+            19
+          ],
+          "slide_numbers": [
+            19
+          ],
+          "slide_label": "페이지 19",
+          "subsections": [],
+          "content_items": [
+            "제약사항(COR)"
+          ],
+          "keywords": [
+            "제약사항(COR)"
+          ]
+        },
+        {
+          "section_id": "9.11",
+          "section_name": "기타 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            20,
+            20
+          ],
+          "slide_numbers": [
+            20
+          ],
+          "slide_label": "페이지 20",
+          "subsections": [],
+          "content_items": [
+            "기타 요구사항"
+          ],
+          "keywords": [
+            "기타 요구사항"
+          ]
+        },
+        {
+          "section_id": "9.12",
+          "section_name": "과업변경 법령 및 규정 준수",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "과업변경 법령 및 규정 준수"
+          ],
+          "keywords": [
+            "과업변경 법령 및 규정 준수"
+          ]
+        },
+        {
+          "section_id": "9.13",
+          "section_name": "하도급 제한",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            20,
+            21
+          ],
+          "slide_numbers": [
+            20,
+            21
+          ],
+          "slide_label": "페이지 20~21",
+          "subsections": [],
+          "content_items": [
+            "하도급 제한"
+          ],
+          "keywords": [
+            "하도급 제한"
+          ]
+        },
+        {
+          "section_id": "9.14",
+          "section_name": "SW사업(ISP 용역) 작업장소",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            21,
+            22
+          ],
+          "slide_numbers": [
+            21,
+            22
+          ],
+          "slide_label": "페이지 21~22",
+          "subsections": [],
+          "content_items": [
+            "SW사업(ISP 용역) 작업장소"
+          ],
+          "keywords": [
+            "SW사업(ISP 용역) 작업장소"
+          ]
+        },
+        {
+          "section_id": "9.15",
+          "section_name": "당해 계약에 따른 계약목적물에 대한 지식재산권과 활용",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            22,
+            23
+          ],
+          "slide_numbers": [
+            22,
+            23
+          ],
+          "slide_label": "페이지 22~23",
+          "subsections": [],
+          "content_items": [
+            "당해 계약에 따른 계약목적물에 대한 지식재산권과 활용"
+          ],
+          "keywords": [
+            "당해 계약에 따른 계약목적물에 대한 지식재산권과 활용"
+          ]
+        },
+        {
+          "section_id": "9.16",
+          "section_name": "하자담보 책임은 (계약예규) 용역계약일반조건을 따름",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            23,
+            23
+          ],
+          "slide_numbers": [
+            23
+          ],
+          "slide_label": "페이지 23",
+          "subsections": [],
+          "content_items": [
+            "하자담보 책임은 (계약예규) 용역계약일반조건을 따름"
+          ],
+          "keywords": [
+            "하자담보 책임은 (계약예규) 용역계약일반조건을 따름"
+          ]
+        },
+        {
+          "section_id": "9.17",
+          "section_name": "특정규격 명시 금지",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            23,
+            23
+          ],
+          "slide_numbers": [
+            23
+          ],
+          "slide_label": "페이지 23",
+          "subsections": [],
+          "content_items": [
+            "특정규격 명시 금지"
+          ],
+          "keywords": [
+            "특정규격 명시 금지"
+          ]
+        },
+        {
+          "section_id": "9.18",
+          "section_name": "SW사업 제안서 보상",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            23,
+            23
+          ],
+          "slide_numbers": [
+            23
+          ],
+          "slide_label": "페이지 23",
+          "subsections": [],
+          "content_items": [
+            "SW사업 제안서 보상"
+          ],
+          "keywords": [
+            "SW사업 제안서 보상"
+          ]
+        },
+        {
+          "section_id": "9.19",
+          "section_name": "SW사업 적정 사업기간 산정",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            23,
+            24
+          ],
+          "slide_numbers": [
+            23,
+            24
+          ],
+          "slide_label": "페이지 23~24",
+          "subsections": [],
+          "content_items": [
+            "SW사업 적정 사업기간 산정"
+          ],
+          "keywords": [
+            "SW사업 적정 사업기간 산정"
+          ]
+        },
+        {
+          "section_id": "9.20",
+          "section_name": "SW사업 영향평가",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            24,
+            25
+          ],
+          "slide_numbers": [
+            24,
+            25
+          ],
+          "slide_label": "페이지 24~25",
+          "subsections": [],
+          "content_items": [
+            "SW사업 영향평가"
+          ],
+          "keywords": [
+            "SW사업 영향평가"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "10",
+      "section_name": "제안서 작성요령",
+      "slide_range": [
+        26,
+        34
+      ],
+      "slide_numbers": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34
+      ],
+      "slide_label": "페이지 26~34",
+      "keywords": [
+        "제안서 작성요령",
+        "제안서 목차",
+        "제안서의 효력",
+        "제안서 세부 작성 지침 및 유의사항",
+        "제안서 평가기준 및 배점"
+      ],
+      "subsections": [
+        {
+          "section_id": "10.1",
+          "section_name": "제안서 목차",
+          "parent_section": "제안서 작성요령",
+          "slide_range": [
+            26,
+            29
+          ],
+          "slide_numbers": [
+            26,
+            27,
+            28,
+            29
+          ],
+          "slide_label": "페이지 26~29",
+          "subsections": [],
+          "content_items": [
+            "제안서 목차"
+          ],
+          "keywords": [
+            "제안서 목차"
+          ]
+        },
+        {
+          "section_id": "10.2",
+          "section_name": "제안서의 효력",
+          "parent_section": "제안서 작성요령",
+          "slide_range": [
+            30,
+            30
+          ],
+          "slide_numbers": [
+            30
+          ],
+          "slide_label": "페이지 30",
+          "subsections": [],
+          "content_items": [
+            "제안서의 효력"
+          ],
+          "keywords": [
+            "제안서의 효력"
+          ]
+        },
+        {
+          "section_id": "10.3",
+          "section_name": "제안서 세부 작성 지침 및 유의사항",
+          "parent_section": "제안서 작성요령",
+          "slide_range": [
+            30,
+            31
+          ],
+          "slide_numbers": [
+            30,
+            31
+          ],
+          "slide_label": "페이지 30~31",
+          "subsections": [],
+          "content_items": [
+            "제안서 세부 작성 지침 및 유의사항"
+          ],
+          "keywords": [
+            "제안서 세부 작성 지침 및 유의사항"
+          ]
+        },
+        {
+          "section_id": "10.4",
+          "section_name": "제안서 평가기준 및 배점",
+          "parent_section": "제안서 작성요령",
+          "slide_range": [
+            31,
+            34
+          ],
+          "slide_numbers": [
+            31,
+            32,
+            33,
+            34
+          ],
+          "slide_label": "페이지 31~34",
+          "subsections": [],
+          "content_items": [
+            "제안서 평가기준 및 배점"
+          ],
+          "keywords": [
+            "제안서 평가기준 및 배점"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "11",
+      "section_name": "제안 안내사항",
+      "slide_range": [
+        35,
+        36
+      ],
+      "slide_numbers": [
+        35,
+        36
+      ],
+      "slide_label": "페이지 35~36",
+      "keywords": [
+        "제안 안내사항",
+        "입찰계약 방법: 제한경쟁",
+        "입찰참가 자격",
+        "낙찰자 선정방식 : 협상에 의한 계약체결방식 적용",
+        "기타사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "11.1",
+          "section_name": "입찰계약 방법: 제한경쟁",
+          "parent_section": "제안 안내사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "입찰계약 방법: 제한경쟁"
+          ],
+          "keywords": [
+            "입찰계약 방법: 제한경쟁"
+          ]
+        },
+        {
+          "section_id": "11.2",
+          "section_name": "입찰참가 자격",
+          "parent_section": "제안 안내사항",
+          "slide_range": [
+            35,
+            36
+          ],
+          "slide_numbers": [
+            35,
+            36
+          ],
+          "slide_label": "페이지 35~36",
+          "subsections": [],
+          "content_items": [
+            "입찰참가 자격"
+          ],
+          "keywords": [
+            "입찰참가 자격"
+          ]
+        },
+        {
+          "section_id": "11.3",
+          "section_name": "낙찰자 선정방식 : 협상에 의한 계약체결방식 적용",
+          "parent_section": "제안 안내사항",
+          "slide_range": [
+            36,
+            36
+          ],
+          "slide_numbers": [
+            36
+          ],
+          "slide_label": "페이지 36",
+          "subsections": [],
+          "content_items": [
+            "낙찰자 선정방식 : 협상에 의한 계약체결방식 적용"
+          ],
+          "keywords": [
+            "낙찰자 선정방식 : 협상에 의한 계약체결방식 적용"
+          ]
+        },
+        {
+          "section_id": "11.4",
+          "section_name": "기타사항",
+          "parent_section": "제안 안내사항",
+          "slide_range": [
+            36,
+            36
+          ],
+          "slide_numbers": [
+            36
+          ],
+          "slide_label": "페이지 36",
+          "subsections": [],
+          "content_items": [
+            "기타사항"
+          ],
+          "keywords": [
+            "기타사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "12",
+      "section_name": "별첨",
+      "slide_range": [
+        37,
+        38
+      ],
+      "slide_numbers": [
+        37,
+        38
+      ],
+      "slide_label": "페이지 37~38",
+      "keywords": [
+        "별첨"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "13",
+      "section_name": "별첨 1 사업자 보안관리 준수사항",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "별첨 1 사업자 보안관리 준수사항",
+        "참여 인력에 대한 보안관리",
+        "자료․정보 등의 보안관리",
+        "사무실 및 전산 장비․매체 보안관리",
+        "정보시스템 접근 보안관리"
+      ],
+      "subsections": [
+        {
+          "section_id": "13.1",
+          "section_name": "참여 인력에 대한 보안관리",
+          "parent_section": "별첨 1 사업자 보안관리 준수사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "참여 인력에 대한 보안관리"
+          ],
+          "keywords": [
+            "참여 인력에 대한 보안관리"
+          ]
+        },
+        {
+          "section_id": "13.2",
+          "section_name": "자료․정보 등의 보안관리",
+          "parent_section": "별첨 1 사업자 보안관리 준수사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "자료․정보 등의 보안관리"
+          ],
+          "keywords": [
+            "자료․정보 등의 보안관리"
+          ]
+        },
+        {
+          "section_id": "13.3",
+          "section_name": "사무실 및 전산 장비․매체 보안관리",
+          "parent_section": "별첨 1 사업자 보안관리 준수사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사무실 및 전산 장비․매체 보안관리"
+          ],
+          "keywords": [
+            "사무실 및 전산 장비․매체 보안관리"
+          ]
+        },
+        {
+          "section_id": "13.4",
+          "section_name": "정보시스템 접근 보안관리",
+          "parent_section": "별첨 1 사업자 보안관리 준수사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "정보시스템 접근 보안관리"
+          ],
+          "keywords": [
+            "정보시스템 접근 보안관리"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "14",
+      "section_name": "별첨 2",
+      "slide_range": [
+        39,
+        40
+      ],
+      "slide_numbers": [
+        39,
+        40
+      ],
+      "slide_label": "페이지 39~40",
+      "keywords": [
+        "별첨 2"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "15",
+      "section_name": "별첨 2 사업자 보안위규 처리 기준",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "별첨 2 사업자 보안위규 처리 기준"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "16",
+      "section_name": "별첨 3",
+      "slide_range": [
+        41,
+        42
+      ],
+      "slide_numbers": [
+        41,
+        42
+      ],
+      "slide_label": "페이지 41~42",
+      "keywords": [
+        "별첨 3",
+        "보안 서약서"
+      ],
+      "subsections": [
+        {
+          "section_id": "16.1",
+          "section_name": "보안 서약서",
+          "parent_section": "별첨 3",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "보안 서약서"
+          ],
+          "keywords": [
+            "보안 서약서"
+          ]
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "제안요청서",
+    "organization": "중앙전파관리소",
+    "project_name": "｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역",
+    "date": "2026. 2",
+    "document_type": "제안요청서",
+    "confidence": 0.9
+  },
+  "toc": {
+    "sections": [
+      {
+        "level": 1,
+        "title": "목차",
+        "page": null
+      }
+    ],
+    "section_titles": [
+      "목차"
+    ],
+    "keywords": [
+      "목차"
+    ],
+    "confidence": 0.9
+  },
+  "detected_sections": [
+    "사업안내",
+    "추진방안",
+    "제안요청내용",
+    "제안서 작성요령",
+    "제안안내 사랑",
+    "별첨",
+    "사업안내",
+    "추진 방안",
+    "제안요청 내용",
+    "제안서 작성요령",
+    "제안 안내사항",
+    "별첨",
+    "별첨 1 사업자 보안관리 준수사항",
+    "별첨 2",
+    "별첨 2 사업자 보안위규 처리 기준",
+    "별첨 3"
+  ],
+  "document_summary": "파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx | 경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP 파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx 표지내용: - page 1 1. 제목: 제안요청서 2. 사업명: ｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역 3. 주",
+  "page_types": [
+    "cover"
+  ],
+  "manual_sample": {
+    "original_lines": [
+      "경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx",
+      "표지내용: - page 1",
+      "1. 제목: 제안요청서",
+      "2. 사업명: ｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역",
+      "3. 주관기관: 중앙전파관리소",
+      "4. 년월: 2026. 2",
+      "5. 담당",
+      "6. 소속: 전파관제과",
+      "7. 직위/성명: 주무관 / 강옥성",
+      "8. 전화번호: 02-3400-2478",
+      "9. e-mail: volts3@korea.kr",
+      "목차 - page 2",
+      "사업안내 - page 1",
+      "추진방안 - page 3",
+      "제안요청내용 - page 7",
+      "제안서 작성요령 - page 26",
+      "제안안내 사랑 - page 35",
+      "별첨 - page 37",
+      "사업안내 - page 1",
+      " - 사업개요",
+      "   - 사업명: AI 활용 미인증 기자재 온라인 모니터링 시스템 구축을 위한 정보화전략계획(ISP) 수립",
+      "   - 사업금액: 76,000,000 원 (VAT 포함)",
+      "   - 업기간: 계약일로부터 4개월",
+      " - 사업목적- page 1",
+      " - 추진배경 및 필요성",
+      "  - 미인증 기자재 유통 증가",
+      "  - 인력 중심 온라인 모니터링의 구조적 한계",
+      "  - AI 기반 상시 모니터링 체계 전환 필요",
+      "  - 정보화전략계획(ISP) 수립을 통한 체계적 기획 필요",
+      " - 기대효과 - page 2",
+      "추진 방안 - page 3",
+      " - 추진 전략",
+      " - 추진 체계",
+      " - 사업 범위 - page 5",
+      " - 사업기간 - page 5",
+      " - 주요 추진내용 - page 5",
+      " - 추진일정 - page 6",
+      "제안요청 내용 - page 7",
+      " - 제안요청 개요 - page 7",
+      "   - 요구사항 목록표",
+      "   - 요구사항 목록",
+      " - 상세 요구사항 - page 8",
+      "   - 컨설팅 요구사항 (CSR) - page 8 - 11",
+      "   - 데이터 요구사항(DAR) - page 12 - 14",
+      "   - 프로젝트 관리 요구사항(PMR) - page 15 - 16",
+      "   - 프로젝트 지원 요구사항(PSR) - page 17",
+      "   - 품질 요구사항(QUR) - page 18",
+      "   - 제약사항(COR) - page 19",
+      " - 기타 요구사항 - page 20",
+      "   - 과업변경 법령 및 규정 준수",
+      "   - 하도급 제한 - page 20 - 21",
+      "   - SW사업(ISP 용역) 작업장소 - page 21 - 22",
+      "   - 당해 계약에 따른 계약목적물에 대한 지식재산권과 활용 - page 22 - 23",
+      "   - 하자담보 책임은 (계약예규) 용역계약일반조건을 따름 - page 23",
+      "   - 특정규격 명시 금지 - page 23",
+      "   - SW사업 제안서 보상 - page 23",
+      "   - SW사업 적정 사업기간 산정 - page 23 - 24",
+      "   - SW사업 영향평가 - page 24 - 25",
+      "제안서 작성요령 - page 26 - 34",
+      " - 제안서 목차 - page 26 - 29",
+      " - 제안서의 효력 - page 30",
+      " - 제안서 세부 작성 지침 및 유의사항 - page 30 - 31",
+      " - 제안서 평가기준 및 배점 - page 31 - 34",
+      "제안 안내사항 - page 35 - 36",
+      " - 입찰계약 방법: 제한경쟁",
+      " - 입찰참가 자격 - page 35 - 36",
+      " - 낙찰자 선정방식 : 협상에 의한 계약체결방식 적용 - page 36",
+      " - 기타사항 - page 36",
+      "별첨 - page 37 - 38",
+      "별첨 1 사업자 보안관리 준수사항",
+      "  - 참여 인력에 대한 보안관리",
+      "  - 자료․정보 등의 보안관리",
+      "  - 사무실 및 전산 장비․매체 보안관리",
+      "  - 정보시스템 접근 보안관리",
+      "별첨 2 - page 39 - 40",
+      "별첨 2 사업자 보안위규 처리 기준",
+      "별첨 3 - page 41 - 42",
+      "별첨 3 - 보안 서약서"
+    ],
+    "cover_lines": [
+      "1. 제목: 제안요청서",
+      "2. 사업명: ｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역",
+      "3. 주관기관: 중앙전파관리소",
+      "4. 년월: 2026. 2",
+      "5. 담당",
+      "6. 소속: 전파관제과",
+      "7. 직위/성명: 주무관 / 강옥성",
+      "8. 전화번호: 02-3400-2478",
+      "9. e-mail: volts3@korea.kr"
+    ],
+    "toc_lines": [
+      "목차 - page 2"
+    ]
+  },
+  "pattern_metadata": {
+    "project_name": "AI 활용 미인증 기자재 온라인 모니터링 시스템 정보화전략계획()",
+    "project_type": "ISP",
+    "category": "",
+    "document_type": "RFP",
+    "organization": "제안요청",
+    "year": 2026,
+    "technology_keywords": [
+      "AI",
+      "시스템",
+      "온라인"
+    ],
+    "domain": "",
+    "detected_sections": [
+      "제목",
+      "목차",
+      "사업명",
+      "주관기관",
+      "담당",
+      "제안요청서",
+      "사업개요",
+      "사업안내",
+      "사업기간",
+      "추진배경",
+      "추진배경 및 필요성",
+      "주요 추진내용",
+      "기대효과",
+      "추진일정",
+      "제안요청 내용",
+      "제안요청내용",
+      "제약사항",
+      "제안서 작성요령",
+      "제안서 목차",
+      "제안서 세부 작성 지침"
+    ],
+    "keywords": [
+      "RFP",
+      "AI",
+      "활용",
+      "미인증",
+      "기자재",
+      "온라인",
+      "모니터링",
+      "시스템",
+      "구축",
+      "정보화전략계획",
+      "ISP",
+      "요구사항",
+      "보안관리",
+      "제안서",
+      "page",
+      "용역",
+      "추진",
+      "별첨",
+      "파일명",
+      "사업명",
+      "SW사업"
+    ],
+    "summary": "파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx | 경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP 파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx 표지내용: - page 1 1. 제목: 제안요청서 2. 사업명: ｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역 3. 주",
+    "confidence": 1.0,
+    "metadata_source": "rfp_pattern_analyzer",
+    "cover_page": {
+      "title": "파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx",
+      "organization": "제안요청",
+      "project_name": "｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역",
+      "date": "",
+      "document_type": "제안요청서",
+      "keywords": [
+        "파일명",
+        "RFP",
+        "AI",
+        "활용",
+        "미인증",
+        "기자재",
+        "온라인",
+        "모니터링",
+        "시스템",
+        "구축"
+      ],
+      "confidence": 0.85
+    },
+    "toc": {
+      "sections": [],
+      "section_titles": [],
+      "keywords": [],
+      "confidence": 0.0
+    }
+  },
+  "metadata_auto": {
+    "document_type": "RFP",
+    "project_name": "｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역",
+    "organization": "제안요청",
+    "project_year": "2026",
+    "business_domain": "ISP, EA, 컨설팅",
+    "technology_tags": [
+      "시스템",
+      "AI",
+      "RAG",
+      "온라인"
+    ],
+    "business_tags": [
+      "ISP",
+      "EA",
+      "컨설팅"
+    ],
+    "deliverable_tags": [],
+    "summary": "파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx | 경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP 파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx 표지내용: - page 1 1. 제목: 제안요청서 2. 사업명: ｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역 3. 주",
+    "reuse_level": "high",
+    "confidence": 1.0,
+    "reason": "RFP 패턴 분석 기반; 문서 그룹: RFP; 감지된 섹션: 10개; 표지 정보 포함; 목차 정보 포함",
+    "year": 2026,
+    "project_type": "ISP",
+    "detected_sections": [
+      "제목",
+      "목차",
+      "사업명",
+      "주관기관",
+      "담당",
+      "제안요청서",
+      "사업개요",
+      "사업안내",
+      "사업기간",
+      "추진배경"
+    ],
+    "keywords": [
+      "ISP",
+      "미인증",
+      "AI",
+      "온라인",
+      "RFP",
+      "요구사항",
+      "활용",
+      "모니터링",
+      "제안서",
+      "기자재",
+      "구축",
+      "보안관리",
+      "page",
+      "용역",
+      "추진",
+      "별첨",
+      "정보화전략계획",
+      "시스템",
+      "파일명",
+      "사업명",
+      "SW사업"
+    ],
+    "cover_page": {
+      "title": "파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx",
+      "organization": "제안요청",
+      "project_name": "｢AI 활용 미인증 기자재 온라인 모니터링 시스템 구축｣ 정보화전략계획(ISP) 용역",
+      "date": "",
+      "document_type": "제안요청서",
+      "keywords": [
+        "파일명",
+        "RFP",
+        "AI",
+        "활용",
+        "미인증",
+        "기자재",
+        "온라인",
+        "모니터링",
+        "시스템",
+        "구축"
+      ],
+      "confidence": 0.85
+    },
+    "title": "파일명: RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx",
+    "toc": {
+      "sections": [],
+      "section_titles": [],
+      "keywords": [],
+      "confidence": 0.0
+    },
+    "metadata_source": "enhanced",
+    "primary_source": "rfp_pattern",
+    "document_group": "RFP",
+    "category": "제안요청서",
+    "folder_name": "00. RAG 소스\\01. RFP"
+  }
+}

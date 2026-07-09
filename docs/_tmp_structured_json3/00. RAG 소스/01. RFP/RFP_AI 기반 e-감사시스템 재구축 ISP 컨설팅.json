@@ -1,0 +1,3079 @@
+{
+  "file_name": "RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+  "section_group": "01. RFP",
+  "document_type": "hwp",
+  "total_slides": 71,
+  "structure_mode": "manual_rfp_sample",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "사업개요",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "사업개요",
+        "사업개요",
+        "추진배경",
+        "e-감사시스템 구축 현황",
+        "주요 사업 범위",
+        "주요 전산화 방향 및 기대효과",
+        "기타 일반사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "사업개요",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업개요"
+          ],
+          "keywords": [
+            "사업개요"
+          ]
+        },
+        {
+          "section_id": "1.2",
+          "section_name": "추진배경",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진배경"
+          ],
+          "keywords": [
+            "추진배경"
+          ]
+        },
+        {
+          "section_id": "1.3",
+          "section_name": "e-감사시스템 구축 현황",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "e-감사시스템 구축 현황"
+          ],
+          "keywords": [
+            "e-감사시스템 구축 현황"
+          ]
+        },
+        {
+          "section_id": "1.4",
+          "section_name": "주요 사업 범위",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "주요 사업 범위"
+          ],
+          "keywords": [
+            "주요 사업 범위"
+          ]
+        },
+        {
+          "section_id": "1.5",
+          "section_name": "주요 전산화 방향 및 기대효과",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "주요 전산화 방향 및 기대효과"
+          ],
+          "keywords": [
+            "주요 전산화 방향 및 기대효과"
+          ]
+        },
+        {
+          "section_id": "1.6",
+          "section_name": "기타 일반사항",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "기타 일반사항"
+          ],
+          "keywords": [
+            "기타 일반사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "2",
+      "section_name": "제안요청 내용",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "제안요청 내용",
+        "요구사항 총괄",
+        "상세 요구사항",
+        "컨설팅 요구사항",
+        "프로젝트 관리 요구사항",
+        "프로젝트 지원 요구사항",
+        "제약사항 요구사항",
+        "보안 요구사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "2.1",
+          "section_name": "요구사항 총괄",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "요구사항 총괄"
+          ],
+          "keywords": [
+            "요구사항 총괄"
+          ]
+        },
+        {
+          "section_id": "2.2",
+          "section_name": "상세 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "상세 요구사항"
+          ],
+          "keywords": [
+            "상세 요구사항"
+          ]
+        },
+        {
+          "section_id": "2.3",
+          "section_name": "컨설팅 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "컨설팅 요구사항"
+          ],
+          "keywords": [
+            "컨설팅 요구사항"
+          ]
+        },
+        {
+          "section_id": "2.4",
+          "section_name": "프로젝트 관리 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "프로젝트 관리 요구사항"
+          ],
+          "keywords": [
+            "프로젝트 관리 요구사항"
+          ]
+        },
+        {
+          "section_id": "2.5",
+          "section_name": "프로젝트 지원 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "프로젝트 지원 요구사항"
+          ],
+          "keywords": [
+            "프로젝트 지원 요구사항"
+          ]
+        },
+        {
+          "section_id": "2.6",
+          "section_name": "제약사항 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제약사항 요구사항"
+          ],
+          "keywords": [
+            "제약사항 요구사항"
+          ]
+        },
+        {
+          "section_id": "2.7",
+          "section_name": "보안 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "보안 요구사항"
+          ],
+          "keywords": [
+            "보안 요구사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "3",
+      "section_name": "사업자 선정방법",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "사업자 선정방법",
+        "입찰 방법",
+        "입찰 참가자격",
+        "제안서 평가 및 낙찰자 결정"
+      ],
+      "subsections": [
+        {
+          "section_id": "3.1",
+          "section_name": "입찰 방법",
+          "parent_section": "사업자 선정방법",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "입찰 방법"
+          ],
+          "keywords": [
+            "입찰 방법"
+          ]
+        },
+        {
+          "section_id": "3.2",
+          "section_name": "입찰 참가자격",
+          "parent_section": "사업자 선정방법",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "입찰 참가자격"
+          ],
+          "keywords": [
+            "입찰 참가자격"
+          ]
+        },
+        {
+          "section_id": "3.3",
+          "section_name": "제안서 평가 및 낙찰자 결정",
+          "parent_section": "사업자 선정방법",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제안서 평가 및 낙찰자 결정"
+          ],
+          "keywords": [
+            "제안서 평가 및 낙찰자 결정"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "4",
+      "section_name": "제안서 작성안내",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "제안서 작성안내",
+        "제안서 효력",
+        "제안서 작성지침",
+        "제안서 목차",
+        "제안서 작성방법",
+        "제안서 제출서류",
+        "기타사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "4.1",
+          "section_name": "제안서 효력",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제안서 효력"
+          ],
+          "keywords": [
+            "제안서 효력"
+          ]
+        },
+        {
+          "section_id": "4.2",
+          "section_name": "제안서 작성지침",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제안서 작성지침"
+          ],
+          "keywords": [
+            "제안서 작성지침"
+          ]
+        },
+        {
+          "section_id": "4.3",
+          "section_name": "제안서 목차",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제안서 목차"
+          ],
+          "keywords": [
+            "제안서 목차"
+          ]
+        },
+        {
+          "section_id": "4.4",
+          "section_name": "제안서 작성방법",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제안서 작성방법"
+          ],
+          "keywords": [
+            "제안서 작성방법"
+          ]
+        },
+        {
+          "section_id": "4.5",
+          "section_name": "제안서 제출서류",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제안서 제출서류"
+          ],
+          "keywords": [
+            "제안서 제출서류"
+          ]
+        },
+        {
+          "section_id": "4.6",
+          "section_name": "기타사항",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "기타사항"
+          ],
+          "keywords": [
+            "기타사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "5",
+      "section_name": "안내 및 유의사항",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "안내 및 유의사항"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "6",
+      "section_name": "[붙임1] 평가항목 및 배점표",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "[붙임1] 평가항목 및 배점표"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "7",
+      "section_name": "[붙임2] 외주 용역사업 보안특약",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "[붙임2] 외주 용역사업 보안특약"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "8",
+      "section_name": "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "9",
+      "section_name": "[별지서식 1~9]",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "[별지서식 1~9]"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "10",
+      "section_name": "사업개요",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "사업개요",
+        "(사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+        "(사업예산) 169,600,000원(부가가치세 포함)",
+        "(사업기간) 계약 체결일로부터 3개월",
+        "(업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)",
+        "*「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름"
+      ],
+      "subsections": [
+        {
+          "section_id": "10.1",
+          "section_name": "(사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+          "parent_section": "사업개요",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "(사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅"
+          ],
+          "keywords": [
+            "(사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅"
+          ]
+        },
+        {
+          "section_id": "10.2",
+          "section_name": "(사업예산) 169,600,000원(부가가치세 포함)",
+          "parent_section": "사업개요",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "(사업예산) 169,600,000원(부가가치세 포함)"
+          ],
+          "keywords": [
+            "(사업예산) 169,600,000원(부가가치세 포함)"
+          ]
+        },
+        {
+          "section_id": "10.3",
+          "section_name": "(사업기간) 계약 체결일로부터 3개월",
+          "parent_section": "사업개요",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "(사업기간) 계약 체결일로부터 3개월"
+          ],
+          "keywords": [
+            "(사업기간) 계약 체결일로부터 3개월"
+          ]
+        },
+        {
+          "section_id": "10.4",
+          "section_name": "(업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)",
+          "parent_section": "사업개요",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "(업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)"
+          ],
+          "keywords": [
+            "(업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)"
+          ]
+        },
+        {
+          "section_id": "10.5",
+          "section_name": "*「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름",
+          "parent_section": "사업개요",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "*「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름"
+          ],
+          "keywords": [
+            "*「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "11",
+      "section_name": "추진배경",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "추진배경",
+        "최신 IT기술을 적용한 감사기법의 디지털 전환·혁신",
+        "노후 장비 교체로 시스템 성능 제고",
+        "최신 브라우저 기반 재구축을 통해 시스템 안정성 향상"
+      ],
+      "subsections": [
+        {
+          "section_id": "11.1",
+          "section_name": "최신 IT기술을 적용한 감사기법의 디지털 전환·혁신",
+          "parent_section": "추진배경",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "최신 IT기술을 적용한 감사기법의 디지털 전환·혁신"
+          ],
+          "keywords": [
+            "최신 IT기술을 적용한 감사기법의 디지털 전환·혁신"
+          ]
+        },
+        {
+          "section_id": "11.2",
+          "section_name": "노후 장비 교체로 시스템 성능 제고",
+          "parent_section": "추진배경",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "노후 장비 교체로 시스템 성능 제고"
+          ],
+          "keywords": [
+            "노후 장비 교체로 시스템 성능 제고"
+          ]
+        },
+        {
+          "section_id": "11.3",
+          "section_name": "최신 브라우저 기반 재구축을 통해 시스템 안정성 향상",
+          "parent_section": "추진배경",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "최신 브라우저 기반 재구축을 통해 시스템 안정성 향상"
+          ],
+          "keywords": [
+            "최신 브라우저 기반 재구축을 통해 시스템 안정성 향상"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "12",
+      "section_name": "e-감사시스템 구축 현황",
+      "slide_range": [
+        2,
+        3
+      ],
+      "slide_numbers": [
+        2,
+        3
+      ],
+      "slide_label": "페이지 2~3",
+      "keywords": [
+        "e-감사시스템 구축 현황",
+        "감사관리시스템",
+        "구축일자",
+        "시스템 구성도",
+        "감사결과검색시스템",
+        "구축일자",
+        "시스템 구성",
+        "상시감사시스템",
+        "구축일자",
+        "시스템 구성도"
+      ],
+      "subsections": [
+        {
+          "section_id": "12.1",
+          "section_name": "감사관리시스템",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [
+            2,
+            2
+          ],
+          "slide_numbers": [
+            2
+          ],
+          "slide_label": "페이지 2",
+          "subsections": [],
+          "content_items": [
+            "감사관리시스템"
+          ],
+          "keywords": [
+            "감사관리시스템"
+          ]
+        },
+        {
+          "section_id": "12.2",
+          "section_name": "구축일자",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "구축일자"
+          ],
+          "keywords": [
+            "구축일자"
+          ]
+        },
+        {
+          "section_id": "12.3",
+          "section_name": "시스템 구성도",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "시스템 구성도"
+          ],
+          "keywords": [
+            "시스템 구성도"
+          ]
+        },
+        {
+          "section_id": "12.4",
+          "section_name": "감사결과검색시스템",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "감사결과검색시스템"
+          ],
+          "keywords": [
+            "감사결과검색시스템"
+          ]
+        },
+        {
+          "section_id": "12.5",
+          "section_name": "구축일자",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "구축일자"
+          ],
+          "keywords": [
+            "구축일자"
+          ]
+        },
+        {
+          "section_id": "12.6",
+          "section_name": "시스템 구성",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "시스템 구성"
+          ],
+          "keywords": [
+            "시스템 구성"
+          ]
+        },
+        {
+          "section_id": "12.7",
+          "section_name": "상시감사시스템",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [
+            3,
+            3
+          ],
+          "slide_numbers": [
+            3
+          ],
+          "slide_label": "페이지 3",
+          "subsections": [],
+          "content_items": [
+            "상시감사시스템"
+          ],
+          "keywords": [
+            "상시감사시스템"
+          ]
+        },
+        {
+          "section_id": "12.8",
+          "section_name": "구축일자",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "구축일자"
+          ],
+          "keywords": [
+            "구축일자"
+          ]
+        },
+        {
+          "section_id": "12.9",
+          "section_name": "시스템 구성도",
+          "parent_section": "e-감사시스템 구축 현황",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "시스템 구성도"
+          ],
+          "keywords": [
+            "시스템 구성도"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "13",
+      "section_name": "주요 사업 범위",
+      "slide_range": [
+        4,
+        5
+      ],
+      "slide_numbers": [
+        4,
+        5
+      ],
+      "slide_label": "페이지 4~5",
+      "keywords": [
+        "주요 사업 범위",
+        "대내외 업무환경 분석",
+        "감사업무 현황 분석",
+        "시스템 목표모델 설계",
+        "통합 이행계획 수립 - paage 5"
+      ],
+      "subsections": [
+        {
+          "section_id": "13.1",
+          "section_name": "대내외 업무환경 분석",
+          "parent_section": "주요 사업 범위",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "대내외 업무환경 분석"
+          ],
+          "keywords": [
+            "대내외 업무환경 분석"
+          ]
+        },
+        {
+          "section_id": "13.2",
+          "section_name": "감사업무 현황 분석",
+          "parent_section": "주요 사업 범위",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "감사업무 현황 분석"
+          ],
+          "keywords": [
+            "감사업무 현황 분석"
+          ]
+        },
+        {
+          "section_id": "13.3",
+          "section_name": "시스템 목표모델 설계",
+          "parent_section": "주요 사업 범위",
+          "slide_range": [
+            5,
+            5
+          ],
+          "slide_numbers": [
+            5
+          ],
+          "slide_label": "페이지 5",
+          "subsections": [],
+          "content_items": [
+            "시스템 목표모델 설계"
+          ],
+          "keywords": [
+            "시스템 목표모델 설계"
+          ]
+        },
+        {
+          "section_id": "13.4",
+          "section_name": "통합 이행계획 수립 - paage 5",
+          "parent_section": "주요 사업 범위",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "통합 이행계획 수립 - paage 5"
+          ],
+          "keywords": [
+            "통합 이행계획 수립 - paage 5"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "14",
+      "section_name": "주요 전산화 방향",
+      "slide_range": [
+        6,
+        6
+      ],
+      "slide_numbers": [
+        6
+      ],
+      "slide_label": "페이지 6",
+      "keywords": [
+        "주요 전산화 방향",
+        "e-감사시스템 통합 효율성 검토",
+        "상시감사에 AI 기술을 접목한 IT 기반 내부통제체계 구축방향 제시",
+        "디지털 감사기법 도입을 통한 업무 효율화 방안 제시",
+        "AI·빅데이터 기반 지능형 리스크 관리체계 구축방향 제시"
+      ],
+      "subsections": [
+        {
+          "section_id": "14.1",
+          "section_name": "e-감사시스템 통합 효율성 검토",
+          "parent_section": "주요 전산화 방향",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "e-감사시스템 통합 효율성 검토"
+          ],
+          "keywords": [
+            "e-감사시스템 통합 효율성 검토"
+          ]
+        },
+        {
+          "section_id": "14.2",
+          "section_name": "상시감사에 AI 기술을 접목한 IT 기반 내부통제체계 구축방향 제시",
+          "parent_section": "주요 전산화 방향",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "상시감사에 AI 기술을 접목한 IT 기반 내부통제체계 구축방향 제시"
+          ],
+          "keywords": [
+            "상시감사에 AI 기술을 접목한 IT 기반 내부통제체계 구축방향 제시"
+          ]
+        },
+        {
+          "section_id": "14.3",
+          "section_name": "디지털 감사기법 도입을 통한 업무 효율화 방안 제시",
+          "parent_section": "주요 전산화 방향",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "디지털 감사기법 도입을 통한 업무 효율화 방안 제시"
+          ],
+          "keywords": [
+            "디지털 감사기법 도입을 통한 업무 효율화 방안 제시"
+          ]
+        },
+        {
+          "section_id": "14.4",
+          "section_name": "AI·빅데이터 기반 지능형 리스크 관리체계 구축방향 제시",
+          "parent_section": "주요 전산화 방향",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "AI·빅데이터 기반 지능형 리스크 관리체계 구축방향 제시"
+          ],
+          "keywords": [
+            "AI·빅데이터 기반 지능형 리스크 관리체계 구축방향 제시"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "15",
+      "section_name": "기대 효과",
+      "slide_range": [
+        7,
+        7
+      ],
+      "slide_numbers": [
+        7
+      ],
+      "slide_label": "페이지 7",
+      "keywords": [
+        "기대 효과",
+        "디지털 감사기법을 통한 감사영역의 확장 및 효율성 제고",
+        "업무 생산성 제고 및 시스템 안정성 향상",
+        "업무 프로세스 재설계를 통한 새로운 감사 패러다임 제시"
+      ],
+      "subsections": [
+        {
+          "section_id": "15.1",
+          "section_name": "디지털 감사기법을 통한 감사영역의 확장 및 효율성 제고",
+          "parent_section": "기대 효과",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "디지털 감사기법을 통한 감사영역의 확장 및 효율성 제고"
+          ],
+          "keywords": [
+            "디지털 감사기법을 통한 감사영역의 확장 및 효율성 제고"
+          ]
+        },
+        {
+          "section_id": "15.2",
+          "section_name": "업무 생산성 제고 및 시스템 안정성 향상",
+          "parent_section": "기대 효과",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "업무 생산성 제고 및 시스템 안정성 향상"
+          ],
+          "keywords": [
+            "업무 생산성 제고 및 시스템 안정성 향상"
+          ]
+        },
+        {
+          "section_id": "15.3",
+          "section_name": "업무 프로세스 재설계를 통한 새로운 감사 패러다임 제시",
+          "parent_section": "기대 효과",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "업무 프로세스 재설계를 통한 새로운 감사 패러다임 제시"
+          ],
+          "keywords": [
+            "업무 프로세스 재설계를 통한 새로운 감사 패러다임 제시"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "16",
+      "section_name": "기타 일반 사항",
+      "slide_range": [
+        7,
+        7
+      ],
+      "slide_numbers": [
+        7
+      ],
+      "slide_label": "페이지 7",
+      "keywords": [
+        "기타 일반 사항",
+        "(사업 기간) 계약 체결일로부터 3개월 이내",
+        "입찰 방법) 제한경쟁입찰(협상에 의한 계약)",
+        "(추진 일정) 입찰공고문 참조",
+        "과업심의위원회",
+        "(과업내용 확정 심의 여부)",
+        "(과업내용 변경)",
+        "소프트웨어 사업 영향평가"
+      ],
+      "subsections": [
+        {
+          "section_id": "16.1",
+          "section_name": "(사업 기간) 계약 체결일로부터 3개월 이내",
+          "parent_section": "기타 일반 사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(사업 기간) 계약 체결일로부터 3개월 이내"
+          ],
+          "keywords": [
+            "(사업 기간) 계약 체결일로부터 3개월 이내"
+          ]
+        },
+        {
+          "section_id": "16.2",
+          "section_name": "입찰 방법) 제한경쟁입찰(협상에 의한 계약)",
+          "parent_section": "기타 일반 사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "입찰 방법) 제한경쟁입찰(협상에 의한 계약)"
+          ],
+          "keywords": [
+            "입찰 방법) 제한경쟁입찰(협상에 의한 계약)"
+          ]
+        },
+        {
+          "section_id": "16.3",
+          "section_name": "(추진 일정) 입찰공고문 참조",
+          "parent_section": "기타 일반 사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(추진 일정) 입찰공고문 참조"
+          ],
+          "keywords": [
+            "(추진 일정) 입찰공고문 참조"
+          ]
+        },
+        {
+          "section_id": "16.4",
+          "section_name": "과업심의위원회",
+          "parent_section": "기타 일반 사항",
+          "slide_range": [
+            8,
+            8
+          ],
+          "slide_numbers": [
+            8
+          ],
+          "slide_label": "페이지 8",
+          "subsections": [],
+          "content_items": [
+            "과업심의위원회"
+          ],
+          "keywords": [
+            "과업심의위원회"
+          ]
+        },
+        {
+          "section_id": "16.5",
+          "section_name": "(과업내용 확정 심의 여부)",
+          "parent_section": "기타 일반 사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(과업내용 확정 심의 여부)"
+          ],
+          "keywords": [
+            "(과업내용 확정 심의 여부)"
+          ]
+        },
+        {
+          "section_id": "16.6",
+          "section_name": "(과업내용 변경)",
+          "parent_section": "기타 일반 사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "(과업내용 변경)"
+          ],
+          "keywords": [
+            "(과업내용 변경)"
+          ]
+        },
+        {
+          "section_id": "16.7",
+          "section_name": "소프트웨어 사업 영향평가",
+          "parent_section": "기타 일반 사항",
+          "slide_range": [
+            8,
+            8
+          ],
+          "slide_numbers": [
+            8
+          ],
+          "slide_label": "페이지 8",
+          "subsections": [],
+          "content_items": [
+            "소프트웨어 사업 영향평가"
+          ],
+          "keywords": [
+            "소프트웨어 사업 영향평가"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "17",
+      "section_name": "제안요청 내용",
+      "slide_range": [
+        9,
+        9
+      ],
+      "slide_numbers": [
+        9
+      ],
+      "slide_label": "페이지 9",
+      "keywords": [
+        "제안요청 내용",
+        "요구사항 총괄",
+        "요구사항 구분 및 총괄표"
+      ],
+      "subsections": [
+        {
+          "section_id": "17.1",
+          "section_name": "요구사항 총괄",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "요구사항 총괄"
+          ],
+          "keywords": [
+            "요구사항 총괄"
+          ]
+        },
+        {
+          "section_id": "17.2",
+          "section_name": "요구사항 구분 및 총괄표",
+          "parent_section": "제안요청 내용",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "요구사항 구분 및 총괄표"
+          ],
+          "keywords": [
+            "요구사항 구분 및 총괄표"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "18",
+      "section_name": "요구사항 상세",
+      "slide_range": [
+        10,
+        15
+      ],
+      "slide_numbers": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "slide_label": "페이지 10~15",
+      "keywords": [
+        "요구사항 상세",
+        "컨설팅 요구사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "18.1",
+          "section_name": "컨설팅 요구사항",
+          "parent_section": "요구사항 상세",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "컨설팅 요구사항"
+          ],
+          "keywords": [
+            "컨설팅 요구사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "19",
+      "section_name": "프로젝트 관리 요구사항",
+      "slide_range": [
+        16,
+        19
+      ],
+      "slide_numbers": [
+        16,
+        17,
+        18,
+        19
+      ],
+      "slide_label": "페이지 16~19",
+      "keywords": [
+        "프로젝트 관리 요구사항"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "20",
+      "section_name": "프로젝트 지원 요구사항",
+      "slide_range": [
+        20,
+        20
+      ],
+      "slide_numbers": [
+        20
+      ],
+      "slide_label": "페이지 20",
+      "keywords": [
+        "프로젝트 지원 요구사항"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "21",
+      "section_name": "제약사항 요구사항",
+      "slide_range": [
+        21,
+        21
+      ],
+      "slide_numbers": [
+        21
+      ],
+      "slide_label": "페이지 21",
+      "keywords": [
+        "제약사항 요구사항"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "22",
+      "section_name": "보안 요구사항",
+      "slide_range": [
+        22,
+        28
+      ],
+      "slide_numbers": [
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28
+      ],
+      "slide_label": "페이지 22~28",
+      "keywords": [
+        "보안 요구사항"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "23",
+      "section_name": "사업자 선정방법",
+      "slide_range": [
+        29,
+        30
+      ],
+      "slide_numbers": [
+        29,
+        30
+      ],
+      "slide_label": "페이지 29~30",
+      "keywords": [
+        "사업자 선정방법",
+        "입찰 방법",
+        "입찰 참가자격"
+      ],
+      "subsections": [
+        {
+          "section_id": "23.1",
+          "section_name": "입찰 방법",
+          "parent_section": "사업자 선정방법",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "입찰 방법"
+          ],
+          "keywords": [
+            "입찰 방법"
+          ]
+        },
+        {
+          "section_id": "23.2",
+          "section_name": "입찰 참가자격",
+          "parent_section": "사업자 선정방법",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "입찰 참가자격"
+          ],
+          "keywords": [
+            "입찰 참가자격"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "24",
+      "section_name": "제안서 평가 및 낙찰자 결정",
+      "slide_range": [
+        30,
+        31
+      ],
+      "slide_numbers": [
+        30,
+        31
+      ],
+      "slide_label": "페이지 30~31",
+      "keywords": [
+        "제안서 평가 및 낙찰자 결정"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "25",
+      "section_name": "제안서 평가방법",
+      "slide_range": [
+        31,
+        32
+      ],
+      "slide_numbers": [
+        31,
+        32
+      ],
+      "slide_label": "페이지 31~32",
+      "keywords": [
+        "제안서 평가방법"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "26",
+      "section_name": "제안서 작성안내",
+      "slide_range": [
+        33,
+        37
+      ],
+      "slide_numbers": [
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "slide_label": "페이지 33~37",
+      "keywords": [
+        "제안서 작성안내",
+        "제안서 효력",
+        "제안서 작성지침",
+        "제안서 목차",
+        "제안서 작성방법",
+        "제안서 제출서류",
+        "기타사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "26.1",
+          "section_name": "제안서 효력",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [
+            33,
+            33
+          ],
+          "slide_numbers": [
+            33
+          ],
+          "slide_label": "페이지 33",
+          "subsections": [],
+          "content_items": [
+            "제안서 효력"
+          ],
+          "keywords": [
+            "제안서 효력"
+          ]
+        },
+        {
+          "section_id": "26.2",
+          "section_name": "제안서 작성지침",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [
+            34,
+            34
+          ],
+          "slide_numbers": [
+            34
+          ],
+          "slide_label": "페이지 34",
+          "subsections": [],
+          "content_items": [
+            "제안서 작성지침"
+          ],
+          "keywords": [
+            "제안서 작성지침"
+          ]
+        },
+        {
+          "section_id": "26.3",
+          "section_name": "제안서 목차",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [
+            35,
+            35
+          ],
+          "slide_numbers": [
+            35
+          ],
+          "slide_label": "페이지 35",
+          "subsections": [],
+          "content_items": [
+            "제안서 목차"
+          ],
+          "keywords": [
+            "제안서 목차"
+          ]
+        },
+        {
+          "section_id": "26.4",
+          "section_name": "제안서 작성방법",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [
+            36,
+            36
+          ],
+          "slide_numbers": [
+            36
+          ],
+          "slide_label": "페이지 36",
+          "subsections": [],
+          "content_items": [
+            "제안서 작성방법"
+          ],
+          "keywords": [
+            "제안서 작성방법"
+          ]
+        },
+        {
+          "section_id": "26.5",
+          "section_name": "제안서 제출서류",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [
+            37,
+            37
+          ],
+          "slide_numbers": [
+            37
+          ],
+          "slide_label": "페이지 37",
+          "subsections": [],
+          "content_items": [
+            "제안서 제출서류"
+          ],
+          "keywords": [
+            "제안서 제출서류"
+          ]
+        },
+        {
+          "section_id": "26.6",
+          "section_name": "기타사항",
+          "parent_section": "제안서 작성안내",
+          "slide_range": [
+            37,
+            37
+          ],
+          "slide_numbers": [
+            37
+          ],
+          "slide_label": "페이지 37",
+          "subsections": [],
+          "content_items": [
+            "기타사항"
+          ],
+          "keywords": [
+            "기타사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "27",
+      "section_name": "안내 및 유의사항",
+      "slide_range": [
+        38,
+        44
+      ],
+      "slide_numbers": [
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44
+      ],
+      "slide_label": "페이지 38~44",
+      "keywords": [
+        "안내 및 유의사항",
+        "제안요청 설명회",
+        "사업자의 의무 및 책임에 관한 사항",
+        "지식재산 공동귀속",
+        "SW산출물 반출 절차 등",
+        "지식재산권 공동 활용 범위에 관한 사항",
+        "기타 유의사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "27.1",
+          "section_name": "제안요청 설명회",
+          "parent_section": "안내 및 유의사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "제안요청 설명회"
+          ],
+          "keywords": [
+            "제안요청 설명회"
+          ]
+        },
+        {
+          "section_id": "27.2",
+          "section_name": "사업자의 의무 및 책임에 관한 사항",
+          "parent_section": "안내 및 유의사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업자의 의무 및 책임에 관한 사항"
+          ],
+          "keywords": [
+            "사업자의 의무 및 책임에 관한 사항"
+          ]
+        },
+        {
+          "section_id": "27.3",
+          "section_name": "지식재산 공동귀속",
+          "parent_section": "안내 및 유의사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "지식재산 공동귀속"
+          ],
+          "keywords": [
+            "지식재산 공동귀속"
+          ]
+        },
+        {
+          "section_id": "27.4",
+          "section_name": "SW산출물 반출 절차 등",
+          "parent_section": "안내 및 유의사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "SW산출물 반출 절차 등"
+          ],
+          "keywords": [
+            "SW산출물 반출 절차 등"
+          ]
+        },
+        {
+          "section_id": "27.5",
+          "section_name": "지식재산권 공동 활용 범위에 관한 사항",
+          "parent_section": "안내 및 유의사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "지식재산권 공동 활용 범위에 관한 사항"
+          ],
+          "keywords": [
+            "지식재산권 공동 활용 범위에 관한 사항"
+          ]
+        },
+        {
+          "section_id": "27.6",
+          "section_name": "기타 유의사항",
+          "parent_section": "안내 및 유의사항",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "기타 유의사항"
+          ],
+          "keywords": [
+            "기타 유의사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "28",
+      "section_name": "[붙임1] 기술평가항목 및 배점표",
+      "slide_range": [
+        41,
+        41
+      ],
+      "slide_numbers": [
+        41
+      ],
+      "slide_label": "페이지 41",
+      "keywords": [
+        "[붙임1] 기술평가항목 및 배점표"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "29",
+      "section_name": "[붙임1] 입찰평가항목 및 배점표",
+      "slide_range": [
+        41,
+        41
+      ],
+      "slide_numbers": [
+        41
+      ],
+      "slide_label": "페이지 41",
+      "keywords": [
+        "[붙임1] 입찰평가항목 및 배점표",
+        "정량적 평가 세부기준",
+        "정성적 평가 세부기준"
+      ],
+      "subsections": [
+        {
+          "section_id": "29.1",
+          "section_name": "정량적 평가 세부기준",
+          "parent_section": "[붙임1] 입찰평가항목 및 배점표",
+          "slide_range": [
+            42,
+            42
+          ],
+          "slide_numbers": [
+            42
+          ],
+          "slide_label": "페이지 42",
+          "subsections": [],
+          "content_items": [
+            "정량적 평가 세부기준"
+          ],
+          "keywords": [
+            "정량적 평가 세부기준"
+          ]
+        },
+        {
+          "section_id": "29.2",
+          "section_name": "정성적 평가 세부기준",
+          "parent_section": "[붙임1] 입찰평가항목 및 배점표",
+          "slide_range": [
+            44,
+            44
+          ],
+          "slide_numbers": [
+            44
+          ],
+          "slide_label": "페이지 44",
+          "subsections": [],
+          "content_items": [
+            "정성적 평가 세부기준"
+          ],
+          "keywords": [
+            "정성적 평가 세부기준"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "30",
+      "section_name": "[붙임2] 외주 용역사업 보안 특약 조항",
+      "slide_range": [
+        45,
+        52
+      ],
+      "slide_numbers": [
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52
+      ],
+      "slide_label": "페이지 45~52",
+      "keywords": [
+        "[붙임2] 외주 용역사업 보안 특약 조항",
+        "공통사항",
+        "참여인원에 대한 보안관리",
+        "자료에 대한 보안관리",
+        "사무실·장비에 대한 보안관리",
+        "내ㆍ외부망 접근에 대한 보안관리",
+        "개인정보 보안"
+      ],
+      "subsections": [
+        {
+          "section_id": "30.1",
+          "section_name": "공통사항",
+          "parent_section": "[붙임2] 외주 용역사업 보안 특약 조항",
+          "slide_range": [
+            46,
+            46
+          ],
+          "slide_numbers": [
+            46
+          ],
+          "slide_label": "페이지 46",
+          "subsections": [],
+          "content_items": [
+            "공통사항"
+          ],
+          "keywords": [
+            "공통사항"
+          ]
+        },
+        {
+          "section_id": "30.2",
+          "section_name": "참여인원에 대한 보안관리",
+          "parent_section": "[붙임2] 외주 용역사업 보안 특약 조항",
+          "slide_range": [
+            47,
+            47
+          ],
+          "slide_numbers": [
+            47
+          ],
+          "slide_label": "페이지 47",
+          "subsections": [],
+          "content_items": [
+            "참여인원에 대한 보안관리"
+          ],
+          "keywords": [
+            "참여인원에 대한 보안관리"
+          ]
+        },
+        {
+          "section_id": "30.3",
+          "section_name": "자료에 대한 보안관리",
+          "parent_section": "[붙임2] 외주 용역사업 보안 특약 조항",
+          "slide_range": [
+            47,
+            49
+          ],
+          "slide_numbers": [
+            47,
+            48,
+            49
+          ],
+          "slide_label": "페이지 47~49",
+          "subsections": [],
+          "content_items": [
+            "자료에 대한 보안관리"
+          ],
+          "keywords": [
+            "자료에 대한 보안관리"
+          ]
+        },
+        {
+          "section_id": "30.4",
+          "section_name": "사무실·장비에 대한 보안관리",
+          "parent_section": "[붙임2] 외주 용역사업 보안 특약 조항",
+          "slide_range": [
+            49,
+            51
+          ],
+          "slide_numbers": [
+            49,
+            50,
+            51
+          ],
+          "slide_label": "페이지 49~51",
+          "subsections": [],
+          "content_items": [
+            "사무실·장비에 대한 보안관리"
+          ],
+          "keywords": [
+            "사무실·장비에 대한 보안관리"
+          ]
+        },
+        {
+          "section_id": "30.5",
+          "section_name": "내ㆍ외부망 접근에 대한 보안관리",
+          "parent_section": "[붙임2] 외주 용역사업 보안 특약 조항",
+          "slide_range": [
+            51,
+            51
+          ],
+          "slide_numbers": [
+            51
+          ],
+          "slide_label": "페이지 51",
+          "subsections": [],
+          "content_items": [
+            "내ㆍ외부망 접근에 대한 보안관리"
+          ],
+          "keywords": [
+            "내ㆍ외부망 접근에 대한 보안관리"
+          ]
+        },
+        {
+          "section_id": "30.6",
+          "section_name": "개인정보 보안",
+          "parent_section": "[붙임2] 외주 용역사업 보안 특약 조항",
+          "slide_range": [
+            52,
+            52
+          ],
+          "slide_numbers": [
+            52
+          ],
+          "slide_label": "페이지 52",
+          "subsections": [],
+          "content_items": [
+            "개인정보 보안"
+          ],
+          "keywords": [
+            "개인정보 보안"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "31",
+      "section_name": "[별첨 1] 외주 용역사업 보안특약",
+      "slide_range": [
+        53,
+        54
+      ],
+      "slide_numbers": [
+        53,
+        54
+      ],
+      "slide_label": "페이지 53~54",
+      "keywords": [
+        "[별첨 1] 외주 용역사업 보안특약"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "32",
+      "section_name": "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+      "slide_range": [
+        55,
+        55
+      ],
+      "slide_numbers": [
+        55
+      ],
+      "slide_label": "페이지 55",
+      "keywords": [
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "33",
+      "section_name": "[별표 1] 사업자 보안위규 처리기준",
+      "slide_range": [
+        56,
+        57
+      ],
+      "slide_numbers": [
+        56,
+        57
+      ],
+      "slide_label": "페이지 56~57",
+      "keywords": [
+        "[별표 1] 사업자 보안위규 처리기준"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "34",
+      "section_name": "[별표 2] 보안 위약금 부과 기준",
+      "slide_range": [
+        58,
+        58
+      ],
+      "slide_numbers": [
+        58
+      ],
+      "slide_label": "페이지 58",
+      "keywords": [
+        "[별표 2] 보안 위약금 부과 기준"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "35",
+      "section_name": "[별표 3] 누출금지 대상 정보",
+      "slide_range": [
+        59,
+        59
+      ],
+      "slide_numbers": [
+        59
+      ],
+      "slide_label": "페이지 59",
+      "keywords": [
+        "[별표 3] 누출금지 대상 정보"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "36",
+      "section_name": "[별표 4] 개인정보 취급에 관한 특약서",
+      "slide_range": [
+        60,
+        62
+      ],
+      "slide_numbers": [
+        60,
+        61,
+        62
+      ],
+      "slide_label": "페이지 60~62",
+      "keywords": [
+        "[별표 4] 개인정보 취급에 관한 특약서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "37",
+      "section_name": "[별지서식 1] 일반현황 및 연혁",
+      "slide_range": [
+        63,
+        63
+      ],
+      "slide_numbers": [
+        63
+      ],
+      "slide_label": "페이지 63",
+      "keywords": [
+        "[별지서식 1] 일반현황 및 연혁"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "38",
+      "section_name": "[별지서식 2] 조직·인력 현황",
+      "slide_range": [
+        64,
+        64
+      ],
+      "slide_numbers": [
+        64
+      ],
+      "slide_label": "페이지 64",
+      "keywords": [
+        "[별지서식 2] 조직·인력 현황"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "39",
+      "section_name": "[별지서식 3] 사업수행조직",
+      "slide_range": [
+        65,
+        65
+      ],
+      "slide_numbers": [
+        65
+      ],
+      "slide_label": "페이지 65",
+      "keywords": [
+        "[별지서식 3] 사업수행조직"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "40",
+      "section_name": "[별지서식 4] 투입인력 총괄내역",
+      "slide_range": [
+        66,
+        66
+      ],
+      "slide_numbers": [
+        66
+      ],
+      "slide_label": "페이지 66",
+      "keywords": [
+        "[별지서식 4] 투입인력 총괄내역"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "41",
+      "section_name": "[별지서식 5] 투입인력 이력사항 - age 67",
+      "slide_range": [],
+      "slide_numbers": [],
+      "slide_label": "페이지 미상",
+      "keywords": [
+        "[별지서식 5] 투입인력 이력사항 - age 67"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "42",
+      "section_name": "[별지서식 6] 수행실적 총괄표",
+      "slide_range": [
+        68,
+        68
+      ],
+      "slide_numbers": [
+        68
+      ],
+      "slide_label": "페이지 68",
+      "keywords": [
+        "[별지서식 6] 수행실적 총괄표"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "43",
+      "section_name": "[별지서식 7] 수행실적증명서",
+      "slide_range": [
+        69,
+        69
+      ],
+      "slide_numbers": [
+        69
+      ],
+      "slide_label": "페이지 69",
+      "keywords": [
+        "[별지서식 7] 수행실적증명서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "44",
+      "section_name": "[별지서식 8] 서약서",
+      "slide_range": [
+        70,
+        70
+      ],
+      "slide_numbers": [
+        70
+      ],
+      "slide_label": "페이지 70",
+      "keywords": [
+        "[별지서식 8] 서약서"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "45",
+      "section_name": "[별지서식 9] 청렴서약서",
+      "slide_range": [
+        71,
+        71
+      ],
+      "slide_numbers": [
+        71
+      ],
+      "slide_label": "페이지 71",
+      "keywords": [
+        "[별지서식 9] 청렴서약서"
+      ],
+      "subsections": []
+    }
+  ],
+  "cover_page": {
+    "title": "AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서",
+    "organization": "캠코 한국자산관리공사",
+    "project_name": "",
+    "date": "2025. 4.",
+    "document_type": "제안요청서",
+    "confidence": 0.9
+  },
+  "toc": {
+    "sections": [
+      {
+        "level": 1,
+        "title": "목차",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "목차 내용:",
+        "page": null
+      }
+    ],
+    "section_titles": [
+      "목차",
+      "목차 내용:"
+    ],
+    "keywords": [
+      "목차",
+      "목차 내용:"
+    ],
+    "confidence": 0.9
+  },
+  "detected_sections": [
+    "사업개요",
+    "제안요청 내용",
+    "사업자 선정방법",
+    "제안서 작성안내",
+    "안내 및 유의사항",
+    "[붙임1] 평가항목 및 배점표",
+    "[붙임2] 외주 용역사업 보안특약",
+    "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+    "[별지서식 1~9]",
+    "사업개요",
+    "추진배경",
+    "e-감사시스템 구축 현황",
+    "주요 사업 범위",
+    "주요 전산화 방향",
+    "기대 효과",
+    "기타 일반 사항",
+    "제안요청 내용",
+    "요구사항 상세",
+    "프로젝트 관리 요구사항",
+    "프로젝트 지원 요구사항",
+    "제약사항 요구사항",
+    "보안 요구사항",
+    "사업자 선정방법",
+    "제안서 평가 및 낙찰자 결정",
+    "제안서 평가방법",
+    "제안서 작성안내",
+    "안내 및 유의사항",
+    "[붙임1] 기술평가항목 및 배점표",
+    "[붙임1] 입찰평가항목 및 배점표",
+    "[붙임2] 외주 용역사업 보안 특약 조항"
+  ],
+  "document_summary": ") AI 기반 e-감사시스템 재구축 ISP 컨설팅 - page 1 | 표지 내용 - page 1 1. 제목: AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서 2. 년월: 2025. 4. 3. 기관명: 캠코 한국자산관리공사 목차 - page 2 목차 내용: 사업개요 - 사업개요 - 추진배경 - e-감사시스템 구축 현황 - 주요 사업 범위 - 주요 전산화 방향 및 기대효과 - 기타 일반사항 제안요청 내용 - 요구사",
+  "page_types": [
+    "cover"
+  ],
+  "manual_sample": {
+    "original_lines": [
+      "경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "파일명: RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+      "표지 내용 - page 1",
+      "1. 제목: AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서",
+      "2. 년월: 2025. 4.",
+      "3. 기관명: 캠코 한국자산관리공사",
+      "목차 - page 2",
+      "목차 내용:",
+      "사업개요",
+      " - 사업개요",
+      " - 추진배경",
+      " - e-감사시스템 구축 현황",
+      " - 주요 사업 범위",
+      " - 주요 전산화 방향 및 기대효과",
+      " - 기타 일반사항",
+      "제안요청 내용",
+      " - 요구사항 총괄",
+      " - 상세 요구사항",
+      "  - 컨설팅 요구사항",
+      "  - 프로젝트 관리 요구사항",
+      "  - 프로젝트 지원 요구사항",
+      "  - 제약사항 요구사항",
+      "  - 보안 요구사항",
+      "사업자 선정방법",
+      " - 입찰 방법",
+      " - 입찰 참가자격",
+      " - 제안서 평가 및 낙찰자 결정",
+      "제안서 작성안내",
+      " - 제안서 효력",
+      " - 제안서 작성지침",
+      " - 제안서 목차",
+      " - 제안서 작성방법",
+      " - 제안서 제출서류",
+      " - 기타사항",
+      "안내 및 유의사항",
+      "[붙임1] 평가항목 및 배점표",
+      "[붙임2] 외주 용역사업 보안특약",
+      "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+      "[별지서식 1~9]",
+      "사업개요 - page 1",
+      "사업개요 - page 1",
+      "사업개요 - (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅 - page 1",
+      "사업개요 - (사업예산) 169,600,000원(부가가치세 포함) - page 1",
+      "사업개요 - (사업기간) 계약 체결일로부터 3개월 - page 1",
+      "사업개요 - (업체 선정방식) 제한경쟁입찰(협상에 의한 계약*) - page 1",
+      "사업개요 - *「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름 - page 1",
+      "추진배경 - page 1",
+      "추진배경 - 최신 IT기술을 적용한 감사기법의 디지털 전환·혁신 - page 1",
+      "추진배경 -  노후 장비 교체로 시스템 성능 제고 - page 1",
+      "추진배경 -  최신 브라우저 기반 재구축을 통해 시스템 안정성 향상 - page 1",
+      "e-감사시스템 구축 현황 - page 2 - 3",
+      " - 감사관리시스템 - page 2",
+      "   - 구축일자",
+      "   - 시스템 구성도",
+      " - 감사결과검색시스템",
+      "   - 구축일자",
+      "   - 시스템 구성",
+      " - 상시감사시스템 - page 3",
+      "   - 구축일자",
+      "   - 시스템 구성도",
+      "주요 사업 범위 - page 4 - 5",
+      " - 대내외 업무환경 분석",
+      " - 감사업무 현황 분석",
+      " - 시스템 목표모델 설계 - page 5",
+      " - 통합 이행계획 수립 - paage 5",
+      "주요 전산화 방향 - page 6",
+      " - e-감사시스템 통합 효율성 검토",
+      " - 상시감사에 AI 기술을 접목한 IT 기반 내부통제체계 구축방향 제시",
+      " - 디지털 감사기법 도입을 통한 업무 효율화 방안 제시",
+      " - AI·빅데이터 기반 지능형 리스크 관리체계 구축방향 제시",
+      "기대 효과 - page 7",
+      " - 디지털 감사기법을 통한 감사영역의 확장 및 효율성 제고",
+      " - 업무 생산성 제고 및 시스템 안정성 향상",
+      " - 업무 프로세스 재설계를 통한 새로운 감사 패러다임 제시",
+      "기타 일반 사항 - page 7",
+      " - (사업 기간) 계약 체결일로부터 3개월 이내",
+      " - 입찰 방법) 제한경쟁입찰(협상에 의한 계약)",
+      " - (추진 일정) 입찰공고문 참조",
+      " - 과업심의위원회 - page 8",
+      "   - (과업내용 확정 심의 여부)",
+      "   - (과업내용 변경)",
+      " - 소프트웨어 사업 영향평가 - page 8",
+      "제안요청 내용 - page 9",
+      " - 요구사항 총괄",
+      "   - 요구사항 구분 및 총괄표",
+      "요구사항 상세 - page 10 - 15",
+      " - 컨설팅 요구사항",
+      "프로젝트 관리 요구사항 - page 16 -19",
+      "프로젝트 지원 요구사항 - page 20",
+      "제약사항 요구사항 - page 21",
+      "보안 요구사항 - page 22 - 28",
+      "사업자 선정방법 - page 29 - 30",
+      " - 입찰 방법",
+      " - 입찰 참가자격",
+      "제안서 평가 및 낙찰자 결정 - page 30 - 31",
+      "제안서 평가방법 - page 31 - 32",
+      "제안서 작성안내 - page 33 - 37",
+      " - 제안서 효력 - page 33",
+      " - 제안서 작성지침 - page 34",
+      " - 제안서 목차 - page 35",
+      " - 제안서 작성방법 - page 36",
+      " - 제안서 제출서류 - page 37",
+      " - 기타사항 - page 37",
+      "안내 및 유의사항 - page 38 - 44",
+      " - 제안요청 설명회",
+      " - 사업자의 의무 및 책임에 관한 사항",
+      " - 지식재산 공동귀속",
+      " - SW산출물 반출 절차 등",
+      " - 지식재산권 공동 활용 범위에 관한 사항",
+      " - 기타 유의사항",
+      "[붙임1] 기술평가항목 및 배점표 - page 41",
+      "[붙임1] 입찰평가항목 및 배점표 - page 41",
+      " - 정량적 평가 세부기준 - page 42",
+      " - 정성적 평가 세부기준 - page 44",
+      "[붙임2] 외주 용역사업 보안 특약 조항 - page 45 - 52",
+      " - 공통사항 - page 46",
+      " - 참여인원에 대한 보안관리 - page 47",
+      " - 자료에 대한 보안관리 - page 47 - 49",
+      " - 사무실·장비에 대한 보안관리 - page 49 - 51",
+      " - 내ㆍ외부망 접근에 대한 보안관리 - page 51",
+      " - 개인정보 보안 - page 52",
+      "[별첨 1] 외주 용역사업 보안특약 - page 53 - 54",
+      "[붙임3] 소프트웨어사업 영향평가 검토결과서 - page 55",
+      "[별표 1] 사업자 보안위규 처리기준 - page 56 - 57",
+      "[별표 2] 보안 위약금 부과 기준 - page 58",
+      "[별표 3] 누출금지 대상 정보 - page 59",
+      "[별표 4] 개인정보 취급에 관한 특약서 - page 60 - 62",
+      "[별지서식 1] 일반현황 및 연혁 - page 63",
+      "[별지서식 2] 조직·인력 현황 - page 64",
+      "[별지서식 3] 사업수행조직 - page 65",
+      "[별지서식 4] 투입인력 총괄내역 - page 66",
+      "[별지서식 5] 투입인력 이력사항 - age 67",
+      "[별지서식 6] 수행실적 총괄표 - page 68",
+      "[별지서식 7] 수행실적증명서 - page 69",
+      "[별지서식 8] 서약서 - page 70",
+      "[별지서식 9] 청렴서약서 - page 71"
+    ],
+    "cover_lines": [
+      "1. 제목: AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서",
+      "2. 년월: 2025. 4.",
+      "3. 기관명: 캠코 한국자산관리공사"
+    ],
+    "toc_lines": [
+      "목차 - page 2",
+      "목차 내용:"
+    ]
+  },
+  "pattern_metadata": {
+    "project_name": "AI 기반 e-감사시스템",
+    "project_type": "ISP",
+    "category": "",
+    "document_type": "RFP",
+    "organization": "제안요청",
+    "year": 2025,
+    "technology_keywords": [
+      "AI",
+      "시스템"
+    ],
+    "domain": "감사",
+    "detected_sections": [
+      "사업개요",
+      "사업개요 - (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+      "사업개요 - (사업예산) 169,600,000원(부가가치세 포함)",
+      "사업개요 - (사업기간) 계약 체결일로부터 3개월",
+      "사업개요 - (업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)",
+      "사업개요 - *「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름",
+      "추진배경",
+      "추진배경 - 최신 IT기술을 적용한 감사기법의 디지털 전환·혁신",
+      "추진배경 -  노후 장비 교체로 시스템 성능 제고",
+      "추진배경 -  최신 브라우저 기반 재구축을 통해 시스템 안정성 향상",
+      "e-감사시스템 구축 현황",
+      "감사관리시스템",
+      "상시감사시스템",
+      "주요 사업 범위",
+      "시스템 목표모델 설계",
+      "주요 전산화 방향",
+      "기대 효과",
+      "기타 일반 사항",
+      "과업심의위원회",
+      "소프트웨어 사업 영향평가"
+    ],
+    "keywords": [
+      "RFP",
+      "AI",
+      "기반",
+      "감사시스템",
+      "재구축",
+      "ISP",
+      "컨설팅",
+      "외부망",
+      "붙임",
+      "혁신",
+      "제안요청서",
+      "유의사항",
+      "용역",
+      "디지털",
+      "입찰",
+      "주요",
+      "현황",
+      "체결일로부터",
+      "제약사항",
+      "제안요청",
+      "목차",
+      "계약에",
+      "효력",
+      "page",
+      "보안관리",
+      "효과",
+      "대한",
+      "정성적",
+      "성능",
+      "낙찰자"
+    ],
+    "summary": ") AI 기반 e-감사시스템 재구축 ISP 컨설팅 - page 1 | 표지 내용 - page 1 1. 제목: AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서 2. 년월: 2025. 4. 3. 기관명: 캠코 한국자산관리공사 목차 - page 2 목차 내용: 사업개요 - 사업개요 - 추진배경 - e-감사시스템 구축 현황 - 주요 사업 범위 - 주요 전산화 방향 및 기대효과 - 기타 일반사항 제안요청 내용 - 요구사",
+    "confidence": 1.0,
+    "metadata_source": "rfp_pattern_analyzer",
+    "cover_page": {
+      "title": "AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서",
+      "organization": "제안요청",
+      "project_name": ") AI 기반 e-감사시스템 재구축 ISP 컨설팅 - page 1",
+      "date": "2025년 4월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "AI",
+        "기반",
+        "감사시스템",
+        "재구축",
+        "ISP",
+        "컨설팅",
+        "용역",
+        "제안요청서"
+      ],
+      "confidence": 1.0
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업개요",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (사업예산) 169,600,000원(부가가치세 포함)",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (사업기간) 계약 체결일로부터 3개월",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - *「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경 - 최신 IT기술을 적용한 감사기법의 디지털 전환·혁신",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경 -  노후 장비 교체로 시스템 성능 제고",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경 -  최신 브라우저 기반 재구축을 통해 시스템 안정성 향상",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "e-감사시스템 구축 현황",
+          "page": 2
+        },
+        {
+          "level": 2,
+          "title": "감사관리시스템",
+          "page": 2
+        },
+        {
+          "level": 2,
+          "title": "상시감사시스템",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "주요 사업 범위",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "시스템 목표모델 설계",
+          "page": 5
+        },
+        {
+          "level": 1,
+          "title": "주요 전산화 방향",
+          "page": 6
+        },
+        {
+          "level": 1,
+          "title": "기대 효과",
+          "page": 7
+        },
+        {
+          "level": 1,
+          "title": "기타 일반 사항",
+          "page": 7
+        },
+        {
+          "level": 2,
+          "title": "과업심의위원회",
+          "page": 8
+        },
+        {
+          "level": 2,
+          "title": "소프트웨어 사업 영향평가",
+          "page": 8
+        },
+        {
+          "level": 1,
+          "title": "제안요청 내용",
+          "page": 9
+        },
+        {
+          "level": 1,
+          "title": "요구사항 상세",
+          "page": 10
+        },
+        {
+          "level": 1,
+          "title": "프로젝트 관리 요구사항",
+          "page": 16
+        },
+        {
+          "level": 1,
+          "title": "프로젝트 지원 요구사항",
+          "page": 20
+        },
+        {
+          "level": 1,
+          "title": "제약사항 요구사항",
+          "page": 21
+        },
+        {
+          "level": 1,
+          "title": "보안 요구사항",
+          "page": 22
+        },
+        {
+          "level": 1,
+          "title": "사업자 선정방법",
+          "page": 29
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가 및 낙찰자 결정",
+          "page": 30
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가방법",
+          "page": 31
+        },
+        {
+          "level": 1,
+          "title": "제안서 작성안내",
+          "page": 33
+        }
+      ],
+      "section_titles": [
+        "사업개요",
+        "사업개요 - (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+        "사업개요 - (사업예산) 169,600,000원(부가가치세 포함)",
+        "사업개요 - (사업기간) 계약 체결일로부터 3개월",
+        "사업개요 - (업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)",
+        "사업개요 - *「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름",
+        "추진배경",
+        "추진배경 - 최신 IT기술을 적용한 감사기법의 디지털 전환·혁신",
+        "추진배경 -  노후 장비 교체로 시스템 성능 제고",
+        "추진배경 -  최신 브라우저 기반 재구축을 통해 시스템 안정성 향상",
+        "e-감사시스템 구축 현황",
+        "감사관리시스템",
+        "상시감사시스템",
+        "주요 사업 범위",
+        "시스템 목표모델 설계",
+        "주요 전산화 방향",
+        "기대 효과",
+        "기타 일반 사항",
+        "과업심의위원회",
+        "소프트웨어 사업 영향평가",
+        "제안요청 내용",
+        "요구사항 상세",
+        "프로젝트 관리 요구사항",
+        "프로젝트 지원 요구사항",
+        "제약사항 요구사항",
+        "보안 요구사항",
+        "사업자 선정방법",
+        "제안서 평가 및 낙찰자 결정",
+        "제안서 평가방법",
+        "제안서 작성안내",
+        "제안서 효력",
+        "제안서 작성지침",
+        "제안서 목차",
+        "제안서 작성방법",
+        "제안서 제출서류",
+        "기타사항",
+        "안내 및 유의사항",
+        "[붙임1] 기술평가항목 및 배점표",
+        "[붙임1] 입찰평가항목 및 배점표",
+        "정량적 평가 세부기준",
+        "정성적 평가 세부기준",
+        "[붙임2] 외주 용역사업 보안 특약 조항",
+        "공통사항",
+        "참여인원에 대한 보안관리",
+        "자료에 대한 보안관리",
+        "사무실·장비에 대한 보안관리",
+        "내ㆍ외부망 접근에 대한 보안관리",
+        "개인정보 보안",
+        "[별첨 1] 외주 용역사업 보안특약",
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+        "[별표 1] 사업자 보안위규 처리기준",
+        "[별표 2] 보안 위약금 부과 기준",
+        "[별표 3] 누출금지 대상 정보",
+        "[별표 4] 개인정보 취급에 관한 특약서",
+        "[별지서식 1] 일반현황 및 연혁",
+        "[별지서식 2] 조직·인력 현황",
+        "[별지서식 3] 사업수행조직",
+        "[별지서식 4] 투입인력 총괄내역",
+        "[별지서식 6] 수행실적 총괄표",
+        "[별지서식 7] 수행실적증명서",
+        "[별지서식 8] 서약서",
+        "[별지서식 9] 청렴서약서"
+      ],
+      "keywords": [
+        "외부망",
+        "혁신",
+        "ISP",
+        "유의사항",
+        "붙임",
+        "디지털",
+        "체결일로부터",
+        "제약사항",
+        "제안요청",
+        "목차",
+        "기반",
+        "계약에",
+        "효력",
+        "보안관리",
+        "효과",
+        "대한",
+        "정성적",
+        "성능",
+        "낙찰자",
+        "부과"
+      ],
+      "confidence": 1.0
+    }
+  },
+  "metadata_auto": {
+    "document_type": "RFP",
+    "project_name": ") AI 기반 e-감사시스템 재구축 ISP 컨설팅 - page 1",
+    "organization": "제안요청",
+    "project_year": "2025",
+    "business_domain": "ISP, 컨설팅",
+    "technology_tags": [
+      "AI",
+      "시스템",
+      "빅데이터",
+      "RAG"
+    ],
+    "business_tags": [
+      "ISP",
+      "컨설팅"
+    ],
+    "deliverable_tags": [],
+    "summary": ") AI 기반 e-감사시스템 재구축 ISP 컨설팅 - page 1 | 표지 내용 - page 1 1. 제목: AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서 2. 년월: 2025. 4. 3. 기관명: 캠코 한국자산관리공사 목차 - page 2 목차 내용: 사업개요 - 사업개요 - 추진배경 - e-감사시스템 구축 현황 - 주요 사업 범위 - 주요 전산화 방향 및 기대효과 - 기타 일반사항 제안요청 내용 - 요구사",
+    "reuse_level": "high",
+    "confidence": 1.0,
+    "reason": "RFP 패턴 분석 기반; 문서 그룹: RFP; 감지된 섹션: 20개; 표지 정보 포함; 목차 정보 포함",
+    "year": 2025,
+    "project_type": "ISP",
+    "domain": "감사",
+    "detected_sections": [
+      "[별지서식 2] 조직·인력 현황",
+      "주요 사업 범위",
+      "[별표 2] 보안 위약금 부과 기준",
+      "과업심의위원회",
+      "사무실·장비에 대한 보안관리",
+      "[별지서식 6] 수행실적 총괄표",
+      "소프트웨어 사업 영향평가",
+      "[별표 4] 개인정보 취급에 관한 특약서",
+      "제안서 평가 및 낙찰자 결정",
+      "[붙임1] 기술평가항목 및 배점표",
+      "[별첨 1] 외주 용역사업 보안특약",
+      "[별지서식 8] 서약서",
+      "제안서 작성방법",
+      "정량적 평가 세부기준",
+      "e-감사시스템 구축 현황",
+      "시스템 목표모델 설계",
+      "사업개요 - (사업예산) 169,600,000원(부가가치세 포함)",
+      "감사관리시스템",
+      "프로젝트 관리 요구사항",
+      "제안서 효력"
+    ],
+    "keywords": [
+      "외부망",
+      "붙임",
+      "ISP",
+      "혁신",
+      "제안요청서",
+      "유의사항",
+      "용역",
+      "디지털",
+      "입찰",
+      "주요",
+      "현황",
+      "체결일로부터",
+      "제약사항",
+      "제안요청",
+      "RFP",
+      "목차",
+      "재구축",
+      "기반",
+      "AI",
+      "계약에",
+      "감사시스템",
+      "효력",
+      "page",
+      "보안관리",
+      "효과",
+      "대한",
+      "컨설팅",
+      "정성적",
+      "성능",
+      "낙찰자"
+    ],
+    "cover_page": {
+      "title": "AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서",
+      "organization": "제안요청",
+      "project_name": ") AI 기반 e-감사시스템 재구축 ISP 컨설팅 - page 1",
+      "date": "2025년 4월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "AI",
+        "기반",
+        "감사시스템",
+        "재구축",
+        "ISP",
+        "컨설팅",
+        "용역",
+        "제안요청서"
+      ],
+      "confidence": 1.0
+    },
+    "title": "AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서",
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업개요",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (사업예산) 169,600,000원(부가가치세 포함)",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (사업기간) 계약 체결일로부터 3개월",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - (업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "사업개요 - *「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경 - 최신 IT기술을 적용한 감사기법의 디지털 전환·혁신",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경 -  노후 장비 교체로 시스템 성능 제고",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "추진배경 -  최신 브라우저 기반 재구축을 통해 시스템 안정성 향상",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "e-감사시스템 구축 현황",
+          "page": 2
+        },
+        {
+          "level": 2,
+          "title": "감사관리시스템",
+          "page": 2
+        },
+        {
+          "level": 2,
+          "title": "상시감사시스템",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "주요 사업 범위",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "시스템 목표모델 설계",
+          "page": 5
+        },
+        {
+          "level": 1,
+          "title": "주요 전산화 방향",
+          "page": 6
+        },
+        {
+          "level": 1,
+          "title": "기대 효과",
+          "page": 7
+        },
+        {
+          "level": 1,
+          "title": "기타 일반 사항",
+          "page": 7
+        },
+        {
+          "level": 2,
+          "title": "과업심의위원회",
+          "page": 8
+        },
+        {
+          "level": 2,
+          "title": "소프트웨어 사업 영향평가",
+          "page": 8
+        },
+        {
+          "level": 1,
+          "title": "제안요청 내용",
+          "page": 9
+        },
+        {
+          "level": 1,
+          "title": "요구사항 상세",
+          "page": 10
+        },
+        {
+          "level": 1,
+          "title": "프로젝트 관리 요구사항",
+          "page": 16
+        },
+        {
+          "level": 1,
+          "title": "프로젝트 지원 요구사항",
+          "page": 20
+        },
+        {
+          "level": 1,
+          "title": "제약사항 요구사항",
+          "page": 21
+        },
+        {
+          "level": 1,
+          "title": "보안 요구사항",
+          "page": 22
+        },
+        {
+          "level": 1,
+          "title": "사업자 선정방법",
+          "page": 29
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가 및 낙찰자 결정",
+          "page": 30
+        },
+        {
+          "level": 1,
+          "title": "제안서 평가방법",
+          "page": 31
+        },
+        {
+          "level": 1,
+          "title": "제안서 작성안내",
+          "page": 33
+        }
+      ],
+      "section_titles": [
+        "사업개요",
+        "사업개요 - (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+        "사업개요 - (사업예산) 169,600,000원(부가가치세 포함)",
+        "사업개요 - (사업기간) 계약 체결일로부터 3개월",
+        "사업개요 - (업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)",
+        "사업개요 - *「국가를 당사자로 하는 계약에 관한 법률 시행령」제43조에 따름",
+        "추진배경",
+        "추진배경 - 최신 IT기술을 적용한 감사기법의 디지털 전환·혁신",
+        "추진배경 -  노후 장비 교체로 시스템 성능 제고",
+        "추진배경 -  최신 브라우저 기반 재구축을 통해 시스템 안정성 향상",
+        "e-감사시스템 구축 현황",
+        "감사관리시스템",
+        "상시감사시스템",
+        "주요 사업 범위",
+        "시스템 목표모델 설계",
+        "주요 전산화 방향",
+        "기대 효과",
+        "기타 일반 사항",
+        "과업심의위원회",
+        "소프트웨어 사업 영향평가",
+        "제안요청 내용",
+        "요구사항 상세",
+        "프로젝트 관리 요구사항",
+        "프로젝트 지원 요구사항",
+        "제약사항 요구사항",
+        "보안 요구사항",
+        "사업자 선정방법",
+        "제안서 평가 및 낙찰자 결정",
+        "제안서 평가방법",
+        "제안서 작성안내",
+        "제안서 효력",
+        "제안서 작성지침",
+        "제안서 목차",
+        "제안서 작성방법",
+        "제안서 제출서류",
+        "기타사항",
+        "안내 및 유의사항",
+        "[붙임1] 기술평가항목 및 배점표",
+        "[붙임1] 입찰평가항목 및 배점표",
+        "정량적 평가 세부기준",
+        "정성적 평가 세부기준",
+        "[붙임2] 외주 용역사업 보안 특약 조항",
+        "공통사항",
+        "참여인원에 대한 보안관리",
+        "자료에 대한 보안관리",
+        "사무실·장비에 대한 보안관리",
+        "내ㆍ외부망 접근에 대한 보안관리",
+        "개인정보 보안",
+        "[별첨 1] 외주 용역사업 보안특약",
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+        "[별표 1] 사업자 보안위규 처리기준",
+        "[별표 2] 보안 위약금 부과 기준",
+        "[별표 3] 누출금지 대상 정보",
+        "[별표 4] 개인정보 취급에 관한 특약서",
+        "[별지서식 1] 일반현황 및 연혁",
+        "[별지서식 2] 조직·인력 현황",
+        "[별지서식 3] 사업수행조직",
+        "[별지서식 4] 투입인력 총괄내역",
+        "[별지서식 6] 수행실적 총괄표",
+        "[별지서식 7] 수행실적증명서",
+        "[별지서식 8] 서약서",
+        "[별지서식 9] 청렴서약서"
+      ],
+      "keywords": [
+        "외부망",
+        "혁신",
+        "ISP",
+        "유의사항",
+        "붙임",
+        "디지털",
+        "체결일로부터",
+        "제약사항",
+        "제안요청",
+        "목차",
+        "기반",
+        "계약에",
+        "효력",
+        "보안관리",
+        "효과",
+        "대한",
+        "정성적",
+        "성능",
+        "낙찰자",
+        "부과"
+      ],
+      "confidence": 1.0
+    },
+    "metadata_source": "enhanced",
+    "primary_source": "rfp_pattern",
+    "document_group": "RFP",
+    "category": "제안요청서",
+    "folder_name": "00. RAG 소스\\01. RFP"
+  }
+}

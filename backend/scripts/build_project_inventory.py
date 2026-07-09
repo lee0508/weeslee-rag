@@ -159,17 +159,27 @@ def build_inventory_from_db(source_id: str = "rag_source") -> dict[str, Any]:
                 continue
 
         folder_name = extract_folder_name(file_path)
-        doc_id = f"DOC-{row['id']:06d}"
+        # [2026-07-08] document_id를 정수로 변경 (wiki_search.py List[int] 계약 준수)
+        doc_id = int(row["id"])
 
         # document_type을 category로 매핑
         doc_type = row["document_type"] or "unknown"
         category = normalize_category(doc_type)
+
+        # dataset_id 컬럼이 있으면 가져옴 (없으면 빈 문자열)
+        row_dataset_id = ""
+        try:
+            row_dataset_id = row["dataset_id"] or ""
+        except (KeyError, IndexError):
+            pass
 
         if folder_name not in inventory:
             inventory[folder_name] = {
                 "folder_name": folder_name,
                 "organization": row["organization"] or "",
                 "folder_year": row["project_year"] or "",
+                "source_id": source_id,  # [2026-07-08] source_id 필드 추가
+                "dataset_id": row_dataset_id,  # [2026-07-08] dataset_id 필드 추가
                 "doc_count": 0,
                 "categories": defaultdict(list),
             }
@@ -182,6 +192,9 @@ def build_inventory_from_db(source_id: str = "rag_source") -> dict[str, Any]:
             inventory[folder_name]["organization"] = row["organization"]
         if not inventory[folder_name]["folder_year"] and row["project_year"]:
             inventory[folder_name]["folder_year"] = row["project_year"]
+        # dataset_id 업데이트 (빈 값이면 채움)
+        if not inventory[folder_name]["dataset_id"] and row_dataset_id:
+            inventory[folder_name]["dataset_id"] = row_dataset_id
 
     # defaultdict를 일반 dict로 변환
     for folder_name in inventory:

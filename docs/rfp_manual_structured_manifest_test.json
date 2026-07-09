@@ -1,0 +1,88 @@
+{
+  "sample_md_files": [
+    "C:\\xampp\\htdocs\\weeslee-rag\\docs\\2026-07-07_Lee_RFP_문서_구조화_샘플.md"
+  ],
+  "source_root": "C:\\xampp\\htdocs\\weeslee-mnt",
+  "output_txt_root": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_txt",
+  "output_json_root": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_json",
+  "processed_count": 3,
+  "rows": [
+    {
+      "file_name": "RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.hwp",
+      "relative_path": "00. RAG 소스/01. RFP/RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.hwp",
+      "txt_output": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_txt\\00. RAG 소스\\01. RFP\\RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.txt",
+      "json_output": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_json\\00. RAG 소스\\01. RFP\\RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.json",
+      "section_count": 5,
+      "detected_sections": [
+        "사업 개요",
+        "현황 및 문제점",
+        "사업 추진방안",
+        "제안요청 내용",
+        "제안서 작성 요령"
+      ],
+      "cover_title": "제안요청서",
+      "organization": "한국직업능력연구원",
+      "sample_md": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\2026-07-07_Lee_RFP_문서_구조화_샘플.md"
+    },
+    {
+      "file_name": "RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+      "relative_path": "00. RAG 소스/01. RFP/RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+      "txt_output": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_txt\\00. RAG 소스\\01. RFP\\RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.txt",
+      "json_output": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_json\\00. RAG 소스\\01. RFP\\RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.json",
+      "section_count": 45,
+      "detected_sections": [
+        "사업개요",
+        "제안요청 내용",
+        "사업자 선정방법",
+        "제안서 작성안내",
+        "안내 및 유의사항",
+        "[붙임1] 평가항목 및 배점표",
+        "[붙임2] 외주 용역사업 보안특약",
+        "[붙임3] 소프트웨어사업 영향평가 검토결과서",
+        "[별지서식 1~9]",
+        "사업개요",
+        "추진배경",
+        "e-감사시스템 구축 현황",
+        "주요 사업 범위",
+        "주요 전산화 방향",
+        "기대 효과",
+        "기타 일반 사항",
+        "제안요청 내용",
+        "요구사항 상세",
+        "프로젝트 관리 요구사항",
+        "프로젝트 지원 요구사항",
+        "제약사항 요구사항",
+        "보안 요구사항",
+        "사업자 선정방법",
+        "제안서 평가 및 낙찰자 결정",
+        "제안서 평가방법",
+        "제안서 작성안내",
+        "안내 및 유의사항",
+        "[붙임1] 기술평가항목 및 배점표",
+        "[붙임1] 입찰평가항목 및 배점표",
+        "[붙임2] 외주 용역사업 보안 특약 조항"
+      ],
+      "cover_title": "AI 기반 e-감사시스템 재구축 ISP 컨설팅 용역 제안요청서",
+      "organization": "캠코 한국자산관리공사",
+      "sample_md": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\2026-07-07_Lee_RFP_문서_구조화_샘플.md"
+    },
+    {
+      "file_name": "RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+      "relative_path": "00. RAG 소스/01. RFP/RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+      "txt_output": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_txt\\00. RAG 소스\\01. RFP\\RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.txt",
+      "json_output": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\_tmp_structured_json\\00. RAG 소스\\01. RFP\\RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.json",
+      "section_count": 6,
+      "detected_sections": [
+        "사업개요",
+        "사업범위",
+        "세부내용",
+        "농정원 AFSIS 협력사업 추진현황",
+        "주요내용",
+        "추진일정 및 체계"
+      ],
+      "cover_title": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "organization": "",
+      "sample_md": "C:\\xampp\\htdocs\\weeslee-rag\\docs\\2026-07-07_Lee_RFP_문서_구조화_샘플.md"
+    }
+  ]
+}

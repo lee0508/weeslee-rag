@@ -87,18 +87,17 @@ def _snapshot_sort_key(snapshot: dict[str, Any]) -> tuple:
     )
 
 
-def _source_name_map() -> dict[str, str]:
-    names: dict[str, str] = {}
+def _source_record_map() -> dict[str, dict[str, Any]]:
+    records: dict[str, dict[str, Any]] = {}
     try:
         for row in list_records("document_sources"):
             source_id = str(row.get("source_id") or "").strip()
             if not source_id:
                 continue
-            source_name = str(row.get("source_name") or source_id).strip() or source_id
-            names[source_id] = source_name
+            records[source_id] = row
     except Exception:
-        return names
-    return names
+        return records
+    return records
 
 
 def _parse_source_id_from_snapshot(snapshot_id: str) -> str:
@@ -128,7 +127,11 @@ def _list_faiss_snapshot_names() -> list[str]:
 
 
 def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
-    source_names = _source_name_map()
+    source_records = _source_record_map()
+    source_names = {
+        source_id: str(row.get("source_name") or source_id).strip() or source_id
+        for source_id, row in source_records.items()
+    }
     registry: dict[str, dict[str, Any]] = {}
     known_snapshot_ids: set[str] = set()
     known_faiss_index_ids: set[str] = set()
@@ -143,8 +146,11 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
             {
                 "source_id": source_id,
                 "source_name": source_names.get(source_id, source_id),
+                "dataset_id": str(snap.get("dataset_id") or source_records.get(source_id, {}).get("dataset_id") or "").strip(),
+                "dataset_status": str(source_records.get(source_id, {}).get("dataset_status") or "").strip(),
                 "snapshots": [],
                 "latest_queryable_snapshot": "",
+                "active_snapshot_id": "",
             },
         )
         faiss_index_id = str(snap.get("faiss_index_id") or snap.get("snapshot_id") or "").strip()
@@ -164,6 +170,8 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
             "queryable": bool(snap.get("queryable")) or _faiss_index_exists(snap),
         }
         info["snapshots"].append(snapshot_entry)
+        if snapshot_entry["is_active"] and not info["active_snapshot_id"]:
+            info["active_snapshot_id"] = snapshot_entry["snapshot_id"]
         if snapshot_entry["queryable"] and not info["latest_queryable_snapshot"]:
             info["latest_queryable_snapshot"] = snapshot_entry["snapshot_id"]
 
@@ -182,8 +190,11 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
             {
                 "source_id": source_id,
                 "source_name": source_names.get(source_id, source_id),
+                "dataset_id": str(source_records.get(source_id, {}).get("dataset_id") or "").strip(),
+                "dataset_status": str(source_records.get(source_id, {}).get("dataset_status") or "").strip(),
                 "snapshots": [],
                 "latest_queryable_snapshot": "",
+                "active_snapshot_id": "",
             },
         )
         if any(str(item.get("snapshot_id") or "") == snapshot_id for item in info["snapshots"]):
@@ -346,6 +357,19 @@ def get_search_scope_catalog() -> dict[str, Any]:
         "active_snapshot": active_snapshot,
         "scopes": scopes,
         "sources": list(registry.values()),
+        "datasets": [
+            {
+                "source_id": info.get("source_id") or "",
+                "source_name": info.get("source_name") or "",
+                "dataset_id": info.get("dataset_id") or "",
+                "dataset_status": info.get("dataset_status") or "",
+                "selected_snapshot_id": info.get("active_snapshot_id") or info.get("latest_queryable_snapshot") or "",
+                "queryable_snapshot_count": len([snap for snap in info.get("snapshots", []) if snap.get("queryable")]),
+                "snapshot_count": len(info.get("snapshots", [])),
+                "scope_id": f"source:{info.get('source_id')}",
+            }
+            for info in registry.values()
+        ],
         "updated_at": config.get("updated_at"),
     }
 

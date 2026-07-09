@@ -30,6 +30,8 @@ from app.services.search_scope_service import (
     get_search_scope_catalog,
     resolve_search_scope,
 )
+from app.services.snapshot_registry_service import list_snapshot_registry
+from app.services.platform_store import get_record
 
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
@@ -1375,10 +1377,125 @@ async def hybrid_query(request: HybridQueryRequest):
         force_search_order=request.force_search_order,
     )
 
+    # 시연 안정화: Hybrid가 0건이면 classic RAG 결과로 한 번 더 보정한다.
+    if response.success and not response.merged_documents:
+        from app.services.rag_runtime import run_rag_query
+
+        active_snapshot = service.faiss_service.get_index_stats().get("active_snapshot")
+        if active_snapshot:
+            classic_payload = run_rag_query(
+                query=request.expanded_query or request.question,
+                original_query=request.question,
+                top_k=max(request.top_k * 4, request.top_k),
+                top_docs=request.max_results,
+                answer_provider="none",
+                answer_model="",
+                category=request.category,
+                organization=request.organization,
+                year=request.year,
+                max_chunks_per_doc=3,
+                mode="search",
+                snapshot=active_snapshot,
+                document_group=request.document_group,
+                document_category=request.document_category,
+                section_type=request.section_type,
+            )
+            classic_docs = classic_payload.get("documents") or []
+            if classic_docs:
+                response.faiss_results = [
+                    {
+                        "document_id": doc.get("document_id"),
+                        "score": doc.get("best_score", 0.0),
+                        "rank": doc.get("rank", idx + 1),
+                        "category": doc.get("category"),
+                        "organization": doc.get("organization"),
+                        "file_name": doc.get("file_name"),
+                        "text_preview": (doc.get("evidence_snippets") or [""])[0],
+                        "source": "faiss_classic_fallback",
+                        "metadata": {
+                            "source_id": doc.get("source_id") or request.source_id,
+                            "snapshot_id": doc.get("snapshot") or active_snapshot,
+                            "source_path": doc.get("source_path"),
+                            "original_source_path": doc.get("original_source_path"),
+                            "relative_path": doc.get("relative_path"),
+                            "document_group": doc.get("document_group"),
+                            "document_category": doc.get("document_category"),
+                            "section_label": doc.get("section_label"),
+                            "collection_key": doc.get("collection_key"),
+                            "fallback_strategy": "classic_rag_query_route_guard",
+                        },
+                    }
+                    for idx, doc in enumerate(classic_docs)
+                ]
+                response.merged_documents = [
+                    {
+                        "organization_type": doc.get("organization_type"),
+                        "client_type": doc.get("client_type"),
+                        "project_type": doc.get("project_type"),
+                        "section_type": doc.get("section_type"),
+                        "search_keywords": doc.get("search_keywords") or [],
+                        "document_id": doc.get("document_id"),
+                        "source": "faiss_classic_fallback",
+                        "rank": doc.get("rank", idx + 1),
+                        "score": doc.get("best_score", 0.0),
+                        "ranking_score": doc.get("ranking_score", doc.get("best_score", 0.0)),
+                        "faiss_score": doc.get("best_score", 0.0),
+                        "graph_score": 0.0,
+                        "title": doc.get("project_name"),
+                        "category": doc.get("category"),
+                        "organization": doc.get("organization"),
+                        "file_name": doc.get("file_name"),
+                        "text_preview": (doc.get("evidence_snippets") or [""])[0],
+                        "chunk_id": None,
+                        "source_id": doc.get("source_id") or request.source_id,
+                        "dataset_id": None,
+                        "snapshot_id": doc.get("snapshot") or active_snapshot,
+                        "document_uid": None,
+                        "relative_path": doc.get("relative_path"),
+                        "source_path": doc.get("source_path"),
+                        "page_no": None,
+                        "slide_no": None,
+                        "section_title": None,
+                        "section_id": None,
+                        "document_group": doc.get("document_group"),
+                        "document_category": doc.get("document_category"),
+                        "graph_relations": [],
+                        "metadata": {
+                            "source_id": doc.get("source_id") or request.source_id,
+                            "snapshot_id": doc.get("snapshot") or active_snapshot,
+                            "source_path": doc.get("source_path"),
+                            "original_source_path": doc.get("original_source_path"),
+                            "relative_path": doc.get("relative_path"),
+                            "document_group": doc.get("document_group"),
+                            "document_category": doc.get("document_category"),
+                            "section_type": doc.get("section_type"),
+                            "organization_type": doc.get("organization_type"),
+                            "client_type": doc.get("client_type"),
+                            "project_type": doc.get("project_type"),
+                            "search_keywords": doc.get("search_keywords") or [],
+                            "section_label": doc.get("section_label"),
+                            "collection_key": doc.get("collection_key"),
+                            "fallback_strategy": "classic_rag_query_route_guard",
+                        },
+                    }
+                    for idx, doc in enumerate(classic_docs)
+                ]
+                response.faiss_count = len(response.faiss_results)
+                response.merged_count = len(response.merged_documents)
+                if "classic_rag_route_guard" not in response.sources_used:
+                    response.sources_used.append("classic_rag_route_guard")
+                response.evidence.append({
+                    "type": "fallback_strategy",
+                    "strategy": "classic_rag_query_route_guard",
+                    "reason": "hybrid_route_empty_result_guard",
+                })
+
     return {
         "success": response.success,
         "question": response.question,
         "answer": response.answer,
+        # 프런트 하위 호환: hybrid 응답도 documents 키를 유지한다.
+        "documents": response.merged_documents,
 
         # 개별 검색 결과
         "faiss_results": response.faiss_results,
@@ -1455,13 +1572,8 @@ async def hybrid_query_stats(source_id: Optional[str] = None):
 
     faiss_stats = faiss_service.get_index_stats()
 
-    # Graph 노드/엣지 로드
-    graph_service._load_graph()
-    graph_stats = {
-        "node_count": len(graph_service._nodes),
-        "edge_count": len(graph_service._edges),
-        "loaded": graph_service._loaded,
-    }
+    # Graph 캐시는 서비스 내부에서 manifest/mtime 기준으로 자동 갱신한다.
+    graph_stats = graph_service.get_graph_stats()
 
     wiki_project_dir = PROJECT_ROOT / "data" / "wiki" / (source_id or "") / "projects" if source_id else WIKI_PROJECT_DIR
     wiki_available = wiki_project_dir.exists() and any(wiki_project_dir.glob("*.md"))
@@ -1477,6 +1589,40 @@ async def hybrid_query_stats(source_id: Optional[str] = None):
             "wiki_available": wiki_available,
         },
     }
+
+
+@router.get("/sources")
+async def rag_sources():
+    """rag-agent-chatbot / rag-chatbot 드롭다운용 queryable source 목록."""
+    rows = list_snapshot_registry()
+    by_source: dict[str, dict] = {}
+
+    for row in rows:
+        source_id = str(row.get("source_id") or "").strip()
+        if not source_id:
+            continue
+        if not row.get("queryable") and not row.get("is_active"):
+            continue
+
+        current = by_source.get(source_id)
+        if current is None or (not current.get("is_active") and row.get("is_active")):
+            source_record = get_record("document_sources", "source_id", source_id) or {}
+            by_source[source_id] = {
+                "source_id": source_id,
+                "name": source_record.get("source_name") or row.get("snapshot_name") or source_id,
+                "dataset_id": row.get("dataset_id") or "",
+                "snapshot_id": row.get("snapshot_id") or "",
+                "doc_count": int(row.get("document_count") or 0),
+                "chunk_count": int(row.get("chunk_count") or 0),
+                "is_active": bool(row.get("is_active")),
+            }
+
+    items = sorted(
+        by_source.values(),
+        key=lambda item: (bool(item.get("is_active")), str(item.get("name") or item.get("source_id") or "")),
+        reverse=True,
+    )
+    return {"sources": items}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

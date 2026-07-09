@@ -1,4 +1,5 @@
 # 문서 메타데이터 자동 생성 서비스
+# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
 """
 metadata_auto_generator.py
 
@@ -12,6 +13,15 @@ import asyncio
 from typing import Dict, List, Any
 
 from app.services.ollama_metadata_keyword_enricher import OllamaMetadataKeywordEnricher
+
+
+def _get_ollama_host() -> str:
+    """DB 설정 우선, 없으면 기본값 반환."""
+    try:
+        from app.services.system_settings_service import get_endpoint_setting
+        return get_endpoint_setting("ollama_host", "http://localhost:11434")
+    except Exception:
+        return "http://localhost:11434"
 
 
 class MetadataAutoGenerator:
@@ -71,9 +81,10 @@ class MetadataAutoGenerator:
         "서울시", "경기도", "인천시", "부산시",
     ]
 
-    def __init__(self, ollama_host: str = "http://localhost:11434"):
-        self.ollama_host = ollama_host
-        self.enricher = OllamaMetadataKeywordEnricher(base_url=ollama_host)
+    def __init__(self, ollama_host: str = None):
+        # DB 설정 우선, 없으면 하드코딩 fallback
+        self.ollama_host = ollama_host or _get_ollama_host()
+        self.enricher = OllamaMetadataKeywordEnricher(base_url=self.ollama_host)
 
     def extract_metadata(self, file_name: str, file_content: str = "") -> Dict[str, Any]:
         """

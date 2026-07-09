@@ -7,16 +7,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
 from app.core.config import settings
+from app.core.database import get_db
 from app.services.document_source_paths import resolve_scan_path
 from app.services.dataset_context import (
     ensure_source_dataset_context,
     generate_dataset_id,
 )
+from app.services.source_artifact_index import sync_source_index
+from app.services.source_storage_audit import build_source_storage_audit
+from app.services.source_build_validation import build_source_validation_report
 from app.services.platform_store import (
     list_records, get_record, create_record, update_record,
     delete_record, seed_if_empty,
@@ -216,13 +220,49 @@ def _ensure_dataset_fields(record: dict) -> dict:
     return record
 
 
+def _source_sort_key(record: dict) -> tuple[str, str, str]:
+    return (
+        str(record.get("updated_at") or ""),
+        str(record.get("created_at") or ""),
+        str(record.get("source_id") or ""),
+    )
+
+
 @router.get("")
-async def list_sources(client_id: Optional[str] = None):
+async def list_sources(
+    client_id: Optional[str] = None,
+    page: Optional[int] = Query(default=None, ge=1),
+    limit: Optional[int] = Query(default=None, ge=1, le=100),
+):
     _seed()
     records = [_ensure_dataset_fields(r) for r in list_records(STORE)]
     if client_id:
         records = [r for r in records if r.get("client_id") == client_id]
-    return records
+    records.sort(key=_source_sort_key, reverse=True)
+
+    if page is None and limit is None:
+        return records
+
+    safe_limit = limit or 10
+    safe_page = page or 1
+    total = len(records)
+    total_pages = max(1, (total + safe_limit - 1) // safe_limit)
+    if safe_page > total_pages:
+        safe_page = total_pages
+    start = (safe_page - 1) * safe_limit
+    end = start + safe_limit
+    items = records[start:end]
+    return {
+        "items": items,
+        "pagination": {
+            "page": safe_page,
+            "limit": safe_limit,
+            "total": total,
+            "total_pages": total_pages,
+            "has_prev": safe_page > 1,
+            "has_next": safe_page < total_pages,
+        },
+    }
 
 
 @router.post("", status_code=201)
@@ -247,7 +287,9 @@ async def create_source(body: DocumentSourceCreate):
     data["removed_file_count"] = 0
     data["needs_rag_build"] = False
     data["next_action"] = "dataset_id가 생성되었습니다. Source Document 기준 스캔부터 순서대로 실행하세요."
-    return create_record(STORE, data, id_field=ID_FIELD)
+    created = create_record(STORE, data, id_field=ID_FIELD)
+    sync_source_index(source_id, source_record=created)
+    return created
 
 
 @router.get("/{source_id}")
@@ -271,6 +313,7 @@ async def update_source(source_id: str, body: DocumentSourceUpdate):
     rec = update_record(STORE, ID_FIELD, source_id, updates)
     if not rec:
         raise HTTPException(status_code=404, detail="Document source not found")
+    sync_source_index(source_id, source_record=rec)
     return _ensure_dataset_fields(rec)
 
 
@@ -292,6 +335,7 @@ async def ensure_dataset(source_id: str, body: Optional[EnsureDatasetRequest] = 
     )
     if not context:
         raise HTTPException(status_code=404, detail="Document source not found")
+    sync_source_index(source_id, source_record=context.get("record") or {})
 
     return {
         "success": True,
@@ -420,3 +464,29 @@ def _walk_files(root: str):
     for dirpath, _, filenames in os.walk(root):
         for f in filenames:
             yield os.path.join(dirpath, f)
+
+
+@router.get("/{source_id}/storage-check")
+async def get_source_storage_check(source_id: str, db=Depends(get_db)):
+    _seed()
+    rec = get_record(STORE, ID_FIELD, source_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Document source not found")
+
+    return {
+        "success": True,
+        "audit": build_source_storage_audit(source_id, db),
+    }
+
+
+@router.get("/{source_id}/build-validation")
+async def get_source_build_validation(source_id: str, db=Depends(get_db)):
+    _seed()
+    rec = get_record(STORE, ID_FIELD, source_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Document source not found")
+
+    return {
+        "success": True,
+        "validation": build_source_validation_report(source_id, db),
+    }

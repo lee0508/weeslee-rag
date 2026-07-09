@@ -1,0 +1,295 @@
+{
+  "document_id": "362261117",
+  "file_name": "RFP_디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_362261117",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 26164,
+  "quality": {
+    "text_length": 26164,
+    "char_count": 14537,
+    "korean_count": 13061,
+    "english_count": 105,
+    "number_count": 260,
+    "special_count": 1111,
+    "garbage_count": 0,
+    "korean_ratio": 0.8985,
+    "english_ratio": 0.0072,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립.hwp",
+    "section_group": "RFP_디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "<그림>",
+          "<표>",
+          ". 12.",
+          "사업 개요",
+          "가. 사 업 명",
+          "디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "<그림>",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "2023. 12.",
+              "<표>",
+              "<표>",
+              "<표>",
+              "<표>",
+              "사업 개요",
+              "가. 사 업 명 : 디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립"
+            ],
+            "keywords": [
+              "<그림>",
+              "<표>",
+              ". 12.",
+              "사업 개요",
+              "가. 사 업 명",
+              "디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<표>",
+      "organization": "오천만원",
+      "project_name": "",
+      "date": "2023년 12월",
+      "document_type": "",
+      "keywords": [],
+      "confidence": 0.7
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 2,
+          "title": "야간외출제한명령 집행을 위한 e-스테이 사업",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "온라인 포털을 통한 대민업무 환경개선",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "대상자 및 직원 교육통합관리 플랫폼 구축",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "추진체계",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진 체계도",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "주요 역할",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "추진일정 및 절차",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "조직 및 인력 현황",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "범죄예방정책국 조직별 주요 역할",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "관련 법령",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "정보화 현황",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "범죄예방정보화 업무 체계도",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "범죄예방통합정보시스템 구성도",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "정보시스템 현황",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "주요 추진과제",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "구축범위와 추진계획 수립",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "업무와 기술요건 분석",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "플랫폼 구성 정보시스템의 구조 및 기능적/비기능적(보안․품질․기술 등) 세부 요구사",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "야간외출제한명령 집행을 위한 e-스테이 사업",
+        "온라인 포털을 통한 대민업무 환경개선",
+        "대상자 및 직원 교육통합관리 플랫폼 구축",
+        "추진체계",
+        "추진 체계도",
+        "주요 역할",
+        "추진일정 및 절차",
+        "조직 및 인력 현황",
+        "범죄예방정책국 조직별 주요 역할",
+        "관련 법령",
+        "정보화 현황",
+        "범죄예방정보화 업무 체계도",
+        "범죄예방통합정보시스템 구성도",
+        "정보시스템 현황",
+        "주요 추진과제",
+        "구축범위와 추진계획 수립",
+        "업무와 기술요건 분석",
+        "플랫폼 구성 정보시스템의 구조 및 기능적/비기능적(보안․품질․기술 등) 세부 요구사"
+      ],
+      "keywords": [
+        "범죄예방정책국",
+        "구조",
+        "대민업무",
+        "업무",
+        "추진",
+        "스테이",
+        "추진계획",
+        "세부",
+        "직원",
+        "범죄예방정보화",
+        "인력",
+        "교육통합관리",
+        "절차",
+        "통한",
+        "집행을",
+        "추진과제",
+        "업무와",
+        "구축",
+        "추진체계",
+        "정보시스템"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "야간외출제한명령 집행을 위한 e-스테이 사업",
+      "온라인 포털을 통한 대민업무 환경개선",
+      "대상자 및 직원 교육통합관리 플랫폼 구축",
+      "추진체계",
+      "추진 체계도",
+      "주요 역할",
+      "추진일정 및 절차",
+      "조직 및 인력 현황",
+      "범죄예방정책국 조직별 주요 역할",
+      "관련 법령",
+      "정보화 현황",
+      "범죄예방정보화 업무 체계도",
+      "범죄예방통합정보시스템 구성도",
+      "정보시스템 현황",
+      "주요 추진과제",
+      "구축범위와 추진계획 수립",
+      "업무와 기술요건 분석",
+      "플랫폼 구성 정보시스템의 구조 및 기능적/비기능적(보안․품질․기술 등) 세부 요구사",
+      "제안요청서",
+      "사업기간"
+    ],
+    "document_summary": "<표> | <표>  <그림>  2023. 12.  <표>  <표>  <표>  <표>  사업 개요  가. 사 업 명 : 디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립  나. 사업금액 : 오천만원정(₩50,000,000원, 부가가치세 포함)  ※ 인건비, 연구활동비, 기타여비 등 사업에 소요되는 모든 경비를 포함하며, 세부내역은 총액 범위 내에서",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:04:37",
+  "updated_at": "2026-07-07T15:04:37",
+  "processing_time_ms": 6904
+}

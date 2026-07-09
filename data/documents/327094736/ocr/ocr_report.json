@@ -1,0 +1,273 @@
+{
+  "document_id": "327094736",
+  "file_name": "RFP_서울특별시교육청 지능정보화전략계획(ISP) 수립(2차).hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_서울특별시교육청 지능정보화전략계획(ISP) 수립(2차).hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_327094736",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_서울특별시교육청 지능정보화전략계획(ISP) 수립(2차).hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 16981,
+  "quality": {
+    "text_length": 16981,
+    "char_count": 11152,
+    "korean_count": 9628,
+    "english_count": 271,
+    "number_count": 260,
+    "special_count": 993,
+    "garbage_count": 0,
+    "korean_ratio": 0.8633,
+    "english_ratio": 0.0243,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_서울특별시교육청 지능정보화전략계획(ISP) 수립(2차).hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_서울특별시교육청 지능정보화전략계획(ISP) 수립(2차).hwp",
+    "section_group": "RFP_서울특별시교육청 지능정보화전략계획(ISP) 수립(2차).hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "[제안요청서]",
+          "제 안 요 청 서",
+          "<표>",
+          "년 5월",
+          ". 사업 개요",
+          "가. 추진배경 및 필요성"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "[제안요청서]",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "제 안 요 청 서",
+              "<표>",
+              "2024년 5월",
+              "<표>",
+              "<표>",
+              "1. 사업 개요",
+              "가. 추진배경 및 필요성",
+              "❍ 서울 미래교육 지능정보화정책의 효율적·체계적 추진을 위해 2021년 제1차 지능정보화전략계획(ISP) ※ ISP(Information Strategy Plan) 조직 및 정보화 업무를 분석, 현재의 업무 체계를 변화시키고 효율성을 증대하기 위한 목표 모델과 이행계획 마련의 운영 전략 계획 수립"
+            ],
+            "keywords": [
+              "[제안요청서]",
+              "제 안 요 청 서",
+              "<표>",
+              "년 5월",
+              ". 사업 개요",
+              "가. 추진배경 및 필요성"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "[제안요청서]",
+      "organization": "제안요청",
+      "project_name": "",
+      "date": "2024년 5월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "제안요청서"
+      ],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 2,
+          "title": "기대효과",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "지능정보화 추진 현황",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진 목표 및 전략",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "정보화 현황",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "사업 추진방안",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진목표",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진전략",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진 체계",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진일정",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "제안 요청내용",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "사업명 : 서울특별시교육청 지능정보화전략계획(ISP) 수립(2차)",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "사업 기간 : 계약일로부터 5개월",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "예산소요액 : 금 248,796천원(부가세 포함)",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "사업 내용",
+          "page": 1
+        }
+      ],
+      "section_titles": [
+        "기대효과",
+        "지능정보화 추진 현황",
+        "추진 목표 및 전략",
+        "정보화 현황",
+        "사업 추진방안",
+        "추진목표",
+        "추진전략",
+        "추진 체계",
+        "추진일정",
+        "제안 요청내용",
+        "사업명 : 서울특별시교육청 지능정보화전략계획(ISP) 수립(2차)",
+        "사업 기간 : 계약일로부터 5개월",
+        "예산소요액 : 금 248,796천원(부가세 포함)",
+        "사업 내용"
+      ],
+      "keywords": [
+        "개월",
+        "내용",
+        "전략",
+        "추진",
+        "ISP",
+        "지능정보화",
+        "부가세",
+        "서울특별시교육청",
+        "제안",
+        "목표",
+        "추진전략",
+        "천원",
+        "추진목표",
+        "기간",
+        "현황",
+        "예산소요액",
+        "추진방안",
+        "사업명",
+        "기대효과",
+        "포함"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "기대효과",
+      "지능정보화 추진 현황",
+      "추진 목표 및 전략",
+      "정보화 현황",
+      "사업 추진방안",
+      "추진목표",
+      "추진전략",
+      "추진 체계",
+      "추진일정",
+      "제안 요청내용",
+      "사업명 : 서울특별시교육청 지능정보화전략계획(ISP) 수립(2차)",
+      "사업 기간 : 계약일로부터 5개월",
+      "예산소요액 : 금 248,796천원(부가세 포함)",
+      "사업 내용",
+      "사업명",
+      "담당",
+      "제안요청서",
+      "사업내용",
+      "추진배경",
+      "추진배경 및 필요성"
+    ],
+    "document_summary": "[제안요청서] | [제안요청서]  제 안 요 청 서   <표>  2024년 5월  <표>  <표>  1. 사업 개요   가. 추진배경 및 필요성  ❍ 서울 미래교육 지능정보화정책의 효율적·체계적 추진을 위해 2021년 제1차 지능정보화전략계획(ISP) ※ ISP(Information Strategy Plan) 조직 및 정보화 업무를 분석, 현재의 업무 체계를 변화시키고 효율",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:05:11",
+  "updated_at": "2026-07-07T15:05:11",
+  "processing_time_ms": 4926
+}

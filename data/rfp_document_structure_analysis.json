@@ -1,0 +1,687 @@
+{
+  "metadata": {
+    "description": "RFP 문서 구조 분석 데이터",
+    "purpose": "메타데이터, 키워드, 지식그래프, 위키 데이터 생성용",
+    "source_folder": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+    "analysis_date": "2026-07-04",
+    "total_files": 47,
+    "note": "페이지별 제목, 본문, 소제목에서 키워드 기준으로 분석"
+  },
+  "documents": [
+    {
+      "file_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "file_name": "RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+      "file_extension": ".hwp",
+      "file_size": 80384,
+      "structure": {
+        "page_1": {
+          "sections": [
+            {
+              "type": "제목",
+              "font_size": "25~",
+              "keywords": []
+            },
+            {
+              "type": "날짜",
+              "format": "년, 월",
+              "keywords": []
+            }
+          ]
+        },
+        "page_2": {
+          "sections": [
+            {
+              "type": "사업개요",
+              "keywords": []
+            },
+            {
+              "type": "추진배경 및 목적",
+              "keywords": []
+            },
+            {
+              "type": "사업범위",
+              "keywords": []
+            }
+          ]
+        },
+        "page_3": {
+          "sections": [
+            {
+              "type": "세부내용",
+              "keywords": []
+            },
+            {
+              "type": "주요내용",
+              "keywords": []
+            }
+          ]
+        },
+        "page_4": {
+          "sections": [
+            {
+              "type": "추진일정 및 체계",
+              "keywords": []
+            },
+            {
+              "type": "추진체계",
+              "keywords": []
+            }
+          ]
+        },
+        "page_5": {
+          "sections": [
+            {
+              "type": "사업추진일정",
+              "keywords": []
+            },
+            {
+              "type": "사업 추진보고",
+              "keywords": []
+            },
+            {
+              "type": "주요산출물",
+              "keywords": []
+            }
+          ]
+        }
+      },
+      "common_patterns": {
+        "document_type": "RFP",
+        "project_category": "협력사업",
+        "detected_keywords": ["AFSIS", "협력사업", "활용실태", "조사", "개선방안", "용역"],
+        "business_type": "ISP",
+        "pages_analyzed": 5
+      }
+    },
+    {
+      "file_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "file_name": "RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+      "file_extension": ".hwp",
+      "file_size": 1224192,
+      "structure": {
+        "page_1": {
+          "sections": [
+            {
+              "type": "제목",
+              "font_size": "24",
+              "keywords": []
+            },
+            {
+              "type": "날짜",
+              "font_size": "21",
+              "format": "년, 월",
+              "keywords": []
+            }
+          ]
+        },
+        "page_2": {
+          "sections": [
+            {
+              "type": "목차",
+              "keywords": []
+            }
+          ]
+        },
+        "page_3": {
+          "sections": [
+            {
+              "type": "목차",
+              "keywords": []
+            }
+          ]
+        },
+        "page_4": {
+          "sections": [
+            {
+              "type": "사업개요",
+              "keywords": []
+            },
+            {
+              "type": "추진배경",
+              "keywords": []
+            }
+          ]
+        },
+        "page_5": {
+          "sections": [
+            {
+              "type": "세부내용",
+              "keywords": []
+            }
+          ]
+        },
+        "page_7": {
+          "sections": [
+            {
+              "type": "주요사업범위",
+              "keywords": []
+            }
+          ]
+        },
+        "page_8": {
+          "sections": [
+            {
+              "type": "주요전산화방향",
+              "keywords": []
+            }
+          ]
+        },
+        "page_10": {
+          "sections": [
+            {
+              "type": "기대효과",
+              "keywords": []
+            }
+          ]
+        },
+        "page_12": {
+          "sections": [
+            {
+              "type": "제안요청내용",
+              "keywords": []
+            }
+          ]
+        },
+        "page_13": {
+          "sections": [
+            {
+              "type": "요구사항상세",
+              "keywords": []
+            }
+          ]
+        },
+        "page_44": {
+          "sections": [
+            {
+              "type": "기술평가항목 및 배점표",
+              "keywords": []
+            }
+          ]
+        }
+      },
+      "common_patterns": {
+        "document_type": "RFP",
+        "project_category": "AI 기반 시스템",
+        "detected_keywords": ["AI", "e-감사시스템", "재구축", "ISP", "컨설팅"],
+        "business_type": "ISP",
+        "pages_analyzed": 44
+      }
+    },
+    {
+      "file_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "file_name": "RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.hwp",
+      "file_extension": ".hwp",
+      "file_size": 1404928,
+      "structure": {
+        "page_1": {
+          "sections": [
+            {
+              "type": "제목",
+              "font_size": "24",
+              "keywords": []
+            },
+            {
+              "type": "사업명, 주관기관",
+              "keywords": []
+            },
+            {
+              "type": "년, 월",
+              "keywords": []
+            },
+            {
+              "type": "담당",
+              "keywords": []
+            }
+          ]
+        },
+        "page_2": {
+          "sections": [
+            {
+              "type": "목차",
+              "keywords": []
+            }
+          ]
+        },
+        "page_4": {
+          "sections": [
+            {
+              "type": "사업개요",
+              "keywords": []
+            },
+            {
+              "type": "추진배경 및 필요성",
+              "keywords": []
+            }
+          ]
+        },
+        "page_7": {
+          "sections": [
+            {
+              "type": "사업범위",
+              "keywords": []
+            }
+          ]
+        },
+        "page_8": {
+          "sections": [
+            {
+              "type": "기대효과 및 성과지표",
+              "keywords": []
+            }
+          ]
+        },
+        "page_9": {
+          "sections": [
+            {
+              "type": "현황 및 문제점",
+              "keywords": []
+            }
+          ]
+        },
+        "page_12": {
+          "sections": [
+            {
+              "type": "정보화현황",
+              "keywords": []
+            },
+            {
+              "type": "현행시스템구성도",
+              "keywords": []
+            }
+          ]
+        },
+        "page_15": {
+          "sections": [
+            {
+              "type": "운용소프트웨어",
+              "keywords": []
+            }
+          ]
+        },
+        "page_18": {
+          "sections": [
+            {
+              "type": "선진사례",
+              "keywords": []
+            }
+          ]
+        },
+        "page_19": {
+          "sections": [
+            {
+              "type": "문제점 및 개선방향",
+              "keywords": []
+            }
+          ]
+        },
+        "page_21": {
+          "sections": [
+            {
+              "type": "사업추진방안, 추진목표, 추진전략, 추진체계, 추진일정",
+              "keywords": []
+            }
+          ]
+        },
+        "page_25": {
+          "sections": [
+            {
+              "type": "제안요청 내용, 제안요청개요, 사업개요, 사업내용",
+              "keywords": []
+            }
+          ]
+        },
+        "page_27": {
+          "sections": [
+            {
+              "type": "용어의 정의, 상세요구사항, 요구사항목록표",
+              "keywords": []
+            }
+          ]
+        },
+        "page_30": {
+          "sections": [
+            {
+              "type": "요구사항상세내용",
+              "keywords": []
+            },
+            {
+              "type": "컨설팅 요구사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_40": {
+          "sections": [
+            {
+              "type": "프로젝트관리 요구사항",
+              "language": "영문표기",
+              "keywords": []
+            }
+          ]
+        },
+        "page_48": {
+          "sections": [
+            {
+              "type": "프로젝트 지원 요구사항",
+              "language": "영문표기",
+              "keywords": []
+            }
+          ]
+        },
+        "page_39": {
+          "sections": [
+            {
+              "type": "제약사항",
+              "language": "영문표기",
+              "keywords": []
+            }
+          ]
+        },
+        "page_51": {
+          "sections": [
+            {
+              "type": "제안서 작성 요령",
+              "keywords": []
+            }
+          ]
+        },
+        "page_52": {
+          "sections": [
+            {
+              "type": "제안서 목차",
+              "keywords": []
+            }
+          ]
+        },
+        "page_55": {
+          "sections": [
+            {
+              "type": "제안서 세부 작성 지침",
+              "keywords": []
+            }
+          ]
+        },
+        "page_57": {
+          "sections": [
+            {
+              "type": "제안 안내사항",
+              "keywords": []
+            },
+            {
+              "type": "입찰 참가자격 요건",
+              "keywords": []
+            }
+          ]
+        },
+        "page_60": {
+          "sections": [
+            {
+              "type": "추진 일정",
+              "keywords": []
+            }
+          ]
+        },
+        "page_64": {
+          "sections": [
+            {
+              "type": "제안서 평가 기준 및 방법",
+              "keywords": []
+            }
+          ]
+        }
+      },
+      "common_patterns": {
+        "document_type": "RFP",
+        "project_category": "AI 기반 정보화",
+        "detected_keywords": ["AI", "지능형", "진로교육정보망", "통합", "구축", "ISP", "수립"],
+        "business_type": "ISP",
+        "pages_analyzed": 64
+      }
+    },
+    {
+      "file_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "file_name": "RFP_AI 활용 미인증 기자재 온라인 모니터링 시스템 구축 정보화전략계획(ISP) 용역.hwpx",
+      "file_extension": ".hwpx",
+      "file_size": 554620,
+      "structure": {
+        "page_1": {
+          "sections": [
+            {
+              "type": "제안요청서",
+              "keywords": []
+            },
+            {
+              "type": "사업명, 주관기관",
+              "keywords": []
+            },
+            {
+              "type": "년, 월",
+              "keywords": []
+            },
+            {
+              "type": "담당",
+              "keywords": []
+            }
+          ]
+        },
+        "page_2": {
+          "sections": [
+            {
+              "type": "목차",
+              "keywords": []
+            }
+          ]
+        },
+        "page_3": {
+          "sections": [
+            {
+              "type": "사업안내",
+              "keywords": []
+            }
+          ]
+        },
+        "page_5": {
+          "sections": [
+            {
+              "type": "추진방향",
+              "keywords": []
+            },
+            {
+              "type": "추진전략",
+              "keywords": []
+            }
+          ]
+        },
+        "page_7": {
+          "sections": [
+            {
+              "type": "사업범위",
+              "keywords": []
+            },
+            {
+              "type": "사업기간",
+              "keywords": []
+            },
+            {
+              "type": "주요 추진내용",
+              "keywords": []
+            }
+          ]
+        },
+        "page_8": {
+          "sections": [
+            {
+              "type": "추진일정",
+              "keywords": []
+            }
+          ]
+        },
+        "page_9": {
+          "sections": [
+            {
+              "type": "제안요청 내용",
+              "keywords": []
+            }
+          ]
+        },
+        "page_10": {
+          "sections": [
+            {
+              "type": "상세 요구사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_14": {
+          "sections": [
+            {
+              "type": "데이터 요구사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_17": {
+          "sections": [
+            {
+              "type": "프로젝트 관리 요구사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_19": {
+          "sections": [
+            {
+              "type": "프로젝트 지원 요구사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_20": {
+          "sections": [
+            {
+              "type": "품질 요구 사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_21": {
+          "sections": [
+            {
+              "type": "제약사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_22": {
+          "sections": [
+            {
+              "type": "기타 요구사항",
+              "keywords": []
+            }
+          ]
+        },
+        "page_28": {
+          "sections": [
+            {
+              "type": "제안서 작성요령",
+              "keywords": []
+            }
+          ]
+        },
+        "page_37": {
+          "sections": [
+            {
+              "type": "제안 안내사항",
+              "keywords": []
+            }
+          ]
+        }
+      },
+      "common_patterns": {
+        "document_type": "RFP",
+        "project_category": "AI 시스템 구축",
+        "detected_keywords": ["AI", "미인증", "기자재", "모니터링", "시스템", "ISP", "용역"],
+        "business_type": "ISP",
+        "pages_analyzed": 37
+      }
+    }
+  ],
+  "common_section_types": [
+    "제목",
+    "날짜",
+    "목차",
+    "사업개요",
+    "추진배경",
+    "추진배경 및 목적",
+    "추진배경 및 필요성",
+    "사업범위",
+    "세부내용",
+    "주요내용",
+    "주요사업범위",
+    "주요전산화방향",
+    "주요 추진내용",
+    "기대효과",
+    "기대효과 및 성과지표",
+    "추진일정 및 체계",
+    "추진체계",
+    "사업추진일정",
+    "추진일정",
+    "사업 추진보고",
+    "주요산출물",
+    "제안요청내용",
+    "제안요청 내용",
+    "요구사항상세",
+    "상세 요구사항",
+    "요구사항상세내용",
+    "컨설팅 요구사항",
+    "데이터 요구사항",
+    "프로젝트 관리 요구사항",
+    "프로젝트 지원 요구사항",
+    "품질 요구 사항",
+    "제약사항",
+    "기타 요구사항",
+    "기술평가항목 및 배점표",
+    "제안서 작성 요령",
+    "제안서 작성요령",
+    "제안서 목차",
+    "제안서 세부 작성 지침",
+    "제안 안내사항",
+    "입찰 참가자격 요건",
+    "추진 일정",
+    "제안서 평가 기준 및 방법",
+    "현황 및 문제점",
+    "정보화현황",
+    "현행시스템구성도",
+    "운용소프트웨어",
+    "선진사례",
+    "문제점 및 개선방향",
+    "사업추진방안",
+    "추진목표",
+    "추진전략",
+    "추진방향",
+    "용어의 정의",
+    "요구사항목록표",
+    "사업안내",
+    "사업기간",
+    "사업명",
+    "주관기관",
+    "담당"
+  ],
+  "keyword_extraction_targets": {
+    "project_type": ["ISP", "ISMP", "BPRISP", "컨설팅", "용역", "연구"],
+    "technology": ["AI", "인공지능", "빅데이터", "디지털", "플랫폼", "시스템"],
+    "domain": ["감사", "진로교육", "복지", "상담", "업무", "데이터", "정보", "관리"],
+    "organization_type": ["정부", "공공기관", "교육청", "부처", "기관"],
+    "action_verbs": ["구축", "재구축", "수립", "고도화", "개선", "도출", "활용", "도입", "전환"]
+  },
+  "analysis_notes": {
+    "file_format_patterns": {
+      "hwp": "대부분의 RFP 문서 형식",
+      "hwpx": "일부 최신 RFP 문서"
+    },
+    "page_structure_consistency": "대부분 Page1에 제목/날짜, Page2~3에 목차, Page4~부터 본문",
+    "section_naming_variation": "동일 의미의 섹션도 표현이 다름 (예: '추진배경' vs '추진배경 및 목적')",
+    "evaluation_section": "대부분 후반부에 '제안서 작성 요령', '평가 기준' 등 포함",
+    "requirements_section": "중반부에 '요구사항 상세' 관련 섹션 집중"
+  }
+}

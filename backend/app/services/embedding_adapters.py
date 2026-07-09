@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # 임베딩 어댑터 계층 - QA2 embedder.py 기반
+# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
 """
 Embedding Adapters (Adapter Pattern)
 - BGE-M3 (온프레미스, 한국어 우수)
@@ -14,8 +15,18 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from app.core.config import settings
+from app.services.runtime_model_settings import get_runtime_embedding_model
 
 logger = logging.getLogger(__name__)
+
+
+def _get_db_setting(category: str, key: str, default):
+    """DB 설정 조회 헬퍼. 실패 시 default 반환."""
+    try:
+        from app.services.system_settings_service import get_system_setting
+        return get_system_setting(category, key, default)
+    except Exception:
+        return default
 
 
 class BaseEmbedder(ABC):
@@ -118,9 +129,10 @@ class OllamaEmbedder(BaseEmbedder):
         model: str = None,
         host: str = None,
     ):
-        self.model = model or settings.ollama_embed_model
-        self.host = host or settings.ollama_host
-        self._dim = settings.embedding_dim or 768
+        self.model = model or get_runtime_embedding_model()
+        # DB 설정 우선, 없으면 config fallback
+        self.host = host or _get_db_setting("endpoint", "ollama_host", settings.ollama_host)
+        self._dim = _get_db_setting("rag", "embedding_dim", settings.embedding_dim) or 768
 
     @property
     def dim(self) -> int:
@@ -211,7 +223,7 @@ def get_embedder(
         )
     elif provider == "ollama":
         return OllamaEmbedder(
-            model=model or settings.ollama_embed_model,
+            model=model or get_runtime_embedding_model(),
             host=kwargs.get("host", settings.ollama_host),
         )
     elif provider == "fake":

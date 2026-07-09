@@ -1,0 +1,283 @@
+{
+  "document_id": "653192491",
+  "file_name": "RFP_우주항공청 정보화 전략계획 수립사업.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_우주항공청 정보화 전략계획 수립사업.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_653192491",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_우주항공청 정보화 전략계획 수립사업.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 15596,
+  "quality": {
+    "text_length": 15596,
+    "char_count": 10749,
+    "korean_count": 9133,
+    "english_count": 100,
+    "number_count": 340,
+    "special_count": 1176,
+    "garbage_count": 0,
+    "korean_ratio": 0.8497,
+    "english_ratio": 0.0093,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_우주항공청 정보화 전략계획 수립사업.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_우주항공청 정보화 전략계획 수립사업.hwp",
+    "section_group": "RFP_우주항공청 정보화 전략계획 수립사업.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "페이지 1",
+          "<표>",
+          ". 10.",
+          ". 개요",
+          "○ 사 업 명",
+          "우주항공청 정보화전략계획"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "페이지 1",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "<표>",
+              "2024. 10.",
+              "<표>",
+              "<표>",
+              "<표>",
+              "1. 개요",
+              "○ 사 업 명 : 우주항공청 정보화전략계획"
+            ],
+            "keywords": [
+              "페이지 1",
+              "<표>",
+              ". 10.",
+              ". 개요",
+              "○ 사 업 명",
+              "우주항공청 정보화전략계획"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<표>",
+      "organization": "우주항공청",
+      "project_name": "",
+      "date": "2024년 10월",
+      "document_type": "제안서",
+      "keywords": [],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 2,
+          "title": "○ A4지 규격의 전자문서(pdf)로 작성을 권고",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "○ 제안서의 각 페이지는 쉽게 참조할 수 있도록 페이지 하단 중앙에 일련번호를 붙이되, 각",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "○ 제안서는 한글 작성이 원칙이며, 사용된 영문약어에 대해서는 약어표를 제공해야 한다",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "○ 제안서의 내용은 명확한 용어를 사용하여 표현하여야 합니다",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "○ 계약 후, 제안서의 내용이 허위로 작성한 사실이 발견되거나 제안된 내용을 충족시키지 못",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "○ 제출된 제안서는 일체 반환하지 않으며, 본 제안과 관련된 일체의 소요비용은 입찰참가자의",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "○ 기타 공고서 및 조달청 제안평가 관련 규정에 따른다",
+          "page": 3
+        },
+        {
+          "level": 2,
+          "title": "정량적 평가 제안서",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "정성적 평가 제안서",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "입찰방식",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "사업자 선정 방식",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "○ 계약체결에 필요한 세부적인 사항은 기획재정부 “협상에 의한 계약체결기준”을 적용한다",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "입찰 참가자격",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "- 경쟁입찰 참가자격을 갖추고, 조달청 입찰참가자격 등록증을 소지한 사업자",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "- 소프트웨어 진흥법 제48조제4항에 따라 상호출자제한기업집단에 속하는 회사는 입찰에 참여",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "- 본 사업은 1",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "○ A4지 규격의 전자문서(pdf)로 작성을 권고",
+        "○ 제안서의 각 페이지는 쉽게 참조할 수 있도록 페이지 하단 중앙에 일련번호를 붙이되, 각",
+        "○ 제안서는 한글 작성이 원칙이며, 사용된 영문약어에 대해서는 약어표를 제공해야 한다",
+        "○ 제안서의 내용은 명확한 용어를 사용하여 표현하여야 합니다",
+        "○ 계약 후, 제안서의 내용이 허위로 작성한 사실이 발견되거나 제안된 내용을 충족시키지 못",
+        "○ 제출된 제안서는 일체 반환하지 않으며, 본 제안과 관련된 일체의 소요비용은 입찰참가자의",
+        "○ 기타 공고서 및 조달청 제안평가 관련 규정에 따른다",
+        "정량적 평가 제안서",
+        "정성적 평가 제안서",
+        "입찰방식",
+        "사업자 선정 방식",
+        "○ 계약체결에 필요한 세부적인 사항은 기획재정부 “협상에 의한 계약체결기준”을 적용한다",
+        "입찰 참가자격",
+        "- 경쟁입찰 참가자격을 갖추고, 조달청 입찰참가자격 등록증을 소지한 사업자",
+        "- 소프트웨어 진흥법 제48조제4항에 따라 상호출자제한기업집단에 속하는 회사는 입찰에 참여",
+        "- 본 사업은 1"
+      ],
+      "keywords": [
+        "명확한",
+        "계약체결기준",
+        "협상에",
+        "규정에",
+        "한다",
+        "따른다",
+        "페이지",
+        "제공해야",
+        "반환하지",
+        "내용은",
+        "일체의",
+        "관련된",
+        "적용한다",
+        "작성이",
+        "대해서는",
+        "조달청",
+        "권고",
+        "제안평가",
+        "일체",
+        "계약체결에"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "○ A4지 규격의 전자문서(pdf)로 작성을 권고",
+      "○ 제안서의 각 페이지는 쉽게 참조할 수 있도록 페이지 하단 중앙에 일련번호를 붙이되, 각",
+      "○ 제안서는 한글 작성이 원칙이며, 사용된 영문약어에 대해서는 약어표를 제공해야 한다",
+      "○ 제안서의 내용은 명확한 용어를 사용하여 표현하여야 합니다",
+      "○ 계약 후, 제안서의 내용이 허위로 작성한 사실이 발견되거나 제안된 내용을 충족시키지 못",
+      "○ 제출된 제안서는 일체 반환하지 않으며, 본 제안과 관련된 일체의 소요비용은 입찰참가자의",
+      "○ 기타 공고서 및 조달청 제안평가 관련 규정에 따른다",
+      "정량적 평가 제안서",
+      "정성적 평가 제안서",
+      "입찰방식",
+      "사업자 선정 방식",
+      "○ 계약체결에 필요한 세부적인 사항은 기획재정부 “협상에 의한 계약체결기준”을 적용한다",
+      "입찰 참가자격",
+      "- 경쟁입찰 참가자격을 갖추고, 조달청 입찰참가자격 등록증을 소지한 사업자",
+      "- 소프트웨어 진흥법 제48조제4항에 따라 상호출자제한기업집단에 속하는 회사는 입찰에 참여",
+      "- 본 사업은 1",
+      "목차",
+      "제안요청서",
+      "사업범위",
+      "사업기간"
+    ],
+    "document_summary": "<표> | <표>  <표>  2024. 10.  <표>  <표>  <표>  1. 개요  ○ 사 업 명 : 우주항공청 정보화전략계획  ○ 사업기간 : 계약체결일 ~ ’25.6.30.  ※ 사업 진도 등을 고려하여 사업 기간 조정 가능  ○ 사업예산 : 150백만원(부가가치세 포함)  ○ 계약방법 : 제한경쟁입찰(협상에 의한 계약) 2. 추진배경 및 필요성  ○ (우주항",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:05:39",
+  "updated_at": "2026-07-07T15:05:39",
+  "processing_time_ms": 4728
+}

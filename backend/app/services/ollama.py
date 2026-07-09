@@ -1,20 +1,40 @@
 """
 Ollama LLM and Embedding Service
+# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
 """
 import httpx
 from typing import Optional, List, Dict, Any, AsyncGenerator
 import json
 
 from app.core.config import settings
+from app.services.runtime_model_settings import get_runtime_embedding_model
+
+
+def _get_ollama_host() -> str:
+    """DB 설정 우선, 없으면 config fallback."""
+    try:
+        from app.services.system_settings_service import get_endpoint_setting
+        return get_endpoint_setting("ollama_host", settings.ollama_host)
+    except Exception:
+        return settings.ollama_host
+
+
+def _get_default_llm_model() -> str:
+    """DB 설정 우선, 없으면 config fallback."""
+    try:
+        from app.services.system_settings_service import get_model_setting
+        return get_model_setting("default_llm_model", settings.ollama_model)
+    except Exception:
+        return settings.ollama_model
 
 
 class OllamaService:
     """Service for interacting with Ollama API"""
 
     def __init__(self):
-        self.base_url = settings.ollama_host
-        self.default_model = settings.ollama_model
-        self.embed_model = settings.ollama_embed_model
+        self.base_url = _get_ollama_host()
+        self.default_model = _get_default_llm_model()
+        self.embed_model = get_runtime_embedding_model()
 
     async def check_connection(self) -> Dict[str, Any]:
         """Check Ollama connection status"""
@@ -40,7 +60,7 @@ class OllamaService:
 
     async def get_embedding(self, text: str, model: Optional[str] = None) -> List[float]:
         """Get embedding for a single text"""
-        model = model or self.embed_model
+        model = model or get_runtime_embedding_model(self.embed_model)
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -60,7 +80,7 @@ class OllamaService:
         batch_size: int = 32
     ) -> List[List[float]]:
         """Get embeddings for multiple texts in batches"""
-        model = model or self.embed_model
+        model = model or get_runtime_embedding_model(self.embed_model)
         embeddings = []
 
         for i in range(0, len(texts), batch_size):

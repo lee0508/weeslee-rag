@@ -1,0 +1,17 @@
+{
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_311895717",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_차세대 범죄예방정보시스템 구축 정보화전략계획(ISP) 수립.hwp",
+  "snapshot_id": "",
+  "ocr": {
+    "engine": "tesseract",
+    "dpi": 300,
+    "language": "kor+eng",
+    "min_text_length": 50,
+    "parser_type": "hwp5txt_direct+supplements"
+  },
+  "document_id": "311895717",
+  "updated_at": "2026-07-07T15:06:44.351852",
+  "created_at": "2026-07-07T15:06:44.343771"
+}

@@ -1,0 +1,210 @@
+{
+  "document_id": "551779402",
+  "file_name": "RFP_과기정통부 AI-NEXT 고도화 ISP.hwpx",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_과기정통부 AI-NEXT 고도화 ISP.hwpx",
+  "file_extension": ".hwpx",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_551779402",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_과기정통부 AI-NEXT 고도화 ISP.hwpx",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwpx-zip",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 57614,
+  "quality": {
+    "quality_score": 1.0,
+    "text_length": 57614,
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_과기정통부 AI-NEXT 고도화 ISP.hwpx",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_과기정통부 AI-NEXT 고도화 ISP.hwpx",
+    "section_group": "RFP_과기정통부 AI-NEXT 고도화 ISP.hwpx",
+    "document_type": "hwpx",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "<「 과기정통부 AI-NEXT 고도화 ISP」 제안요청서>",
+          ". 3.",
+          "<부 서><성 명><연 락 처><e-mail>",
+          "<><<><><><><목 차><><><><>><>"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "<「 과기정통부 AI-NEXT 고도화 ISP」 제안요청서>",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<>",
+              "<>",
+              "2026. 3.",
+              "<부 서><성 명><연 락 처><e-mail>",
+              "<정보화담당관><과장 ><장기동><044-202-4470><risegi@korea.kr><사무관><문종철><044-202-4472><freelord1214@korea.kr><주무관 ><최윤조><044-202-4479><cyj1032@korea.kr>",
+              "<><<><><><><목 차><><><><>><>",
+              "<>< >",
+              "< Ⅰ. 사업 개요 1 1. 배경 및 필요성 1 2. 개요 1 3. ISP 수립 주요 내용(핵심 과업) 1 4. 추진 체계 및 일정 3 Ⅱ. 제안요청 내용 5 1. 제안요청 사항 5 2. 상세 요구사항 7 3. 일반 제안요청 사항 33 Ⅲ. 제안서 작성 안내 36 1. 입찰시 유의사항 36 2. 세부 작성지침 37 Ⅳ. 입찰 및 제안 안내 39 1. 입찰 및 계약방식 39 2. 입찰참가자격 40 3. 제안 평가 관련 사항 40 4. 협상적격자 및 협상순위의 선정 44 5. 제안안내 44 6. 소프트웨어(SW) 사업 관련 유의사항 45 7. 기타 유의사항 49 Ⅴ. 입찰 서식 및 참고 사항 51>"
+            ],
+            "keywords": [
+              "<「 과기정통부 AI-NEXT 고도화 ISP」 제안요청서>",
+              ". 3.",
+              "<부 서><성 명><연 락 처><e-mail>",
+              "<><<><><><><목 차><><><><>><>"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<「 과기정통부 AI-NEXT 고도화 ISP」 제안요청서>",
+      "organization": "과기정통부",
+      "project_name": "",
+      "date": "2026년 3월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "과기정통부",
+        "AI",
+        "NEXT",
+        "고도화",
+        "ISP",
+        "제안요청서"
+      ],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "배경 및 필요성 1 2",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "ISP 수립 주요 내용(핵심 과업) 1 4",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "제안요청 사항 5 2",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "일반 제안요청 사항 33 Ⅲ",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "입찰시 유의사항 36 2",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "입찰 및 계약방식 39 2",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "7억원) 기획·추진 중 ㅇ 급속한 AI 기술 발전 속도를 고려하여 향후 2년 (‘27~’2",
+          "page": 8
+        }
+      ],
+      "section_titles": [
+        "배경 및 필요성 1 2",
+        "ISP 수립 주요 내용(핵심 과업) 1 4",
+        "제안요청 사항 5 2",
+        "일반 제안요청 사항 33 Ⅲ",
+        "입찰시 유의사항 36 2",
+        "입찰 및 계약방식 39 2",
+        "7억원) 기획·추진 중 ㅇ 급속한 AI 기술 발전 속도를 고려하여 향후 2년 (‘27~’2"
+      ],
+      "keywords": [
+        "기획",
+        "AI",
+        "내용",
+        "발전",
+        "추진",
+        "ISP",
+        "사항",
+        "고려하여",
+        "제안요청",
+        "입찰시",
+        "과업",
+        "억원",
+        "주요",
+        "핵심",
+        "향후",
+        "일반",
+        "급속한",
+        "배경",
+        "속도를",
+        "유의사항"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "배경 및 필요성 1 2",
+      "ISP 수립 주요 내용(핵심 과업) 1 4",
+      "제안요청 사항 5 2",
+      "일반 제안요청 사항 33 Ⅲ",
+      "입찰시 유의사항 36 2",
+      "입찰 및 계약방식 39 2",
+      "7억원) 기획·추진 중 ㅇ 급속한 AI 기술 발전 속도를 고려하여 향후 2년 (‘27~’2",
+      "담당",
+      "제안요청서",
+      "추진방향",
+      "기대효과",
+      "추진체계",
+      "추진일정",
+      "이행계획 수립",
+      "제안요청 내용",
+      "제약사항"
+    ],
+    "document_summary": "<「 과기정통부 AI-NEXT 고도화 ISP」 제안요청서> | <> <「 과기정통부 AI-NEXT 고도화 ISP」 제안요청서> <>  2026. 3.   <부 서><성 명><연 락 처><e-mail> <정보화담당관><과장 ><장기동><044-202-4470><risegi@korea.kr><사무관><문종철><044-202-4472><freelord1214@korea.kr><주무관 ><최윤조><044-202-4479><c",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": "AI"
+    }
+  },
+  "created_at": "2026-07-07T15:04:24",
+  "updated_at": "2026-07-07T15:04:24",
+  "processing_time_ms": 83
+}

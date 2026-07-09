@@ -1,3 +1,5 @@
+# 통합 문서 추출기 - 모든 지원 형식 및 OCR 지원
+# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
 """
 Unified Document Extractor
 Handles all supported document formats with OCR support
@@ -7,6 +9,15 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from app.extractors.base import BaseExtractor, ExtractionResult
+
+
+def _get_db_ocr_setting(key: str, default):
+    """DB에서 OCR 설정 조회. 실패 시 default 반환."""
+    try:
+        from app.services.system_settings_service import get_system_setting
+        return get_system_setting("ocr", key, default)
+    except Exception:
+        return default
 from app.extractors.pdf_extractor import PDFExtractor
 from app.extractors.docx_extractor import DocxExtractor
 from app.extractors.pptx_extractor import PptxExtractor
@@ -21,7 +32,15 @@ class DocumentExtractor:
     based on file type
     """
 
-    def __init__(self, use_ocr: bool = True, ocr_use_gpu: Optional[bool] = None):
+    def __init__(
+        self,
+        use_ocr: bool = True,
+        ocr_use_gpu: Optional[bool] = None,
+        ocr_dpi: int = None,
+        ocr_language: str = None,
+        ocr_min_text_length: int = 50,
+        ocr_engine: str = None,
+    ):
         """
         Initialize document extractor
 
@@ -31,12 +50,29 @@ class DocumentExtractor:
         self.use_ocr = use_ocr
         self.ocr_use_gpu = ocr_use_gpu
         self.extractors: List[BaseExtractor] = [
-            PDFExtractor(use_ocr=use_ocr, ocr_use_gpu=ocr_use_gpu),
+            PDFExtractor(
+                use_ocr=use_ocr,
+                ocr_use_gpu=ocr_use_gpu,
+                ocr_dpi=ocr_dpi,
+                ocr_language=ocr_language,
+                ocr_threshold=ocr_min_text_length,
+                ocr_engine=ocr_engine,
+            ),
             DocxExtractor(),
-            PptxExtractor(),
+            PptxExtractor(
+                ocr_engine=ocr_engine,
+                ocr_use_gpu=ocr_use_gpu,
+                ocr_dpi=ocr_dpi,
+                ocr_language=ocr_language,
+            ),
             XlsxExtractor(),
             HwpxExtractor(),
-            HwpExtractor(),
+            HwpExtractor(
+                ocr_engine=ocr_engine,
+                ocr_use_gpu=ocr_use_gpu,
+                ocr_dpi=ocr_dpi,
+                ocr_language=ocr_language,
+            ),
         ]
 
     @property

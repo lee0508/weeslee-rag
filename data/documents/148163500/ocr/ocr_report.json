@@ -1,0 +1,144 @@
+{
+  "document_id": "148163500",
+  "file_name": "RFP_해양환경 위기대응 통합지원시스템 ISP.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_해양환경 위기대응 통합지원시스템 ISP.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_148163500",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_해양환경 위기대응 통합지원시스템 ISP.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 27706,
+  "quality": {
+    "text_length": 27706,
+    "char_count": 17082,
+    "korean_count": 14902,
+    "english_count": 158,
+    "number_count": 434,
+    "special_count": 1588,
+    "garbage_count": 4,
+    "korean_ratio": 0.8724,
+    "english_ratio": 0.0092,
+    "garbage_char_ratio": 0.0002,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_해양환경 위기대응 통합지원시스템 ISP.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_해양환경 위기대응 통합지원시스템 ISP.hwp",
+    "section_group": "RFP_해양환경 위기대응 통합지원시스템 ISP.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "<그림>",
+          "<표>",
+          ". 12.",
+          "□ 국내·외 해양환경 변화"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "<그림>",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "2023. 12.",
+              "<표>",
+              "<표>",
+              "<표>",
+              "<표>",
+              "<표>",
+              "□ 국내·외 해양환경 변화"
+            ],
+            "keywords": [
+              "<그림>",
+              "<표>",
+              ". 12.",
+              "□ 국내·외 해양환경 변화"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<표>",
+      "organization": "대응지원",
+      "project_name": "",
+      "date": "2023년 12월",
+      "document_type": "제안요청서",
+      "keywords": [],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [],
+      "section_titles": [],
+      "keywords": [],
+      "confidence": 0.0
+    },
+    "detected_sections": [
+      "담당",
+      "제안요청서",
+      "추진전략",
+      "추진일정"
+    ],
+    "document_summary": "<표> | <표>  <그림>  2023. 12.  <표>  <표>  <표>  <표>  <표>     □ 국내·외 해양환경 변화   ○ 글로벌 기후변화 위기 대응으로 선박연료가 화석연료에서 친환경 연료인 화학물질로 대체   ○ 기존 기름유출 피해에서 화학물질 유출에 따라 화재·폭발 등을 동반한 인명과 환경에 복합적 피해   □ 해양오염사고 형태 변화   ○ 친환경선박",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:07:32",
+  "updated_at": "2026-07-07T15:07:32",
+  "processing_time_ms": 10833
+}

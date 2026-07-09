@@ -3,16 +3,23 @@
 OCR/파싱 결과를 document_id 기준으로 저장하고 관리합니다.
 
 저장 구조:
-    data/processed_text/{document_id}/
-    ├─ full_text.txt          # 최종 텍스트
-    ├─ full_text.md           # 마크다운 형식
-    ├─ pages.jsonl            # 페이지별 텍스트
-    ├─ tables.jsonl           # 표 데이터
-    ├─ ocr_report.json        # 처리 결과 보고서
-    ├─ converted.pdf          # PDF 변환본 (필요 시)
-    └─ assets/
-       ├─ page_001.png
-       └─ ...
+    data/documents/{document_id}/
+    ├─ id_contract.json
+    ├─ ocr/
+    │  ├─ full_text.txt
+    │  ├─ full_text.md
+    │  ├─ pages.jsonl
+    │  ├─ tables.jsonl
+    │  ├─ ocr_report.json
+    │  ├─ structured_data.json
+    │  ├─ converted.pdf
+    │  └─ assets/
+    ├─ chunk/
+    ├─ embedding/
+    └─ run_config/
+
+호환 경로:
+    기존 data/processed_text/{document_id}/ 구조도 읽기 fallback으로 지원
 
 사용 예시:
     store = ProcessedTextStore()
@@ -26,7 +33,7 @@ import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -152,24 +159,153 @@ class ProcessedTextStore:
         저장소 초기화.
 
         Args:
-            base_dir: 저장 기본 디렉토리 (기본값: data/processed_text)
+            base_dir: 저장 기본 디렉토리 (기본값: data/documents)
         """
         if base_dir:
             self.base_dir = Path(base_dir)
+            self.legacy_base_dir = self.base_dir
         else:
             # 프로젝트 루트 기준
             project_root = Path(__file__).resolve().parents[3]
-            self.base_dir = project_root / "data" / "processed_text"
+            self.base_dir = project_root / "data" / "documents"
+            self.legacy_base_dir = project_root / "data" / "processed_text"
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.legacy_base_dir.mkdir(parents=True, exist_ok=True)
 
     def _doc_dir(self, document_id: str) -> Path:
         """document_id에 해당하는 디렉토리 경로."""
         return self.base_dir / document_id
 
+    def _legacy_doc_dir(self, document_id: str) -> Path:
+        """기존 processed_text 경로."""
+        return self.legacy_base_dir / document_id
+
+    def get_document_root(self, document_id: str) -> Path:
+        """현재 표준 문서 루트."""
+        return self._doc_dir(document_id)
+
+    def _stage_dir(self, document_id: str, stage: str) -> Path:
+        return self._doc_dir(document_id) / stage
+
+    def _ocr_dir(self, document_id: str) -> Path:
+        return self._stage_dir(document_id, "ocr")
+
+    def _chunk_dir(self, document_id: str) -> Path:
+        return self._stage_dir(document_id, "chunk")
+
+    def _embedding_dir(self, document_id: str) -> Path:
+        return self._stage_dir(document_id, "embedding")
+
+    def _metadata_dir(self, document_id: str) -> Path:
+        return self._stage_dir(document_id, "metadata")
+
+    def _keyword_dir(self, document_id: str) -> Path:
+        return self._stage_dir(document_id, "keyword")
+
+    def _graph_dir(self, document_id: str) -> Path:
+        return self._stage_dir(document_id, "graph")
+
+    def _wiki_dir(self, document_id: str) -> Path:
+        return self._stage_dir(document_id, "wiki")
+
+    def _run_config_dir(self, document_id: str) -> Path:
+        return self._doc_dir(document_id) / "run_config"
+
+    def _run_config_snapshot_dir(self, document_id: str) -> Path:
+        return self._run_config_dir(document_id) / "snapshots"
+
+    def _id_contract_path(self, document_id: str) -> Path:
+        return self._doc_dir(document_id) / "id_contract.json"
+
+    def _path_candidates(self, document_id: str, stage: str, file_name: str) -> list[Path]:
+        canonical = self._stage_dir(document_id, stage) / file_name
+        legacy_stage = self._legacy_doc_dir(document_id) / stage / file_name
+        legacy_flat = self._legacy_doc_dir(document_id) / file_name
+        return [canonical, legacy_stage, legacy_flat]
+
+    def _read_jsonl(self, path: Path) -> list[dict]:
+        rows: list[dict] = []
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    rows.append(json.loads(line))
+        return rows
+
+    def _write_jsonl(self, path: Path, rows: list[dict]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            for row in rows:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    def _first_existing_path(self, candidates: list[Path]) -> Optional[Path]:
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return None
+
+    def save_id_contract(self, document_id: str, payload: dict[str, Any]) -> Optional[Path]:
+        doc_dir = self._doc_dir(document_id)
+        doc_dir.mkdir(parents=True, exist_ok=True)
+        current = {}
+        path = self._id_contract_path(document_id)
+        if path.exists():
+            try:
+                current = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                current = {}
+        merged = {
+            **current,
+            "document_id": str(document_id),
+            "source_id": str(payload.get("source_id") or current.get("source_id") or ""),
+            "dataset_id": str(payload.get("dataset_id") or current.get("dataset_id") or ""),
+            "document_uid": str(payload.get("document_uid") or current.get("document_uid") or ""),
+            "relative_path": str(payload.get("relative_path") or current.get("relative_path") or ""),
+            "latest_snapshot_id": str(payload.get("snapshot_id") or payload.get("latest_snapshot_id") or current.get("latest_snapshot_id") or ""),
+            "updated_at": datetime.now().isoformat(),
+        }
+        if not current.get("created_at"):
+            merged["created_at"] = merged["updated_at"]
+        else:
+            merged["created_at"] = current.get("created_at")
+        path.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
+        return path
+
+    def save_run_config(self, document_id: str, payload: dict[str, Any], snapshot_id: Optional[str] = None) -> Optional[Path]:
+        config_dir = self._run_config_dir(document_id)
+        config_dir.mkdir(parents=True, exist_ok=True)
+        latest_path = config_dir / "latest.json"
+        current = {}
+        if latest_path.exists():
+            try:
+                current = json.loads(latest_path.read_text(encoding="utf-8"))
+            except Exception:
+                current = {}
+
+        merged = {
+            **current,
+            **payload,
+            "document_id": str(document_id),
+            "updated_at": datetime.now().isoformat(),
+        }
+        if not current.get("created_at"):
+            merged["created_at"] = merged["updated_at"]
+        else:
+            merged["created_at"] = current.get("created_at")
+
+        latest_path.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        target_snapshot = str(snapshot_id or merged.get("snapshot_id") or "").strip()
+        if target_snapshot:
+            snap_dir = self._run_config_snapshot_dir(document_id)
+            snap_dir.mkdir(parents=True, exist_ok=True)
+            snap_path = snap_dir / f"{target_snapshot}.json"
+            snap_path.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
+        return latest_path
+
     def _assets_dir(self, document_id: str) -> Path:
         """assets 디렉토리 경로."""
-        return self._doc_dir(document_id) / "assets"
+        return self._ocr_dir(document_id) / "assets"
 
     def save_result(self, result: ProcessingResult) -> bool:
         """
@@ -182,7 +318,7 @@ class ProcessedTextStore:
             저장 성공 여부
         """
         try:
-            doc_dir = self._doc_dir(result.document_id)
+            doc_dir = self._ocr_dir(result.document_id)
             doc_dir.mkdir(parents=True, exist_ok=True)
 
             # 업데이트 시간 설정
@@ -206,16 +342,12 @@ class ProcessedTextStore:
 
             # 3. pages.jsonl 저장
             if result.pages:
-                with (doc_dir / "pages.jsonl").open("w", encoding="utf-8") as f:
-                    for page in result.pages:
-                        f.write(json.dumps(page, ensure_ascii=False) + "\n")
+                self._write_jsonl(doc_dir / "pages.jsonl", result.pages)
                 result.page_count = len(result.pages)
 
             # 4. tables.jsonl 저장
             if result.tables:
-                with (doc_dir / "tables.jsonl").open("w", encoding="utf-8") as f:
-                    for table in result.tables:
-                        f.write(json.dumps(table, ensure_ascii=False) + "\n")
+                self._write_jsonl(doc_dir / "tables.jsonl", result.tables)
 
             # 5. ocr_report.json 저장
             report = result.to_dict()
@@ -230,6 +362,22 @@ class ProcessedTextStore:
                     json.dumps(result.structured_data, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
+
+            self.save_id_contract(result.document_id, result.to_dict())
+            self.save_run_config(
+                result.document_id,
+                {
+                    "source_id": result.source_id,
+                    "dataset_id": result.dataset_id,
+                    "document_uid": result.document_uid,
+                    "relative_path": result.relative_path,
+                    "snapshot_id": "",
+                    "ocr": {
+                        "engine": result.ocr_engine,
+                        "parser_type": result.parser_type,
+                    },
+                },
+            )
 
             return True
 
@@ -247,46 +395,38 @@ class ProcessedTextStore:
         Returns:
             ProcessingResult 또는 None
         """
-        doc_dir = self._doc_dir(document_id)
-        report_path = doc_dir / "ocr_report.json"
+        report_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "ocr_report.json"))
 
-        if not report_path.exists():
+        if not report_path or not report_path.exists():
             return None
 
         try:
             data = json.loads(report_path.read_text(encoding="utf-8"))
             result = ProcessingResult.from_dict(data)
+            doc_dir = report_path.parent
 
             # full_text 로드
-            text_path = doc_dir / "full_text.txt"
-            if text_path.exists():
+            text_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "full_text.txt"))
+            if text_path and text_path.exists():
                 result.full_text = text_path.read_text(encoding="utf-8")
 
             # full_text_md 로드
-            md_path = doc_dir / "full_text.md"
-            if md_path.exists():
+            md_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "full_text.md"))
+            if md_path and md_path.exists():
                 result.full_text_md = md_path.read_text(encoding="utf-8")
 
             # pages 로드
-            pages_path = doc_dir / "pages.jsonl"
-            if pages_path.exists():
-                result.pages = []
-                with pages_path.open("r", encoding="utf-8") as f:
-                    for line in f:
-                        if line.strip():
-                            result.pages.append(json.loads(line))
+            pages_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "pages.jsonl"))
+            if pages_path and pages_path.exists():
+                result.pages = self._read_jsonl(pages_path)
 
             # tables 로드
-            tables_path = doc_dir / "tables.jsonl"
-            if tables_path.exists():
-                result.tables = []
-                with tables_path.open("r", encoding="utf-8") as f:
-                    for line in f:
-                        if line.strip():
-                            result.tables.append(json.loads(line))
+            tables_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "tables.jsonl"))
+            if tables_path and tables_path.exists():
+                result.tables = self._read_jsonl(tables_path)
 
-            structured_path = doc_dir / "structured_data.json"
-            if structured_path.exists():
+            structured_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "structured_data.json"))
+            if structured_path and structured_path.exists():
                 result.structured_data = json.loads(structured_path.read_text(encoding="utf-8"))
 
             return result
@@ -305,8 +445,8 @@ class ProcessedTextStore:
         Returns:
             보고서 dict 또는 None
         """
-        report_path = self._doc_dir(document_id) / "ocr_report.json"
-        if not report_path.exists():
+        report_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "ocr_report.json"))
+        if not report_path or not report_path.exists():
             return None
 
         try:
@@ -325,11 +465,10 @@ class ProcessedTextStore:
         Returns:
             텍스트 또는 None
         """
-        doc_dir = self._doc_dir(document_id)
         file_name = "full_text.md" if format == "md" else "full_text.txt"
-        text_path = doc_dir / file_name
+        text_path = self._first_existing_path(self._path_candidates(document_id, "ocr", file_name))
 
-        if not text_path.exists():
+        if not text_path or not text_path.exists():
             return None
 
         try:
@@ -339,12 +478,12 @@ class ProcessedTextStore:
 
     def exists(self, document_id: str) -> bool:
         """처리 결과 존재 여부 확인."""
-        return (self._doc_dir(document_id) / "ocr_report.json").exists()
+        return self._first_existing_path(self._path_candidates(document_id, "ocr", "ocr_report.json")) is not None
 
     def get_structured_data(self, document_id: str) -> Optional[dict]:
         """구조화 데이터 조회."""
-        structured_path = self._doc_dir(document_id) / "structured_data.json"
-        if not structured_path.exists():
+        structured_path = self._first_existing_path(self._path_candidates(document_id, "ocr", "structured_data.json"))
+        if not structured_path or not structured_path.exists():
             return None
         try:
             return json.loads(structured_path.read_text(encoding="utf-8"))
@@ -354,13 +493,19 @@ class ProcessedTextStore:
     def delete(self, document_id: str) -> bool:
         """처리 결과 삭제."""
         doc_dir = self._doc_dir(document_id)
+        legacy_dir = self._legacy_doc_dir(document_id)
+        ok = True
         if doc_dir.exists():
             try:
                 shutil.rmtree(doc_dir)
-                return True
             except Exception:
-                return False
-        return True
+                ok = False
+        if legacy_dir.exists():
+            try:
+                shutil.rmtree(legacy_dir)
+            except Exception:
+                ok = False
+        return ok
 
     def list_documents(self, status: Optional[str] = None, limit: int = 100) -> list[dict]:
         """
@@ -375,10 +520,17 @@ class ProcessedTextStore:
         """
         results = []
 
-        for doc_dir in sorted(self.base_dir.iterdir(), reverse=True):
-            if not doc_dir.is_dir():
-                continue
+        seen: set[str] = set()
+        all_dirs = []
+        if self.base_dir.exists():
+            all_dirs.extend(self.base_dir.iterdir())
+        if self.legacy_base_dir.exists() and self.legacy_base_dir != self.base_dir:
+            all_dirs.extend(self.legacy_base_dir.iterdir())
 
+        for doc_dir in sorted(all_dirs, reverse=True):
+            if not doc_dir.is_dir() or doc_dir.name in seen:
+                continue
+            seen.add(doc_dir.name)
             report = self.get_report(doc_dir.name)
             if report:
                 if status and report.get("status") != status:
@@ -410,11 +562,7 @@ class ProcessedTextStore:
             "pdf_converted_count": 0,
         }
 
-        for doc_dir in self.base_dir.iterdir():
-            if not doc_dir.is_dir():
-                continue
-
-            report = self.get_report(doc_dir.name)
+        for report in self.list_documents(limit=100000):
             if not report:
                 continue
 
@@ -475,7 +623,7 @@ class ProcessedTextStore:
         Returns:
             저장된 파일 경로 또는 None
         """
-        doc_dir = self._doc_dir(document_id)
+        doc_dir = self._ocr_dir(document_id)
         doc_dir.mkdir(parents=True, exist_ok=True)
 
         file_path = doc_dir / "converted.pdf"
@@ -486,8 +634,16 @@ class ProcessedTextStore:
         except Exception:
             return None
 
+    def get_stage_file_path(self, document_id: str, stage: str, file_name: str) -> Optional[Path]:
+        return self._first_existing_path(self._path_candidates(document_id, stage, file_name))
+
 
 # 싱글톤 인스턴스
+try:
+    import app.services.processed_text_store_extensions  # noqa: F401
+except Exception:
+    pass
+
 processed_text_store = ProcessedTextStore()
 
 

@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import os
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -27,15 +28,19 @@ from app.services.document_uid import make_document_uid, detect_file_change, cal
 from app.services.platform_store import get_record, list_records, update_record
 from app.services.tag_keyword_generator import TagKeywordGenerator
 from app.services.dataset_context import get_source_dataset_context, ensure_source_dataset_context
+from app.services.dataset_build_settings import get_step_config
 from app.services.category_service import detect_categories_from_directory
 from app.services.metadata_auto_generator import MetadataAutoGenerator
 from app.services.metadata_enricher import enrich_confidence
 from app.services.processed_text_store import ProcessedTextStore
+from app.services.runtime_model_settings import get_runtime_embedding_model
+from app.services.source_artifact_index import sync_source_index
+from app.services.structured_content_resolver import StructuredContentResolver
 from app.core.config import settings
 from app.core.mappings import mappings
 from app.services.ollama import OllamaService, get_ollama
 from app.api.admin_dataset_builder_step5 import ChunkBuildRequest, build_chunks
-from app.api.admin_dataset_builder_step6 import EmbeddingBuildRequest, build_embeddings
+from app.api.admin_dataset_builder_step6 import EmbeddingBuildRequest, execute_embedding_build
 from app.api.admin_dataset_builder_step7 import FAISSBuildRequest, build_faiss_index
 
 router = APIRouter(
@@ -263,7 +268,7 @@ class Step2ChunkEmbedFaissRequest(BaseModel):
     chunk_size: int = 1000
     chunk_overlap: int = 200
     min_chunk_size: int = 100
-    embedding_model: str = "nomic-embed-text"
+    embedding_model: Optional[str] = None
     batch_size: int = 32
     retry_count: int = 3
     force_rebuild: bool = False
@@ -318,16 +323,132 @@ def extract_project_name(filename: str) -> str:
     return name.strip()
 
 
+_PROJECT_PREFIXES = (
+    "RFP_", "전략및방법론_", "기술및기능_", "프로젝트관리_", "프로젝트지원_",
+    "연구과제_", "감리_", "PMO_", "PoC_", "환경분석_", "현황분석_",
+    "목표모델_", "이행계획_", "이행과제_", "전략과제_", "추진전략_", "제안개요_",
+)
+
+
+_KNOWN_ORG_EXACTS = {
+    "국회", "법무부", "교육부", "환경부", "고용노동부", "보건복지부",
+    "행정안전부", "국토교통부", "과기정통부", "과학기술정보통신부",
+    "한국직업능력연구원", "한국자산관리공사", "한국수자원공사", "공간정보품질관리원",
+    "국립법무병원", "고용노동부 고객상담센터", "우주항공청", "국가유산청",
+    "KOFIH", "NIA", "LH", "GH", "통계청", "대검찰청", "해양경찰청", "농식품부",
+    "서울특별시교육청", "축산물품질평가원", "한국마약퇴치운동본부",
+}
+_KNOWN_ORG_SUFFIXES = (
+    "연구원", "위원회", "관리원", "진흥원", "개발원", "공사", "공단", "재단",
+    "협회", "센터", "병원", "학교", "대학", "교육청", "검찰청", "경찰청",
+    "운동본부", "본부", "법원", "부", "청", "처",
+)
+_KNOWN_ORG_TRAILING_UNITS = ("과", "팀", "실", "국", "관", "원", "소", "센터")
+_ORG_NOISE_PATTERNS = (
+    r"^[\(\)\[\]\s]+$",
+    r"^\d+[천백억만]*원$",
+    r"^[가-힣]*천원$",
+    r"^[가-힣]*만원$",
+    r"^[가-힣]*억원$",
+    r"^(내부|외부|지원|정부|사업|정보관리|의약품|인공지능|범죄예방정책|친환경에너지 기상지원|휴[‧·\-]?폐업|출처|참고|그림|표)$",
+    r"^(고객센터|콜센터|연구센터|정보화센터|사업본부|추진조직 고객센터|소방통합 DB 센터)$",
+)
+
+
+def _clean_organization_candidate(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    text = text.strip("()[]{}<> ,.:;\"'")
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return ""
+
+    for pattern in _ORG_NOISE_PATTERNS:
+        if re.fullmatch(pattern, text):
+            return ""
+
+    if any(char.isdigit() for char in text):
+        return ""
+
+    if re.fullmatch(r"[A-Z][A-Z0-9\-]{1,4}", text):
+        return ""
+
+    if text in _KNOWN_ORG_EXACTS:
+        return text
+
+    for org_name in _KNOWN_ORG_EXACTS:
+        if len(org_name) < 2:
+            continue
+        if text.startswith(f"{org_name} ") and text.endswith(_KNOWN_ORG_TRAILING_UNITS):
+            return text
+
+    if text in {"세부", "제안요청", "공공부", "범죄로부", "계약부", "신정부", "사업부", "디지털플랫폼정부", "디지털혁신본부"}:
+        return ""
+
+    if len(text) <= 4 and text.endswith(("부", "청", "처", "본부")):
+        return ""
+
+    if text.endswith("본부") and not re.search(r"(소방|운동|수자원|교육|검찰|경찰)", text):
+        return ""
+
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9\-]{1,9}", text):
+        return text
+
+    if any(text.endswith(suffix) and len(text) > len(suffix) for suffix in _KNOWN_ORG_SUFFIXES):
+        return text
+
+    return ""
+
+
+def _normalize_project_name(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    text = Path(text).stem.strip()
+    text = re.sub(r"\s+", " ", text).strip()
+
+    for prefix in _PROJECT_PREFIXES:
+        if text.startswith(prefix):
+            text = text[len(prefix):].strip()
+            break
+
+    text = re.sub(
+        r"^(연구과제|환경분석|현황분석|목표모델|이행계획|이행과제|전략과제|추진전략|제안개요)\s*[_\-:]\s*",
+        "",
+        text,
+    ).strip()
+    text = re.sub(r"^(연구과제|환경분석|현황분석|목표모델|이행계획|이행과제|전략과제|추진전략|제안개요)\s+", "", text).strip()
+    text = re.sub(r"^[<\[]+|[>\]]+$", "", text).strip()
+    text = re.sub(r"\s{2,}", " ", text).strip(" _-")
+    return text
+
+
+def _extract_metadata_year(auto_meta: Dict[str, Any]) -> Any:
+    return auto_meta.get("project_year") or auto_meta.get("year")
+
+
+def _sanitize_year_value(value: Any) -> Optional[int]:
+    year_value = _coerce_year_int(value)
+    if year_value is None:
+        return None
+
+    current_year = datetime.utcnow().year
+    if 2000 <= year_value <= current_year + 1:
+        return year_value
+    return None
+
+
 def extract_scan_metadata(filename: str, relative_path: str) -> Dict[str, Any]:
     """파일명과 상대 경로에서 scan_* 메타데이터를 추출한다."""
-    import re
-
     path_text = f"{relative_path}/{filename}".replace("\\", "/")
     auto_meta = PATH_METADATA_GENERATOR.extract_metadata(path_text)
 
     project_name = extract_project_name(filename) or auto_meta.get("project_name") or None
     confidence_meta = enrich_confidence(relative_path, project_name or "")
-    organization = (
+    organization = _clean_organization_candidate(
         auto_meta.get("organization")
         or confidence_meta.get("organization")
         or None
@@ -338,11 +459,8 @@ def extract_scan_metadata(filename: str, relative_path: str) -> Dict[str, Any]:
     year_match = re.search(r'\b(20[012]\d)\b', path_text)
     if year_match:
         year = int(year_match.group(1))
-    elif auto_meta.get("project_year"):
-        try:
-            year = int(str(auto_meta["project_year"]).strip())
-        except Exception:
-            year = None
+    else:
+        year = _sanitize_year_value(_extract_metadata_year(auto_meta))
 
     return {
         "scan_project_name": project_name,
@@ -354,11 +472,13 @@ def extract_scan_metadata(filename: str, relative_path: str) -> Dict[str, Any]:
 def generate_tag_keyword_for_source(body: TagKeywordGenerateRequest) -> dict:
     db = SessionLocal()
     try:
+        step5_config = get_step_config(body.source_id, "5")
         generator = TagKeywordGenerator(
             db=db,
             source_id=body.source_id,
             snapshot_id=body.snapshot_id,
             overwrite=body.overwrite,
+            config=step5_config,
         )
         return generator.run()
     except Exception as exc:
@@ -386,7 +506,10 @@ def _coerce_year_int(value: Any) -> Optional[int]:
         return None
 
 
-def _build_metadata_source_text(metadata: DocumentMetadata) -> str:
+def _build_metadata_source_text(
+    metadata: DocumentMetadata,
+    resolver: Optional[StructuredContentResolver] = None,
+) -> str:
     """OCR/청킹 산출물을 우선 사용해 메타데이터 생성용 텍스트를 구성한다."""
     parts: List[str] = []
 
@@ -394,6 +517,12 @@ def _build_metadata_source_text(metadata: DocumentMetadata) -> str:
         parts.append(metadata.file_name)
     if metadata.relative_path:
         parts.append(metadata.relative_path)
+
+    if resolver is not None:
+        structured_content = resolver.resolve_document_content(metadata)
+        structured_text = structured_content.get("combined_text") or ""
+        if structured_text:
+            parts.append(structured_text[: resolver.max_text_chars])
 
     chunk_file = PROCESSED_TEXT_STORE.load_chunk_file(metadata.document_id)
     if chunk_file:
@@ -707,15 +836,27 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     samples["removed"].append(rel_path)
 
         db.commit()
+        sync_source_index(
+            source_id,
+            db=db,
+            source_record=get_document_source(source_id),
+            inventory_payload={"files": current_files},
+        )
 
         # 6.5 디렉토리 구조에서 카테고리 자동 감지 및 저장
         detected_categories = detect_categories_from_directory(scan_root_str)
         if detected_categories:
-            update_record(
+            updated_source = update_record(
                 "document_sources",
                 "source_id",
                 source_id,
                 {"category_config": {"categories": detected_categories}}
+            )
+            sync_source_index(
+                source_id,
+                db=db,
+                source_record=updated_source or get_document_source(source_id),
+                inventory_payload={"files": current_files},
             )
 
         # 7. 총 document_metadata 레코드 수 조회
@@ -784,6 +925,7 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
             query = query.filter(DocumentMetadata.meta_status == MetaStatus.REGISTERED.value)
 
         metadata_list = query.all()
+        metadata_resolvers: Dict[str, StructuredContentResolver] = {}
 
         processed = 0
         updated = 0
@@ -807,7 +949,14 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
                 continue
 
             scan_meta = extract_scan_metadata(filename, relative_path)
-            artifact_text = _build_metadata_source_text(metadata)
+            metadata_source_id = str(metadata.source_id or request.source_id or "").strip()
+            if metadata_source_id not in metadata_resolvers:
+                metadata_resolvers[metadata_source_id] = StructuredContentResolver(
+                    get_step_config(metadata_source_id, "3")
+                )
+            resolver = metadata_resolvers[metadata_source_id]
+            structured_hints = resolver.extract_structured_hints(metadata)
+            artifact_text = _build_metadata_source_text(metadata, resolver)
 
             # RFP 패턴 분석 강화 기능 사용 여부에 따라 분기 (2026-07-04)
             if request.use_enhanced:
@@ -822,6 +971,11 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
 
             confidence_meta = enrich_confidence(relative_path, scan_meta["scan_project_name"] or "")
 
+            structured_project_name = structured_hints.get("project_name") or None
+            structured_organization = structured_hints.get("organization") or None
+            structured_year_value = structured_hints.get("year")
+            structured_document_type = structured_hints.get("document_type") or None
+
             if request.overwrite or not metadata.scan_project_name:
                 metadata.scan_project_name = scan_meta["scan_project_name"]
             if request.overwrite or not metadata.scan_organization:
@@ -832,22 +986,51 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
                 metadata.scan_document_category = metadata.document_group or metadata.category_id
 
             project_name = (
-                scan_meta["scan_project_name"]
+                structured_project_name
+                or structured_hints.get("title")
+                or scan_meta["scan_project_name"]
                 or auto_meta.get("project_name")
+                or auto_meta.get("title")
+                or auto_meta.get("project_title")
                 or extract_project_name(filename)
             )
+            project_name = _normalize_project_name(project_name)
             organization = (
-                scan_meta["scan_organization"]
-                or auto_meta.get("organization")
-                or confidence_meta.get("organization")
+                _clean_organization_candidate(structured_organization)
+                or _clean_organization_candidate(auto_meta.get("organization"))
+                or _clean_organization_candidate(scan_meta["scan_organization"])
+                or _clean_organization_candidate(auto_meta.get("client_name"))
+                or (
+                    ""
+                    if structured_hints.get("used_paths")
+                    else _clean_organization_candidate(confidence_meta.get("organization"))
+                )
             )
-            year_value = _coerce_year_int(scan_meta["scan_year"] or auto_meta.get("project_year"))
+            year_value = _sanitize_year_value(
+                structured_year_value
+                or scan_meta["scan_year"]
+                or _extract_metadata_year(auto_meta)
+            )
             document_type = (
-                metadata.document_group
+                structured_document_type
                 or auto_meta.get("document_type")
+                or scan_meta.get("scan_document_category")
+                or metadata.document_group
                 or metadata.section_type
                 or metadata.category_id
             )
+            project_name = _normalize_project_name(
+                project_name or metadata.project_name or metadata.scan_project_name
+            )
+            organization = (
+                organization
+                or _clean_organization_candidate(metadata.organization)
+                or _clean_organization_candidate(metadata.scan_organization)
+                or _clean_organization_candidate(metadata.ocr_organization)
+                or ""
+            )
+            year_value = year_value if year_value is not None else metadata.year
+            document_type = document_type or metadata.document_type or metadata.document_group
 
             if request.overwrite or not metadata.project_name:
                 metadata.project_name = project_name
@@ -859,7 +1042,7 @@ async def step2_metadata_auto(request: MetadataAutoRequest, db: Session = Depend
                 metadata.organization_confidence = (
                     confidence_meta.get("organization_confidence")
                     if organization == confidence_meta.get("organization")
-                    else (0.6 if organization else None)
+                    else (metadata.organization_confidence if not organization else 0.6)
                 )
             if request.overwrite or not metadata.year:
                 metadata.year = year_value
@@ -935,9 +1118,12 @@ async def run_step2_chunk_embed_faiss(
             detail=f"source_id={source_id} 에 대해 Step 2 실행 대상 문서를 찾지 못했습니다.",
         )
 
+    embedding_model = get_runtime_embedding_model(request.embedding_model)
+
     chunk_result = await build_chunks(
         ChunkBuildRequest(
             source_id=source_id,
+            snapshot_id=request.snapshot_id,
             document_ids=document_ids,
             chunk_size=request.chunk_size,
             chunk_overlap=request.chunk_overlap,
@@ -946,14 +1132,16 @@ async def run_step2_chunk_embed_faiss(
         ),
         db,
     )
-    embedding_result = await build_embeddings(
+    embedding_result = await execute_embedding_build(
         EmbeddingBuildRequest(
             source_id=source_id,
+            snapshot_id=request.snapshot_id,
             document_ids=document_ids,
-            model=request.embedding_model,
+            model=embedding_model,
             batch_size=request.batch_size,
             retry_count=request.retry_count,
             force_rebuild=request.force_rebuild,
+            wait_for_completion=True,
         ),
         db,
         ollama,

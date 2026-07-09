@@ -1,0 +1,333 @@
+{
+  "document_id": "954368766",
+  "file_name": "RFP_사내업무시스템 통합 구축을 위한 BPRISP 컨설팅 용역.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_사내업무시스템 통합 구축을 위한 BPRISP 컨설팅 용역.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_954368766",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_사내업무시스템 통합 구축을 위한 BPRISP 컨설팅 용역.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 18767,
+  "quality": {
+    "text_length": 18767,
+    "char_count": 12151,
+    "korean_count": 10398,
+    "english_count": 241,
+    "number_count": 348,
+    "special_count": 1164,
+    "garbage_count": 3,
+    "korean_ratio": 0.8557,
+    "english_ratio": 0.0198,
+    "garbage_char_ratio": 0.0002,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_사내업무시스템 통합 구축을 위한 BPRISP 컨설팅 용역.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_사내업무시스템 통합 구축을 위한 BPRISP 컨설팅 용역.hwp",
+    "section_group": "RFP_사내업무시스템 통합 구축을 위한 BPRISP 컨설팅 용역.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "전문화된 자산관리서비스로 고객의 풍요와 행복을 추구하는",
+          "<표>",
+          "<그림>",
+          ". 9."
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "전문화된 자산관리서비스로 고객의 풍요와 행복을 추구하는",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "<그림>",
+              "<표>",
+              "2019. 9.",
+              "<표>",
+              "<그림>",
+              "<그림>",
+              "<그림>"
+            ],
+            "keywords": [
+              "전문화된 자산관리서비스로 고객의 풍요와 행복을 추구하는",
+              "<표>",
+              "<그림>",
+              ". 9."
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<표>",
+      "organization": "내부",
+      "project_name": "사내업무시스템 통합 구축을 위한 BPR/ISP 컨설팅 용역",
+      "date": "",
+      "document_type": "정보화전략계획",
+      "keywords": [],
+      "confidence": 0.85
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "5개월 이내",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "업무분야 및 관련시스템",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "업무 프로세스 재설계(BPR)",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "경영지원 강화 및 데이터 통합 방안 수립",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "정보화전략계획(ISP) 수립",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "운영 환경",
+          "page": 1
+        },
+        {
+          "level": 1,
+          "title": "0(X-Internet), JAVA/JSP",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "x, SmarteFilter",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "현재 시스템 현황",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "경영정보시스템 노후화에 따른 개선요구사항 급증",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "경영정보시스템 통합관리를 위한 재구축",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "경영정보시스템의 ActiveX를 제거를 통한 웹표준․웹접근성 준수",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "정보화동향 및 정보보안 정책 적용",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "요구사항 목록",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "사업기간",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "5개월으로 함",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "작업장소",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "입찰보증금 및 국가귀속",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "계약방법",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "실적증명",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제안업체는 계약체결 후 우체국시설관리단과 외주 용역사업 보안특약 및 개인정보처리위탁 계약을",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "(별첨3",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "본 사업은 「소프트웨어산업 진흥법」 제14조의2, 같은 법 시행령 제12조의2,「소프트웨어",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "본 사업은 하도급을 불허하는 사업임",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "입찰 참가 자격",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "5개월 이내",
+        "업무분야 및 관련시스템",
+        "업무 프로세스 재설계(BPR)",
+        "경영지원 강화 및 데이터 통합 방안 수립",
+        "정보화전략계획(ISP) 수립",
+        "운영 환경",
+        "0(X-Internet), JAVA/JSP",
+        "x, SmarteFilter",
+        "현재 시스템 현황",
+        "경영정보시스템 노후화에 따른 개선요구사항 급증",
+        "경영정보시스템 통합관리를 위한 재구축",
+        "경영정보시스템의 ActiveX를 제거를 통한 웹표준․웹접근성 준수",
+        "정보화동향 및 정보보안 정책 적용",
+        "요구사항 목록",
+        "사업기간",
+        "5개월으로 함",
+        "작업장소",
+        "입찰보증금 및 국가귀속",
+        "계약방법",
+        "실적증명",
+        "제안업체는 계약체결 후 우체국시설관리단과 외주 용역사업 보안특약 및 개인정보처리위탁 계약을",
+        "(별첨3",
+        "본 사업은 「소프트웨어산업 진흥법」 제14조의2, 같은 법 시행령 제12조의2,「소프트웨어",
+        "본 사업은 하도급을 불허하는 사업임",
+        "입찰 참가 자격"
+      ],
+      "keywords": [
+        "운영",
+        "사업은",
+        "개월",
+        "입찰보증금",
+        "목록",
+        "데이터",
+        "업무",
+        "JAVA",
+        "정책",
+        "웹접근성",
+        "SmarteFilter",
+        "ActiveX를",
+        "ISP",
+        "요구사항",
+        "국가귀속",
+        "관련시스템",
+        "외주",
+        "하도급을",
+        "개인정보처리위탁",
+        "경영정보시스템의"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "5개월 이내",
+      "업무분야 및 관련시스템",
+      "업무 프로세스 재설계(BPR)",
+      "경영지원 강화 및 데이터 통합 방안 수립",
+      "정보화전략계획(ISP) 수립",
+      "운영 환경",
+      "0(X-Internet), JAVA/JSP",
+      "x, SmarteFilter",
+      "현재 시스템 현황",
+      "경영정보시스템 노후화에 따른 개선요구사항 급증",
+      "경영정보시스템 통합관리를 위한 재구축",
+      "경영정보시스템의 ActiveX를 제거를 통한 웹표준․웹접근성 준수",
+      "정보화동향 및 정보보안 정책 적용",
+      "요구사항 목록",
+      "사업기간",
+      "5개월으로 함",
+      "작업장소",
+      "입찰보증금 및 국가귀속",
+      "계약방법",
+      "실적증명"
+    ],
+    "document_summary": "<표> | <표> 전문화된 자산관리서비스로 고객의 풍요와 행복을 추구하는  <그림>     <표>  2019. 9.   <표>  <그림>       <그림>  <그림>  <표>     <표>   가. (현 시스템 한계) 현 시스템의 기능적 한계 노출  ㅇ 표준화된 프레임워크 미적용으로 시스템 확장성 및 상호 운용성 저하  ㅇ 내부 기능 간 및 관련 시스템과의 연계 미",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:05:05",
+  "updated_at": "2026-07-07T15:05:05",
+  "processing_time_ms": 4914
+}

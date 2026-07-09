@@ -14,6 +14,7 @@ OCR/Parser 결과에서 문서 구조(섹션, 페이지)를 추출한다.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -33,6 +34,7 @@ def generate_page_id(document_id: int, page_no: int) -> str:
 # entity_mappings.json 경로
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "data" / "config"
 _ENTITY_MAPPINGS_PATH = _CONFIG_DIR / "entity_mappings.json"
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -148,9 +150,11 @@ class DocumentStructureExtractor:
                 )
                 # 섹션 매핑 빌드
                 self._build_section_mappings()
-            except Exception:
+            except Exception as exc:
+                logger.warning("entity_mappings load failed: %s", exc)
                 self._entity_mappings = {}
         else:
+            logger.warning("entity_mappings missing: %s", self._mappings_path)
             self._entity_mappings = {}
 
         return self._entity_mappings
@@ -177,8 +181,7 @@ class DocumentStructureExtractor:
         """텍스트에서 페이지 추출."""
         pages: List[ExtractedPage] = []
 
-        # 페이지 구분자 찾기
-        page_breaks: List[Tuple[int, int]] = []  # (위치, 페이지번호)
+        page_breaks: List[Tuple[int, int, int]] = []  # (start, end, page_no)
 
         for pattern in self.PAGE_BREAK_PATTERNS:
             for match in pattern.finditer(text):
@@ -186,7 +189,7 @@ class DocumentStructureExtractor:
                     page_no = int(match.group(1)) if match.lastindex else 0
                 except (ValueError, IndexError):
                     page_no = 0
-                page_breaks.append((match.start(), page_no))
+                page_breaks.append((match.start(), match.end(), page_no))
 
         if not page_breaks:
             # 페이지 구분자가 없으면 전체를 1페이지로 처리
@@ -199,37 +202,36 @@ class DocumentStructureExtractor:
             ))
             return pages
 
-        # 페이지 구분자 정렬
-        page_breaks.sort(key=lambda x: x[0])
+        page_breaks.sort(key=lambda x: (x[0], x[1]))
 
-        # 페이지별 텍스트 분리
-        prev_pos = 0
-        for i, (pos, page_no) in enumerate(page_breaks):
-            if pos > prev_pos:
-                page_text = text[prev_pos:pos].strip()
-                if page_text:
-                    actual_page_no = page_no if page_no > 0 else i + 1
-                    pages.append(ExtractedPage(
-                        page_no=actual_page_no,
-                        text_content=page_text,
-                        char_count=len(page_text),
-                        start_char=prev_pos,
-                        end_char=pos,
-                    ))
-            prev_pos = pos
-
-        # 마지막 페이지
-        if prev_pos < len(text):
-            last_text = text[prev_pos:].strip()
-            if last_text:
-                last_page_no = len(pages) + 1
+        first_start = page_breaks[0][0]
+        if first_start > 0:
+            lead_text = text[:first_start].strip()
+            if lead_text:
                 pages.append(ExtractedPage(
-                    page_no=last_page_no,
-                    text_content=last_text,
-                    char_count=len(last_text),
-                    start_char=prev_pos,
-                    end_char=len(text),
+                    page_no=1,
+                    text_content=lead_text,
+                    char_count=len(lead_text),
+                    start_char=0,
+                    end_char=first_start,
                 ))
+
+        inferred_page_no = pages[-1].page_no if pages else 0
+        for i, (start, end, marker_page_no) in enumerate(page_breaks):
+            next_start = page_breaks[i + 1][0] if i + 1 < len(page_breaks) else len(text)
+            page_text = text[end:next_start].strip()
+            if not page_text:
+                continue
+            actual_page_no = marker_page_no if marker_page_no > 0 else inferred_page_no + 1
+            actual_page_no = max(actual_page_no, inferred_page_no + 1)
+            pages.append(ExtractedPage(
+                page_no=actual_page_no,
+                text_content=page_text,
+                char_count=len(page_text),
+                start_char=end,
+                end_char=next_start,
+            ))
+            inferred_page_no = actual_page_no
 
         return pages
 
@@ -239,9 +241,9 @@ class DocumentStructureExtractor:
 
         for line in lines:
             line = line.strip()
-            if 10 <= len(line) <= 100:
+            if 4 <= len(line) <= 120:
                 # 제목으로 보이는 라인
-                if not re.match(r'^[\d\.\-\s]+$', line):  # 순수 숫자가 아님
+                if not re.match(r'^[\d\.\-\s]+$', line) and "...." not in line and "|" not in line:
                     return line
 
         return None
@@ -267,7 +269,11 @@ class DocumentStructureExtractor:
 
     def _detect_content_features(self, page_text: str) -> Tuple[bool, bool, bool]:
         """콘텐츠 특징 감지 (표, 이미지, 차트)."""
-        has_table = bool(re.search(r'\|.+\|.+\|', page_text))  # 표 패턴
+        has_table = bool(
+            re.search(r'\|.+\|.+\|', page_text)
+            or re.search(r'^\s*\S+\s{2,}\S+\s{2,}\S+', page_text, re.MULTILINE)
+            or re.search(r'^[\-\+=]{4,}$', page_text, re.MULTILINE)
+        )
         has_image = bool(re.search(r'\[이미지\]|\[그림\]|\[Image\]|\[Figure\]', page_text, re.IGNORECASE))
         has_chart = bool(re.search(r'\[차트\]|\[Chart\]|\[그래프\]|\[Graph\]', page_text, re.IGNORECASE))
 
@@ -419,18 +425,43 @@ class DocumentStructureExtractor:
         result = []
         for chunk in chunks:
             chunk_copy = dict(chunk)
-            chunk_start = chunk.get("start_char", 0)
+            chunk_start = int(chunk.get("start_char", 0) or 0)
+            chunk_end = int(chunk.get("end_char", chunk_start) or chunk_start)
+            metadata = chunk.get("metadata") or {}
 
-            # 청크가 속하는 페이지 찾기
+            explicit_page_no = (
+                chunk.get("page_no")
+                or chunk.get("page_number")
+                or metadata.get("page_no")
+                or metadata.get("page_number")
+                or metadata.get("slide_no")
+            )
+            if explicit_page_no is not None:
+                try:
+                    chunk_copy["page_no"] = int(explicit_page_no)
+                    chunk_copy["slide_no"] = int(metadata.get("slide_no") or chunk_copy["page_no"])
+                    result.append(chunk_copy)
+                    continue
+                except Exception:
+                    pass
+
+            chunk_mid = chunk_start + max(0, chunk_end - chunk_start) // 2
             for page in pages:
-                if page.start_char <= chunk_start < page.end_char:
+                if page.start_char <= chunk_mid < page.end_char:
                     chunk_copy["page_no"] = page.page_no
                     chunk_copy["slide_no"] = page.slide_no
                     break
             else:
-                # 못 찾으면 가장 가까운 페이지
                 if pages:
-                    chunk_copy["page_no"] = pages[-1].page_no
+                    nearest = min(
+                        pages,
+                        key=lambda page: min(
+                            abs(chunk_start - page.start_char),
+                            abs(chunk_mid - page.end_char),
+                        ),
+                    )
+                    chunk_copy["page_no"] = nearest.page_no
+                    chunk_copy["slide_no"] = nearest.slide_no
 
             result.append(chunk_copy)
 

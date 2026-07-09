@@ -17,8 +17,10 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.models.document_metadata import DocumentMetadata
+from app.services.dataset_build_settings import get_step_config
 from app.services.ollama_metadata_keyword_enricher import OllamaMetadataKeywordEnricher
 from app.services.processed_text_store import ProcessedTextStore
+from app.services.structured_content_resolver import StructuredContentResolver
 import app.services.processed_text_store_extensions  # noqa: F401
 
 
@@ -41,13 +43,16 @@ class TagKeywordGenerator:
         source_id: str,
         snapshot_id: Optional[str] = None,
         overwrite: bool = False,
+        config: Optional[Dict[str, Any]] = None,
     ):
         self.db = db
         self.source_id = source_id
         self.snapshot_id = snapshot_id
         self.overwrite = overwrite
+        self.config = config or get_step_config(source_id, "5")
         self.processed_text_store = ProcessedTextStore()
         self.ollama_enricher = OllamaMetadataKeywordEnricher()
+        self.structured_resolver = StructuredContentResolver(self.config)
 
         # 불용어 (stopwords)
         self.stopwords = {
@@ -56,6 +61,16 @@ class TagKeywordGenerator:
             "재구축", "정보화전략계획", "정보전략계획", "및", "을", "를",
             "의", "에", "대한", "관련", "등", "년", "차", "단계",
             "문서", "자료", "내용", "구성", "작성", "검토", "추진",
+            "개요", "목적", "분석", "지원", "계획", "관리", "전략", "프로젝트",
+            "사업내용", "추진내용", "공통내용", "요구사항", "산출물",
+            "표지", "목차", "페이지", "page", "붙임", "별첨", "일반사항",
+            "제안요청서", "제안서", "사업개요", "주요내용", "세부내용",
+            "상위섹션", "핵심내용", "hwp", "hwpx", "pdf", "ppt", "pptx", "doc", "docx",
+            "파일명", "경로명", "상대경로", "섹션분류", "총슬라이드수", "슬라이드",
+            "표지내용", "제목", "사업명", "주관기관", "기관명", "발주기관", "년도", "년월", "연월",
+            "소스",
+            "structured", "json", "txt", "metadata", "pattern", "cover", "toc",
+            "xampp", "htdocs", "weeslee", "mnt", "source", "rag",
         }
 
         # 키워드 동의어 그룹 (대표 키워드로 정규화)
@@ -100,7 +115,14 @@ class TagKeywordGenerator:
             relative_path = doc.relative_path or ""
             file_name = doc.file_name or Path(doc.file_path or "").name
             project_name = doc.project_name or self._extract_project_name(file_name)
-            text_context = self._build_text_context(doc, project_name, file_name, relative_path)
+            structured_hints = self.structured_resolver.extract_structured_hints(doc)
+            text_context = self._build_text_context(
+                doc,
+                project_name,
+                file_name,
+                relative_path,
+                structured_hints=structured_hints,
+            )
 
             # 문서 분류값 (이미 DB에 있으면 사용, 없으면 계산)
             document_group = doc.document_group or ""
@@ -150,6 +172,7 @@ class TagKeywordGenerator:
             # 키워드 후보 생성: 파일명/폴더명/프로젝트명 + OCR 본문을 함께 사용
             keywords = self._merge_keyword_candidates(
                 self._extract_path_keywords(file_name, relative_path, project_name),
+                self._extract_structured_keyword_candidates(structured_hints),
                 self._extract_keywords(text_context),
             )
             llm_enrichment = self._enrich_keywords_with_ollama(
@@ -220,6 +243,13 @@ class TagKeywordGenerator:
             "message": "Tag/Keyword 생성이 완료되었습니다.",
             "source_id": self.source_id,
             "snapshot_id": self.snapshot_id,
+            "config_applied": {
+                "use_structured_txt": bool(self.config.get("use_structured_txt", True)),
+                "use_structured_json": bool(self.config.get("use_structured_json", True)),
+                "structured_txt_root": self.config.get("structured_txt_root"),
+                "structured_json_root": self.config.get("structured_json_root"),
+                **self.structured_resolver.get_resolution_summary(),
+            },
             "document_count": len(documents),
             "tag_count": len(tags),
             "keyword_count": len(keywords_list),
@@ -278,18 +308,34 @@ class TagKeywordGenerator:
         project_name: str,
         file_name: str,
         relative_path: str,
+        structured_hints: Optional[Dict[str, Any]] = None,
     ) -> str:
         parts: List[str] = []
         for value in (
             project_name,
             file_name,
-            relative_path,
             doc.section_type,
             doc.final_document_category,
             doc.ocr_document_category,
             doc.scan_document_category,
             doc.project_name,
             doc.organization,
+        ):
+            text = str(value or "").strip()
+            if text:
+                parts.append(text)
+
+        structured_content = self.structured_resolver.resolve_document_content(doc)
+        structured_hints = structured_hints or self.structured_resolver.extract_structured_hints(doc)
+        structured_text = structured_content.get("combined_text") or ""
+        if structured_text:
+            parts.append(structured_text[: self.structured_resolver.max_text_chars])
+        for value in (
+            structured_hints.get("title"),
+            structured_hints.get("project_name"),
+            structured_hints.get("organization"),
+            " ".join(structured_hints.get("section_titles") or []),
+            " ".join(structured_hints.get("keywords") or []),
         ):
             text = str(value or "").strip()
             if text:
@@ -396,49 +442,51 @@ class TagKeywordGenerator:
         tokens = clean.split()
 
         for token in tokens:
-            token = token.strip()
-
-            if len(token) < 2:
+            normalized = self._normalize_keyword_token(token, max_len=30)
+            if not normalized:
                 continue
-
-            if token in self.stopwords:
-                continue
-
-            # 숫자만 있는 토큰 제외
-            if token.isdigit():
-                continue
-
-            if len(token) > 30:
-                continue
-
-            if re.fullmatch(r"[A-Za-z]{1}", token):
-                continue
-
-            keywords.append(token)
+            keywords.append(normalized)
 
         return list(dict.fromkeys(keywords))[:40]
 
     def _extract_path_keywords(self, file_name: str, relative_path: str, project_name: str) -> List[str]:
         """파일명/폴더명/프로젝트명에서 직접 검색에 유용한 키워드를 추출합니다."""
-        text = " ".join([file_name or "", relative_path or "", project_name or ""]).strip()
+        text = " ".join([file_name or "", project_name or ""]).strip()
         if not text:
             return []
 
         clean = re.sub(r"[._()\[\],·‧+/\-:>]", " ", text)
         keywords: List[str] = []
         for token in clean.split():
-            token = token.strip()
-            if len(token) < 2:
+            normalized = self._normalize_keyword_token(token, max_len=40)
+            if not normalized:
                 continue
-            if token in self.stopwords:
-                continue
-            if token.isdigit():
-                continue
-            if len(token) > 40:
-                continue
-            keywords.append(token)
+            keywords.append(normalized)
 
         return list(dict.fromkeys(keywords))[:20]
+
+    def _extract_structured_keyword_candidates(self, structured_hints: Dict[str, Any]) -> List[str]:
+        keywords: List[str] = []
+        if not structured_hints:
+            return keywords
+
+        raw_groups = [
+            structured_hints.get("project_name"),
+            structured_hints.get("organization"),
+            structured_hints.get("document_type"),
+            *(structured_hints.get("section_titles") or [])[:12],
+            *(structured_hints.get("keywords") or [])[:20],
+        ]
+        for value in raw_groups:
+            text = str(value or "").strip()
+            if not text:
+                continue
+            for token in re.split(r"[\s,()_/·‧:\-\[\]<>]+", text):
+                normalized = self._normalize_keyword_token(token, max_len=40)
+                if not normalized:
+                    continue
+                keywords.append(normalized)
+        return list(dict.fromkeys(keywords))[:30]
 
     def _should_use_ollama_keyword_enrichment(
         self,
@@ -474,16 +522,61 @@ class TagKeywordGenerator:
         merged: List[str] = []
         for group in groups:
             for keyword in group:
-                token = str(keyword or "").strip()
-                if len(token) < 2:
-                    continue
-                if token in self.stopwords:
+                token = self._normalize_keyword_token(keyword, max_len=40)
+                if not token:
                     continue
                 if token not in merged:
                     merged.append(token)
                 if len(merged) >= 40:
                     return merged
         return merged
+
+    def _normalize_keyword_token(self, token: Any, max_len: int = 40) -> str:
+        value = str(token or "").strip()
+        if not value:
+            return ""
+
+        value = Path(value).stem if "." in value and len(value) < 80 else value
+        value = re.sub(r"^[#\-•·]+", "", value).strip()
+        value = re.sub(r"^RFP_", "", value, flags=re.IGNORECASE).strip()
+        value = re.sub(r"^\d+(\.\d+)*\.?$", "", value).strip()
+        value = re.sub(r"^[0-9]+(\.[0-9]+)*$", "", value).strip()
+        value = re.sub(r"^page$", "", value, flags=re.IGNORECASE).strip()
+        value = re.sub(r"^<+|>+$", "", value).strip()
+        value = re.sub(r"[.]+$", "", value).strip()
+        value = re.sub(r"\s{2,}", " ", value).strip()
+        value = value.replace("\\", " ").replace("/", " ").strip()
+        value = re.sub(r"\s{2,}", " ", value).strip()
+
+        if len(value) < 2:
+            return ""
+        if len(value) > max_len:
+            return ""
+        if value.startswith("<") or value.endswith(">"):
+            return ""
+        if value in self.stopwords:
+            return ""
+        if value.lower() in self.stopwords:
+            return ""
+        if value.isdigit():
+            return ""
+        if re.search(r"[:\\]", value):
+            return ""
+        if re.search(r"\bmnt\b", value, flags=re.IGNORECASE):
+            return ""
+        if re.fullmatch(r"소스\s*\d*", value):
+            return ""
+        if re.fullmatch(r"[A-Za-z]{2,4}", value) and value.upper() not in {"AI", "AX", "ISP", "ISMP", "LLM", "RAG", "ODA", "NIA"}:
+            return ""
+        if re.search(r"(xampp|htdocs|weeslee|structured|document_id|source_id|snapshot_id)", value, flags=re.IGNORECASE):
+            return ""
+        if re.fullmatch(r"[A-Za-z]{1}", value):
+            return ""
+        if re.fullmatch(r"[{}]+".format(re.escape("<>[]=()")), value):
+            return ""
+        if re.search(r"(페이지|page)\s*\d+$", value, flags=re.IGNORECASE):
+            return ""
+        return value
 
     def _guess_keyword_type(self, keyword: str) -> str:
         """키워드 유형을 규칙 기반으로 추정합니다."""

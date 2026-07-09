@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-DB 기반 Wiki 생성 스크립트
+DB 기반 Wiki 생성 스크립트 (템플릿 방식, LLM 미사용)
 
-Document Source ROOT 폴더의 디렉토리 구조와 메타데이터를 DB에서 조회하여
-Wiki 마크다운 파일을 생성합니다.
+[2026-07-08] 역할 정리.
+이 스크립트는 build_project_wiki.py와 달리 LLM을 사용하지 않는다.
+metadata.db의 documents 테이블만으로 마크다운 템플릿을 채워 Wiki를 생성한다.
+빠른 빌드가 필요할 때 사용하고, AI 요약이 필요하면 build_project_wiki.py를 사용한다.
+
+Wiki 파이프라인 산출물 계약:
+  - data/wiki/{source_id}/projects/*.md
+  - data/wiki/{source_id}/index.json
+  - data/wiki/{source_id}/build_info.json
 
 Usage:
     python backend/scripts/build_wiki_from_db.py --source-id src_20260702_141532_3a5a53
@@ -24,6 +31,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata
+from app.utils.wiki_slug import make_wiki_slug
 from sqlalchemy import func
 
 # 경로 설정
@@ -292,6 +300,7 @@ def build_wiki_for_source(source_id: str, max_wikis: int = 0) -> Dict[str, Any]:
 
         generated_wikis = []
         wiki_count = 0
+        used_slugs: set[str] = set()  # [2026-07-08] slug 중복 방지용
 
         for project_folder, docs in sorted(projects.items()):
             if max_wikis > 0 and wiki_count >= max_wikis:
@@ -324,9 +333,9 @@ def build_wiki_for_source(source_id: str, max_wikis: int = 0) -> Dict[str, Any]:
                 dataset_id=dataset_id
             )
 
-            # 파일명 생성 (프로젝트 폴더명 기반)
-            safe_name = project_folder.replace("/", "-").replace("\\", "-")
-            wiki_filename = f"{safe_name}.md"
+            # [2026-07-08] ASCII slug 생성 (wiki_search.py 검색 계약 준수)
+            slug = make_wiki_slug(project_name, used_slugs)
+            wiki_filename = f"{slug}.md"
             wiki_path = wiki_output_dir / wiki_filename
 
             wiki_path.write_text(wiki_content, encoding='utf-8')
@@ -354,20 +363,22 @@ def build_wiki_for_source(source_id: str, max_wikis: int = 0) -> Dict[str, Any]:
         print(f"  ✓ build_info.json 저장 완료")
 
         # 4. index.json 생성 (검색용)
+        # [2026-07-08] wiki_search.py 계약 필드(wiki_type, project_folder, project_name, wiki_file, document_ids) 준수
         print("\n[4/4] index.json 생성 중...")
 
         index_data = []
+        index_slugs: set[str] = set()  # slug 재생성용
         for project_folder, docs in sorted(projects.items()):
             project_names = [d.project_name for d in docs if d.project_name]
             project_name = max(set(project_names), key=project_names.count) if project_names else project_folder
 
-            safe_name = project_folder.replace("/", "-").replace("\\", "-")
+            slug = make_wiki_slug(project_name, index_slugs)
 
             index_data.append({
+                "wiki_type": "project",
                 "project_folder": project_folder,
                 "project_name": project_name,
-                "wiki_file": f"{safe_name}.md",
-                "document_count": len(docs),
+                "wiki_file": f"{slug}.md",
                 "document_ids": [d.document_id for d in docs]
             })
 

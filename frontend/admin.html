@@ -38,7 +38,7 @@
   </div>
 </div>
 
-<div id="wrAdminDocsApp" class="wr-admin-docs-app">
+<div id="wrAdminDocsApp" class="wr-admin-docs-app" hidden>
   <header class="wr-docs-header">
     <a
       class="wr-brand wr-brand-link"
@@ -3941,7 +3941,119 @@ POST /api/admin/faiss/activate</code>
           <button class="wr-btn" type="button" onclick="loadRuntimeComputeSettings(true)">GPU 설정 새로고침</button>
         </div>
         <button class="wr-btn" type="button" onclick="loadWrSettingsFromServer()" style="margin-top:16px">↻ 상태 새로고침</button>
-        <h2 class="wr-section-title" id="wr-settings-legacy" data-wr-anchor>Platform Settings</h2>
+
+        <!-- DB 기반 시스템 설정 (2026-07-08 추가) -->
+        <h2 class="wr-section-title" id="wr-settings-db" data-wr-anchor style="margin-top:32px">
+          <i class="bx bx-cog" style="margin-right:6px"></i>DB 시스템 설정
+        </h2>
+        <p class="wr-page-lead">데이터베이스에 저장된 시스템 설정값을 조회하고 수정합니다. 플랫폼별(Windows/Linux) 경로 설정이 자동 적용됩니다.</p>
+
+        <!-- 카테고리 탭 -->
+        <div class="wr-settings-category-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn wr-is-active" type="button" data-category="all" onclick="loadDbSystemSettings('all')">전체</button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="path" onclick="loadDbSystemSettings('path')">
+            <i class="bx bx-folder"></i> 경로
+          </button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="endpoint" onclick="loadDbSystemSettings('endpoint')">
+            <i class="bx bx-link"></i> 엔드포인트
+          </button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="model" onclick="loadDbSystemSettings('model')">
+            <i class="bx bx-chip"></i> 모델
+          </button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="rag" onclick="loadDbSystemSettings('rag')">
+            <i class="bx bx-data"></i> RAG
+          </button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="llm" onclick="loadDbSystemSettings('llm')">
+            <i class="bx bx-message-square-dots"></i> LLM
+          </button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="search" onclick="loadDbSystemSettings('search')">
+            <i class="bx bx-search"></i> 검색
+          </button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="ocr" onclick="loadDbSystemSettings('ocr')">
+            <i class="bx bx-scan"></i> OCR
+          </button>
+          <button class="wr-btn wr-btn-sm wr-settings-cat-btn" type="button" data-category="security" onclick="loadDbSystemSettings('security')">
+            <i class="bx bx-shield"></i> 보안
+          </button>
+        </div>
+
+        <!-- 설정 테이블 -->
+        <div class="wr-table-wrap" style="max-height:500px;overflow-y:auto">
+          <table class="wr-table" id="wrDbSettingsTable">
+            <thead>
+              <tr>
+                <th style="width:120px">카테고리</th>
+                <th style="width:180px">설정 키</th>
+                <th>값</th>
+                <th style="width:80px">플랫폼</th>
+                <th style="width:200px">설명</th>
+                <th style="width:80px">작업</th>
+              </tr>
+            </thead>
+            <tbody id="wrDbSettingsBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--wr-text-muted)">로딩 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="wr-inline-actions" style="margin-top:16px">
+          <button class="wr-btn wr-btn-primary" type="button" onclick="loadDbSystemSettings()">
+            <i class="bx bx-refresh"></i> 설정 새로고침
+          </button>
+          <button class="wr-btn" type="button" onclick="testDbConnection('ollama')">
+            <i class="bx bx-plug"></i> Ollama 연결 테스트
+          </button>
+          <button class="wr-btn" type="button" onclick="testDbConnection('mysql')">
+            <i class="bx bx-data"></i> MySQL 연결 테스트
+          </button>
+          <button class="wr-btn" type="button" onclick="refreshDbSettingsCache()">
+            <i class="bx bx-recycle"></i> 캐시 갱신
+          </button>
+        </div>
+
+        <!-- 설정 수정 모달 -->
+        <div class="wr-modal-overlay" id="wrSettingEditModal" style="display:none">
+          <div class="wr-modal" style="max-width:500px">
+            <div class="wr-modal-header">
+              <h3 id="wrSettingEditTitle">설정 수정</h3>
+              <button class="wr-modal-close" type="button" onclick="closeSettingEditModal()">&times;</button>
+            </div>
+            <div class="wr-modal-body">
+              <div class="wr-field" style="margin-bottom:12px">
+                <label>카테고리</label>
+                <input id="wrSettingEditCategory" readonly style="background:#1a1a1a">
+              </div>
+              <div class="wr-field" style="margin-bottom:12px">
+                <label>설정 키</label>
+                <input id="wrSettingEditKey" readonly style="background:#1a1a1a">
+              </div>
+              <div class="wr-field" style="margin-bottom:12px">
+                <label>현재 값</label>
+                <input id="wrSettingEditCurrentValue" readonly style="background:#1a1a1a">
+              </div>
+              <div class="wr-field" style="margin-bottom:12px">
+                <label>새 값</label>
+                <textarea id="wrSettingEditNewValue" rows="3" style="width:100%;font-family:monospace"></textarea>
+              </div>
+              <div class="wr-field" style="margin-bottom:12px">
+                <label>플랫폼</label>
+                <select id="wrSettingEditPlatform" style="width:100%">
+                  <option value="">현재 플랫폼 유지</option>
+                  <option value="all">전체 (all)</option>
+                  <option value="windows">Windows</option>
+                  <option value="linux">Linux</option>
+                </select>
+              </div>
+              <p class="wr-text-muted" style="font-size:12px" id="wrSettingEditDesc"></p>
+            </div>
+            <div class="wr-modal-footer">
+              <button class="wr-btn" type="button" onclick="closeSettingEditModal()">취소</button>
+              <button class="wr-btn wr-btn-primary" type="button" onclick="saveDbSetting()">저장</button>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="wr-section-title" id="wr-settings-legacy" data-wr-anchor style="margin-top:32px">Platform Settings</h2>
         <button class="wr-btn" type="button" data-wr-legacy-tab="platform">Legacy Platform 설정 열기</button>
       </section>
     </main>
@@ -4022,7 +4134,7 @@ POST /api/admin/faiss/activate</code>
   <div class="wr-toast" id="wrDocsToast" hidden></div>
 </div>
 
-<section id="legacyAdminTabs" class="wr-legacy-admin-tabs" hidden>
+<section id="legacyAdminTabs" class="wr-legacy-admin-tabs">
 
 <header>
   <h1>FAISS Index Management Console</h1>

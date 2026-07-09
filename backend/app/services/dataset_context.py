@@ -74,3 +74,30 @@ def ensure_source_dataset_context(source_id: str, force_new: bool = False) -> Tu
         "dataset_created_at": record.get("dataset_created_at"),
         "record": record,
     }, generated
+
+
+def update_source_dataset_status(
+    source_id: str,
+    dataset_status: str,
+    *,
+    dataset_id: Optional[str] = None,
+) -> Optional[dict]:
+    source_id = str(source_id or "").strip()
+    dataset_status = str(dataset_status or "").strip()
+    if not source_id or not dataset_status:
+        return None
+
+    record = get_record(_STORE, _ID_FIELD, source_id)
+    if not record:
+        return None
+
+    updates = {
+        "dataset_status": dataset_status,
+    }
+    resolved_dataset_id = str(dataset_id or record.get("dataset_id") or "").strip()
+    if resolved_dataset_id:
+        updates["dataset_id"] = resolved_dataset_id
+        if not record.get("dataset_created_at"):
+            updates["dataset_created_at"] = _utc_now_iso()
+
+    return update_record(_STORE, _ID_FIELD, source_id, updates)

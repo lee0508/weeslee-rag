@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  weeslee-rag  AI Agentic Chat  (rag-agent-chat.html)
+  ------------------------------------------------------------
+  정부 제안서 컨설턴트용 에이전트형 RAG 챗봇 (단일 파일, 빌드 불필요)
+
+  [핵심 동작 - "에이전트"의 의미]
+    사용자가 자연어로 물으면, 에이전트가 아래 4단계를 '눈에 보이게' 수행한다.
+      1) 질문 분석   : 질문을 soft hint(분류) + 내용어 + 동의어로 분해
+      2) 검색 전략   : 어떤 힌트로 검색할지 결정 (필터는 soft, 후보를 죽이지 않음)
+      3) 하이브리드   : 백엔드 /api/rag/hybrid-query 호출
+      4) 근거 종합   : 결과를 메타 배지와 함께 제시, 0건이면 안내
+
+  [연결 대상]
+    같은 서버의 weeslee-rag FastAPI. 요청/응답 필드는 아래 CONFIG 에서 조정.
+
+  [설계 메모]
+    - 색: 딥 틸(분석가) + 앰버(근거 하이라이트) — SaaS 기본 블루/크림 회피
+    - 시그니처: 좌측 세로 타임라인의 '에이전트 진행 단계' (신뢰 형성 요소)
+  ============================================================
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>weeslee-rag · 제안서 리서치 에이전트</title>
+
+<!-- 한국어 최적 폰트 Pretendard (실패 시 시스템 폰트로 폴백) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+
+<style>
+/* ============================================================
+   1. 디자인 토큰 (색/간격/타이포) — 모든 색은 여기서만 정의
+   ============================================================ */
+:root{
+  --bg:#EEF1F6;            /* 전체 배경(차가운 라이트) */
+  --surface:#FFFFFF;       /* 카드/표면 */
+  --surface-2:#F5F8FB;     /* 보조 표면 */
+  --ink:#0F1A2B;           /* 본문 잉크(딥 슬레이트) */
+  --ink-soft:#54607A;      /* 보조 텍스트 */
+  --muted:#8A93A6;         /* 흐린 텍스트 */
+  --border:#DCE2EC;        /* 경계선 */
+  --accent:#0E6E86;        /* 강조: 딥 틸 = 분석가 */
+  --accent-strong:#0A5567;
+  --accent-soft:#E0F0F3;
+  --evidence:#B9791A;      /* 근거 하이라이트 = 앰버 */
+  --evidence-soft:#FBEBC8;
+  --ok:#2E9E6B;
+  --warn:#C9781E;
+  --danger:#C6453E;
+  --radius:14px;
+  --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,26,43,.05), 0 8px 24px rgba(15,26,43,.06);
+  --font:'Pretendard','Pretendard Variable',-apple-system,BlinkMacSystemFont,
+         'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  --mono:'SFMono-Regular',Consolas,'D2Coding',monospace;
+}
+
+/* ============================================================
+   2. 리셋 & 레이아웃 골격
+   ============================================================ */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:var(--font); color:var(--ink);
+  background:var(--bg);
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+}
+button{font-family:inherit; cursor:pointer}
+
+/* 상단 헤더 */
+.app-header{
+  display:flex; align-items:center; gap:16px;
+  padding:12px 20px; background:var(--surface);
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:-.01em}
+.brand .dot{width:10px; height:10px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
+.brand small{font-weight:600; color:var(--muted); letter-spacing:.02em}
+.header-spacer{flex:1}
+/* source_id 선택 (시연 시 폴백 소스로 전환 가능) */
+.source-field{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft)}
+.source-field input{
+  font-family:var(--mono); font-size:12px; padding:7px 10px;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  background:var(--surface-2); color:var(--ink); width:280px;
+}
+.health{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
+.health .pulse{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.health.online .pulse{background:var(--ok)}
+.health.offline .pulse{background:var(--danger)}
+
+/* 본문: 채팅 + 근거 패널 2단 */
+.main{flex:1; display:flex; min-height:0}
+.chat-col{flex:1; display:flex; flex-direction:column; min-width:0}
+.messages{flex:1; overflow-y:auto; padding:24px 0}
+.messages-inner{max-width:820px; margin:0 auto; padding:0 24px}
+
+/* ============================================================
+   3. 메시지 버블
+   ============================================================ */
+.msg{margin-bottom:22px; animation:rise .35s ease both}
+@keyframes rise{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+.msg.user{display:flex; justify-content:flex-end}
+.msg.user .bubble{
+  background:var(--ink); color:#fff; padding:12px 16px;
+  border-radius:16px 16px 4px 16px; max-width:78%;
+  font-size:15px; line-height:1.55; white-space:pre-wrap;
+}
+.msg.agent .bubble{max-width:100%}
+
+/* 에이전트 아바타 + 이름 */
+.agent-head{display:flex; align-items:center; gap:9px; margin-bottom:10px}
+.agent-avatar{
+  width:28px; height:28px; border-radius:8px; flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent-strong));
+  display:grid; place-items:center; color:#fff; font-weight:800; font-size:13px;
+}
+.agent-name{font-weight:700; font-size:13px}
+.agent-name span{color:var(--muted); font-weight:500; margin-left:6px}
+
+/* ============================================================
+   4. 시그니처: 에이전트 진행 단계 타임라인
+   ============================================================ */
+.trace{
+  border-left:2px solid var(--border); margin-left:13px;
+  padding:2px 0 2px 20px; position:relative;
+}
+.step{position:relative; padding:8px 0; font-size:13.5px; color:var(--ink-soft)}
+.step::before{
+  content:''; position:absolute; left:-26px; top:12px;
+  width:10px; height:10px; border-radius:50%;
+  background:var(--surface); border:2px solid var(--border);
+}
+.step.active::before{border-color:var(--accent); background:var(--accent)}
+.step.done::before{border-color:var(--ok); background:var(--ok)}
+.step .step-title{font-weight:700; color:var(--ink)}
+.step .step-detail{margin-top:3px; color:var(--ink-soft); font-size:13px; line-height:1.5}
+.step.active .step-title::after{
+  content:''; display:inline-block; width:12px; height:12px; margin-left:8px;
+  border:2px solid var(--accent-soft); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* soft hint / 분석 배지 (질문 분석 단계에서 표시) */
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+.chip{
+  font-size:12px; padding:3px 9px; border-radius:20px;
+  background:var(--surface-2); border:1px solid var(--border); color:var(--ink-soft);
+}
+.chip b{color:var(--ink); font-weight:700}
+
+/* ============================================================
+   5. 종합 답변 + 근거 카드
+   ============================================================ */
+.answer{
+  margin-top:14px; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow);
+  font-size:15px; line-height:1.65;
+}
+.answer .answer-label{
+  font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:8px;
+}
+.result-count{font-size:12.5px; color:var(--muted); margin:14px 0 8px}
+
+.card{
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:14px 16px; margin-bottom:10px;
+  cursor:pointer; transition:border-color .15s, box-shadow .15s, transform .1s;
+}
+.card:hover{border-color:var(--accent); box-shadow:var(--shadow); transform:translateY(-1px)}
+.card-top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.card-title{font-weight:700; font-size:14.5px; line-height:1.4; color:var(--ink)}
+.card-score{
+  font-family:var(--mono); font-size:11px; color:var(--muted);
+  background:var(--surface-2); padding:2px 7px; border-radius:6px; white-space:nowrap;
+}
+.card-snippet{
+  margin-top:7px; font-size:13px; color:var(--ink-soft); line-height:1.55;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+/* 메타 배지: 차원별로 색을 살짝 달리해 스캔이 쉽게 */
+.badges{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+.badge{font-size:11.5px; padding:3px 8px; border-radius:6px; font-weight:600; border:1px solid transparent}
+.badge.group{background:#EEF1F6; color:#3B4761; border-color:#DCE2EC}
+.badge.section{background:var(--accent-soft); color:var(--accent-strong)}
+.badge.orgtype{background:#EDEAF9; color:#5B4B9E}
+.badge.projtype{background:var(--evidence-soft); color:var(--evidence)}
+.badge.org{background:#F5F8FB; color:var(--ink-soft); border-color:var(--border)}
+
+/* 비어있음(0건) 안내 — 실패를 방향 제시로 */
+.empty{
+  margin-top:14px; background:#FFF8F0; border:1px solid var(--evidence-soft);
+  border-radius:var(--radius); padding:16px 18px; font-size:14px; line-height:1.6; color:var(--ink);
+}
+.empty b{color:var(--evidence)}
+
+/* ============================================================
+   6. 근거 패널 (문서 클릭 시 우측에서 열림, 하이라이트)
+   ============================================================ */
+.evidence-panel{
+  width:0; flex-shrink:0; background:var(--surface); border-left:1px solid var(--border);
+  overflow:hidden; transition:width .25s ease; display:flex; flex-direction:column;
+}
+.evidence-panel.open{width:420px}
+.ev-head{
+  padding:16px 18px; border-bottom:1px solid var(--border);
+  display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+}
+.ev-title{font-weight:700; font-size:14px; line-height:1.4}
+.ev-close{border:none; background:var(--surface-2); width:28px; height:28px;
+  border-radius:8px; font-size:16px; color:var(--ink-soft); flex-shrink:0}
+.ev-body{flex:1; overflow-y:auto; padding:18px}
+.ev-meta{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px}
+.ev-path{font-family:var(--mono); font-size:11px; color:var(--muted);
+  word-break:break-all; margin-bottom:14px; line-height:1.5}
+.ev-text{font-size:14px; line-height:1.75; color:var(--ink); white-space:pre-wrap}
+/* 질문 용어 하이라이트 (앰버) — 이것이 근거 기능의 핵심 */
+.ev-text mark{background:var(--evidence-soft); color:var(--evidence);
+  padding:1px 2px; border-radius:3px; font-weight:600}
+
+/* ============================================================
+   7. 하단 입력창 + 예시 질문 칩
+   ============================================================ */
+.composer-wrap{flex-shrink:0; border-top:1px solid var(--border); background:var(--surface)}
+.examples{max-width:820px; margin:0 auto; padding:12px 24px 0;
+  display:flex; flex-wrap:wrap; gap:7px}
+.ex-chip{
+  font-size:12.5px; padding:6px 11px; border:1px solid var(--border);
+  border-radius:20px; background:var(--surface-2); color:var(--ink-soft);
+  transition:border-color .15s, color .15s;
+}
+.ex-chip:hover{border-color:var(--accent); color:var(--accent-strong)}
+.composer{max-width:820px; margin:0 auto; padding:12px 24px 18px;
+  display:flex; gap:10px; align-items:flex-end}
+.composer textarea{
+  flex:1; resize:none; border:1px solid var(--border); border-radius:12px;
+  padding:12px 14px; font-family:inherit; font-size:15px; line-height:1.5;
+  color:var(--ink); background:var(--surface-2); max-height:140px; min-height:48px;
+}
+.composer textarea:focus{outline:none; border-color:var(--accent); background:var(--surface)}
+.send-btn{
+  width:48px; height:48px; border:none; border-radius:12px; flex-shrink:0;
+  background:var(--accent); color:#fff; font-size:18px; display:grid; place-items:center;
+  transition:background .15s;
+}
+.send-btn:hover{background:var(--accent-strong)}
+.send-btn:disabled{background:var(--muted); cursor:not-allowed}
+
+/* 웰컴 화면 */
+.welcome{max-width:640px; margin:8vh auto 0; text-align:center; padding:0 24px}
+.welcome h1{font-size:26px; letter-spacing:-.02em; margin:0 0 10px}
+.welcome p{color:var(--ink-soft); font-size:15px; line-height:1.7; margin:0}
+
+/* 접근성/모바일 */
+@media (max-width:720px){
+  .evidence-panel.open{position:fixed; right:0; top:0; bottom:0; width:100%; z-index:50}
+  .source-field input{width:150px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+</head>
+
+<body>
+  <!-- ── 헤더 ── -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="dot"></span> 제안서 리서치 에이전트
+      <small>weeslee-rag</small>
+    </div>
+    <div class="header-spacer"></div>
+    <label class="source-field">소스
+      <input id="sourceInput" value="src_20260706_071433_e6bc57"
+             title="검색 대상 source_id (시연 폴백 소스로 전환 가능)">
+    </label>
+    <div class="health" id="health"><span class="pulse"></span><span id="healthText">확인 중</span></div>
+  </header>
+
+  <!-- ── 본문: 채팅 + 근거 패널 ── -->
+  <div class="main">
+    <div class="chat-col">
+      <div class="messages" id="messages">
+        <div class="messages-inner" id="messagesInner">
+          <!-- 웰컴 -->
+          <div class="welcome" id="welcome">
+            <h1>무엇을 찾아드릴까요?</h1>
+            <p>정부 제안서를 작성하며 떠오르는 질문을 자연어로 물어보세요.
+               에이전트가 질문을 분석하고, 관련 제안서·산출물·RFP를 근거와 함께 찾아드립니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 입력창 -->
+      <div class="composer-wrap">
+        <div class="examples" id="examples"><!-- 예시 질문 칩 JS 주입 --></div>
+        <div class="composer">
+          <textarea id="input" rows="1" placeholder="예) 공공기관을 고객으로 AI를 접목한 기술및기능 제안서를 찾아줘"></textarea>
+          <button class="send-btn" id="sendBtn" title="보내기">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 근거 패널 -->
+    <aside class="evidence-panel" id="evidence">
+      <div class="ev-head">
+        <div class="ev-title" id="evTitle">근거 문서</div>
+        <button class="ev-close" id="evClose">✕</button>
+      </div>
+      <div class="ev-body">
+        <div class="ev-meta" id="evMeta"></div>
+        <div class="ev-path" id="evPath"></div>
+        <div class="ev-text" id="evText"></div>
+      </div>
+    </aside>
+  </div>
+
+<script>
+/* ============================================================
+   0. CONFIG — 서버 환경에 맞게 여기만 고치면 된다
+   ============================================================ */
+const CONFIG = {
+  // 백엔드 베이스 경로 (상대경로면 이 파일이 올라간 서버 기준)
+  base: '/weeslee-rag/api',
+  endpoints: {
+    hybridQuery: '/rag/hybrid-query',    // POST  질문 검색
+    stats:       '/rag/hybrid-query/stats', // GET  상태(그래프 노드 수 등)
+  },
+  // 인증 토큰이 필요하면 여기에 (없으면 빈 문자열)
+  token: '',
+  topK: 5,
+  // 요청 바디의 필드명 (백엔드 계약에 맞게 조정)
+  reqFields: {
+    question: 'question',
+    sourceId: 'source_id',
+    topK: 'top_k',
+    expandedQuery: 'expanded_query',  // 동의어 확장 질의(백엔드가 받으면 사용)
+  },
+};
+
+/* ============================================================
+   1. 질의 분해기 (query_decomposer 의 JS 이식)
+      자연어 질문 -> softHints(분류) + 내용어 + 동의어확장
+      * 추론된 분류는 hard filter 가 아니라 soft hint 로만 쓴다
+        (메타데이터가 비어도 0건이 되지 않게 하려는 지난 설계와 동일)
+   ============================================================ */
+
+// 도메인 분류 사전: 차원 -> 표준값 -> 표기 변형
+const CLASS_DICT = {
+  document_group: {
+    'RFP':['RFP','제안요청서','과업지시서'],
+    '제안서':['제안서'], '산출물':['산출물'],
+  },
+  section_type: {
+    '기술및기능':['기술및기능','기술 및 기능'],
+    '환경분석':['환경분석','환경 분석'],
+    '현황분석':['현황분석','현황 분석'],
+    '프로젝트관리':['프로젝트관리','프로젝트 관리'],
+    '전략및방법론':['전략및방법론','전략 및 방법론'],
+    '이행계획':['이행계획','이행 계획'],
+  },
+  organization_type: {
+    '연구기관':['연구기관','연구소','연구원'],
+    '공공기관':['공공기관','공기업','정부기관'],
+    '민간':['민간','민간기업'],
+  },
+  project_type: {
+    '컨설팅':['컨설팅'], '구축':['구축'], '개선':['개선'], '고도화':['고도화'],
+    'AI도입':['AI를 접목','AI 접목','AI 도입','인공지능','AI'],
+    'ISP':['ISP','정보화전략계획'], 'ISMP':['ISMP'],
+  },
+};
+// 내용에서 제거할 구조 차원 vs 남길 주제 차원
+const STRUCTURAL = new Set(['document_group','section_type','organization_type']);
+// 동의어 그룹(OR 표현 확장)
+const SYNONYMS = [ ['개선','고도화'], ['선진사례','유사사례','벤치마킹'], ['도입','접목','적용'] ];
+// 여러 글자 지시어(단일음절 조사는 토큰 단위로 따로 제거)
+const STOP_MULTI = ['에 관련된','에 관한','에 대한','관련된','관련','관한','찾아줘','알려줘',
+  '사업','폴더','안에서','안에','내용을','내용','파일을','파일','중에서','진행한','하여',
+  '고객으로','고객','원하는','또는','있는','것을','그리고','대한'];
+const PARTICLES = new Set(['이','가','은','는','을','를','에','의','도','만','와','과','로','으로','중']);
+
+function stripOrderPrefix(s){ return String(s||'').replace(/^\s*\d+\.\s*/,'').trim(); }
+
+// 질문 -> {softHints, contentQuery, expandedQuery, detected}
+function decompose(question){
+  const softHints = {}; const detected = []; const removeFromContent = [];
+
+  // (1) 사전으로 분류 용어 탐지
+  for(const dim in CLASS_DICT){
+    for(const canon in CLASS_DICT[dim]){
+      // 긴 alias 우선(‘AI 도입’이 ‘AI’보다 먼저 매칭되도록 정렬)
+      const aliases = [...CLASS_DICT[dim][canon]].sort((a,b)=>b.length-a.length);
+      for(const alias of aliases){
+        if(question.toLowerCase().includes(alias.toLowerCase())){
+          (softHints[dim] = softHints[dim]||[]);
+          if(!softHints[dim].includes(canon)) softHints[dim].push(canon);
+          detected.push(alias);
+          if(STRUCTURAL.has(dim)) removeFromContent.push(alias);
+          break;
+        }
+      }
+    }
+  }
+
+  // (2) 구조 분류어 + 지시어 제거 -> 내용 후보
+  let content = question;
+  for(const t of [...removeFromContent, ...STOP_MULTI].sort((a,b)=>b.length-a.length)){
+    content = content.split(t).join(' ');
+  }
+  // (3) 기호/공백 정리 + 독립 조사 토큰 제거 (‘의사소통’ 같은 단어는 보존)
+  content = content.replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+  content = content.split(' ').filter(tok=>tok && !PARTICLES.has(tok)).join(' ');
+
+  // (4) 동의어 확장
+  let expanded = content;
+  for(const group of SYNONYMS){
+    const hay = content + ' ' + detected.join(' ');
+    if(group.some(g=>hay.includes(g))){
+      for(const g of group){ if(!expanded.includes(g)) expanded += ' ' + g; }
+    }
+  }
+  return {softHints, contentQuery:content, expandedQuery:expanded.trim(), detected};
+}
+
+/* ============================================================
+   2. API 계층 — 백엔드 호출 (방어적 파싱)
+   ============================================================ */
+function apiUrl(path){ return CONFIG.base + path; }
+function headers(){
+  const h = {'Content-Type':'application/json'};
+  if(CONFIG.token) h['Authorization'] = 'Bearer ' + CONFIG.token;
+  return h;
+}
+
+// 하이브리드 검색 호출
+async function callHybridQuery(question, decomposed, sourceId){
+  const f = CONFIG.reqFields;
+  const body = {
+    [f.question]: question,
+    [f.sourceId]: sourceId,
+    [f.topK]: CONFIG.topK,
+    [f.expandedQuery]: decomposed.expandedQuery, // 백엔드가 지원하면 활용
+    // 추론된 soft hint 를 함께 전달 (백엔드가 무시해도 무방)
+    inferred: decomposed.softHints,
+  };
+  const res = await fetch(apiUrl(CONFIG.endpoints.hybridQuery), {
+    method:'POST', headers:headers(), body:JSON.stringify(body),
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+// 응답에서 문서 배열을 최대한 관대하게 추출 (필드명이 달라도 동작)
+function extractDocuments(resp){
+  const arr = resp.merged_documents || resp.documents || resp.results || [];
+  return arr.map(d => ({
+    documentId: d.document_id ?? d.documentId ?? null,
+    fileName: d.file_name ?? d.fileName ?? d.title ?? '(파일명 없음)',
+    snippet: d.chunk_text ?? d.snippet ?? d.content ?? d.text ?? '',
+    documentGroup: stripOrderPrefix(d.document_group ?? d.documentGroup ?? ''),
+    sectionType: stripOrderPrefix(d.section_type ?? d.sectionType ?? d.proposal_section ?? ''),
+    organizationType: d.organization_type ?? d.client_type ?? d.organizationType ?? '',
+    projectType: d.project_type ?? d.projectType ?? '',
+    organization: d.organization ?? '',
+    projectName: d.project_name ?? d.projectName ?? '',
+    score: d.rerank_score ?? d.score ?? d.rrf ?? null,
+    path: d.source_path ?? d.original_source_path ?? d.relative_path ?? '',
+  }));
+}
+
+// 통계(그래프 노드 수 등) — health 표시에 사용
+async function callStats(sourceId){
+  const url = apiUrl(CONFIG.endpoints.stats) + '?' +
+              new URLSearchParams({source_id: sourceId});
+  const res = await fetch(url, {headers:headers()});
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+/* ============================================================
+   3. 에이전트 오케스트레이터 — 단계를 '보여주며' 실행
+   ============================================================ */
+const $ = sel => document.querySelector(sel);
+const messagesInner = $('#messagesInner');
+let currentContentTerms = [];  // 근거 하이라이트에 쓸 현재 질문의 내용어
+
+// 사람이 지연을 인지할 만큼만 텀을 준다(에이전트가 '생각하는' 느낌)
+const wait = ms => new Promise(r=>setTimeout(r, ms));
+
+async function runAgent(question){
+  hideWelcome();
+  addUserMessage(question);
+
+  const sourceId = $('#sourceInput').value.trim();
+
+  // 에이전트 응답 컨테이너 + 타임라인 생성
+  const {trace, addStep, answerSlot} = addAgentMessage();
+
+  // ── 단계 1: 질문 분석 ──
+  const s1 = addStep('질문 분석');
+  const decomposed = decompose(question);
+  currentContentTerms = (decomposed.contentQuery || question).split(' ').filter(Boolean);
+  await wait(350);
+  s1.detail(renderHintChips(decomposed));  // soft hint 를 배지로 보여줌
+  s1.done();
+
+  // ── 단계 2: 검색 전략 ──
+  const s2 = addStep('검색 전략 수립');
+  await wait(300);
+  s2.detail(
+    `추론한 분류는 <b>참고 힌트(soft)</b>로만 적용해 후보를 제거하지 않습니다. `+
+    `확장 질의: <span style="font-family:var(--mono);font-size:12px">`+
+    escapeHtml(decomposed.expandedQuery || question) + `</span>`
+  );
+  s2.done();
+
+  // ── 단계 3: 하이브리드 검색 ──
+  const s3 = addStep('문서 검색');
+  let resp = null, docs = [], errText = '';
+  try{
+    resp = await callHybridQuery(question, decomposed, sourceId);
+    docs = extractDocuments(resp);
+    const st = resp.statistics || {};
+    s3.detail(
+      `FAISS ${st.faiss_count ?? '-'}건 · 그래프 ${st.graph_count ?? '-'}건 → `+
+      `병합 <b>${docs.length}건</b>`
+    );
+  }catch(e){
+    errText = e.message;
+    s3.detail(`<span style="color:var(--danger)">검색 호출 실패: ${escapeHtml(errText)}</span>`);
+  }
+  s3.done();
+
+  // ── 단계 4: 근거 종합 ──
+  const s4 = addStep('근거 종합');
+  await wait(250);
+  s4.done();
+
+  // 결과 렌더
+  if(errText){
+    answerSlot.innerHTML =
+      `<div class="empty">백엔드에 연결하지 못했습니다. `+
+      `상단 소스 값과 <code>CONFIG.base</code> 경로를 확인해 주세요.</div>`;
+  }else if(docs.length === 0){
+    answerSlot.innerHTML = renderEmpty(decomposed);
+  }else{
+    answerSlot.innerHTML = renderResults(resp, docs);
+    wireCards(answerSlot, docs);
+  }
+  scrollToBottom();
+}
+
+/* ============================================================
+   4. 렌더링 함수들
+   ============================================================ */
+function renderHintChips(d){
+  const parts = [];
+  for(const dim in d.softHints){
+    for(const v of d.softHints[dim]){
+      parts.push(`<span class="chip"><b>${labelOf(dim)}</b> ${escapeHtml(v)}</span>`);
+    }
+  }
+  if(d.contentQuery) parts.push(`<span class="chip"><b>내용</b> ${escapeHtml(d.contentQuery)}</span>`);
+  return `<div class="chips">${parts.join('')||'<span class="chip">분류 힌트 없음 · 내용 검색</span>'}</div>`;
+}
+function labelOf(dim){
+  return {document_group:'문서', section_type:'섹션',
+          organization_type:'기관', project_type:'사업'}[dim] || dim;
+}
+
+function renderResults(resp, docs){
+  let html = '';
+  // 백엔드가 종합 답변(draft_answer)을 주면 상단에 표시
+  const draft = resp.draft_answer || resp.answer || '';
+  if(draft){
+    html += `<div class="answer"><div class="answer-label">종합 답변</div>`+
+            escapeHtml(draft).replace(/\n/g,'<br>') + `</div>`;
+  }
+  html += `<div class="result-count">근거 문서 ${docs.length}건 — 클릭하면 원문 근거가 열립니다</div>`;
+  docs.forEach((doc, i) => { html += renderCard(doc, i); });
+  return html;
+}
+
+function renderCard(doc, i){
+  const badges = [];
+  if(doc.documentGroup)   badges.push(`<span class="badge group">${escapeHtml(doc.documentGroup)}</span>`);
+  if(doc.sectionType)     badges.push(`<span class="badge section">${escapeHtml(doc.sectionType)}</span>`);
+  if(doc.organizationType)badges.push(`<span class="badge orgtype">${escapeHtml(doc.organizationType)}</span>`);
+  if(doc.projectType)     badges.push(`<span class="badge projtype">${escapeHtml(doc.projectType)}</span>`);
+  if(doc.organization)    badges.push(`<span class="badge org">${escapeHtml(doc.organization)}</span>`);
+  const score = doc.score!=null ? `<span class="card-score">${Number(doc.score).toFixed(3)}</span>` : '';
+  return `<div class="card" data-idx="${i}">
+      <div class="card-top">
+        <div class="card-title">${escapeHtml(doc.fileName)}</div>${score}
+      </div>
+      <div class="card-snippet">${highlight(escapeHtml(doc.snippet||'미리보기 없음'))}</div>
+      <div class="badges">${badges.join('')}</div>
+    </div>`;
+}
+
+// 0건일 때: 방향을 제시하는 안내 (실패를 무드가 아니라 안내로)
+function renderEmpty(d){
+  const hints = Object.keys(d.softHints).map(labelOf).join(', ') || '없음';
+  return `<div class="empty">
+    조건에 맞는 문서를 찾지 못했습니다.<br>
+    이 질문은 <b>${hints}</b> 분류에 의존합니다. 해당 메타데이터가 문서에 채워져 있는지 확인이 필요할 수 있습니다.
+    범위를 넓히려면 분류어(제안서·기술및기능 등)를 빼고 내용어만으로 다시 물어보세요.
+  </div>`;
+}
+
+// 근거 카드 클릭 -> 우측 패널에 원문 + 질문 용어 하이라이트
+function wireCards(container, docs){
+  container.querySelectorAll('.card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const doc = docs[Number(card.dataset.idx)];
+      openEvidence(doc);
+    });
+  });
+}
+function openEvidence(doc){
+  $('#evTitle').textContent = doc.fileName;
+  const badges = [];
+  [['group',doc.documentGroup],['section',doc.sectionType],
+   ['orgtype',doc.organizationType],['projtype',doc.projectType],['org',doc.organization]]
+   .forEach(([cls,val])=>{ if(val) badges.push(`<span class="badge ${cls}">${escapeHtml(val)}</span>`); });
+  $('#evMeta').innerHTML = badges.join('');
+  $('#evPath').textContent = doc.path || '';
+  // 질문의 내용어를 원문에서 하이라이트 — 근거 확인의 핵심 기능
+  $('#evText').innerHTML = highlight(escapeHtml(doc.snippet || '원문 미리보기가 없습니다.'));
+  $('#evidence').classList.add('open');
+}
+$('#evClose').addEventListener('click', ()=> $('#evidence').classList.remove('open'));
+
+// 현재 질문의 내용어를 <mark>로 감싼다 (한국어는 단순 부분일치)
+function highlight(text){
+  let out = text;
+  const terms = [...new Set(currentContentTerms)].filter(t=>t.length>=2)
+                  .sort((a,b)=>b.length-a.length);
+  for(const t of terms){
+    const re = new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','g');
+    out = out.replace(re, '<mark>$1</mark>');
+  }
+  return out;
+}
+
+/* ============================================================
+   5. 메시지 DOM 헬퍼
+   ============================================================ */
+function addUserMessage(text){
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+  messagesInner.appendChild(el); scrollToBottom();
+}
+// 에이전트 메시지 = 헤더 + 타임라인 + 답변 슬롯
+function addAgentMessage(){
+  const el = document.createElement('div');
+  el.className = 'msg agent';
+  el.innerHTML =
+    `<div class="agent-head">
+       <div class="agent-avatar">W</div>
+       <div class="agent-name">리서치 에이전트<span>· 하이브리드 RAG</span></div>
+     </div>
+     <div class="bubble">
+       <div class="trace"></div>
+       <div class="answer-slot"></div>
+     </div>`;
+  messagesInner.appendChild(el);
+  const trace = el.querySelector('.trace');
+  const answerSlot = el.querySelector('.answer-slot');
+
+  // 단계 추가 함수: {detail(html), done()} 반환
+  function addStep(title){
+    const step = document.createElement('div');
+    step.className = 'step active';
+    step.innerHTML = `<div class="step-title">${escapeHtml(title)}</div>`;
+    trace.appendChild(step); scrollToBottom();
+    return {
+      detail(html){
+        const d = document.createElement('div');
+        d.className = 'step-detail'; d.innerHTML = html;
+        step.appendChild(d); scrollToBottom();
+      },
+      done(){ step.classList.remove('active'); step.classList.add('done'); },
+    };
+  }
+  return {trace, addStep, answerSlot};
+}
+
+function hideWelcome(){ const w = $('#welcome'); if(w) w.remove(); }
+function scrollToBottom(){ const m = $('#messages'); m.scrollTop = m.scrollHeight; }
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,
+  c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ============================================================
+   6. 입력 처리 + 예시 질문 + 초기화
+   ============================================================ */
+const input = $('#input');
+const sendBtn = $('#sendBtn');
+
+function submit(){
+  const q = input.value.trim();
+  if(!q) return;
+  input.value=''; input.style.height='auto';
+  sendBtn.disabled = true;
+  runAgent(q).finally(()=>{ sendBtn.disabled=false; input.focus(); });
+}
+sendBtn.addEventListener('click', submit);
+input.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); submit(); }
+});
+// textarea 높이 자동 조절
+input.addEventListener('input', ()=>{
+  input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,140)+'px';
+});
+
+// 컨설턴트 예시 질문 Q2~Q7 (클릭하면 바로 실행)
+const EXAMPLES = [
+  '프로젝트관리 폴더 안에서 의사소통 관리에 대한 내용을 찾아줘',
+  '업무시스템 개선에 관련된 사업의 기술및기능 제안서를 찾아줘',
+  '업무시스템 개선에 관련된 사업의 환경분석 산출물을 찾아줘',
+  '연구기관을 고객으로 진행한 컨설팅 사업 알려줘',
+  '플랫폼 개선 또는 고도화에 관련된 사업 현황분석 산출물을 찾아줘',
+  '공공기관을 고객으로 AI를 접목한 기술및기능 제안서에서 선진사례 분석 내용을 찾아줘',
+];
+const exWrap = $('#examples');
+EXAMPLES.forEach(q=>{
+  const b = document.createElement('button');
+  b.className='ex-chip'; b.textContent = q.length>30 ? q.slice(0,30)+'…' : q;
+  b.title = q;
+  b.addEventListener('click', ()=>{ input.value=q; submit(); });
+  exWrap.appendChild(b);
+});
+
+// 서버 상태 확인 (그래프 노드 수가 보이면 online)
+async function checkHealth(){
+  const el = $('#health'), txt = $('#healthText');
+  try{
+    const st = await callStats($('#sourceInput').value.trim());
+    const g = (st.graph && st.graph.node_count) ?? st.graph_count ?? '?';
+    el.className='health online'; txt.textContent = `연결됨 · 그래프 ${g} 노드`;
+  }catch(e){
+    el.className='health offline'; txt.textContent = '백엔드 미연결';
+  }
+}
+$('#sourceInput').addEventListener('change', checkHealth);
+checkHealth();
+input.focus();
+</script>
+</body>
+</html>

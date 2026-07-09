@@ -21,3 +21,87 @@
       display: block;
     }
 
+    /* ── 시스템 설정 모달 (2026-07-08 추가) ── */
+    .wr-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .wr-modal {
+      background: #1a1a1a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .wr-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .wr-modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .wr-modal-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    .wr-modal-close:hover {
+      color: #fff;
+    }
+
+    .wr-modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+
+    .wr-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* 설정 카테고리 탭 버튼 */
+    .wr-settings-cat-btn.wr-is-active {
+      background: var(--wr-accent, #3b82f6);
+      color: #fff;
+    }
+
+    .wr-settings-cat-btn i {
+      margin-right: 4px;
+    }
+
+    /* 뱃지 스타일 보강 */
+    .wr-badge-outline {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: var(--wr-text-muted, #888);
+    }
+

@@ -1,0 +1,156 @@
+{
+  "file_name": "RFP_휴‧폐업 의료기관 진료기록보관시스템 구축.hwp",
+  "source_path": "",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_휴‧폐업 의료기관 진료기록보관시스템 구축.hwp",
+  "section_group": "RFP_휴‧폐업 의료기관 진료기록보관시스템 구축.hwp",
+  "document_type": "hwp",
+  "total_slides": 1,
+  "structure_mode": "semantic_sections",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "표지",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "표지",
+        "페이지 1",
+        "<표>",
+        ". 8.",
+        "목 차"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "페이지 1",
+          "parent_section": "1. 표지",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "<표>",
+            "<표>",
+            "2023. 8.",
+            "<표>",
+            "목 차",
+            "<표>",
+            "<표>",
+            "<표>"
+          ],
+          "keywords": [
+            "페이지 1",
+            "<표>",
+            ". 8.",
+            "목 차"
+          ],
+          "page_type": "cover"
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "<표>",
+    "organization": "계약일로부",
+    "project_name": "",
+    "date": "2023년 8월",
+    "document_type": "제안요청서",
+    "keywords": [],
+    "confidence": 0.8
+  },
+  "toc": {
+    "sections": [
+      {
+        "level": 1,
+        "title": ") 의결 및 의료법 개정(`20",
+        "page": 3
+      },
+      {
+        "level": 1,
+        "title": "5) 조문 신설",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "3월)에 따라 휴·폐업 의료기관의 진료기록을 안전하게 보관하기 위한 진료기록보관시스템 구축",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "3월)",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "4월~10월)",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "5월~12월)",
+        "page": null
+      }
+    ],
+    "section_titles": [
+      ") 의결 및 의료법 개정(`20",
+      "5) 조문 신설",
+      "3월)에 따라 휴·폐업 의료기관의 진료기록을 안전하게 보관하기 위한 진료기록보관시스템 구축",
+      "3월)",
+      "4월~10월)",
+      "5월~12월)"
+    ],
+    "keywords": [
+      "의료법",
+      "보관하기",
+      "신설",
+      "폐업",
+      "진료기록보관시스템",
+      "안전하게",
+      "의결",
+      "따라",
+      "위한",
+      "구축",
+      "진료기록을",
+      "의료기관의",
+      "개정",
+      "조문"
+    ],
+    "confidence": 1.0
+  },
+  "detected_sections": [
+    ") 의결 및 의료법 개정(`20",
+    "5) 조문 신설",
+    "3월)에 따라 휴·폐업 의료기관의 진료기록을 안전하게 보관하기 위한 진료기록보관시스템 구축",
+    "3월)",
+    "4월~10월)",
+    "5월~12월)",
+    "담당",
+    "제안요청서",
+    "사업개요",
+    "사업안내",
+    "사업기간",
+    "추진배경",
+    "추진배경 및 필요성",
+    "추진일정"
+  ],
+  "document_summary": "<표> | <표>  <표>  2023. 8.  <표>  목 차  <표>  <표>  <표>  □ 사업개요   ○ 사 업 명 : 휴·폐업 의료기관 진료기록보관시스템 구축   ○ 사업기간 : 계약일로부터 20개월(600일)   ※ 「소프트웨어사업 계약 및 관리감독에 관한 지침(과학기술정보통신부고시)」 제10조의 소프트웨어 개발사업 적정 사업기간 산정 기준에 따른 사업임",
+  "page_types": [
+    "cover"
+  ],
+  "semantic_tags": {
+    "methodology": "",
+    "domain": "",
+    "technology": ""
+  }
+}

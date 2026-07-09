@@ -1,0 +1,17 @@
+{
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_345194331",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_IITP AX전환 중장기 지능정보화 전략계획(BPRISP) 수립 사업.hwp",
+  "snapshot_id": "",
+  "ocr": {
+    "engine": "tesseract",
+    "dpi": 300,
+    "language": "kor+eng",
+    "min_text_length": 50,
+    "parser_type": "hwp5txt_direct+supplements"
+  },
+  "document_id": "345194331",
+  "updated_at": "2026-07-07T15:03:35.423801",
+  "created_at": "2026-07-07T15:03:35.414092"
+}

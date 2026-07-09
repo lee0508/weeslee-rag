@@ -1,0 +1,200 @@
+{
+  "file_name": "RFP_인공지능 전환(AX) 활용을 위한 정보화전략계획(ISP) 수립 용역.hwp",
+  "source_path": "",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_인공지능 전환(AX) 활용을 위한 정보화전략계획(ISP) 수립 용역.hwp",
+  "section_group": "RFP_인공지능 전환(AX) 활용을 위한 정보화전략계획(ISP) 수립 용역.hwp",
+  "document_type": "hwp",
+  "total_slides": 1,
+  "structure_mode": "semantic_sections",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "표지",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "표지",
+        "제 안 요 청 서",
+        "<표>",
+        ". 03.",
+        "목차",
+        ". 사업개요",
+        "❍ 사 업 명",
+        "인공지능 전환(AX) 활용을 위한 정보화전략계획(ISP) 수립 용역"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "제 안 요 청 서",
+          "parent_section": "1. 표지",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "<표>",
+            "2025. 03.",
+            "<표>",
+            "목차",
+            "<표>",
+            "<표>",
+            "1. 사업개요",
+            "❍ 사 업 명 : 인공지능 전환(AX) 활용을 위한 정보화전략계획(ISP) 수립 용역"
+          ],
+          "keywords": [
+            "제 안 요 청 서",
+            "<표>",
+            ". 03.",
+            "목차",
+            ". 사업개요",
+            "❍ 사 업 명",
+            "인공지능 전환(AX) 활용을 위한 정보화전략계획(ISP) 수립 용역"
+          ],
+          "page_type": "cover"
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "제 안 요 청 서",
+    "organization": "계약체결일로부",
+    "project_name": "",
+    "date": "2025년 03월",
+    "document_type": "정보화전략계획",
+    "keywords": [],
+    "confidence": 0.8
+  },
+  "toc": {
+    "sections": [
+      {
+        "level": 1,
+        "title": "기대효과",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "업무현황",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "정보화 현황",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "당면과제 및 개선방안",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "추진 목표 및 전략",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "추진체계",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "추진일정",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "추진방안",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "제안요청 개요",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "사업내용",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "제안요청 내용",
+        "page": null
+      }
+    ],
+    "section_titles": [
+      "기대효과",
+      "업무현황",
+      "정보화 현황",
+      "당면과제 및 개선방안",
+      "추진 목표 및 전략",
+      "추진체계",
+      "추진일정",
+      "추진방안",
+      "제안요청 개요",
+      "사업내용",
+      "제안요청 내용"
+    ],
+    "keywords": [
+      "당면과제",
+      "정보화",
+      "업무현황",
+      "추진일정",
+      "제안요청",
+      "개요",
+      "목표",
+      "현황",
+      "내용",
+      "전략",
+      "추진",
+      "추진체계",
+      "추진방안",
+      "사업내용",
+      "기대효과",
+      "개선방안"
+    ],
+    "confidence": 1.0
+  },
+  "detected_sections": [
+    "기대효과",
+    "업무현황",
+    "정보화 현황",
+    "당면과제 및 개선방안",
+    "추진 목표 및 전략",
+    "추진체계",
+    "추진일정",
+    "추진방안",
+    "제안요청 개요",
+    "사업내용",
+    "제안요청 내용",
+    "목차",
+    "사업개요",
+    "사업범위",
+    "사업기간",
+    "추진배경",
+    "추진배경 및 필요성",
+    "추진방향",
+    "추진전략",
+    "이행계획 수립"
+  ],
+  "document_summary": "제 안 요 청 서 | 제 안 요 청 서  <표>  2025. 03.  <표>  목차  <표>  <표>  1. 사업개요  ❍ 사 업 명 : 인공지능 전환(AX) 활용을 위한 정보화전략계획(ISP) 수립 용역  ❍ 사업기간 : 계약체결일로부터 7개월   ❍ 계약방법 : 일반경쟁입찰(협상에 의한 계약)   ❍ 사 업 비 : 금 701,000,000원(직접경비, 부가가치세 포함)",
+  "page_types": [
+    "cover"
+  ],
+  "semantic_tags": {
+    "methodology": "",
+    "domain": "",
+    "technology": "AI"
+  }
+}

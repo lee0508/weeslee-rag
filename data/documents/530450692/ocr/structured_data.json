@@ -1,0 +1,171 @@
+{
+  "file_name": "RFP_축산유통 데이터랩 고도화.hwp",
+  "source_path": "",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_축산유통 데이터랩 고도화.hwp",
+  "section_group": "RFP_축산유통 데이터랩 고도화.hwp",
+  "document_type": "hwp",
+  "total_slides": 1,
+  "structure_mode": "semantic_sections",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "표지",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "표지",
+        "제 안 요 청 서",
+        "<표>",
+        "<그림>",
+        "목 차"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "제 안 요 청 서",
+          "parent_section": "1. 표지",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "<표>",
+            "<그림>",
+            "2024.",
+            "<표>",
+            "목 차",
+            "<표>",
+            "<표>",
+            "<표>"
+          ],
+          "keywords": [
+            "제 안 요 청 서",
+            "<표>",
+            "<그림>",
+            "목 차"
+          ],
+          "page_type": "cover"
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "제 안 요 청 서",
+    "organization": "계약일로부",
+    "project_name": "축산유통 데이터랩 고도화 사업",
+    "date": "",
+    "document_type": "",
+    "keywords": [],
+    "confidence": 0.75
+  },
+  "toc": {
+    "sections": [
+      {
+        "level": 2,
+        "title": "운영 현황",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "추진방향",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "세부 추진내용",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "성과지표",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "추진조직",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "추진일정",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "상세 요구사항",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "특수사항",
+        "page": null
+      }
+    ],
+    "section_titles": [
+      "운영 현황",
+      "추진방향",
+      "세부 추진내용",
+      "성과지표",
+      "추진조직",
+      "추진일정",
+      "상세 요구사항",
+      "특수사항"
+    ],
+    "keywords": [
+      "운영",
+      "특수사항",
+      "추진일정",
+      "상세",
+      "현황",
+      "성과지표",
+      "추진조직",
+      "추진내용",
+      "세부",
+      "요구사항",
+      "추진방향"
+    ],
+    "confidence": 1.0
+  },
+  "detected_sections": [
+    "운영 현황",
+    "추진방향",
+    "세부 추진내용",
+    "성과지표",
+    "추진조직",
+    "추진일정",
+    "상세 요구사항",
+    "특수사항",
+    "목차",
+    "사업명",
+    "담당",
+    "제안요청서",
+    "사업개요",
+    "사업내용",
+    "사업기간",
+    "추진배경",
+    "추진배경 및 필요성",
+    "세부내용",
+    "기대효과",
+    "제안요청 내용"
+  ],
+  "document_summary": "제 안 요 청 서 | 제 안 요 청 서  <표>  <그림>  2024.  <표>   목 차  <표>  <표>  <표>  가. 사업개요  □ 사업명 : 축산유통 데이터랩 고도화 사업  □ 사업기간 : 계약일로부터 180일 이내  □ 공고금액 : 395백만원(VAT 포함)  □ 입찰방법 : 일반경쟁입찰(협상에 의한 계약) 나. 추진배경 및 필요성  □ 정부정책이 국민‧기업 중심의",
+  "page_types": [
+    "cover"
+  ],
+  "semantic_tags": {
+    "methodology": "",
+    "domain": "",
+    "technology": ""
+  }
+}

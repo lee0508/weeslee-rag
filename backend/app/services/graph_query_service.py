@@ -93,6 +93,9 @@ class GraphQueryService:
         self._nodes: list[dict] = []
         self._edges: list[dict] = []
         self._loaded = False
+        self._nodes_mtime: float = 0.0
+        self._edges_mtime: float = 0.0
+        self._manifest_signature: str = ""
 
     def _get_graph_dir(self) -> Path:
         """source_id별 Graph 디렉토리 반환."""
@@ -100,14 +103,28 @@ class GraphQueryService:
             return DATA_DIR / "indexes" / "graph" / self.source_id
         return GRAPH_DIR
 
-    def _load_graph(self) -> None:
+    def _load_graph(self, force: bool = False) -> None:
         """그래프 데이터 로드."""
-        if self._loaded:
-            return
-
         graph_dir = self._get_graph_dir()
         nodes_path = graph_dir / "graph_nodes.jsonl"
         edges_path = graph_dir / "graph_edges.jsonl"
+        manifest_path = graph_dir / "graph_manifest.json"
+
+        nodes_mtime = nodes_path.stat().st_mtime if nodes_path.exists() else 0.0
+        edges_mtime = edges_path.stat().st_mtime if edges_path.exists() else 0.0
+        manifest_signature = self._read_manifest_signature(manifest_path)
+
+        if (
+            not force
+            and self._loaded
+            and self._nodes_mtime == nodes_mtime
+            and self._edges_mtime == edges_mtime
+            and self._manifest_signature == manifest_signature
+        ):
+            return
+
+        self._nodes = []
+        self._edges = []
 
         if nodes_path.exists():
             self._nodes = [
@@ -124,6 +141,53 @@ class GraphQueryService:
             ]
 
         self._loaded = True
+        self._nodes_mtime = nodes_mtime
+        self._edges_mtime = edges_mtime
+        self._manifest_signature = manifest_signature
+
+    @staticmethod
+    def _read_manifest_signature(manifest_path: Path) -> str:
+        """Graph manifest 변경 여부를 감지할 서명을 만든다."""
+        if not manifest_path.exists():
+            return "no-manifest"
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            return f"mtime:{manifest_path.stat().st_mtime_ns}"
+        return "|".join(
+            [
+                str(manifest.get("built_at") or ""),
+                str(manifest.get("node_count") or ""),
+                str(manifest.get("edge_count") or ""),
+            ]
+        )
+
+    def get_graph_stats(self) -> dict[str, Any]:
+        """현재 source 기준 Graph 상태를 반환한다."""
+        self._load_graph()
+
+        graph_dir = self._get_graph_dir()
+        manifest_path = graph_dir / "graph_manifest.json"
+        stats: dict[str, Any] = {
+            "node_count": len(self._nodes),
+            "edge_count": len(self._edges),
+            "loaded": self._loaded,
+        }
+
+        if manifest_path.exists():
+            try:
+                graph_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                stats["node_count"] = int(graph_manifest.get("node_count") or stats["node_count"])
+                stats["edge_count"] = int(graph_manifest.get("edge_count") or stats["edge_count"])
+                stats["loaded"] = bool(
+                    stats["node_count"] or stats["edge_count"] or stats["loaded"]
+                )
+                stats["manifest_source_id"] = graph_manifest.get("source_id")
+                stats["manifest_built_at"] = graph_manifest.get("built_at")
+            except Exception:
+                pass
+
+        return stats
 
     def execute_query(self, cypher: str) -> GraphQueryResult:
         """

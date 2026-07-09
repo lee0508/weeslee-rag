@@ -1,0 +1,195 @@
+{
+  "document_id": "449636771",
+  "file_name": "RFP_정신건강 빅데이터 플랫폼 구축 전략 기획연구.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_정신건강 빅데이터 플랫폼 구축 전략 기획연구.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_449636771",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_정신건강 빅데이터 플랫폼 구축 전략 기획연구.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 10218,
+  "quality": {
+    "text_length": 10218,
+    "char_count": 7228,
+    "korean_count": 6282,
+    "english_count": 32,
+    "number_count": 197,
+    "special_count": 717,
+    "garbage_count": 0,
+    "korean_ratio": 0.8691,
+    "english_ratio": 0.0044,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_정신건강 빅데이터 플랫폼 구축 전략 기획연구.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_정신건강 빅데이터 플랫폼 구축 전략 기획연구.hwp",
+    "section_group": "RFP_정신건강 빅데이터 플랫폼 구축 전략 기획연구.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "제안요청서",
+          "<표>",
+          ". 5.",
+          "<그림>",
+          "□ 연구 과제명",
+          "정신건강 빅데이터 플랫폼 구축 전략 기획연구",
+          "□ 연구의 필요성"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "제안요청서",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "2022. 5.",
+              "<그림>",
+              "<그림>",
+              "<표>",
+              "□ 연구 과제명 : 정신건강 빅데이터 플랫폼 구축 전략 기획연구",
+              "□ 연구의 필요성",
+              "ㅇ ⌜정신건강 DB 표준화 및 품질관리를 통한 공공연구자원구축⌟ 신규 연구개발사업 추진"
+            ],
+            "keywords": [
+              "제안요청서",
+              "<표>",
+              ". 5.",
+              "<그림>",
+              "□ 연구 과제명",
+              "정신건강 빅데이터 플랫폼 구축 전략 기획연구",
+              "□ 연구의 필요성"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "제안요청서",
+      "organization": "제안요청",
+      "project_name": "정신건강 빅데이터 플랫폼 구축 전략 기획연구",
+      "date": "2022년 5월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "제안요청서"
+      ],
+      "confidence": 1.0
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 2,
+          "title": "단, 계약서에 명시된 내용의 경우에는 계약서의 내용을 우선으로 함",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "이때, 제출된 자료는 기 제출한 제안서와 동일한 효력을 가짐",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "2, 2014",
+          "page": 1
+        }
+      ],
+      "section_titles": [
+        "단, 계약서에 명시된 내용의 경우에는 계약서의 내용을 우선으로 함",
+        "이때, 제출된 자료는 기 제출한 제안서와 동일한 효력을 가짐",
+        "2, 2014"
+      ],
+      "keywords": [
+        "제안서와",
+        "동일한",
+        "이때",
+        "내용의",
+        "자료는",
+        "효력을",
+        "가짐",
+        "계약서에",
+        "경우에는",
+        "내용을",
+        "제출한",
+        "우선으로",
+        "명시된",
+        "제출된",
+        "계약서의"
+      ],
+      "confidence": 0.5
+    },
+    "detected_sections": [
+      "단, 계약서에 명시된 내용의 경우에는 계약서의 내용을 우선으로 함",
+      "이때, 제출된 자료는 기 제출한 제안서와 동일한 효력을 가짐",
+      "2, 2014",
+      "목차",
+      "제안요청서",
+      "사업내용",
+      "추진전략",
+      "세부내용",
+      "기대효과",
+      "추진체계",
+      "제안서 목차"
+    ],
+    "document_summary": "제안요청서 | 제안요청서  <표>  2022. 5.  <그림>  <그림>  <표>  □ 연구 과제명 : 정신건강 빅데이터 플랫폼 구축 전략 기획연구  □ 연구의 필요성  ㅇ ⌜정신건강 DB 표준화 및 품질관리를 통한 공공연구자원구축⌟ 신규 연구개발사업 추진   ㅇ 정신건강 평가, 정신질환 선별(발생예측)‧진단‧경과예측 등을 위한 정신건강 코호트 및 보건의료 빅데이터 구축",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:06:16",
+  "updated_at": "2026-07-07T15:06:16",
+  "processing_time_ms": 2575
+}

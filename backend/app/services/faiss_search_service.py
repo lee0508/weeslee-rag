@@ -1,5 +1,6 @@
 # FAISS 벡터 검색 서비스
 # -*- coding: utf-8 -*-
+# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
 """
 FAISS Search Service - 벡터 기반 유사도 검색 서비스.
 
@@ -21,6 +22,21 @@ from typing import Any, Optional
 import numpy as np
 
 from app.core.config import settings
+from app.services.runtime_model_settings import get_runtime_embedding_model
+
+
+def _get_db_setting(category: str, key: str, default):
+    """DB 설정 조회 헬퍼. 실패 시 default 반환."""
+    try:
+        from app.services.system_settings_service import get_system_setting
+        return get_system_setting(category, key, default)
+    except Exception:
+        return default
+
+
+def _get_ollama_host() -> str:
+    """DB에서 ollama_host 조회."""
+    return _get_db_setting("endpoint", "ollama_host", settings.ollama_host)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
@@ -143,11 +159,14 @@ def _hashing_embedding(text: str, dim: int = 768) -> np.ndarray:
 
 def _ollama_embedding(
     text: str,
-    model: str = "nomic-embed-text",
-    url: str = "http://127.0.0.1:11434/api/embeddings",
+    model: str = None,
+    url: str = None,
     max_retries: int = 3,
 ) -> np.ndarray:
     """Ollama 임베딩."""
+    # DB 설정 우선, 없으면 기본값 사용
+    model = model or get_runtime_embedding_model()
+    url = url or f"{_get_ollama_host()}/api/embeddings"
     payload = json.dumps({"model": model, "prompt": text}).encode("utf-8")
     last_exc: Exception | None = None
     for attempt in range(1, max_retries + 1):
@@ -192,9 +211,9 @@ class FaissSearchService:
         """
         self.source_id = source_id
         self.embedding_provider = embedding_provider
-        # settings에서 기본값 읽기
-        self.ollama_url = ollama_url or f"{settings.ollama_host}/api/embeddings"
-        self.ollama_model = ollama_model or settings.ollama_embed_model
+        # DB 설정 우선, 없으면 settings fallback
+        self.ollama_url = ollama_url or f"{_get_ollama_host()}/api/embeddings"
+        self.ollama_model = ollama_model or get_runtime_embedding_model()
         # embedding_dim은 manifest에서 동적으로 읽도록 초기값 None 허용
         self._manifest_dim: Optional[int] = None
         self._init_embedding_dim = embedding_dim

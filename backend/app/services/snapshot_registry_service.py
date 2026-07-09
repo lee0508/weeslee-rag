@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import Any, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import update
 
 from app.core.database import SessionLocal
 from app.models.platform_config import PlatformSnapshot
 from app.models.snapshot_manifest import SnapshotManifest
 from app.services.active_snapshot_state import get_active_snapshot_id
 from app.services.rag_runtime import get_active_snapshot as get_runtime_active_snapshot
+from app.services.platform_store import get_record, update_record
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -144,6 +146,133 @@ def upsert_snapshot_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 def upsert_snapshot_manifest(snapshot: SnapshotManifest) -> dict[str, Any]:
     return upsert_snapshot_payload(_payload_from_manifest(snapshot))
+
+
+def _ensure_dataset_status(
+    source_id: Optional[str],
+    dataset_id: Optional[str],
+    dataset_status: str,
+) -> None:
+    sid = str(source_id or "").strip()
+    if not sid:
+        return
+    record = get_record("document_sources", "source_id", sid) or {}
+    updates: dict[str, Any] = {
+        "dataset_status": dataset_status,
+    }
+    resolved_dataset_id = str(dataset_id or record.get("dataset_id") or "").strip()
+    if resolved_dataset_id:
+        updates["dataset_id"] = resolved_dataset_id
+        if not record.get("dataset_created_at"):
+            updates["dataset_created_at"] = _now_iso()
+    update_record("document_sources", "source_id", sid, updates)
+
+
+def mark_snapshot_queryable(
+    snapshot_id: str,
+    *,
+    source_id: Optional[str] = None,
+    dataset_id: Optional[str] = None,
+    status: str = "queryable",
+    vector_count: Optional[int] = None,
+    chunk_count: Optional[int] = None,
+    document_count: Optional[int] = None,
+    index_file: Optional[str] = None,
+    metadata_file: Optional[str] = None,
+    manifest_path: Optional[str] = None,
+) -> dict[str, Any]:
+    current = get_snapshot_registry(snapshot_id) or {}
+    payload = {
+        "snapshot_id": snapshot_id,
+        "snapshot_name": current.get("snapshot_name") or snapshot_id,
+        "source_id": source_id or current.get("source_id") or "",
+        "dataset_id": dataset_id or current.get("dataset_id") or "",
+        "faiss_index_id": current.get("faiss_index_id") or snapshot_id,
+        "status": status or current.get("status") or "queryable",
+        "is_active": bool(current.get("is_active")),
+        "queryable": True,
+        "vector_count": vector_count if vector_count is not None else current.get("vector_count") or 0,
+        "chunk_count": chunk_count if chunk_count is not None else current.get("chunk_count") or 0,
+        "document_count": document_count if document_count is not None else current.get("document_count") or 0,
+        "index_file": index_file or current.get("index_file") or "",
+        "metadata_file": metadata_file or current.get("metadata_file") or "",
+        "manifest_path": manifest_path or current.get("manifest_path") or "",
+        "created_at": current.get("created_at"),
+        "activated_at": current.get("activated_at"),
+    }
+    row = upsert_snapshot_payload(payload)
+    _ensure_dataset_status(
+        payload.get("source_id"),
+        payload.get("dataset_id"),
+        "queryable" if payload.get("queryable") else "draft",
+    )
+    return row
+
+
+def activate_snapshot_registry(
+    snapshot_id: str,
+    *,
+    source_id: Optional[str] = None,
+    dataset_id: Optional[str] = None,
+    activated_at: Optional[str] = None,
+) -> Optional[dict[str, Any]]:
+    snapshot_id = str(snapshot_id or "").strip()
+    if not snapshot_id:
+        return None
+
+    current = get_snapshot_registry(snapshot_id) or {}
+    resolved_source_id = str(source_id or current.get("source_id") or "").strip()
+    resolved_dataset_id = str(dataset_id or current.get("dataset_id") or "").strip()
+    activated_value = str(activated_at or _now_iso())
+
+    db = SessionLocal()
+    previous_active_source_ids: list[str] = []
+    try:
+        prev_rows = db.query(PlatformSnapshot).filter(PlatformSnapshot.is_active.is_(True)).all()
+        previous_active_source_ids = [
+            str(row.source_id or "").strip()
+            for row in prev_rows
+            if str(row.source_id or "").strip() and str(row.snapshot_id or "").strip() != snapshot_id
+        ]
+        db.execute(update(PlatformSnapshot).values(is_active=False))
+
+        row = db.query(PlatformSnapshot).filter(PlatformSnapshot.snapshot_id == snapshot_id).first()
+        if row is None:
+            row = PlatformSnapshot(
+                snapshot_id=snapshot_id,
+                snapshot_name=snapshot_id,
+                source_id=resolved_source_id,
+                dataset_id=resolved_dataset_id,
+                faiss_index_id=snapshot_id,
+                status="active",
+                is_active=True,
+                queryable=True,
+                activated_at=activated_value,
+                updated_at=_now_iso(),
+            )
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            payload = _serialize_row(row)
+        else:
+            row.source_id = resolved_source_id or row.source_id
+            row.dataset_id = resolved_dataset_id or row.dataset_id
+            row.status = "active"
+            row.is_active = True
+            row.queryable = True
+            row.activated_at = activated_value
+            row.updated_at = _now_iso()
+            db.commit()
+            db.refresh(row)
+            payload = _serialize_row(row)
+    finally:
+        db.close()
+
+    _ensure_dataset_status(resolved_source_id, resolved_dataset_id, "active")
+    for previous_source_id in previous_active_source_ids:
+        if previous_source_id != resolved_source_id:
+            _ensure_dataset_status(previous_source_id, None, "queryable")
+    return payload
 
 
 def sync_snapshot_registry_from_files(source_id: Optional[str] = None) -> list[dict[str, Any]]:

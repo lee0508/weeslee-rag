@@ -1,0 +1,267 @@
+{
+  "document_id": "345194331",
+  "file_name": "RFP_IITP AX전환 중장기 지능정보화 전략계획(BPRISP) 수립 사업.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_IITP AX전환 중장기 지능정보화 전략계획(BPRISP) 수립 사업.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_345194331",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_IITP AX전환 중장기 지능정보화 전략계획(BPRISP) 수립 사업.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 21828,
+  "quality": {
+    "text_length": 21828,
+    "char_count": 13909,
+    "korean_count": 11951,
+    "english_count": 204,
+    "number_count": 395,
+    "special_count": 1359,
+    "garbage_count": 0,
+    "korean_ratio": 0.8592,
+    "english_ratio": 0.0147,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_IITP AX전환 중장기 지능정보화 전략계획(BPRISP) 수립 사업.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_IITP AX전환 중장기 지능정보화 전략계획(BPRISP) 수립 사업.hwp",
+    "section_group": "RFP_IITP AX전환 중장기 지능정보화 전략계획(BPRISP) 수립 사업.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "제 안 요 청 서",
+          "<표>",
+          ". 11.",
+          "<그림>",
+          "목 차",
+          "I. 사업안내1",
+          ". 사업개요1"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "제 안 요 청 서",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "<표>",
+              "2025. 11.",
+              "<표>",
+              "<그림>",
+              "목 차",
+              "I. 사업안내1",
+              "1. 사업개요1"
+            ],
+            "keywords": [
+              "제 안 요 청 서",
+              "<표>",
+              ". 11.",
+              "<그림>",
+              "목 차",
+              "I. 사업안내1",
+              ". 사업개요1"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "제 안 요 청 서",
+      "organization": "제안요청",
+      "project_name": "",
+      "date": "2025년 11월",
+      "document_type": "제안서",
+      "keywords": [],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업 주요내용",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "사업 추진전략",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "기대효과",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "정보시스템 현황",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "추진체계",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "추진일정",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "일반사항",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "□ 본 제안요청서 및 제안서는 계약체결 시 계약서의 일부로 간주한다",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "□ 제안사는 제안요청서에 명시한 보안요구사항을 준수하여야 하며, 구체적인 보안관리 대책을",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "□ 제안요청서에 기재된 모든 법령, 훈령, 예규, 지침 등은 호나 날짜, 부서명이 다르더라",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "□ 제안업체는 제안요청서의 요구사항을 기반으로 제안하되, 업무 분석 시 창의적인 방법으로",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "□ 제안사는 본 사업의 제안요청사 요구사항에 명시되지 않았으나, 제안사 판단으로 추가되어야",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "요구사항 총괄표",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "사업 주요내용",
+        "사업 추진전략",
+        "기대효과",
+        "정보시스템 현황",
+        "추진체계",
+        "추진일정",
+        "일반사항",
+        "□ 본 제안요청서 및 제안서는 계약체결 시 계약서의 일부로 간주한다",
+        "□ 제안사는 제안요청서에 명시한 보안요구사항을 준수하여야 하며, 구체적인 보안관리 대책을",
+        "□ 제안요청서에 기재된 모든 법령, 훈령, 예규, 지침 등은 호나 날짜, 부서명이 다르더라",
+        "□ 제안업체는 제안요청서의 요구사항을 기반으로 제안하되, 업무 분석 시 창의적인 방법으로",
+        "□ 제안사는 본 사업의 제안요청사 요구사항에 명시되지 않았으나, 제안사 판단으로 추가되어야",
+        "요구사항 총괄표"
+      ],
+      "keywords": [
+        "예규",
+        "제안요청서에",
+        "명시한",
+        "판단으로",
+        "않았으나",
+        "모든",
+        "일반사항",
+        "업무",
+        "훈령",
+        "요구사항",
+        "대책을",
+        "사업의",
+        "제안서는",
+        "주요내용",
+        "보안관리",
+        "호나",
+        "창의적인",
+        "명시되지",
+        "구체적인",
+        "제안사는"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "사업 주요내용",
+      "사업 추진전략",
+      "기대효과",
+      "정보시스템 현황",
+      "추진체계",
+      "추진일정",
+      "일반사항",
+      "□ 본 제안요청서 및 제안서는 계약체결 시 계약서의 일부로 간주한다",
+      "□ 제안사는 제안요청서에 명시한 보안요구사항을 준수하여야 하며, 구체적인 보안관리 대책을",
+      "□ 제안요청서에 기재된 모든 법령, 훈령, 예규, 지침 등은 호나 날짜, 부서명이 다르더라",
+      "□ 제안업체는 제안요청서의 요구사항을 기반으로 제안하되, 업무 분석 시 창의적인 방법으로",
+      "□ 제안사는 본 사업의 제안요청사 요구사항에 명시되지 않았으나, 제안사 판단으로 추가되어야",
+      "요구사항 총괄표",
+      "날짜",
+      "목차",
+      "제안요청서",
+      "사업개요",
+      "사업안내",
+      "사업내용",
+      "사업기간"
+    ],
+    "document_summary": "제 안 요 청 서 | 제 안 요 청 서 <표>     <표>  2025. 11.  <표>  <그림>  목 차  I. 사업안내1   1. 사업개요1   2. 배경 및 필요성1   3. 사업 주요내용2   4. 사업 추진전략4   5. 기대효과5  II. 정보시스템 현황6   1. 정보시스템 현황6  III. 사업추진 방안8   1. 추진체계8   2. 추진일정9  IV. 제안요청",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:03:35",
+  "updated_at": "2026-07-07T15:03:35",
+  "processing_time_ms": 7612
+}

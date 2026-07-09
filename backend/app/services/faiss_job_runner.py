@@ -31,6 +31,8 @@ from app.services.runtime_compute_settings import (
     describe_stage_compute_mode,
     get_runtime_compute_settings,
 )
+from app.services.dataset_build_settings import get_step_config
+from app.services.runtime_model_settings import get_runtime_embedding_model
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
@@ -306,6 +308,10 @@ async def run_pipeline(job_id: str) -> None:
             p["metadata_dir"].mkdir(parents=True, exist_ok=True)
             emit(10, "텍스트 추출 중...")
             emit(10, "실행 모드", describe_stage_compute_mode("ocr", runtime_settings))
+            step4_config = get_step_config(source_id, "4") if source_id else {}
+            ocr_dpi = int(step4_config.get("ocr_dpi") or 300)
+            ocr_language = str(step4_config.get("ocr_language") or "kor+eng")
+            ocr_min_text_length = int(step4_config.get("ocr_min_text_length") or 50)
             rc = await _run_script(
                 [
                     "extract_manifest_batch.py",
@@ -314,6 +320,9 @@ async def run_pipeline(job_id: str) -> None:
                     "--metadata-dir", str(p["metadata_dir"]),
                     "--summary-csv", str(p["summary_csv"]),
                     "--use-ocr",   # auto-fall-back to tesseract for scanned PDFs
+                    "--ocr-dpi", str(ocr_dpi),
+                    "--ocr-lang", ocr_language,
+                    "--ocr-min-text-length", str(ocr_min_text_length),
                 ],
                 emit, 10, 50,
                 env=build_runtime_compute_env("ocr", runtime_settings),
@@ -359,7 +368,7 @@ async def run_pipeline(job_id: str) -> None:
                     "--output-metadata", str(p["meta_path"]),
                     "--snapshot-id", snapshot,
                     "--embedding-provider", "ollama",
-                    "--ollama-model", settings.ollama_embed_model,
+                    "--ollama-model", get_runtime_embedding_model(),
                 ],
                 emit, 70, 88,
                 env=build_runtime_compute_env("faiss", runtime_settings),
@@ -397,7 +406,7 @@ async def run_pipeline(job_id: str) -> None:
                 "--output-dir", str(p["faiss_dir"]),
                 "--snapshot", snapshot,
                 "--embedding-provider", "ollama",
-                "--ollama-model", settings.ollama_embed_model,
+                "--ollama-model", get_runtime_embedding_model(),
                 "--categories",
             ] + category_keys
 

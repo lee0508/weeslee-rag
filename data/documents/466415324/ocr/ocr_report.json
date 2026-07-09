@@ -1,0 +1,293 @@
+{
+  "document_id": "466415324",
+  "file_name": "RFP_수도 Digital Twin+ 시스템 구축 ISP 수립 용역.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_수도 Digital Twin+ 시스템 구축 ISP 수립 용역.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_466415324",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_수도 Digital Twin+ 시스템 구축 ISP 수립 용역.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 31921,
+  "quality": {
+    "text_length": 31921,
+    "char_count": 16730,
+    "korean_count": 13359,
+    "english_count": 927,
+    "number_count": 504,
+    "special_count": 1940,
+    "garbage_count": 0,
+    "korean_ratio": 0.7985,
+    "english_ratio": 0.0554,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_수도 Digital Twin+ 시스템 구축 ISP 수립 용역.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_수도 Digital Twin+ 시스템 구축 ISP 수립 용역.hwp",
+    "section_group": "RFP_수도 Digital Twin+ 시스템 구축 ISP 수립 용역.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "페이지 1",
+          "<표>",
+          ". 7.",
+          ". 제안공모 개요",
+          "일반사항",
+          "사업개요",
+          "가. 사 업 명",
+          "수도 Digital Twin+ 시스템 구축 ISP 수립 용역"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "페이지 1",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "2024. 7.",
+              "<표>",
+              "<표>",
+              "1. 제안공모 개요",
+              "1.1 일반사항",
+              "1.1.1 사업개요",
+              "가. 사 업 명 : 수도 Digital Twin+ 시스템 구축 ISP 수립 용역"
+            ],
+            "keywords": [
+              "페이지 1",
+              "<표>",
+              ". 7.",
+              ". 제안공모 개요",
+              "일반사항",
+              "사업개요",
+              "가. 사 업 명",
+              "수도 Digital Twin+ 시스템 구축 ISP 수립 용역"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<표>",
+      "organization": "착수일로부",
+      "project_name": "",
+      "date": "2024년 7월",
+      "document_type": "제안서",
+      "keywords": [],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 2,
+          "title": "② 제출데이터의 요건",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "2) 파일은 파일크기가 증가하지 않도록 불필요한 내용을 포함하지 않는다",
+          "page": 3
+        },
+        {
+          "level": 2,
+          "title": "③ 유의사항",
+          "page": 1
+        },
+        {
+          "level": 2,
+          "title": "2) 질의사항은 반드시 서면질의하고 전화문의 또는 구두로 질의 응답한 사항은 법적 효력을",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "※ 제안관련 문의 : K-water 수도관리처 수도디지털부(☎ 042-629-3496~8)",
+          "page": 3
+        },
+        {
+          "level": 2,
+          "title": "4) 제안된 내용의 검토를 위하여 필요한 경우 K-water는 추가자료 제출을 제안사에 요",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "5) 해당 용역의 정성 부문은 블라인드 심사를 적용함에 따라, 정성 제안서는 회사명, 대표",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "(인력현황 등을 명시할 경우 성명은 별표(***)처리)",
+          "page": 6
+        },
+        {
+          "level": 1,
+          "title": "2 제안 시 전제조건 및 제안서의 효력",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제출된 제안서의 내용은 K-water가 요청하지 않는 한 변경, 보완, 삭제 등을 할 수",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제안사는 본 과업을 수행함에 있어 발생하는 저작권, 사용권 또는 특허권 등의 문제에 대한",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "K-water는 제안사의 제안내용에 대한 확인‧검증이 필요한 경우 제안사에 입증자료를 요구",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "본 과업 관련 인‧허가 등 모든 행정업무는 제안사에서 K-water를 대행한다",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "참여기술자는 입찰공고일 기준 그 이전에 고용되어 현재 재직 중인 자만 인정한다",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제안서의 모든 기재사항은 객관적으로 입증할 수 있는 관계서류를 첨부하여야 하며, 허위로 작",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "본 제안과 관련하여 용어 또는 해석상의 견해차이 또는 이의가 발생할 때에는 상호 협의하여",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "본 과업의 범위는 용역설계서와 제안사가 제출한 제안서의 내용을",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "② 제출데이터의 요건",
+        "2) 파일은 파일크기가 증가하지 않도록 불필요한 내용을 포함하지 않는다",
+        "③ 유의사항",
+        "2) 질의사항은 반드시 서면질의하고 전화문의 또는 구두로 질의 응답한 사항은 법적 효력을",
+        "※ 제안관련 문의 : K-water 수도관리처 수도디지털부(☎ 042-629-3496~8)",
+        "4) 제안된 내용의 검토를 위하여 필요한 경우 K-water는 추가자료 제출을 제안사에 요",
+        "5) 해당 용역의 정성 부문은 블라인드 심사를 적용함에 따라, 정성 제안서는 회사명, 대표",
+        "(인력현황 등을 명시할 경우 성명은 별표(***)처리)",
+        "2 제안 시 전제조건 및 제안서의 효력",
+        "제출된 제안서의 내용은 K-water가 요청하지 않는 한 변경, 보완, 삭제 등을 할 수",
+        "제안사는 본 과업을 수행함에 있어 발생하는 저작권, 사용권 또는 특허권 등의 문제에 대한",
+        "K-water는 제안사의 제안내용에 대한 확인‧검증이 필요한 경우 제안사에 입증자료를 요구",
+        "본 과업 관련 인‧허가 등 모든 행정업무는 제안사에서 K-water를 대행한다",
+        "참여기술자는 입찰공고일 기준 그 이전에 고용되어 현재 재직 중인 자만 인정한다",
+        "제안서의 모든 기재사항은 객관적으로 입증할 수 있는 관계서류를 첨부하여야 하며, 허위로 작",
+        "본 제안과 관련하여 용어 또는 해석상의 견해차이 또는 이의가 발생할 때에는 상호 협의하여",
+        "본 과업의 범위는 용역설계서와 제안사가 제출한 제안서의 내용을"
+      ],
+      "keywords": [
+        "대한",
+        "증가하지",
+        "적용함에",
+        "전제조건",
+        "제안관련",
+        "인력현황",
+        "제안사는",
+        "하며",
+        "행정업무는",
+        "내용은",
+        "삭제",
+        "사용권",
+        "정성",
+        "효력",
+        "질의사항은",
+        "서면질의하고",
+        "발생할",
+        "불필요한",
+        "않는다",
+        "제안내용에"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "② 제출데이터의 요건",
+      "2) 파일은 파일크기가 증가하지 않도록 불필요한 내용을 포함하지 않는다",
+      "③ 유의사항",
+      "2) 질의사항은 반드시 서면질의하고 전화문의 또는 구두로 질의 응답한 사항은 법적 효력을",
+      "※ 제안관련 문의 : K-water 수도관리처 수도디지털부(☎ 042-629-3496~8)",
+      "4) 제안된 내용의 검토를 위하여 필요한 경우 K-water는 추가자료 제출을 제안사에 요",
+      "5) 해당 용역의 정성 부문은 블라인드 심사를 적용함에 따라, 정성 제안서는 회사명, 대표",
+      "(인력현황 등을 명시할 경우 성명은 별표(***)처리)",
+      "2 제안 시 전제조건 및 제안서의 효력",
+      "제출된 제안서의 내용은 K-water가 요청하지 않는 한 변경, 보완, 삭제 등을 할 수",
+      "제안사는 본 과업을 수행함에 있어 발생하는 저작권, 사용권 또는 특허권 등의 문제에 대한",
+      "K-water는 제안사의 제안내용에 대한 확인‧검증이 필요한 경우 제안사에 입증자료를 요구",
+      "본 과업 관련 인‧허가 등 모든 행정업무는 제안사에서 K-water를 대행한다",
+      "참여기술자는 입찰공고일 기준 그 이전에 고용되어 현재 재직 중인 자만 인정한다",
+      "제안서의 모든 기재사항은 객관적으로 입증할 수 있는 관계서류를 첨부하여야 하며, 허위로 작",
+      "본 제안과 관련하여 용어 또는 해석상의 견해차이 또는 이의가 발생할 때에는 상호 협의하여",
+      "본 과업의 범위는 용역설계서와 제안사가 제출한 제안서의 내용을",
+      "목차",
+      "사업개요",
+      "사업범위"
+    ],
+    "document_summary": "<표> | <표>  2024. 7.  <표>  <표>  1. 제안공모 개요   1.1 일반사항   1.1.1 사업개요  가. 사 업 명 : 수도 Digital Twin+ 시스템 구축 ISP 수립 용역  나. 사업기간 : 착수일로부터 180일  다. 사업금액 : 364,100천원  <그림>   라. 사업범위  (1) GIS를 중심으로 수도시설의 모든 데이터를 연계하여",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:05:34",
+  "updated_at": "2026-07-07T15:05:34",
+  "processing_time_ms": 17378
+}

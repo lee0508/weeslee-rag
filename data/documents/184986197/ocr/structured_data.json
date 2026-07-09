@@ -1,0 +1,238 @@
+{
+  "file_name": "RFP_KOFIH 보건의료지원사업 성과 및 사업통합관리시스템 ISP 수립 연구.hwp",
+  "source_path": "",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_KOFIH 보건의료지원사업 성과 및 사업통합관리시스템 ISP 수립 연구.hwp",
+  "section_group": "RFP_KOFIH 보건의료지원사업 성과 및 사업통합관리시스템 ISP 수립 연구.hwp",
+  "document_type": "hwp",
+  "total_slides": 1,
+  "structure_mode": "semantic_sections",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "표지",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "표지",
+        "페이지 1",
+        "<표>",
+        ". 5.",
+        ". 사업개요",
+        "ㅇ 용 역 명",
+        "KOFIH 보건의료지원사업 성과 및 사업통합관리시스템 ISP 수립 연구"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "페이지 1",
+          "parent_section": "1. 표지",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "<표>",
+            "2025. 5.",
+            "<표>",
+            "<표>",
+            "<표>",
+            "<표>",
+            "1. 사업개요",
+            "ㅇ 용 역 명 : KOFIH 보건의료지원사업 성과 및 사업통합관리시스템 ISP 수립 연구"
+          ],
+          "keywords": [
+            "페이지 1",
+            "<표>",
+            ". 5.",
+            ". 사업개요",
+            "ㅇ 용 역 명",
+            "KOFIH 보건의료지원사업 성과 및 사업통합관리시스템 ISP 수립 연구"
+          ],
+          "page_type": "cover"
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "<표>",
+    "organization": "보건의료지원",
+    "project_name": "",
+    "date": "2025년 5월",
+    "document_type": "제안요청서",
+    "keywords": [],
+    "confidence": 0.8
+  },
+  "toc": {
+    "sections": [
+      {
+        "level": 1,
+        "title": "추진방향",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "기대효과",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "기관현황",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "설립근거: 한국국제보건의료재단법 (법률 제19717호)",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "설립목적: 개발도상국가를 비롯한 외국, 북한, 재외동포 및 외국인 근로자 등에 대한 보건의",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "주요연혁",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "주요사업",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "조직 및 인력 현황",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "임원 구성 ※ 붙임1 참조",
+        "page": null
+      },
+      {
+        "level": 2,
+        "title": "조직 현황",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "정보시스템 현황",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "추진전략",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "추진체계 및 역할",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "추진일정",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "요구사항 목록",
+        "page": null
+      },
+      {
+        "level": 1,
+        "title": "요구사항 세부내용",
+        "page": 1
+      },
+      {
+        "level": 2,
+        "title": "○ 관련법률",
+        "page": null
+      }
+    ],
+    "section_titles": [
+      "추진방향",
+      "기대효과",
+      "기관현황",
+      "설립근거: 한국국제보건의료재단법 (법률 제19717호)",
+      "설립목적: 개발도상국가를 비롯한 외국, 북한, 재외동포 및 외국인 근로자 등에 대한 보건의",
+      "주요연혁",
+      "주요사업",
+      "조직 및 인력 현황",
+      "임원 구성 ※ 붙임1 참조",
+      "조직 현황",
+      "정보시스템 현황",
+      "추진전략",
+      "추진체계 및 역할",
+      "추진일정",
+      "요구사항 목록",
+      "요구사항 세부내용",
+      "○ 관련법률"
+    ],
+    "keywords": [
+      "대한",
+      "세부내용",
+      "법률",
+      "외국인",
+      "개발도상국가를",
+      "요구사항",
+      "비롯한",
+      "보건의",
+      "인력",
+      "추진전략",
+      "정보시스템",
+      "주요사업",
+      "추진체계",
+      "설립근거",
+      "재외동포",
+      "설립목적",
+      "외국",
+      "근로자",
+      "붙임",
+      "한국국제보건의료재단법"
+    ],
+    "confidence": 1.0
+  },
+  "detected_sections": [
+    "추진방향",
+    "기대효과",
+    "기관현황",
+    "설립근거: 한국국제보건의료재단법 (법률 제19717호)",
+    "설립목적: 개발도상국가를 비롯한 외국, 북한, 재외동포 및 외국인 근로자 등에 대한 보건의",
+    "주요연혁",
+    "주요사업",
+    "조직 및 인력 현황",
+    "임원 구성 ※ 붙임1 참조",
+    "조직 현황",
+    "정보시스템 현황",
+    "추진전략",
+    "추진체계 및 역할",
+    "추진일정",
+    "요구사항 목록",
+    "요구사항 세부내용",
+    "○ 관련법률",
+    "담당",
+    "제안요청서",
+    "사업개요"
+  ],
+  "document_summary": "<표> | <표>  2025. 5.  <표>  <표>  <표>  <표>  1. 사업개요  ㅇ 용 역 명 : KOFIH 보건의료지원사업 성과 및 사업통합관리시스템 ISP 수립 연구  ㅇ 용역기간 : 계약 후 120일  ㅇ 예정금액 : ￦200,000,000원(금이억원정) 이내(VAT 포함)  ㅇ 계약방법 : 제한경쟁/협상에 의한 계약  2. 연구목적  ㅇ (KOFIH",
+  "page_types": [
+    "cover"
+  ],
+  "semantic_tags": {
+    "methodology": "",
+    "domain": "",
+    "technology": ""
+  }
+}

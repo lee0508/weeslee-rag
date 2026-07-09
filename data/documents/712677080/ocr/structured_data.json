@@ -1,0 +1,102 @@
+{
+  "file_name": "RFP_마약류중독자관리시스템 구축 ISP.hwp",
+  "source_path": "",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_마약류중독자관리시스템 구축 ISP.hwp",
+  "section_group": "RFP_마약류중독자관리시스템 구축 ISP.hwp",
+  "document_type": "hwp",
+  "total_slides": 1,
+  "structure_mode": "semantic_sections",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "표지",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "표지",
+        "페이지 1",
+        "<표>",
+        ". 2. 12.",
+        "<그림>",
+        "○ 사 업 명",
+        "마약류중독자관리시스템 구축 ISP"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "페이지 1",
+          "parent_section": "1. 표지",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "<표>",
+            "2026. 2. 12.",
+            "<표>",
+            "<그림>",
+            "<표>",
+            "<표>",
+            "<표>",
+            "○ 사 업 명: 마약류중독자관리시스템 구축 ISP"
+          ],
+          "keywords": [
+            "페이지 1",
+            "<표>",
+            ". 2. 12.",
+            "<그림>",
+            "○ 사 업 명",
+            "마약류중독자관리시스템 구축 ISP"
+          ],
+          "page_type": "cover"
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "<표>",
+    "organization": "계약일로부",
+    "project_name": "",
+    "date": "2026년 2월",
+    "document_type": "ISP",
+    "keywords": [],
+    "confidence": 0.8
+  },
+  "toc": {
+    "sections": [],
+    "section_titles": [],
+    "keywords": [],
+    "confidence": 0.0
+  },
+  "detected_sections": [
+    "담당",
+    "제안요청서",
+    "사업기간",
+    "현황 및 문제점",
+    "선진사례",
+    "추진체계",
+    "추진일정",
+    "이행계획 수립",
+    "제약사항"
+  ],
+  "document_summary": "<표> | <표>  2026. 2. 12.  <표>  <그림>  <표>  <표>  <표>     ○ 사 업 명: 마약류중독자관리시스템 구축 ISP   ○ 사업기간: 계약일로부터 120일   ○ 사업예산: 268,000,000원(부가세 포함)   ○ 입찰방법: 제한경쟁입찰   ○ 계약방법: 협상에 의한 계약  <표>     ○ 마약류 중독자의 사회복귀지원 및 관리를 위",
+  "page_types": [
+    "cover"
+  ],
+  "semantic_tags": {
+    "methodology": "",
+    "domain": "",
+    "technology": ""
+  }
+}

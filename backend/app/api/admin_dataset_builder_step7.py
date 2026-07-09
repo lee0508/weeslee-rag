@@ -18,9 +18,11 @@ from app.core.database import get_db
 from app.models.snapshot_manifest import DatasetInfo, RAGBuildInfo, SnapshotManifest, SnapshotStatus
 from app.services.dataset_context import get_source_dataset_context
 from app.services.processed_text_store import ProcessedTextStore
+from app.services.runtime_model_settings import get_runtime_embedding_model
 from app.services.runtime_compute_settings import is_stage_gpu_enabled
-from app.services.snapshot_registry_service import upsert_snapshot_manifest
+from app.services.snapshot_registry_service import mark_snapshot_queryable, upsert_snapshot_manifest
 from app.services.snapshot_manager import create_snapshot_manifest, generate_snapshot_id
+from app.services.source_artifact_index import sync_source_index
 
 router = APIRouter(prefix="/admin/dataset-builder/step7")
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -194,6 +196,23 @@ def _infer_contract_types(project_name: str, organization: str, file_name: str, 
         return "", ""
 
 
+def _normalize_search_keywords(value: object, limit: int = 20) -> list[str]:
+    items = value if isinstance(value, list) else []
+    keywords: list[str] = []
+    for item in items:
+        if isinstance(item, dict):
+            token = str(item.get("keyword") or item.get("keyword_name") or item.get("name") or "").strip()
+        else:
+            token = str(item or "").strip()
+        if len(token) < 2:
+            continue
+        if token not in keywords:
+            keywords.append(token)
+        if len(keywords) >= limit:
+            break
+    return keywords
+
+
 def _build_snapshot_metadata_row(
     doc,
     chunk: dict,
@@ -266,6 +285,9 @@ def _build_snapshot_metadata_row(
     chunk_type = str(chunk_meta.get("chunk_type") or "")
     slide_range = chunk_meta.get("slide_range") or []
     slide_numbers = chunk_meta.get("slide_numbers") or []
+    search_keywords = _normalize_search_keywords(doc.keywords)
+    business_domain = str(doc.business_domain or "").strip()
+    year_value = str(doc.final_year or doc.ocr_year or doc.year or doc.scan_year or "").strip()
 
     nested_metadata = {
         "document_id": str(doc.document_id),
@@ -299,6 +321,10 @@ def _build_snapshot_metadata_row(
         "organization": organization,
         "organization_type": organization_type,
         "client_type": client_type,
+        "business_domain": business_domain,
+        "year": year_value,
+        "search_keywords": search_keywords,
+        "keyword": search_keywords[0] if search_keywords else "",
         "relative_path": doc.relative_path or "",
         "original_source_path": doc.file_path or "",
         "file_name": file_name,
@@ -340,7 +366,11 @@ def _build_snapshot_metadata_row(
         "organization_type": organization_type,
         "client_type": client_type,
         "project_type": project_type,
-        "folder_year": str(doc.final_year or doc.ocr_year or doc.year or doc.scan_year or "") or "",
+        "business_domain": business_domain,
+        "year": year_value,
+        "folder_year": year_value,
+        "search_keywords": search_keywords,
+        "keyword": search_keywords[0] if search_keywords else "",
         "root_group": "",
         "sub_group": "",
         "section_label": chunk_meta.get("section_label", ""),
@@ -531,7 +561,7 @@ async def build_faiss_index(
         vector_to_doc_map = []  # (vector_index) -> (document_id, chunk_index)
         metadata_rows: list[dict] = []
         preview_chunk_rows: list[dict] = []
-        model_name = settings.ollama_embed_model
+        model_name = get_runtime_embedding_model()
         chunks_jsonl_path = DATA_DIR / "staged" / "chunks" / f"{snapshot_id}_chunks.jsonl"
 
         for doc in docs:
@@ -688,6 +718,19 @@ async def build_faiss_index(
                 handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
         db.commit()
+        mark_snapshot_queryable(
+            snapshot_id,
+            source_id=source_id,
+            dataset_id=dataset_id,
+            status="queryable",
+            vector_count=len(vectors),
+            chunk_count=len(metadata_rows),
+            document_count=len([d for d in document_infos if d.status == "success"]),
+            index_file=index_path,
+            metadata_file=str(get_faiss_dir() / f"{snapshot_id}_ollama_metadata.jsonl"),
+            manifest_path=str(get_snapshot_dir() / f"{snapshot_id}.json"),
+        )
+        sync_source_index(source_id, db=db)
 
         return FAISSBuildResponse(
             success=True,

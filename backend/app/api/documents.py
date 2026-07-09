@@ -170,6 +170,9 @@ def _text_path(document_id: int) -> Path:
 
 def _processed_text_path(document_id: int, format: str = "txt") -> Path:
     file_name = "full_text.md" if format == "md" else "full_text.txt"
+    canonical = DATA_DIR / "documents" / str(document_id) / "ocr" / file_name
+    if canonical.is_file():
+        return canonical
     return DATA_DIR / "processed_text" / str(document_id) / file_name
 
 

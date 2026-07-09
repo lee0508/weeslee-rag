@@ -32,6 +32,23 @@ router = APIRouter(
 # ── Request/Response Models ─────────────────────────────────────────────────
 
 
+def _get_default_wiki_model() -> str:
+    try:
+        from app.core.config import get_settings
+        from app.services.system_settings_service import get_model_setting
+
+        settings = get_settings()
+        return str(
+            get_model_setting(
+                "step8_llm_model",
+                get_model_setting("default_llm_model", settings.ollama_model),
+            )
+        )
+    except Exception:
+        from app.core.config import get_settings
+        return str(get_settings().ollama_model)
+
+
 class WikiBuildRequest(BaseModel):
     """Wiki 빌드 요청"""
     source_id: Optional[str] = None
@@ -40,7 +57,7 @@ class WikiBuildRequest(BaseModel):
     slug: Optional[str] = Field(None, description="특정 항목만 생성")
     from_inventory: bool = Field(False, description="inventory 기반 생성")
     max_wikis: int = Field(0, description="최대 생성 수 (0=무제한)")
-    model: str = Field("gemma3:12b", description="LLM 모델")
+    model: Optional[str] = Field(None, description="LLM 모델")
 
 
 class WikiBuildResponse(BaseModel):
@@ -236,6 +253,11 @@ def _run_wiki_build_job(job_id: str, request_data: Dict[str, Any]) -> None:
             max_wikis = int(request_data.get("max_wikis") or 0)
             if max_wikis > 0:
                 cmd += ["--max-projects", str(max_wikis)]
+
+            # Wiki 생성 모델은 임베딩 모델(BGE-M3)과 별개로 Ollama 생성 모델을 사용한다.
+            model = request_data.get("model") or _get_default_wiki_model()
+            if model:
+                cmd += ["--ollama-model", str(model)]
 
             proc = subprocess.run(
                 cmd,

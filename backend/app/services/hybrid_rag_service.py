@@ -39,6 +39,7 @@ from app.services.query_router import (
 from app.services.wiki_search_service import (
     get_wiki_search_service,
 )
+from app.services.rag_runtime import run_rag_query
 
 
 class SearchSource(str, Enum):
@@ -192,6 +193,7 @@ class HybridRAGService:
             "document_group",
             "document_category",
             "section_type",
+            "topic",
         ):
             value = hints.get(key)
             if isinstance(value, str):
@@ -285,6 +287,74 @@ class HybridRAGService:
                 return value
         return None
 
+    @classmethod
+    def _infer_question_hints(cls, question: str) -> dict[str, Any]:
+        """질문문에서 문서 필터와 랭킹 힌트를 직접 추론한다."""
+        raw = str(question or "").strip()
+        normalized = raw.replace(" ", "")
+        hints: dict[str, Any] = {}
+        inferred_terms: list[str] = []
+
+        if "제안서" in raw:
+            hints["document_group"] = "제안서"
+        elif "산출물" in raw:
+            hints["document_group"] = "산출물"
+        elif re.search(r"\bRFP\b|제안요청서", raw, re.IGNORECASE):
+            hints["document_group"] = "RFP"
+
+        literal_section = cls._extract_literal_section_hint(raw)
+        if literal_section:
+            hints["document_category"] = literal_section
+            hints["section_type"] = literal_section
+            inferred_terms.append(literal_section)
+
+        if "공공기관" in raw:
+            hints["organization_type"] = "공공기관"
+            inferred_terms.append("공공기관")
+        elif "연구기관" in raw:
+            hints["organization_type"] = "연구기관"
+            inferred_terms.extend(["연구기관", "연구원", "연구소"])
+
+        if "업무시스템개선" in normalized or ("업무시스템" in raw and "개선" in raw):
+            hints["project_type"] = "시스템개선"
+            inferred_terms.extend(["업무시스템", "개선"])
+        elif "플랫폼고도화" in normalized or "플랫폼개선" in normalized or ("플랫폼" in raw and ("고도화" in raw or "개선" in raw)):
+            hints["project_type"] = "플랫폼고도화"
+            inferred_terms.extend(["플랫폼", "고도화"])
+        elif "컨설팅사업" in normalized or "컨설팅" in raw:
+            hints["project_type"] = "컨설팅"
+            inferred_terms.append("컨설팅")
+        elif "시스템도입" in normalized or ("시스템" in raw and "도입" in raw):
+            hints["project_type"] = "시스템구축"
+            inferred_terms.extend(["시스템", "도입"])
+
+        if "AI" in raw or "인공지능" in raw:
+            hints["topic"] = "ai"
+            inferred_terms.extend(["ai", "인공지능"])
+
+        for token in (
+            "의사소통관리",
+            "의사소통",
+            "선진사례",
+            "유사사례",
+            "사례분석",
+            "현황분석",
+            "환경분석",
+            "기술및기능",
+            "프로젝트관리",
+            "업무시스템",
+            "플랫폼",
+            "고도화",
+            "개선",
+        ):
+            if token in normalized and token.lower() not in inferred_terms:
+                inferred_terms.append(token.lower())
+
+        if inferred_terms:
+            hints["inferred_terms"] = cls._sanitize_inferred_terms(inferred_terms)
+
+        return hints
+
     def __init__(
         self,
         source_id: Optional[str] = None,
@@ -350,6 +420,13 @@ class HybridRAGService:
             metadata.setdefault("slide_no", metadata.get("slide_no") or r.slide_no)
             metadata.setdefault("section_title", metadata.get("section_title") or r.section_title)
             metadata.setdefault("section_id", metadata.get("section_id") or r.section_id)
+            metadata.setdefault("organization", metadata.get("organization") or r.organization or "")
+            metadata.setdefault("organization_type", metadata.get("organization_type") or r.organization_type or "")
+            metadata.setdefault("client_type", metadata.get("client_type") or r.client_type or "")
+            metadata.setdefault("project_type", metadata.get("project_type") or r.project_type or "")
+            metadata.setdefault("section_type", metadata.get("section_type") or "")
+            metadata.setdefault("search_keywords", metadata.get("search_keywords") or [])
+            metadata.setdefault("file_name", metadata.get("file_name") or r.file_name or "")
             project_name = (
                 metadata.get("project_name")
                 or metadata.get("final_project_name")
@@ -603,6 +680,99 @@ class HybridRAGService:
 
         return results, elapsed_ms
 
+    def _classic_rag_fallback(
+        self,
+        *,
+        question: str,
+        faiss_query: str,
+        top_k: int,
+        max_results: int,
+        category: Optional[str],
+        organization: Optional[str],
+        year: Optional[str],
+        document_group: Optional[str],
+        document_category: Optional[str],
+        section_type: Optional[str],
+    ) -> tuple[list[dict], list[MergedDocument], Optional[str]]:
+        """Hybrid 0건 시 classic RAG 검색으로 리콜을 보장한다."""
+        active_snapshot = self.faiss_service.get_index_stats().get("active_snapshot")
+        if not active_snapshot:
+            return [], [], None
+
+        payload = run_rag_query(
+            query=faiss_query or question,
+            original_query=question,
+            top_k=max(top_k * 10, top_k),
+            top_docs=max_results,
+            answer_provider="none",
+            answer_model="",
+            category=category,
+            organization=organization,
+            year=year,
+            max_chunks_per_doc=3,
+            mode="search",
+            snapshot=active_snapshot,
+            document_group=document_group,
+            document_category=document_category,
+            section_type=section_type,
+        )
+        documents = payload.get("documents") or []
+        if not documents:
+            return [], [], active_snapshot
+
+        faiss_results: list[dict] = []
+        merged_docs: list[MergedDocument] = []
+        for rank, doc in enumerate(documents, start=1):
+            metadata = {
+                "source_id": doc.get("source_id") or self.source_id,
+                "snapshot_id": doc.get("snapshot") or active_snapshot,
+                "source_path": doc.get("source_path"),
+                "original_source_path": doc.get("original_source_path"),
+                "relative_path": doc.get("relative_path"),
+                "document_group": doc.get("document_group"),
+                "document_category": doc.get("document_category"),
+                "section_label": doc.get("section_label"),
+                "project_name": doc.get("project_name"),
+                "search_keywords": doc.get("search_keywords") or [],
+                "fallback_strategy": "classic_rag_query",
+            }
+            snippet = (doc.get("evidence_snippets") or [""])[0]
+            score = float(doc.get("best_score") or 0.0)
+            ranking_score = float(doc.get("ranking_score") or score)
+            document_id = str(doc.get("document_id") or "")
+
+            faiss_results.append({
+                "document_id": document_id,
+                "score": score,
+                "rank": rank,
+                "category": doc.get("category"),
+                "organization": doc.get("organization"),
+                "file_name": doc.get("file_name"),
+                "text_preview": snippet,
+                "source_id": metadata.get("source_id"),
+                "snapshot_id": metadata.get("snapshot_id"),
+                "relative_path": metadata.get("relative_path"),
+                "source_path": metadata.get("source_path"),
+                "metadata": metadata,
+                "source": SearchSource.FAISS.value,
+            })
+            merged_docs.append(MergedDocument(
+                document_id=document_id or f"classic_{rank}",
+                source=SearchSource.FAISS,
+                rank=rank,
+                score=score,
+                title=doc.get("project_name"),
+                category=doc.get("category"),
+                organization=doc.get("organization"),
+                file_name=doc.get("file_name"),
+                text_preview=snippet,
+                metadata=metadata,
+                ranking_score=ranking_score,
+                faiss_score=score,
+            ))
+
+        return faiss_results, merged_docs, active_snapshot
+
     def _merge_results(
         self,
         faiss_results: list[dict],
@@ -724,16 +894,26 @@ class HybridRAGService:
             organization = str(doc.organization or metadata.get("organization") or "").strip().lower()
             organization_type = str(metadata.get("organization_type") or metadata.get("client_type") or "").strip().lower()
             extension = str(metadata.get("extension") or "").strip().lower()
+            title = str(doc.title or "").strip().lower()
+            file_name = str(doc.file_name or "").strip().lower()
+            text_preview = str(doc.text_preview or "").strip().lower()
             section_text = " ".join(
                 str(value or "")
                 for value in (
                     metadata.get("section_title"),
                     metadata.get("section_heading"),
                     metadata.get("section_label"),
+                    metadata.get("document_category"),
+                    metadata.get("section_type"),
+                    " ".join(str(v or "") for v in (metadata.get("search_keywords") or [])),
                     doc.file_name,
                     metadata.get("file_name"),
                     metadata.get("project_name"),
                     doc.organization,
+                    doc.title,
+                    doc.text_preview,
+                    metadata.get("project_type"),
+                    metadata.get("organization_type"),
                 )
             ).lower()
 
@@ -753,20 +933,55 @@ class HybridRAGService:
             if normalized_hints.get("organization") and normalized_hints["organization"] in organization:
                 intent_bonus += 1.0
             if normalized_hints.get("organization_type") and normalized_hints["organization_type"] in organization_type:
-                intent_bonus += 1.0
+                intent_bonus += 1.8
             if normalized_hints.get("project_type") and normalized_hints["project_type"] in project_type:
-                intent_bonus += 1.2
+                intent_bonus += 2.0
             if normalized_hints.get("document_group") and normalized_hints["document_group"] in document_group:
                 intent_bonus += 0.8
             if normalized_hints.get("document_category") and normalized_hints["document_category"] in document_category:
                 intent_bonus += 1.0
             if normalized_hints.get("section_type") and normalized_hints["section_type"] in section_text:
                 intent_bonus += 0.8
+            if normalized_hints.get("topic") and normalized_hints["topic"] in section_text:
+                intent_bonus += 1.5
 
             inferred_terms = normalized_hints.get("inferred_terms") or []
             term_hits = sum(1 for term in inferred_terms if term and term in section_text)
             if term_hits:
                 intent_bonus += min(term_hits * 0.25, 1.5)
+            elif doc.source == SearchSource.GRAPH and len(inferred_terms) >= 2:
+                has_structured_context = any(
+                    str(metadata.get(key) or "").strip()
+                    for key in ("section_title", "section_heading", "section_label")
+                ) or bool(text_preview) or bool(metadata.get("search_keywords"))
+                if not has_structured_context:
+                    intent_bonus -= 5.0
+
+            if (
+                doc.source == SearchSource.GRAPH
+                and len(inferred_terms) >= 2
+                and not text_preview
+                and not metadata.get("search_keywords")
+                and not any(str(metadata.get(key) or "").strip() for key in ("section_title", "section_heading", "section_label"))
+            ):
+                intent_bonus -= 2.0
+
+            # 문서 찾기 질문에서 파일/제목이 없는 Graph 결과가 상단을 오염시키지 않도록 감점한다.
+            if not file_name and not title:
+                intent_bonus -= 2.5 if doc.source == SearchSource.GRAPH else 1.0
+
+            # 사례 분석 질문은 본문/섹션/파일명에 실제 토픽이 드러난 문서를 우선한다.
+            if any(token in query_lower for token in ("선진사례", "유사사례", "사례분석", "벤치마크")):
+                if any(token in section_text for token in ("선진사례", "유사사례", "사례분석", "벤치마크")):
+                    intent_bonus += 1.8
+                elif any(token in text_preview for token in ("선진사례", "유사사례", "사례분석", "벤치마크")):
+                    intent_bonus += 1.2
+
+            # 고객 유형 + 컨설팅 질문은 메타데이터와 파일명/본문에 해당 단서가 드러나면 추가 가중한다.
+            if "연구기관" in query_lower and any(token in section_text for token in ("연구원", "연구소", "연구센터", "kitech")):
+                intent_bonus += 1.3
+            if "컨설팅" in query_lower and any(token in section_text for token in ("컨설팅", "isp", "ismp")):
+                intent_bonus += 1.0
 
             doc.ranking_score = base_score + source_bonus + relation_bonus + hybrid_bonus + intent_bonus
 
@@ -886,6 +1101,9 @@ class HybridRAGService:
                 if query_analysis:
                     extracted_keywords = query_analysis.keywords[:5]
             extracted_keywords = self._sanitize_inferred_terms(extracted_keywords)
+            question_hints = self._infer_question_hints(question)
+            if not extracted_keywords:
+                extracted_keywords = list(question_hints.get("inferred_terms") or [])
 
             # 2. 질문 유형별 검색 전략 결정
             faiss_results, faiss_time = [], 0
@@ -902,6 +1120,8 @@ class HybridRAGService:
             router_document_section = None
             if isinstance(router_filters.get("document_section"), str):
                 router_document_section = router_filters.get("document_section")
+            if isinstance(question_hints.get("document_category"), str):
+                router_document_section = question_hints["document_category"]
             literal_section_hint = self._extract_literal_section_hint(question)
             if literal_section_hint:
                 router_document_section = literal_section_hint
@@ -909,11 +1129,13 @@ class HybridRAGService:
                 re.search(r"\bRFP\b|제안요청서|제안서|산출물", question, re.IGNORECASE)
             )
 
-            strict_project_type = inferred_project_type
+            strict_project_type = inferred_project_type or question_hints.get("project_type")
             router_project_type = router_filters.get("project_type") if isinstance(router_filters.get("project_type"), str) else None
             if not strict_project_type and router_project_type:
                 normalized_project_type = self._normalize_project_type_value(router_project_type)
                 if normalized_project_type in {"시스템개선", "플랫폼고도화", "isp수립", "bprisp", "연구용역", "시스템구축"}:
+                    strict_project_type = router_project_type
+                elif normalized_project_type == "컨설팅":
                     strict_project_type = router_project_type
 
             normalized_inferred_terms = self._sanitize_inferred_terms(
@@ -923,29 +1145,29 @@ class HybridRAGService:
                 "category": category,
                 "organization": organization,
                 "year": year,
-                # 질문문에서 추론한 organization_type은 strict filter로 쓰면
-                # 리콜이 급격히 떨어지므로 soft hint로만 사용한다.
-                "organization_type": None,
+                "organization_type": question_hints.get("organization_type"),
                 "project_type": strict_project_type,
-                "document_group": document_group or (
+                "document_group": document_group or question_hints.get("document_group") or (
                     router_filters.get("document_group")
                     if explicit_document_group_in_question and isinstance(router_filters.get("document_group"), str)
                     else None
                 ),
-                "document_category": document_category or router_document_section,
-                "section_type": section_type or router_document_section,
+                "document_category": document_category or question_hints.get("document_category") or router_document_section,
+                "section_type": section_type or question_hints.get("section_type") or router_document_section,
             }
             soft_metadata_hints = self._normalize_soft_hints({
                 "organization": inferred_organization,
-                "organization_type": router_filters.get("organization_type") if isinstance(router_filters.get("organization_type"), str) else None,
-                "project_type": inferred_project_type or router_project_type,
-                "document_group": inferred_document_group or router_filters.get("document_group"),
-                "document_category": inferred_document_category or router_document_section,
-                "section_type": document_category or section_type or inferred_document_category or router_document_section,
+                "organization_type": question_hints.get("organization_type") or (router_filters.get("organization_type") if isinstance(router_filters.get("organization_type"), str) else None),
+                "project_type": inferred_project_type or question_hints.get("project_type") or router_project_type,
+                "document_group": inferred_document_group or question_hints.get("document_group") or router_filters.get("document_group"),
+                "document_category": inferred_document_category or question_hints.get("document_category") or router_document_section,
+                "section_type": document_category or section_type or inferred_document_category or question_hints.get("section_type") or router_document_section,
+                "topic": question_hints.get("topic") or (router_filters.get("topic") if isinstance(router_filters.get("topic"), str) else None),
                 "inferred_terms": normalized_inferred_terms,
             })
             faiss_query = self._normalize_search_query_text((expanded_query or "").strip() or question)
             faiss_org_filter = organization
+            fallback_strategy: Optional[str] = None
 
             if search_order == "faiss_only":
                 # 단순 키워드 검색: FAISS만
@@ -1117,10 +1339,40 @@ class HybridRAGService:
                     faiss_time = max(faiss_time, fallback_faiss_time)
                     merged_docs = fallback_merged_docs
 
+            if not merged_docs:
+                (
+                    classic_faiss_results,
+                    classic_merged_docs,
+                    classic_snapshot,
+                ) = self._classic_rag_fallback(
+                    question=question,
+                    faiss_query=faiss_query,
+                    top_k=top_k,
+                    max_results=max_results,
+                    category=category,
+                    organization=organization,
+                    year=year,
+                    document_group=document_group,
+                    document_category=document_category,
+                    section_type=section_type,
+                )
+                if classic_merged_docs:
+                    faiss_results = classic_faiss_results
+                    merged_docs = classic_merged_docs
+                    fallback_strategy = f"classic_rag_query:{classic_snapshot or 'unknown'}"
+                    if "classic_rag" not in sources_to_use:
+                        sources_to_use.append("classic_rag")
+
             merge_time = int((time.time() - merge_start) * 1000)
 
             # 4. 근거 생성
             evidence = self._build_evidence(merged_docs, graph_cypher)
+            if fallback_strategy:
+                evidence.append({
+                    "type": "fallback_strategy",
+                    "strategy": fallback_strategy,
+                    "reason": "hybrid_empty_result_guard",
+                })
 
             # 5. 답변 생성 (옵션)
             answer = None
@@ -1140,6 +1392,11 @@ class HybridRAGService:
                 wiki_results=wiki_results,
                 merged_documents=[
                     {
+                        "organization_type": d.metadata.get("organization_type"),
+                        "client_type": d.metadata.get("client_type"),
+                        "project_type": d.metadata.get("project_type"),
+                        "section_type": d.metadata.get("section_type"),
+                        "search_keywords": d.metadata.get("search_keywords") or [],
                         "document_id": d.document_id,
                         "source": d.source.value,
                         "rank": d.rank,

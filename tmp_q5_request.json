@@ -1,0 +1,9 @@
+﻿{
+  "question": "연구기관을 고객으로 진행한 컨설팅 사업 알려줘.",
+  "source_id": "src_20260706_124908_1f10b5",
+  "top_k": 5,
+  "max_results": 5,
+  "enable_graph": true,
+  "enable_wiki": false,
+  "generate_answer": false
+}

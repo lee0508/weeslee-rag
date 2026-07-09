@@ -24,6 +24,22 @@ class RFPPatternAnalyzer:
         self.structure_data = self._load_structure_data()
         self.terminology_data = self._load_terminology_data()
         self.metadata_data = self._load_metadata_data()
+        self.control_marker_prefixes = (
+            "경로명:",
+            "파일명:",
+            "상대경로:",
+            "섹션분류:",
+            "총슬라이드수:",
+            "표지내용",
+            "표지 내용",
+            "목차",
+            "목차 내용",
+        )
+        self.control_marker_keywords = {
+            "경로명", "파일명", "상대경로", "섹션분류", "총슬라이드수",
+            "표지내용", "표지", "목차", "내용", "년도", "년월",
+        }
+        self.cover_label_prefixes = ("제목:", "사업명:", "주관기관:", "기관명:", "년월:", "년도:")
 
     def _load_structure_data(self) -> Dict:
         """RFP 문서 구조 분석 데이터 로드"""
@@ -134,6 +150,50 @@ class RFPPatternAnalyzer:
 
         return result
 
+    def _clean_manual_structure_lines(self, text: str, max_chars: int) -> List[str]:
+        """수동 구조화 txt 포맷에서 메타 추출에 유용한 라인만 정리한다."""
+        lines = []
+        for raw_line in str(text or "")[:max_chars].splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith(("경로명:", "파일명:", "상대경로:", "섹션분류:", "총슬라이드수:")):
+                continue
+            lines.append(line)
+        return lines
+
+    def _strip_control_prefix(self, line: str) -> str:
+        cleaned = str(line or "").strip()
+        cleaned = re.sub(r'^\d+\.\s*', "", cleaned)
+        cleaned = re.sub(r'^\d+\s+', "", cleaned)
+        for prefix in self.control_marker_prefixes:
+            if cleaned.startswith(prefix):
+                return cleaned[len(prefix):].strip(" :-")
+        return cleaned
+
+    def _filter_keywords(self, keywords: List[str]) -> List[str]:
+        filtered: List[str] = []
+        seen = set()
+        for keyword in keywords:
+            normalized = str(keyword or "").strip()
+            if not normalized:
+                continue
+            if normalized in self.control_marker_keywords:
+                continue
+            if normalized.lower() in {"page", "tel", "fax"}:
+                continue
+            if normalized not in seen:
+                seen.add(normalized)
+                filtered.append(normalized)
+        return filtered
+
+    def _extract_value_after_label(self, line: str) -> str:
+        cleaned = self._strip_control_prefix(line)
+        for prefix in self.cover_label_prefixes:
+            if cleaned.startswith(prefix):
+                return cleaned[len(prefix):].strip()
+        return cleaned
+
     def extract_cover_page_metadata(self, text: str, max_chars: int = 2000) -> Dict[str, Any]:
         """
         표지(Cover Page) 메타데이터 추출
@@ -171,29 +231,54 @@ class RFPPatternAnalyzer:
 
         # 표지 페이지 텍스트 제한
         cover_text = text[:max_chars]
+        cleaned_lines = self._clean_manual_structure_lines(cover_text, max_chars)
+        cleaned_text = "\n".join(cleaned_lines)
 
         # 1. 제목 추출 (첫 줄 또는 "제안요청서", "제안서" 등이 포함된 줄)
-        lines = [line.strip() for line in cover_text.split("\n") if line.strip()]
+        lines = cleaned_lines
         if lines:
-            # 첫 줄을 제목으로 간주
-            result["title"] = lines[0]
+            # 수동 구조화 포맷에서는 "표지내용" 줄을 건너뛴다.
+            candidate_lines = []
+            for line in lines:
+                stripped = self._strip_control_prefix(line)
+                if not stripped:
+                    continue
+                if stripped == line and line.startswith(("표지내용", "표지 내용", "목차")):
+                    continue
+                candidate_lines.append(stripped)
+            if candidate_lines:
+                result["title"] = candidate_lines[0]
 
             # "제안요청서", "제안서", "사업계획서" 등이 포함된 줄 찾기
-            for line in lines[:5]:
+            for line in candidate_lines[:8]:
+                numbered_match = re.search(r'(?:제목|사업명)\s*[:\-]?\s*([^\n]+)', line)
+                if numbered_match:
+                    result["title"] = numbered_match.group(1).strip()
+                    if "제안요청서" in result["title"] or "ISP" in result["title"]:
+                        break
                 if any(keyword in line for keyword in ["제안요청서", "제안서", "사업계획서", "정보화전략계획", "ISP", "ISMP"]):
                     result["title"] = line
                     break
 
         # 2. 기관명 추출 (발주기관, 주관기관 등)
         org_patterns = [
-            r'(?:발주|주관|의뢰)기관\s*[:\-]?\s*([가-힣()]+(?:공사|공단|청|부|원|협회|센터|재단))',
-            r'([가-힣]+(?:공사|공단|청|부|원|협회|센터|재단))',
+            r'(?:발주|주관|의뢰)기관\s*[:\-]?\s*([^\n]{2,80})',
+            r'기관명\s*[:\-]?\s*([^\n]{2,80})',
         ]
         for pattern in org_patterns:
-            org_match = re.search(pattern, cover_text)
+            org_match = re.search(pattern, cleaned_text)
             if org_match:
-                result["organization"] = org_match.group(1).strip()
+                result["organization"] = org_match.group(1).strip(" ,")
                 break
+
+        if not result["organization"]:
+            for line in lines[:12]:
+                candidate = self._extract_value_after_label(line)
+                if ":" in candidate:
+                    continue
+                if re.fullmatch(r'[가-힣A-Za-z() ]{2,50}(?:공사|공단|청|처|부|원|협회|센터|재단)', candidate):
+                    result["organization"] = candidate.strip()
+                    break
 
         # 3. 사업명/프로젝트명 추출
         project_patterns = [
@@ -201,10 +286,14 @@ class RFPPatternAnalyzer:
             r'([가-힣A-Z]{5,50}(?:구축|개발|도입|재구축))',
         ]
         for pattern in project_patterns:
-            project_match = re.search(pattern, cover_text)
+            project_match = re.search(pattern, cleaned_text)
             if project_match:
                 result["project_name"] = project_match.group(1).strip()
                 break
+
+        if not result["project_name"] and result["title"]:
+            title_without_doc_type = re.sub(r'\b(제안요청서|제안서|사업계획서)\b', "", result["title"]).strip(" -:")
+            result["project_name"] = title_without_doc_type.strip()
 
         # 4. 날짜 추출
         date_patterns = [
@@ -213,7 +302,7 @@ class RFPPatternAnalyzer:
             r'(202[0-9]|203[0-9])-([0-9]{1,2})-',
         ]
         for pattern in date_patterns:
-            date_match = re.search(pattern, cover_text)
+            date_match = re.search(pattern, cleaned_text)
             if date_match:
                 year = date_match.group(1)
                 month = date_match.group(2)
@@ -223,14 +312,14 @@ class RFPPatternAnalyzer:
         # 5. 문서 유형 추출
         doc_types = ["제안요청서", "제안서", "사업계획서", "최종보고서", "중간보고서", "정보화전략계획", "ISP", "ISMP"]
         for doc_type in doc_types:
-            if doc_type in cover_text:
+            if doc_type in cleaned_text:
                 result["document_type"] = doc_type
                 break
 
         # 6. 키워드 추출 (제목에서)
         if result["title"]:
             title_words = re.findall(r'[가-힣A-Za-z]{2,}', result["title"])
-            result["keywords"] = [w for w in title_words if len(w) > 1][:10]
+            result["keywords"] = self._filter_keywords([w for w in title_words if len(w) > 1])[:10]
 
         # 7. 신뢰도 계산
         score = 0.0
@@ -281,6 +370,16 @@ class RFPPatternAnalyzer:
 
         # 목차 텍스트 제한
         toc_text = text[:max_chars]
+        cleaned_lines = self._clean_manual_structure_lines(toc_text, max_chars)
+        toc_candidate_lines = []
+        for line in cleaned_lines:
+            stripped = self._strip_control_prefix(line)
+            if not stripped:
+                continue
+            if any(stripped.startswith(prefix) for prefix in self.cover_label_prefixes):
+                continue
+            toc_candidate_lines.append(line)
+        toc_text = "\n".join(toc_candidate_lines)
 
         # "목차" 또는 "Contents" 이후 텍스트만 분석
         toc_match = re.search(r'(?:목\s*차|Contents|차\s*례)', toc_text, re.IGNORECASE)
@@ -319,24 +418,55 @@ class RFPPatternAnalyzer:
                         "page": int(page_num) if page_num and page_num.isdigit() else None
                     })
 
+        # 수동 구조화 txt 포맷: "사업 개요 - page 4", "  - 추진 배경 및 필요성 - page 4"
+        manual_sections: List[Dict[str, Any]] = []
+        for raw_line in toc_candidate_lines:
+            line = raw_line.strip()
+            if not line or line.startswith(("표지내용", "표지 내용")):
+                continue
+            if line.startswith("목차"):
+                continue
+            if "page" not in line.lower():
+                continue
+            if any(self._extract_value_after_label(line) != line and line.lstrip().startswith(prefix) for prefix in self.cover_label_prefixes):
+                continue
+            if ":" in line and re.match(r'^\d+\.', line):
+                continue
+
+            page_match = re.search(r'page\s+([0-9]{1,4})', line, re.IGNORECASE)
+            page_num = int(page_match.group(1)) if page_match else None
+            title = re.sub(r'\s*-\s*page\s+[0-9]{1,4}(?:\s*-\s*[0-9]{1,4})?\s*$', "", line, flags=re.IGNORECASE).strip()
+            title = re.sub(r'^\-\s*', "", title).strip()
+            title = self._strip_control_prefix(title)
+            if len(title) < 2:
+                continue
+            manual_sections.append({
+                "level": 2 if raw_line.lstrip().startswith("-") else 1,
+                "title": title,
+                "page": page_num,
+            })
+
         # 2. 중복 제거 및 정렬
         seen_titles = set()
         unique_sections = []
-        for section in sections:
+        for section in sections + manual_sections:
             title = section["title"]
             if title not in seen_titles and len(title) >= 3:
                 seen_titles.add(title)
                 unique_sections.append(section)
 
         result["sections"] = unique_sections[:30]
-        result["section_titles"] = [s["title"] for s in unique_sections]
+        result["section_titles"] = [
+            title for title in [s["title"] for s in unique_sections]
+            if title not in {"목차", "목차 내용"}
+        ]
 
         # 3. 섹션명에서 키워드 추출
         keywords = set()
         for title in result["section_titles"]:
             words = re.findall(r'[가-힣A-Za-z]{2,}', title)
             keywords.update(words)
-        result["keywords"] = list(keywords)[:20]
+        result["keywords"] = self._filter_keywords(list(keywords))[:20]
 
         # 4. 신뢰도 계산
         score = 0.0
@@ -386,6 +516,8 @@ class RFPPatternAnalyzer:
 
         # 분석할 텍스트 제한
         analysis_text = text[:max_chars]
+        normalized_lines = self._clean_manual_structure_lines(text, max_chars)
+        normalized_text = "\n".join(normalized_lines)
 
         # 0. 표지 추출 (첫 2000자)
         cover_page_data = self.extract_cover_page_metadata(text, max_chars=2000)
@@ -400,7 +532,7 @@ class RFPPatternAnalyzer:
                 result["year"] = int(year_match.group(1))
 
         # 0-1. 목차 추출 (2000~5000자 범위)
-        toc_data = self.extract_toc_sections(text[1000:4000], max_chars=3000)
+        toc_data = self.extract_toc_sections(text, max_chars=4000)
         result["toc"] = toc_data
 
         # 목차에서 추출한 섹션 정보 사용
@@ -412,7 +544,7 @@ class RFPPatternAnalyzer:
         for category, data in section_types.items():
             if isinstance(data, dict) and "terms" in data:
                 for term in data["terms"]:
-                    if term in analysis_text:
+                    if term in normalized_text:
                         result["detected_sections"].append(term)
 
         # 중복 제거
@@ -422,13 +554,15 @@ class RFPPatternAnalyzer:
         if not result["organization"]:
             org_keywords = self.terminology_data.get("keyword_patterns", {}).get("organizational_types", {}).get("keywords", [])
             for org in org_keywords:
-                if org in analysis_text:
+                if len(str(org or "").strip()) < 2:
+                    continue
+                if org in normalized_text:
                     result["organization"] = org
                     break
 
         # 3. 연도 추출 (표지에서 못 찾은 경우에만)
         if not result["year"]:
-            year_match = re.search(r'(202[0-9]|203[0-9])년?', analysis_text)
+            year_match = re.search(r'(202[0-9]|203[0-9])년?', normalized_text)
             if year_match:
                 try:
                     result["year"] = int(year_match.group(1))
@@ -436,7 +570,7 @@ class RFPPatternAnalyzer:
                     pass
 
         # 4. 키워드 추출 (빈도 기반 + 표지 + 목차)
-        words = re.findall(r'[가-힣A-Za-z]{2,}', analysis_text)
+        words = re.findall(r'[가-힣A-Za-z]{2,}', normalized_text)
         word_counts = Counter(words)
         # 상위 20개 키워드
         top_words = [word for word, count in word_counts.most_common(20) if count >= 2]
@@ -445,13 +579,27 @@ class RFPPatternAnalyzer:
         all_keywords = set(top_words)
         all_keywords.update(cover_page_data.get("keywords", []))
         all_keywords.update(toc_data.get("keywords", []))
-        result["keywords"] = list(all_keywords)[:30]
+        result["keywords"] = self._filter_keywords(list(all_keywords))[:30]
 
         # 5. 요약 생성 (표지 제목 + 첫 200자)
         summary_parts = []
-        if cover_page_data.get("title"):
+        if cover_page_data.get("project_name"):
+            summary_parts.append(cover_page_data["project_name"])
+        elif cover_page_data.get("title"):
             summary_parts.append(cover_page_data["title"])
-        summary_parts.append(analysis_text[:200].replace("\n", " ").strip())
+        summary_lines = []
+        for line in normalized_lines:
+            cleaned_line = self._strip_control_prefix(line)
+            if not cleaned_line:
+                continue
+            if any(cleaned_line.startswith(prefix) for prefix in self.cover_label_prefixes):
+                cleaned_line = self._extract_value_after_label(cleaned_line)
+            cleaned_line = re.sub(r'\bpage\s+\d+(?:\s*-\s*\d+)?\b', "", cleaned_line, flags=re.IGNORECASE).strip(" -")
+            if cleaned_line:
+                summary_lines.append(cleaned_line)
+        summary_body = " ".join(summary_lines)[:200].strip()
+        if summary_body:
+            summary_parts.append(summary_body)
         result["summary"] = " | ".join(summary_parts)[:300]
 
         # 6. 신뢰도 계산
@@ -539,7 +687,7 @@ class RFPPatternAnalyzer:
     def _merge_keywords(self, keywords1: List[str], keywords2: List[str]) -> List[str]:
         """두 키워드 리스트 병합 (중복 제거)"""
         merged = list(dict.fromkeys(keywords1 + keywords2))
-        return merged[:30]
+        return self._filter_keywords(merged)[:30]
 
     def _calculate_filename_confidence(self, result: Dict) -> float:
         """파일명 분석 신뢰도 계산"""

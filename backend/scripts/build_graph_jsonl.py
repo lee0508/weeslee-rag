@@ -42,6 +42,9 @@ BACKEND_ROOT = PROJECT_ROOT / "backend"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+# [2026-07-08] structured_json 파일에서 섹션 계층 구조 로드를 위한 경로
+STRUCTURED_JSON_ROOT = Path("//c/xampp/htdocs/weeslee-mnt/structured_json/00. RAG 소스")
+
 from app.services.metadata_enricher import enrich_confidence  # noqa: E402
 from app.core.database import SessionLocal  # noqa: E402
 from app.models.document_metadata import DocumentMetadata  # noqa: E402
@@ -244,28 +247,30 @@ def _merge_doc_metadata(doc: dict, meta_row: dict | None) -> dict:
             "updated_at": "",
         }
 
+    # OCR 파생 필드는 노이즈가 있을 수 있으므로 DB 확정/자동 메타를 우선 사용한다.
     project_name = _coalesce_text(
         meta_row.get("final_project_name"),
-        meta_row.get("ocr_project_name"),
         meta_row.get("project_name"),
         meta_row.get("scan_project_name"),
+        meta_row.get("ocr_project_name"),
         doc.get("project_name"),
         _project_name_from_path(doc.get("source_path", "")),
     )
     organization = _coalesce_text(
         meta_row.get("final_organization"),
-        meta_row.get("ocr_organization"),
         meta_row.get("organization"),
         meta_row.get("scan_organization"),
+        meta_row.get("ocr_organization"),
         doc.get("organization"),
     )
     year = _coalesce_text(
         meta_row.get("final_year"),
-        meta_row.get("ocr_year"),
         meta_row.get("year"),
         meta_row.get("scan_year"),
+        meta_row.get("ocr_year"),
     )
     document_category = _coalesce_text(
+        doc.get("document_category"),
         meta_row.get("final_document_category"),
         meta_row.get("ocr_document_category"),
         meta_row.get("scan_document_category"),
@@ -292,9 +297,9 @@ def _merge_doc_metadata(doc: dict, meta_row: dict | None) -> dict:
         "file_name": file_name,
         "project_name": project_name,
         "organization": organization,
-        "document_group": _clean_text(meta_row.get("document_group")),
+        "document_group": _coalesce_text(doc.get("document_group"), meta_row.get("document_group")),
         "document_category": document_category,
-        "section_type": _clean_text(meta_row.get("section_type")),
+        "section_type": _coalesce_text(doc.get("section_type"), meta_row.get("section_type")),
         "organization_type": organization_type,
         "project_type": project_type_values[0] if project_type_values else "",
         "year": year,
@@ -437,6 +442,9 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
                 "category":    row.get("category") or meta.get("category", ""),
                 "source_path": source_path,
                 "extension":   meta.get("extension", ""),
+                "document_group":         meta.get("document_group", ""),
+                "document_category":      meta.get("document_category", ""),
+                "section_type":           meta.get("section_type", ""),
                 "project_name":             project_name,
                 "organization":             meta.get("organization", ""),
                 "organization_confidence":  meta.get("organization_confidence", 0.0),
@@ -965,6 +973,208 @@ def _add_knowledge_graph_nodes(
             for keyword in keywords:
                 keyword_id = f"keyword:{keyword}"
                 add_edge(doc_id, keyword_id, "관련키워드")
+
+
+# ── [2026-07-08] structured_json에서 섹션 계층 구조 로드 ────────────────────────────
+
+
+def _load_structured_json_sections(relative_path: str) -> list[dict] | None:
+    """
+    relative_path에 해당하는 structured_json 파일의 sections를 로드한다.
+
+    Returns:
+        sections 리스트 또는 None
+    """
+    if not relative_path:
+        return None
+
+    # relative_path에서 확장자를 .json으로 변경
+    rel_path = Path(relative_path)
+    stem = rel_path.stem
+    parent = rel_path.parent
+
+    # structured_json 파일 경로 후보
+    candidates = [
+        STRUCTURED_JSON_ROOT / parent / f"{stem}.json",
+        STRUCTURED_JSON_ROOT / relative_path.replace(".hwp", ".json").replace(".hwpx", ".json").replace(".pdf", ".json"),
+    ]
+
+    for json_path in candidates:
+        if json_path.exists():
+            try:
+                with json_path.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    sections = data.get("sections", [])
+                    if sections:
+                        return sections
+            except Exception:
+                continue
+
+    return None
+
+
+def _build_section_hierarchy(sections: list[dict], doc_id: str) -> tuple[list[dict], list[dict]]:
+    """
+    sections 리스트에서 계층 구조 노드와 엣지를 생성한다.
+
+    Args:
+        sections: structured_json의 sections 배열
+        doc_id: 문서 ID
+
+    Returns:
+        (nodes, edges) 튜플
+    """
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    node_ids: set[str] = set()
+
+    section_colors = {
+        "사업개요": "#3b82f6",
+        "현황분석": "#0d9488",
+        "환경분석": "#059669",
+        "목표모델": "#0891b2",
+        "기술제안": "#8b5cf6",
+        "프로젝트관리": "#a855f7",
+        "프로젝트지원": "#c026d3",
+        "전략및방법론": "#6366f1",
+        "이행계획": "#0284c7",
+        "연구과제": "#db2777",
+    }
+
+    def add_section_node(section: dict, parent_id: str | None = None, depth: int = 0) -> str | None:
+        title = _clean_text(section.get("title") or section.get("heading", ""))
+        if not title:
+            return None
+
+        # 번호 제거 (예: "1. 사업개요" → "사업개요")
+        clean_title = re.sub(r"^\d+(\.\d+)*\.?\s*", "", title).strip()
+        if not clean_title:
+            clean_title = title
+
+        # 노드 ID 생성
+        section_id = section.get("id") or f"structured_{doc_id}_{clean_title}"
+        node_id = f"structured_section:{doc_id}:{section_id}"
+
+        if node_id in node_ids:
+            return node_id
+
+        # 메타데이터 추출
+        start_page = section.get("start_page") or section.get("page_start")
+        end_page = section.get("end_page") or section.get("page_end")
+        content = section.get("content", "")
+        keywords = section.get("keywords", [])
+
+        nodes.append({
+            "id": node_id,
+            "type": "structured_section",
+            "label": clean_title,
+            "original_title": title,
+            "document_id": doc_id,
+            "section_id": section_id,
+            "depth": depth,
+            "start_page": start_page,
+            "end_page": end_page,
+            "content_preview": content[:200] if content else "",
+            "keywords": keywords[:10] if keywords else [],
+            "has_subsections": bool(section.get("subsections") or section.get("children")),
+            "color": section_colors.get(clean_title, "#64748b"),
+            "_source": "structured_json",
+        })
+        node_ids.add(node_id)
+
+        # 부모-자식 엣지
+        if parent_id:
+            edges.append({
+                "id": f"{parent_id}->{node_id}:HAS_SUBSECTION",
+                "source": parent_id,
+                "target": node_id,
+                "relation": "HAS_SUBSECTION",
+            })
+
+        # 하위 섹션 재귀 처리
+        subsections = section.get("subsections") or section.get("children", [])
+        for sub in subsections:
+            if isinstance(sub, dict):
+                add_section_node(sub, node_id, depth + 1)
+
+        return node_id
+
+    # 루트 섹션들 처리
+    for section in sections:
+        if isinstance(section, dict):
+            add_section_node(section)
+
+    return nodes, edges
+
+
+def _add_structured_section_graph(
+    nodes: list[dict],
+    edges: list[dict],
+    docs: list[dict],
+    node_ids: set[str],
+    edge_counter: list[int],
+) -> int:
+    """
+    structured_json 파일의 섹션 계층 구조를 그래프에 추가한다.
+
+    Args:
+        nodes: 기존 노드 리스트
+        edges: 기존 엣지 리스트
+        docs: 문서 리스트
+        node_ids: 기존 노드 ID 집합
+        edge_counter: 엣지 카운터
+
+    Returns:
+        추가된 structured_section 노드 수
+    """
+    added_count = 0
+
+    def add_node(n: dict) -> bool:
+        nonlocal added_count
+        if n["id"] not in node_ids:
+            nodes.append(n)
+            node_ids.add(n["id"])
+            added_count += 1
+            return True
+        return False
+
+    def add_edge(src: str, tgt: str, relation: str, **extra) -> None:
+        edge_id = f"{src}->{tgt}:{relation}"
+        if any(e["id"] == edge_id for e in edges):
+            return
+        edge_counter[0] += 1
+        edges.append({"id": edge_id, "source": src, "target": tgt, "relation": relation, **extra})
+
+    for doc in docs:
+        doc_id = str(doc.get("document_id", ""))
+        relative_path = doc.get("relative_path", "")
+        doc_node_id = f"document:{doc_id}"
+
+        if not doc_id or doc_node_id not in node_ids:
+            continue
+
+        # structured_json에서 섹션 로드
+        sections = _load_structured_json_sections(relative_path)
+        if not sections:
+            continue
+
+        # 섹션 계층 구조 생성
+        section_nodes, section_edges = _build_section_hierarchy(sections, doc_id)
+
+        # 노드 추가
+        for section_node in section_nodes:
+            add_node(section_node)
+
+        # 엣지 추가
+        for section_edge in section_edges:
+            add_edge(section_edge["source"], section_edge["target"], section_edge["relation"])
+
+        # Document → 루트 섹션 연결
+        root_sections = [n for n in section_nodes if n.get("depth") == 0]
+        for root_section in root_sections:
+            add_edge(doc_node_id, root_section["id"], "HAS_STRUCTURED_SECTION")
+
+    return added_count
 
 
 # ── DocumentSection 노드 및 CONTAINS_SECTION 엣지 ──────────────────────────────
@@ -1711,7 +1921,7 @@ def main() -> int:
         _add_semantic_section_graph(nodes, edges, chunks, node_ids, edge_counter)
 
         # Phase 3: MENTIONS 엣지 추가 (문서 텍스트 기반 키워드 추출)
-        print(json.dumps({"progress": 70, "current": 5, "total": 7, "stage": "문서 텍스트 로드 및 MENTIONS 엣지 생성"}), flush=True)
+        print(json.dumps({"progress": 70, "current": 5, "total": 8, "stage": "문서 텍스트 로드 및 MENTIONS 엣지 생성"}), flush=True)
         source_path_texts = _load_document_texts_by_source_path(allowed_source_paths=allowed_source_paths)
         if source_path_texts:
             node_ids = {n["id"] for n in nodes}  # 새 노드 추가 후 갱신
@@ -1720,6 +1930,13 @@ def main() -> int:
                               "mentions_edges_created": mentions_count}, ensure_ascii=False))
         else:
             print(json.dumps({"warning": "No document texts loaded, skipping MENTIONS edges"}))
+
+    # [2026-07-08] Phase 4: structured_json 섹션 계층 구조를 그래프로 변환
+    print(json.dumps({"progress": 72, "current": 6, "total": 8, "stage": "structured_json 섹션 계층 구조 그래프 생성"}), flush=True)
+    node_ids = {n["id"] for n in nodes}
+    edge_counter = [max(int(e["id"].lstrip("e")) for e in edges if e["id"].startswith("e")) if edges else 0]
+    structured_section_count = _add_structured_section_graph(nodes, edges, docs, node_ids, edge_counter)
+    print(json.dumps({"phase4": "structured_sections", "structured_section_nodes": structured_section_count}, ensure_ascii=False))
 
     nodes_path = out_dir / "graph_nodes.jsonl"
     edges_path = out_dir / "graph_edges.jsonl"
@@ -1734,6 +1951,7 @@ def main() -> int:
     document_count = sum(1 for n in nodes if n["type"] == "document")
     document_section_count = sum(1 for n in nodes if n["type"] == "document_section")
     chunk_section_count = sum(1 for n in nodes if n["type"] == "chunk_section")
+    structured_section_node_count = sum(1 for n in nodes if n["type"] == "structured_section")  # [2026-07-08]
     phase_count = sum(1 for n in nodes if n["type"] == "phase")
     strategy_count = sum(1 for n in nodes if n["type"] == "strategy")
     output_count = sum(1 for n in nodes if n["type"] == "output")
@@ -1744,6 +1962,9 @@ def main() -> int:
     has_activity_count = sum(1 for e in edges if e["relation"] == "HAS_ACTIVITY")
     has_strategy_count = sum(1 for e in edges if e["relation"] == "HAS_STRATEGY")
     has_output_count = sum(1 for e in edges if e["relation"] == "HAS_OUTPUT")
+    # [2026-07-08] structured_section 엣지 통계
+    has_structured_section_count = sum(1 for e in edges if e["relation"] == "HAS_STRUCTURED_SECTION")
+    has_subsection_count = sum(1 for e in edges if e["relation"] == "HAS_SUBSECTION")
     integrity = _build_graph_integrity(docs, nodes)
 
     # 진행률 출력: 완료
@@ -1752,6 +1973,7 @@ def main() -> int:
     manifest = {
         "built_at":       datetime.now().isoformat(timespec="seconds"),
         "source_id":      source_id or "all",
+        "snapshot_id":    snapshot or "",
         "source_type":    source_type,
         "source_path":    source_path,
         "output_dir":     str(out_dir),
@@ -1775,6 +1997,10 @@ def main() -> int:
         "has_activity_edge_count": has_activity_count,
         "has_strategy_edge_count": has_strategy_count,
         "has_output_edge_count": has_output_count,
+        # [2026-07-08] Phase 4: structured_section 통계
+        "structured_section_count": structured_section_node_count,
+        "has_structured_section_edge_count": has_structured_section_count,
+        "has_subsection_edge_count": has_subsection_count,
         # Phase 3: MENTIONS 통계
         "mentions_edge_count": mentions_edge_count,
         # 무결성 검증

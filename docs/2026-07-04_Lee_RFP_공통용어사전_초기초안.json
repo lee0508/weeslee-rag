@@ -1,0 +1,490 @@
+{
+  "dictionary_name": "rfp_common_terminology_dictionary",
+  "version": "2026-07-04",
+  "source_scope": {
+    "folder": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+    "document_types": [
+      "hwp",
+      "hwpx"
+    ]
+  },
+  "input_sources": [
+    "folder_name",
+    "file_name",
+    "cover_text",
+    "toc_text",
+    "body_semantic_terms"
+  ],
+  "term_groups": [
+    {
+      "id": "cover",
+      "description": "표지 메타데이터 라벨"
+    },
+    {
+      "id": "structure",
+      "description": "목차 및 본문 구조 라벨"
+    },
+    {
+      "id": "requirements",
+      "description": "요구사항 계열 라벨"
+    },
+    {
+      "id": "evaluation",
+      "description": "평가/입찰/제안서 작성 라벨"
+    },
+    {
+      "id": "planning",
+      "description": "전략/이행/추진체계 라벨"
+    },
+    {
+      "id": "organization",
+      "description": "기관/부서/담당자/연락처 라벨"
+    }
+  ],
+  "terms": [
+    {
+      "canonical": "제안요청서",
+      "aliases": [
+        "제 안 요 청 서",
+        "제안 요청서"
+      ],
+      "group": "cover",
+      "role": [
+        "metadata_field",
+        "keyword_seed",
+        "query_router"
+      ],
+      "source_priority": [
+        "cover",
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "문서 유형 질문"
+      ]
+    },
+    {
+      "canonical": "사업명",
+      "aliases": [
+        "사 업 명"
+      ],
+      "group": "cover",
+      "role": [
+        "metadata_field",
+        "keyword_seed",
+        "graph_node"
+      ],
+      "source_priority": [
+        "cover",
+        "filename",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "사업명 질문"
+      ]
+    },
+    {
+      "canonical": "주관기관",
+      "aliases": [
+        "발주기관"
+      ],
+      "group": "organization",
+      "role": [
+        "metadata_field",
+        "keyword_seed",
+        "graph_node"
+      ],
+      "source_priority": [
+        "cover",
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "기관 질문"
+      ]
+    },
+    {
+      "canonical": "년도.월",
+      "aliases": [
+        "년, 월",
+        "작성연월",
+        "연월"
+      ],
+      "group": "cover",
+      "role": [
+        "metadata_field"
+      ],
+      "source_priority": [
+        "cover",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "작성시기 질문"
+      ]
+    },
+    {
+      "canonical": "목차",
+      "aliases": [
+        "목 차"
+      ],
+      "group": "structure",
+      "role": [
+        "metadata_field",
+        "keyword_seed",
+        "chunk_boundary"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "문서구성 질문"
+      ]
+    },
+    {
+      "canonical": "사업개요",
+      "aliases": [],
+      "group": "structure",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "cover",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "사업 개요 질문",
+        "사업 목적 질문"
+      ]
+    },
+    {
+      "canonical": "추진배경",
+      "aliases": [
+        "추진배경 및 목적",
+        "추진배경및필요성",
+        "추진배경 및 개요"
+      ],
+      "group": "structure",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "추진배경 질문",
+        "필요성 질문"
+      ]
+    },
+    {
+      "canonical": "환경분석",
+      "aliases": [],
+      "group": "structure",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "환경분석 질문"
+      ]
+    },
+    {
+      "canonical": "현황분석",
+      "aliases": [],
+      "group": "structure",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "현황분석 질문"
+      ]
+    },
+    {
+      "canonical": "제안요청 내용",
+      "aliases": [
+        "제안요청내용",
+        "제안 요청 내용"
+      ],
+      "group": "requirements",
+      "role": [
+        "metadata_field",
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "cover",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "요구사항 질문"
+      ]
+    },
+    {
+      "canonical": "컨설팅 요구사항",
+      "aliases": [],
+      "group": "requirements",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "컨설팅 요구사항 질문"
+      ]
+    },
+    {
+      "canonical": "보안 요구사항",
+      "aliases": [
+        "보안요구사항",
+        "보안 준수사항"
+      ],
+      "group": "requirements",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "보안 요구사항 질문"
+      ]
+    },
+    {
+      "canonical": "품질 요구사항",
+      "aliases": [
+        "품질요구사항",
+        "품질 요구 사항"
+      ],
+      "group": "requirements",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "품질 요구사항 질문"
+      ]
+    },
+    {
+      "canonical": "프로젝트 관리 요구사항",
+      "aliases": [
+        "프로젝트관리 요구사항"
+      ],
+      "group": "requirements",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "프로젝트 관리 질문"
+      ]
+    },
+    {
+      "canonical": "프로젝트 지원 요구사항",
+      "aliases": [
+        "프로젝트지원 요구사항"
+      ],
+      "group": "requirements",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "프로젝트 지원 질문"
+      ]
+    },
+    {
+      "canonical": "제안서 평가 방법",
+      "aliases": [
+        "제안서 평가 기준 및 방법",
+        "기술평가 기준",
+        "제안서 기술평가 기준"
+      ],
+      "group": "evaluation",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "평가기준 질문"
+      ]
+    },
+    {
+      "canonical": "제안서 작성요령",
+      "aliases": [
+        "제안서 작성 요령",
+        "제안서 작성 안내"
+      ],
+      "group": "evaluation",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "제안서 작성 질문"
+      ]
+    },
+    {
+      "canonical": "목표 모델 정의",
+      "aliases": [
+        "정보화 전략 수립 및 목표 모델 정의"
+      ],
+      "group": "planning",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "목표모델 질문"
+      ]
+    },
+    {
+      "canonical": "미래 모델 설계",
+      "aliases": [
+        "업무설계",
+        "미래 모델 설계(업무설계)"
+      ],
+      "group": "planning",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "미래모델 질문",
+        "업무설계 질문"
+      ]
+    },
+    {
+      "canonical": "이행계획 수립",
+      "aliases": [],
+      "group": "planning",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "이행계획 질문"
+      ]
+    },
+    {
+      "canonical": "추진체계 구성도",
+      "aliases": [
+        "사업추진 체계",
+        "사업추진체계",
+        "추진체계"
+      ],
+      "group": "planning",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "추진체계 질문"
+      ]
+    },
+    {
+      "canonical": "세부일정",
+      "aliases": [
+        "추진 일정",
+        "사업추진일정"
+      ],
+      "group": "planning",
+      "role": [
+        "keyword_seed",
+        "chunk_boundary",
+        "query_router",
+        "graph_node"
+      ],
+      "source_priority": [
+        "toc",
+        "body_semantic_terms"
+      ],
+      "query_intents": [
+        "일정 질문"
+      ]
+    }
+  ]
+}

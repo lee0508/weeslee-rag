@@ -1,0 +1,102 @@
+{
+  "file_name": "RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+  "source_path": "",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+  "section_group": "RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+  "document_type": "hwp",
+  "total_slides": 1,
+  "structure_mode": "semantic_sections",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+      "slide_range": [
+        1,
+        1
+      ],
+      "slide_numbers": [
+        1
+      ],
+      "slide_label": "페이지 1",
+      "keywords": [
+        "RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+        "페이지 1",
+        "<표>",
+        ". 12.",
+        ". 추진배경 및 목적",
+        "단계 추진의 적절성 및 사업 추진방향 검토 필요",
+        "□ (목적) AFSIS 협력사업 1~3단계 활용실태 결과를 기반으로",
+        "향후 AFSIS 협력사업의 개선방안 및 방향성 제안",
+        ". 사업 개요"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "페이지 1",
+          "parent_section": "1. RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+          "slide_range": [
+            1,
+            1
+          ],
+          "slide_numbers": [
+            1
+          ],
+          "slide_label": "페이지 1",
+          "subsections": [],
+          "content_items": [
+            "<표>",
+            "2025. 12.",
+            "<표>",
+            "1. 추진배경 및 목적",
+            "□ (배경) 2014년부터 추진한 AFSIS 협력사업* 1~3단계에 대한 활용실태를 조사·분석하여, 3단계 추진의 적절성 및 사업 추진방향 검토 필요",
+            "* Establishing Real-Time ASEAN Food Security Information System and Developing Human Resources",
+            "□ (목적) AFSIS 협력사업 1~3단계 활용실태 결과를 기반으로, 향후 AFSIS 협력사업의 개선방안 및 방향성 제안",
+            "2. 사업 개요"
+          ],
+          "keywords": [
+            "페이지 1",
+            "<표>",
+            ". 12.",
+            ". 추진배경 및 목적",
+            "단계 추진의 적절성 및 사업 추진방향 검토 필요",
+            "□ (목적) AFSIS 협력사업 1~3단계 활용실태 결과를 기반으로",
+            "향후 AFSIS 협력사업의 개선방안 및 방향성 제안",
+            ". 사업 개요"
+          ],
+          "page_type": "content"
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "<표>",
+    "organization": "년부",
+    "project_name": "",
+    "date": "2025년 12월",
+    "document_type": "",
+    "keywords": [],
+    "confidence": 0.7
+  },
+  "toc": {
+    "sections": [],
+    "section_titles": [],
+    "keywords": [],
+    "confidence": 0.0
+  },
+  "detected_sections": [
+    "담당",
+    "사업기간",
+    "추진배경",
+    "추진배경 및 목적",
+    "추진방향"
+  ],
+  "document_summary": "<표> | <표>  2025. 12.  <표>  1. 추진배경 및 목적  □ (배경) 2014년부터 추진한 AFSIS 협력사업* 1~3단계에 대한 활용실태를 조사·분석하여, 3단계 추진의 적절성 및 사업 추진방향 검토 필요  * Establishing Real-Time ASEAN Food Security Information System and Developing H",
+  "page_types": [
+    "content"
+  ],
+  "semantic_tags": {
+    "methodology": "",
+    "domain": "",
+    "technology": ""
+  }
+}

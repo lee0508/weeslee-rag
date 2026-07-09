@@ -1,0 +1,610 @@
+{
+  "metadata": {
+    "description": "RFP 문서에서 추출한 용어 및 단어 사전",
+    "purpose": "메타데이터 구성, 키워드 데이터 구성, OCR/파싱, 청크 처리, 지식그래프 데이터 생성",
+    "source": "RFP 문서 구조 분석 기반",
+    "version": "1.0",
+    "created_date": "2026-07-04",
+    "created_by": "Lee"
+  },
+  "terminology_categories": {
+    "document_structure": {
+      "description": "문서의 기본 구조 요소",
+      "terms": [
+        "제목",
+        "날짜",
+        "목차",
+        "사업명",
+        "주관기관",
+        "담당",
+        "제안요청서"
+      ],
+      "patterns": {
+        "title_font_size": ["24", "25~"],
+        "date_format": "년, 월",
+        "typical_pages": "Page1"
+      }
+    },
+    "business_overview": {
+      "description": "사업 개요 관련 용어",
+      "terms": [
+        "사업개요",
+        "사업안내",
+        "사업내용",
+        "사업범위",
+        "사업기간",
+        "제안요청개요"
+      ],
+      "typical_pages": "Page2~Page7"
+    },
+    "background_and_purpose": {
+      "description": "추진 배경 및 목적 관련 용어",
+      "terms": [
+        "추진배경",
+        "추진배경 및 목적",
+        "추진배경 및 필요성",
+        "추진목표",
+        "추진방향",
+        "추진전략"
+      ],
+      "typical_pages": "Page2~Page5"
+    },
+    "scope_and_details": {
+      "description": "사업 범위 및 세부 내용",
+      "terms": [
+        "사업범위",
+        "세부내용",
+        "주요내용",
+        "주요사업범위",
+        "주요 추진내용",
+        "주요전산화방향"
+      ],
+      "typical_pages": "Page3~Page8"
+    },
+    "expected_outcomes": {
+      "description": "기대효과 및 성과",
+      "terms": [
+        "기대효과",
+        "기대효과 및 성과지표"
+      ],
+      "typical_pages": "Page8~Page10"
+    },
+    "current_status_and_issues": {
+      "description": "현황 및 문제점 분석",
+      "terms": [
+        "현황 및 문제점",
+        "정보화현황",
+        "현행시스템구성도",
+        "운용소프트웨어",
+        "선진사례",
+        "문제점 및 개선방향"
+      ],
+      "typical_pages": "Page9~Page19"
+    },
+    "implementation_plan": {
+      "description": "추진 계획 및 체계",
+      "terms": [
+        "사업추진방안",
+        "추진체계",
+        "추진체계 구성도",
+        "사업추진일정",
+        "추진일정",
+        "추진일정 및 체계",
+        "세부일정",
+        "사업 추진보고",
+        "이행계획 수립",
+        "사업추진 체계"
+      ],
+      "typical_pages": "Page4~Page21"
+    },
+    "deliverables": {
+      "description": "산출물 관련 용어",
+      "terms": [
+        "주요산출물"
+      ],
+      "typical_pages": "Page5"
+    },
+    "proposal_request": {
+      "description": "제안 요청 내용",
+      "terms": [
+        "제안요청 내용",
+        "제안요청내용",
+        "제안요청개요"
+      ],
+      "typical_pages": "Page9~Page25"
+    },
+    "requirements": {
+      "description": "요구사항 관련 용어",
+      "sub_categories": {
+        "general_requirements": {
+          "terms": [
+            "상세요구사항",
+            "요구사항상세",
+            "요구사항상세내용",
+            "요구사항목록표",
+            "요구사항 요약",
+            "공통내용"
+          ]
+        },
+        "consulting_requirements": {
+          "terms": [
+            "컨설팅 요구사항"
+          ]
+        },
+        "data_requirements": {
+          "terms": [
+            "데이터 요구사항"
+          ]
+        },
+        "project_management_requirements": {
+          "terms": [
+            "프로젝트 관리 요구사항",
+            "프로젝트관리 요구사항"
+          ],
+          "note": "영문표기 포함"
+        },
+        "project_support_requirements": {
+          "terms": [
+            "프로젝트 지원 요구사항",
+            "프로젝트지원 요구사항"
+          ],
+          "note": "영문표기 포함"
+        },
+        "quality_requirements": {
+          "terms": [
+            "품질 요구 사항",
+            "품질요구사항"
+          ]
+        },
+        "security_requirements": {
+          "terms": [
+            "보안 요구사항"
+          ]
+        },
+        "other_requirements": {
+          "terms": [
+            "기타 요구사항"
+          ]
+        }
+      },
+      "typical_pages": "Page10~Page48"
+    },
+    "constraints": {
+      "description": "제약사항",
+      "terms": [
+        "제약사항"
+      ],
+      "note": "영문표기 포함",
+      "typical_pages": "Page21~Page39"
+    },
+    "proposal_guidelines": {
+      "description": "제안서 작성 관련",
+      "terms": [
+        "제안서 작성 요령",
+        "제안서 작성요령",
+        "제안서 목차",
+        "제안서 세부 작성 지침",
+        "제안 안내사항"
+      ],
+      "typical_pages": "Page28~Page57"
+    },
+    "bidding_information": {
+      "description": "입찰 관련 정보",
+      "terms": [
+        "입찰 참가자격 요건"
+      ],
+      "typical_pages": "Page57"
+    },
+    "evaluation": {
+      "description": "평가 기준",
+      "terms": [
+        "제안서 평가 기준 및 방법",
+        "기술평가항목 및 배점표"
+      ],
+      "typical_pages": "Page44~Page64"
+    },
+    "analysis_and_feasibility": {
+      "description": "분석 및 타당성 검토",
+      "terms": [
+        "정보시스템 타당성 분석"
+      ]
+    },
+    "expert_advisory": {
+      "description": "전문가 자문",
+      "terms": [
+        "전문가자문단 구성 및 운영"
+      ]
+    },
+    "terminology_definition": {
+      "description": "용어 정의",
+      "terms": [
+        "용어의 정의"
+      ],
+      "typical_pages": "Page27"
+    }
+  },
+  "keyword_patterns": {
+    "project_types": {
+      "description": "프로젝트 유형 식별 키워드",
+      "keywords": [
+        "ISP",
+        "ISMP",
+        "BPRISP",
+        "컨설팅",
+        "용역",
+        "연구",
+        "로드맵",
+        "고도화",
+        "재구축",
+        "구축",
+        "수립"
+      ]
+    },
+    "technology_keywords": {
+      "description": "기술 관련 키워드",
+      "keywords": [
+        "AI",
+        "인공지능",
+        "AX",
+        "인공지능전환",
+        "빅데이터",
+        "플랫폼",
+        "디지털",
+        "디지털트윈",
+        "Digital Twin",
+        "지능형",
+        "지능정보화",
+        "LLM",
+        "거대언어모델",
+        "생성형AI",
+        "초거대AI",
+        "데이터",
+        "시스템",
+        "온라인",
+        "위치추적"
+      ]
+    },
+    "domain_keywords": {
+      "description": "도메인/분야 키워드",
+      "keywords": [
+        "감사",
+        "교육",
+        "진로교육",
+        "복지",
+        "고객서비스",
+        "상담",
+        "업무관리",
+        "정보통신",
+        "수자원",
+        "연구",
+        "보건",
+        "의료",
+        "보건의료",
+        "국제협력",
+        "ODA",
+        "농업",
+        "공공안전",
+        "소방",
+        "안전",
+        "법무",
+        "검찰",
+        "사법",
+        "재판",
+        "범죄예방",
+        "행정",
+        "입법",
+        "공간정보",
+        "지리정보",
+        "통계",
+        "환경",
+        "에너지",
+        "친환경",
+        "해양",
+        "지속가능발전",
+        "우주항공",
+        "의약품",
+        "정신건강",
+        "심리상담",
+        "유통",
+        "축산",
+        "기상"
+      ]
+    },
+    "action_verbs": {
+      "description": "사업 행위 동사",
+      "keywords": [
+        "구축",
+        "재구축",
+        "수립",
+        "고도화",
+        "개선",
+        "도출",
+        "활용",
+        "도입",
+        "전환",
+        "강화",
+        "개발",
+        "통합",
+        "연계",
+        "분석",
+        "진단",
+        "조사",
+        "모니터링",
+        "관리",
+        "운영",
+        "지원"
+      ]
+    },
+    "organizational_types": {
+      "description": "기관 유형",
+      "keywords": [
+        "정부",
+        "부처",
+        "공공기관",
+        "교육청",
+        "기관",
+        "청",
+        "원",
+        "센터",
+        "병원",
+        "의료기관"
+      ]
+    }
+  },
+  "section_naming_variations": {
+    "description": "동일 의미를 가진 섹션명의 표기 변형",
+    "variations": {
+      "추진배경": [
+        "추진배경",
+        "추진배경 및 목적",
+        "추진배경 및 필요성"
+      ],
+      "기대효과": [
+        "기대효과",
+        "기대효과 및 성과지표"
+      ],
+      "요구사항": [
+        "요구사항상세",
+        "상세요구사항",
+        "상세 요구사항",
+        "요구사항상세내용"
+      ],
+      "추진일정": [
+        "추진일정",
+        "사업추진일정",
+        "추진 일정",
+        "추진일정 및 체계",
+        "세부일정"
+      ],
+      "제안서작성": [
+        "제안서 작성 요령",
+        "제안서 작성요령"
+      ],
+      "프로젝트관리": [
+        "프로젝트 관리 요구사항",
+        "프로젝트관리 요구사항"
+      ],
+      "프로젝트지원": [
+        "프로젝트 지원 요구사항",
+        "프로젝트지원 요구사항"
+      ],
+      "품질": [
+        "품질 요구 사항",
+        "품질요구사항"
+      ]
+    }
+  },
+  "ocr_parsing_targets": {
+    "description": "OCR 및 파싱 시 중요하게 추출해야 할 정보 유형",
+    "targets": {
+      "structured_data": {
+        "description": "구조화된 데이터",
+        "types": [
+          "표(Table)",
+          "목록(List)",
+          "구성도(Diagram)",
+          "일정표(Schedule)",
+          "배점표(Scoring Table)"
+        ],
+        "note": "표 형식 구조 유지 필수"
+      },
+      "metadata_fields": {
+        "description": "메타데이터 필드",
+        "fields": [
+          "사업명",
+          "주관기관",
+          "담당자",
+          "날짜(년, 월)",
+          "사업기간",
+          "프로젝트 유형(ISP/ISMP/BPRISP 등)"
+        ]
+      },
+      "key_sections": {
+        "description": "핵심 섹션 내용",
+        "sections": [
+          "사업개요",
+          "추진배경",
+          "사업범위",
+          "기대효과",
+          "요구사항 상세",
+          "추진체계",
+          "추진일정",
+          "평가기준"
+        ]
+      },
+      "technical_terms": {
+        "description": "기술 용어 및 전문 용어",
+        "note": "AI, 빅데이터, 플랫폼 등 기술 키워드"
+      },
+      "requirements_details": {
+        "description": "요구사항 상세 내용",
+        "types": [
+          "기능 요구사항",
+          "비기능 요구사항",
+          "컨설팅 요구사항",
+          "데이터 요구사항",
+          "보안 요구사항",
+          "품질 요구사항",
+          "제약사항"
+        ]
+      }
+    }
+  },
+  "chunking_strategy": {
+    "description": "문서 청킹 전략",
+    "strategies": {
+      "section_based": {
+        "description": "섹션 기반 청킹",
+        "method": "문서의 주요 섹션을 기준으로 청크 분리",
+        "chunk_boundaries": [
+          "사업개요",
+          "추진배경",
+          "사업범위",
+          "현황 및 문제점",
+          "사업추진방안",
+          "요구사항",
+          "제안서 작성 요령",
+          "평가기준"
+        ]
+      },
+      "page_based": {
+        "description": "페이지 기반 청킹",
+        "method": "페이지 번호를 메타데이터로 포함하여 청크 생성",
+        "note": "섹션이 여러 페이지에 걸쳐 있을 경우 페이지 정보 유지"
+      },
+      "semantic_based": {
+        "description": "의미 기반 청킹",
+        "method": "문맥상 관련된 내용끼리 묶어 청크 생성",
+        "examples": [
+          "추진배경 + 추진목표 + 추진전략",
+          "요구사항 유형별 그룹핑",
+          "현황 + 문제점 + 개선방향"
+        ]
+      },
+      "hybrid": {
+        "description": "하이브리드 청킹",
+        "method": "섹션 + 페이지 + 의미를 모두 고려한 청킹",
+        "metadata_include": [
+          "섹션명",
+          "페이지 번호",
+          "문서 유형",
+          "프로젝트명",
+          "키워드"
+        ]
+      }
+    }
+  },
+  "knowledge_graph_entities": {
+    "description": "지식그래프 엔티티 정의",
+    "entity_types": {
+      "project": {
+        "description": "프로젝트 엔티티",
+        "properties": [
+          "project_name",
+          "project_type",
+          "organization",
+          "start_date",
+          "domain",
+          "technology_keywords"
+        ]
+      },
+      "organization": {
+        "description": "기관 엔티티",
+        "properties": [
+          "org_name",
+          "org_type",
+          "domain"
+        ]
+      },
+      "technology": {
+        "description": "기술 엔티티",
+        "properties": [
+          "tech_name",
+          "tech_category",
+          "related_projects"
+        ]
+      },
+      "requirement": {
+        "description": "요구사항 엔티티",
+        "properties": [
+          "requirement_type",
+          "requirement_content",
+          "related_project",
+          "priority"
+        ]
+      },
+      "deliverable": {
+        "description": "산출물 엔티티",
+        "properties": [
+          "deliverable_name",
+          "deliverable_type",
+          "related_project"
+        ]
+      },
+      "domain": {
+        "description": "분야/도메인 엔티티",
+        "properties": [
+          "domain_name",
+          "related_projects",
+          "common_technologies"
+        ]
+      }
+    },
+    "relationships": {
+      "project_to_organization": {
+        "type": "BELONGS_TO",
+        "description": "프로젝트 - 기관 관계"
+      },
+      "project_to_technology": {
+        "type": "USES",
+        "description": "프로젝트 - 기술 사용 관계"
+      },
+      "project_to_requirement": {
+        "type": "HAS_REQUIREMENT",
+        "description": "프로젝트 - 요구사항 관계"
+      },
+      "project_to_deliverable": {
+        "type": "PRODUCES",
+        "description": "프로젝트 - 산출물 관계"
+      },
+      "project_to_domain": {
+        "type": "IN_DOMAIN",
+        "description": "프로젝트 - 도메인 관계"
+      },
+      "technology_to_domain": {
+        "type": "APPLIED_IN",
+        "description": "기술 - 도메인 적용 관계"
+      },
+      "project_to_project": {
+        "type": "SIMILAR_TO",
+        "description": "유사 프로젝트 관계"
+      }
+    }
+  },
+  "additional_terms_from_user": {
+    "description": "사용자 제공 추가 용어",
+    "terms": [
+      "이행계획 수립",
+      "정보시스템 타당성 분석",
+      "전문가자문단 구성 및 운영",
+      "사업추진 체계",
+      "추진체계 구성도",
+      "공통내용",
+      "요구사항 요약",
+      "세부일정",
+      "제안요청 내용",
+      "컨설팅 요구사항",
+      "보안 요구사항",
+      "품질요구사항",
+      "프로젝트 관리 요구사항",
+      "프로젝트 지원 요구사항"
+    ]
+  },
+  "usage_notes": {
+    "metadata_generation": "프로젝트명, 기관명, 기술키워드, 도메인 정보를 자동 추출하여 메타데이터 생성",
+    "keyword_extraction": "기술키워드, 도메인키워드, 액션키워드를 조합하여 문서 키워드 생성",
+    "ocr_parsing": "표, 구성도 등 구조화된 데이터는 원본 형식 유지하며 추출",
+    "chunking": "섹션 기반 + 페이지 정보 + 키워드를 메타데이터로 포함한 하이브리드 청킹 적용",
+    "knowledge_graph": "프로젝트, 기관, 기술, 요구사항, 도메인 엔티티 및 관계를 추출하여 그래프 구축"
+  }
+}

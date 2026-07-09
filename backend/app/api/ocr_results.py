@@ -332,10 +332,7 @@ async def delete_ocr_result(document_id: str):
         raise HTTPException(status_code=404, detail=f"문서를 찾을 수 없습니다: {document_id}")
 
     # 저장 디렉토리 삭제
-    import shutil
-    doc_dir = processed_text_store.base_dir / document_id
-    if doc_dir.exists():
-        shutil.rmtree(doc_dir)
+    processed_text_store.delete(document_id)
 
     return {
         "success": True,
@@ -353,7 +350,6 @@ async def reprocess_document(document_id: str, db: Session = Depends(get_db)):
     """
     from app.models.document_metadata import DocumentMetadata
     from app.api.admin_dataset_builder_step4 import parse_document
-    import shutil
 
     # 1. 문서 메타데이터 조회
     doc = db.query(DocumentMetadata).filter(
@@ -367,9 +363,7 @@ async def reprocess_document(document_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"파일 경로가 없습니다: {document_id}")
 
     # 2. 기존 OCR 결과 삭제
-    doc_dir = processed_text_store.base_dir / document_id
-    if doc_dir.exists():
-        shutil.rmtree(doc_dir)
+    processed_text_store.delete(document_id)
 
     # 3. 재파싱 실행
     result = await parse_document(

@@ -3,13 +3,19 @@
 """
 Project Wiki Generator
 
+역할 구분 (2026-07-08 확정):
+  - build_project_wiki.py : 표준 Wiki 생성기 (LLM 요약 + RAG 근거 + index.json)
+  - build_wiki_from_db.py : LLM 없이 DB 메타데이터만으로 만드는 '구조 Wiki'
+                            (Ollama 불가 환경/긴급 재생성용 폴백)
+
 Generates structured markdown wiki pages for consulting projects by:
 1. Querying the RAG API per project + category to collect evidence snippets
 2. Calling Ollama directly to generate a structured wiki summary
-3. Saving markdown files to data/wiki/projects/
+3. Saving markdown files to data/wiki/{source_id}/projects/
+4. Writing index.json for wiki_search.py compatibility (2026-07-08 추가)
 
 Usage:
-    python backend/scripts/build_project_wiki.py
+    python backend/scripts/build_project_wiki.py --source-id src_xxx
     python backend/scripts/build_project_wiki.py --project k-water
     python backend/scripts/build_project_wiki.py --all
     python backend/scripts/build_project_wiki.py --list
@@ -560,8 +566,12 @@ def load_inventory(source_id: str = None) -> dict:
 
 
 @traceable(name="project_wiki_generation", run_type="chain")
-def generate_wiki(folder_name: str, meta: dict, inventory: dict, snapshot: str) -> Path:
-    """Generate wiki for one project. Returns the saved file path."""
+def generate_wiki(folder_name: str, meta: dict, inventory: dict, snapshot: str) -> tuple[Path, dict]:
+    """Generate wiki for one project.
+
+    Returns:
+        (out_path, index_entry) — 저장된 파일 경로와 index.json 항목
+    """
     print(f"\n{'='*60}")
     print(f"Project: {meta['display_name']}")
     print(f"  Folder: {folder_name}")
@@ -593,13 +603,40 @@ def generate_wiki(folder_name: str, meta: dict, inventory: dict, snapshot: str) 
     print("  Generating AI summary via Ollama...", end=" ", flush=True)
     prompt = build_ollama_prompt(meta, evidence)
     ai_content = call_ollama(prompt)
-    print("done")
+
+    # [2026-07-08] Ollama 실패 처리: 오류 문자열이 본문에 삽입되지 않도록 방어
+    if ai_content.startswith("[Ollama 생성 실패"):
+        print(f"WARN - Ollama 실패, AI 요약 없이 저장", file=sys.stderr)
+        ai_content = "_AI 요약이 아직 생성되지 않았습니다. Wiki 재빌드 시 생성됩니다._"
+    else:
+        print("done")
 
     # Step 3: Render and save
     content = render_wiki(folder_name, meta, inventory, evidence, ai_content, snapshot)
     out_path.write_text(content, encoding="utf-8")
     print(f"  Saved: {out_path.relative_to(PROJECT_ROOT)}")
-    return out_path
+
+    # [2026-07-08] index.json 항목 생성: wiki_search.py 계약 준수
+    inv = inventory.get(folder_name, {})
+    all_doc_ids: list[int] = []
+    for cat_docs in inv.get("categories", {}).values():
+        for d in cat_docs:
+            # "DOC-000123" 문자열과 정수 123 모두 정수로 정규화
+            m = re.search(r"(\d+)$", str(d))
+            if m:
+                all_doc_ids.append(int(m.group(1)))
+    all_doc_ids = sorted(set(all_doc_ids))
+
+    index_entry = {
+        "wiki_type": "project",
+        "project_folder": folder_name,            # 1차 검색 매칭 대상 = 폴더명 원문
+        "project_name": meta["display_name"],     # 표시용 한글 원문
+        "wiki_file": out_path.name,
+        "document_count": len(all_doc_ids),
+        "document_ids": all_doc_ids,              # 반드시 정수 배열 (계약)
+    }
+
+    return out_path, index_entry
 
 
 def list_projects() -> None:
@@ -640,6 +677,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--ollama-model",
+        "--model",
+        dest="ollama_model",
         default=None,
         help="Ollama model name (default: OLLAMA_MODEL env or gemma3:4b)",
     )
@@ -662,14 +701,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def slugify(folder_name: str) -> str:
-    """폴더명을 slug로 변환한다."""
-    import re
-    # 숫자, 점, 공백 제거 후 소문자 변환
-    slug = re.sub(r"^\d+\.\s*", "", folder_name)
-    slug = re.sub(r"[^\w가-힣-]", "-", slug)
-    slug = re.sub(r"-+", "-", slug).strip("-").lower()
-    return slug[:50] if slug else "unknown"
+def slugify(folder_name: str, existing: set[str] | None = None) -> str:
+    """폴더명을 slug로 변환한다.
+
+    [2026-07-08] 공통 모듈 wiki_slug.py의 make_wiki_slug()로 교체.
+    wiki.py 조회 검증 정규식 ^[a-z0-9][a-z0-9\\-]{0,79}$을 항상 통과하는 ASCII slug 생성.
+    """
+    # 공통 모듈 import (스크립트 환경에서도 동작하도록 sys.path 추가)
+    import sys
+    utils_path = PROJECT_ROOT / "backend" / "app" / "utils"
+    if str(utils_path.parent) not in sys.path:
+        sys.path.insert(0, str(utils_path.parent.parent))
+
+    try:
+        from app.utils.wiki_slug import make_wiki_slug
+        return make_wiki_slug(folder_name, existing)
+    except ImportError:
+        # 폴백: 기존 방식 (호환성 유지)
+        slug = re.sub(r"^\d+\.\s*", "", folder_name)
+        slug = re.sub(r"[^\w가-힣-]", "-", slug)
+        slug = re.sub(r"-+", "-", slug).strip("-").lower()
+        return slug[:50] if slug else "unknown"
 
 
 def meta_from_folder(folder_name: str, folder_data: dict) -> dict:
@@ -686,6 +738,64 @@ def meta_from_folder(folder_name: str, folder_data: dict) -> dict:
         "dataset_id": folder_data.get("dataset_id", ""),
         "snapshot_id": folder_data.get("snapshot_id", ""),
     }
+
+
+def write_wiki_index(source_id: str | None, index_entries: list[dict]) -> None:
+    """Wiki 검색 계약의 핵심 산출물 index.json을 작성한다.
+
+    [2026-07-08] 작업지시서에 따라 추가.
+    wiki_search.py가 요구하는 계약 필드:
+      wiki_type, project_folder, project_name, wiki_file, document_ids(List[int])
+    """
+    if not source_id:
+        return  # default 모드는 검색 대상이 아니므로 index 불필요
+
+    build_dir = DATA_DIR / "wiki" / source_id
+    build_dir.mkdir(parents=True, exist_ok=True)
+    index_path = build_dir / "index.json"
+
+    # 기존 index에서 다른 wiki_type(organization/technology) 항목은 보존하고
+    # 이번 빌드 타입(project)만 교체한다 → 타입별 빌드가 서로를 지우지 않음
+    existing: list[dict] = []
+    if index_path.exists():
+        try:
+            existing = [
+                e for e in json.loads(index_path.read_text(encoding="utf-8"))
+                if e.get("wiki_type") != "project"
+            ]
+        except Exception:
+            existing = []
+
+    # 원자적 쓰기: 임시 파일 → os.replace (빌드 중 크래시에도 index 반파 방지)
+    tmp = build_dir / "index.json.tmp"
+    tmp.write_text(
+        json.dumps(existing + index_entries, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    os.replace(tmp, index_path)
+    print(f"  [INDEX] {index_path}: {len(index_entries)}개 project 항목 저장")
+
+
+def write_build_info(source_id: str | None, snapshot: str, generated: list[Path], dataset_id: str = "") -> None:
+    """source_id 기준 wiki 빌드 요약 파일을 저장한다."""
+    if not source_id:
+        return
+
+    build_dir = DATA_DIR / "wiki" / source_id
+    build_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "source_id": source_id,
+        "snapshot_id": snapshot or "",
+        "dataset_id": dataset_id,  # [2026-07-08] dataset_id 필드 추가
+        "wiki_count": len(generated),
+        "generated_wikis": [p.stem for p in generated],
+        "generated_files": [str(p.relative_to(PROJECT_ROOT)).replace("\\", "/") for p in generated],
+        "built_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    (build_dir / "build_info.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -760,13 +870,30 @@ def main() -> None:
         selected = selected[:args.max_projects]
         print(f"Limited to {args.max_projects} projects")
 
-    generated = []
+    # [2026-07-08] slug 중복 방지용 집합 + index_entries 수집
+    used_slugs: set[str] = set()
+    generated: list[Path] = []
+    index_entries: list[dict] = []
+    dataset_id = ""
+
     for folder_name, meta in selected:
         try:
-            out_path = generate_wiki(folder_name, meta, inventory, snapshot)
+            # slug를 미리 생성하여 중복 방지
+            if "slug" not in meta or not meta["slug"]:
+                meta["slug"] = slugify(folder_name, used_slugs)
+            else:
+                used_slugs.add(meta["slug"])
+
+            out_path, index_entry = generate_wiki(folder_name, meta, inventory, snapshot)
             generated.append(out_path)
+            index_entries.append(index_entry)
+
+            # 첫 문서의 dataset_id 수집
+            if not dataset_id:
+                inv = inventory.get(folder_name, {})
+                dataset_id = inv.get("dataset_id", "")
         except Exception as e:
-            print(f"\n[ERROR] Failed for {meta['slug']}: {e}", file=sys.stderr)
+            print(f"\n[ERROR] Failed for {meta.get('slug', folder_name)}: {e}", file=sys.stderr)
             import traceback
             traceback.print_exc()
 
@@ -778,6 +905,10 @@ def main() -> None:
         print(f"  [WIKI] {p}")
     print(f"              - 총 {len(generated)}개 Wiki 페이지 생성")
     print("=" * 60 + "\n")
+
+    # [2026-07-08] index.json 저장 (wiki_search.py 계약 준수)
+    write_wiki_index(args.source_id, index_entries)
+    write_build_info(args.source_id, snapshot, generated, dataset_id)
 
 
 if __name__ == "__main__":

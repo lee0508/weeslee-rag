@@ -1,0 +1,524 @@
+{
+  "file_name": "RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+  "section_group": "01. RFP",
+  "document_type": "hwp",
+  "total_slides": 5,
+  "structure_mode": "manual_rfp_sample",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "사업개요",
+      "slide_range": [
+        2,
+        2
+      ],
+      "slide_numbers": [
+        2
+      ],
+      "slide_label": "페이지 2",
+      "keywords": [
+        "사업개요",
+        "추진배경 및 목적"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "추진배경 및 목적",
+          "parent_section": "사업개요",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진배경 및 목적"
+          ],
+          "keywords": [
+            "추진배경 및 목적"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "2",
+      "section_name": "사업범위",
+      "slide_range": [
+        2,
+        2
+      ],
+      "slide_numbers": [
+        2
+      ],
+      "slide_label": "페이지 2",
+      "keywords": [
+        "사업범위"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "3",
+      "section_name": "세부내용",
+      "slide_range": [
+        3,
+        3
+      ],
+      "slide_numbers": [
+        3
+      ],
+      "slide_label": "페이지 3",
+      "keywords": [
+        "세부내용"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "4",
+      "section_name": "농정원 AFSIS 협력사업 추진현황",
+      "slide_range": [
+        3,
+        3
+      ],
+      "slide_numbers": [
+        3
+      ],
+      "slide_label": "페이지 3",
+      "keywords": [
+        "농정원 AFSIS 협력사업 추진현황"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "5",
+      "section_name": "주요내용",
+      "slide_range": [
+        3,
+        4
+      ],
+      "slide_numbers": [
+        3,
+        4
+      ],
+      "slide_label": "페이지 3~4",
+      "keywords": [
+        "주요내용"
+      ],
+      "subsections": []
+    },
+    {
+      "section_id": "6",
+      "section_name": "추진일정 및 체계",
+      "slide_range": [
+        4,
+        5
+      ],
+      "slide_numbers": [
+        4,
+        5
+      ],
+      "slide_label": "페이지 4~5",
+      "keywords": [
+        "추진일정 및 체계",
+        "사업 추진일정",
+        "추진체계",
+        "사업 추진보고",
+        "주요 산출물"
+      ],
+      "subsections": [
+        {
+          "section_id": "6.1",
+          "section_name": "사업 추진일정",
+          "parent_section": "추진일정 및 체계",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업 추진일정"
+          ],
+          "keywords": [
+            "사업 추진일정"
+          ]
+        },
+        {
+          "section_id": "6.2",
+          "section_name": "추진체계",
+          "parent_section": "추진일정 및 체계",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "추진체계"
+          ],
+          "keywords": [
+            "추진체계"
+          ]
+        },
+        {
+          "section_id": "6.3",
+          "section_name": "사업 추진보고",
+          "parent_section": "추진일정 및 체계",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "사업 추진보고"
+          ],
+          "keywords": [
+            "사업 추진보고"
+          ]
+        },
+        {
+          "section_id": "6.4",
+          "section_name": "주요 산출물",
+          "parent_section": "추진일정 및 체계",
+          "slide_range": [],
+          "slide_numbers": [],
+          "slide_label": "페이지 미상",
+          "subsections": [],
+          "content_items": [
+            "주요 산출물"
+          ],
+          "keywords": [
+            "주요 산출물"
+          ]
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+    "organization": "",
+    "project_name": "",
+    "date": "2025. 12.",
+    "document_type": "제안요청서",
+    "confidence": 0.9
+  },
+  "toc": {
+    "sections": [],
+    "section_titles": [],
+    "keywords": [],
+    "confidence": 0.0
+  },
+  "detected_sections": [
+    "사업개요",
+    "사업범위",
+    "세부내용",
+    "농정원 AFSIS 협력사업 추진현황",
+    "주요내용",
+    "추진일정 및 체계"
+  ],
+  "document_summary": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획 | page 1 제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획 년월: 2025. 12. 사업개요 - page 2 - 추진배경 및 목적 사업개요 - page 2 사업범위 - page 2 세부내용 - page 3 농정원 AFSIS 협력사업 추진현황 - page 3 주요내용 - page 3 - 4 추진일정 및 체계 - page 4 -  5",
+  "page_types": [
+    "cover"
+  ],
+  "manual_sample": {
+    "original_lines": [
+      "경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "파일명: RFP_AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역.hwp",
+      "표지 내용 - page 1",
+      "1. 제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "2. 년월: 2025. 12.",
+      "사업개요 - page 2",
+      " - 추진배경 및 목적",
+      "사업개요 - page 2",
+      "사업범위 - page 2",
+      "세부내용 - page 3",
+      "농정원 AFSIS 협력사업 추진현황 - page 3",
+      "주요내용 - page 3 - 4",
+      "추진일정 및 체계 - page 4 -  5",
+      " - 사업 추진일정",
+      " - 추진체계",
+      " - 사업 추진보고",
+      " - 주요 산출물"
+    ],
+    "cover_lines": [
+      "1. 제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "2. 년월: 2025. 12."
+    ],
+    "toc_lines": []
+  },
+  "pattern_metadata": {
+    "project_name": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출",
+    "project_type": "용역",
+    "category": "",
+    "document_type": "RFP",
+    "organization": "원",
+    "year": 2025,
+    "technology_keywords": [],
+    "domain": "",
+    "detected_sections": [
+      "제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "사업개요",
+      "사업범위",
+      "세부내용",
+      "농정원 AFSIS 협력사업 추진현황",
+      "주요내용",
+      "추진일정 및 체계",
+      "제목",
+      "추진배경",
+      "추진배경 및 목적",
+      "추진체계",
+      "추진일정",
+      "사업 추진보고"
+    ],
+    "keywords": [
+      "RFP",
+      "AFSIS",
+      "협력사업",
+      "활용실태",
+      "조사",
+      "개선방안",
+      "도출",
+      "용역",
+      "농정원",
+      "사업개요",
+      "세부내용",
+      "제목",
+      "추진현황",
+      "사업범위",
+      "추진계획",
+      "주요내용",
+      "추진일정",
+      "체계",
+      "사업"
+    ],
+    "summary": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획 | page 1 제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획 년월: 2025. 12. 사업개요 - page 2 - 추진배경 및 목적 사업개요 - page 2 사업범위 - page 2 세부내용 - page 3 농정원 AFSIS 협력사업 추진현황 - page 3 주요내용 - page 3 - 4 추진일정 및 체계 - page 4 -  5",
+    "confidence": 1.0,
+    "metadata_source": "rfp_pattern_analyzer",
+    "cover_page": {
+      "title": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "organization": "",
+      "project_name": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "date": "2025년 12월",
+      "document_type": "",
+      "keywords": [
+        "AFSIS",
+        "협력사업",
+        "활용실태",
+        "조사",
+        "개선방안",
+        "도출",
+        "용역",
+        "추진계획"
+      ],
+      "confidence": 0.65
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "사업개요",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "사업범위",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "세부내용",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "농정원 AFSIS 협력사업 추진현황",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "주요내용",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "추진일정 및 체계",
+          "page": 4
+        }
+      ],
+      "section_titles": [
+        "제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+        "사업개요",
+        "사업범위",
+        "세부내용",
+        "농정원 AFSIS 협력사업 추진현황",
+        "주요내용",
+        "추진일정 및 체계"
+      ],
+      "keywords": [
+        "도출",
+        "사업개요",
+        "협력사업",
+        "세부내용",
+        "용역",
+        "AFSIS",
+        "제목",
+        "활용실태",
+        "조사",
+        "추진일정",
+        "추진현황",
+        "개선방안",
+        "사업범위",
+        "주요내용",
+        "체계",
+        "추진계획",
+        "농정원"
+      ],
+      "confidence": 1.0
+    }
+  },
+  "metadata_auto": {
+    "document_type": "RFP",
+    "project_name": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+    "organization": "원",
+    "project_year": "2025",
+    "business_domain": "SI",
+    "technology_tags": [
+      "RAG"
+    ],
+    "business_tags": [
+      "SI",
+      "용역"
+    ],
+    "deliverable_tags": [],
+    "summary": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획 | page 1 제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획 년월: 2025. 12. 사업개요 - page 2 - 추진배경 및 목적 사업개요 - page 2 사업범위 - page 2 세부내용 - page 3 농정원 AFSIS 협력사업 추진현황 - page 3 주요내용 - page 3 - 4 추진일정 및 체계 - page 4 -  5",
+    "reuse_level": "high",
+    "confidence": 1.0,
+    "reason": "RFP 패턴 분석 기반; 문서 그룹: RFP; 감지된 섹션: 10개; 표지 정보 포함; 목차 정보 포함",
+    "year": 2025,
+    "project_type": "용역",
+    "detected_sections": [
+      "사업개요",
+      "추진일정 및 체계",
+      "세부내용",
+      "농정원 AFSIS 협력사업 추진현황",
+      "추진배경",
+      "제목",
+      "추진배경 및 목적",
+      "사업범위",
+      "주요내용",
+      "제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획"
+    ],
+    "keywords": [
+      "협력사업",
+      "RFP",
+      "주요내용",
+      "농정원",
+      "사업개요",
+      "세부내용",
+      "용역",
+      "AFSIS",
+      "제목",
+      "활용실태",
+      "조사",
+      "추진일정",
+      "추진현황",
+      "도출",
+      "사업범위",
+      "개선방안",
+      "체계",
+      "추진계획",
+      "사업"
+    ],
+    "cover_page": {
+      "title": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "organization": "",
+      "project_name": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+      "date": "2025년 12월",
+      "document_type": "",
+      "keywords": [
+        "AFSIS",
+        "협력사업",
+        "활용실태",
+        "조사",
+        "개선방안",
+        "도출",
+        "용역",
+        "추진계획"
+      ],
+      "confidence": 0.65
+    },
+    "title": "AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "사업개요",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "사업범위",
+          "page": 2
+        },
+        {
+          "level": 1,
+          "title": "세부내용",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "농정원 AFSIS 협력사업 추진현황",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "주요내용",
+          "page": 3
+        },
+        {
+          "level": 1,
+          "title": "추진일정 및 체계",
+          "page": 4
+        }
+      ],
+      "section_titles": [
+        "제목: AFSIS 협력사업 활용실태 조사 및 개선방안 도출 용역 추진계획",
+        "사업개요",
+        "사업범위",
+        "세부내용",
+        "농정원 AFSIS 협력사업 추진현황",
+        "주요내용",
+        "추진일정 및 체계"
+      ],
+      "keywords": [
+        "도출",
+        "사업개요",
+        "협력사업",
+        "세부내용",
+        "용역",
+        "AFSIS",
+        "제목",
+        "활용실태",
+        "조사",
+        "추진일정",
+        "추진현황",
+        "개선방안",
+        "사업범위",
+        "주요내용",
+        "체계",
+        "추진계획",
+        "농정원"
+      ],
+      "confidence": 1.0
+    },
+    "metadata_source": "enhanced",
+    "primary_source": "rfp_pattern",
+    "document_group": "RFP",
+    "category": "제안요청서",
+    "folder_name": "00. RAG 소스\\01. RFP"
+  }
+}

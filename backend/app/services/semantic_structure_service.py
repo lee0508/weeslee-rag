@@ -11,15 +11,84 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from pptx import Presentation
+from app.services.document_structure_extractor import get_document_structure_extractor
+from app.services.rfp_pattern_analyzer import rfp_pattern_analyzer
 
 
 TOP_SECTION_RULES = [
+    ("표지", ["표지", "추진계획", "용역 추진계획"]),
+    ("목차", ["목차", "목차 내용"]),
+    ("사업개요", ["사업개요", "추진배경 및 목적", "추진배경", "목적", "사업범위"]),
+    ("현황 및 문제점", ["현황 및 문제점", "서비스 현황", "정보화 현황", "선진사례", "문제점 및 개선 방향"]),
+    ("세부내용", ["세부내용", "추진현황", "협력사업 추진현황"]),
+    ("주요내용", ["주요내용", "조사내용", "개선방안", "활용실태"]),
+    ("사업 추진방안", ["사업 추진방안", "추진 목표", "추진 폭표", "추진전략", "추진체계", "추진일정"]),
+    ("제안요청 내용", ["제안요청 내용", "제안요청 개요", "용어의 정의", "상세 요구사항", "요구사항 총괄", "요구사항 상세", "컨설팅 요구사항", "프로젝트 관리 요구사항", "프로젝트 지원 요구사항", "제약사항 요구사항", "보안 요구사항"]),
+    ("사업자 선정방법", ["사업자 선정방법", "입찰 방법", "입찰 참가자격", "제안서 평가 및 낙찰자 결정", "제안서 평가방법"]),
+    ("제안서 작성안내", ["제안서 작성안내", "제안서 작성 요령", "제안서의 효력", "제안서 효력", "제안서 작성 지침", "제안서 작성지침", "제안서 목차", "제안서 작성방법", "제안서 세부 작성 지침", "제안 안내 사항", "제안서 제출서류", "기타 사항", "기타사항"]),
+    ("안내 및 유의사항", ["안내 및 유의사항", "제안요청 설명회", "사업자의 의무 및 책임에 관한 사항", "지식재산 공동귀속", "SW산출물 반출 절차", "지식재산권 공동 활용 범위에 관한 사항", "기타 유의사항"]),
+    ("붙임 및 별지", ["붙임", "별첨", "별표", "별지서식", "입찰 관련 서식", "기술평가항목 및 배점표", "입찰평가항목 및 배점표", "외주 용역사업 보안 특약 조항", "소프트웨어사업 영향평가 검토결과서"]),
+    ("추진일정 및 체계", ["추진일정 및 체계", "사업 추진일정", "추진체계", "사업 추진보고", "주요 산출물"]),
     ("사업이해도", ["사업이해도", "사업 이해", "사업환경", "사업 환경", "배경", "목적", "범위", "전제조건", "특장점", "특징", "장점", "목표시스템", "구성도", "구성체계"]),
     ("추진전략", ["추진전략", "핵심성공", "핵심 질의", "핵심질의", "추진조직", "추진체계", "협력방안", "품질 확보", "전문협업", "전략 1", "전략 2", "전략 3", "전략 4"]),
     ("컨설팅 방법론", ["방법론", "WIM2", "ISP 방법론", "ISMP 방법론", "프로젝트 준비", "환경분석", "현황분석", "목표모델", "이행계획", "실행계획", "산출물", "적용 사례", "절차 및 활동내용"]),
 ]
 
 SUBSECTION_ALIASES = {
+    "표지 내용": ["표지 내용", "표지", "추진계획", "용역 추진계획"],
+    "목차": ["목차", "목차 내용"],
+    "사업개요": ["사업개요"],
+    "추진배경 및 목적": ["추진배경 및 목적", "추진배경", "목적"],
+    "사업범위": ["사업범위", "사업 범위"],
+    "기대효과 및 성과지표": ["기대효과 및 성과지표", "기대효과", "성과지표", "주요 전산화 방향 및 기대효과"],
+    "현황 및 문제점": ["현황 및 문제점"],
+    "서비스 현황": ["서비스 현황"],
+    "정보화 현황": ["정보화 현황"],
+    "선진사례": ["선진사례"],
+    "문제점 및 개선 방향": ["문제점 및 개선 방향", "개선 방향"],
+    "세부내용": ["세부내용", "세부 내용"],
+    "추진현황": ["추진현황", "협력사업 추진현황", "AFSIS 협력사업 추진현황", "농정원 AFSIS 협력사업 추진현황"],
+    "주요내용": ["주요내용", "주요 내용", "활용실태", "개선방안 도출"],
+    "사업 추진방안": ["사업 추진방안"],
+    "추진 목표": ["추진 목표", "추진목표", "추진 폭표"],
+    "추진전략": ["추진전략", "사업 추진전략"],
+    "추진일정 및 체계": ["추진일정 및 체계", "추진 일정 및 체계"],
+    "사업 추진일정": ["사업 추진일정", "추진일정"],
+    "추진체계": ["추진체계", "사업 추진체계"],
+    "사업 추진보고": ["사업 추진보고", "추진보고"],
+    "주요 산출물": ["주요 산출물", "산출물"],
+    "제안요청 내용": ["제안요청 내용", "제안요청내용"],
+    "제안요청 개요": ["제안요청 개요"],
+    "용어의 정의": ["용어의 정의"],
+    "상세 요구사항": ["상세 요구사항", "요구사항 상세"],
+    "요구사항 총괄": ["요구사항 총괄", "요구사항 구분 및 총괄표"],
+    "컨설팅 요구사항": ["컨설팅 요구사항"],
+    "프로젝트 관리 요구사항": ["프로젝트 관리 요구사항"],
+    "프로젝트 지원 요구사항": ["프로젝트 지원 요구사항"],
+    "제약사항 요구사항": ["제약사항 요구사항"],
+    "보안 요구사항": ["보안 요구사항"],
+    "사업자 선정방법": ["사업자 선정방법"],
+    "입찰 방법": ["입찰 방법"],
+    "입찰 참가자격": ["입찰 참가자격"],
+    "제안서 평가 및 낙찰자 결정": ["제안서 평가 및 낙찰자 결정"],
+    "제안서 평가방법": ["제안서 평가방법"],
+    "제안서 작성안내": ["제안서 작성안내", "제안서 작성 요령"],
+    "제안서의 효력": ["제안서의 효력", "제안서 효력"],
+    "제안서 작성지침": ["제안서 작성지침", "제안서 작성 지침"],
+    "제안서 목차": ["제안서 목차"],
+    "제안서 작성방법": ["제안서 작성방법"],
+    "제안서 세부 작성 지침": ["제안서 세부 작성 지침"],
+    "제안 안내 사항": ["제안 안내 사항"],
+    "제안서 제출서류": ["제안서 제출서류"],
+    "기타 사항": ["기타 사항", "기타사항"],
+    "안내 및 유의사항": ["안내 및 유의사항"],
+    "제안요청 설명회": ["제안요청 설명회"],
+    "사업자의 의무 및 책임에 관한 사항": ["사업자의 의무 및 책임에 관한 사항"],
+    "지식재산 공동귀속": ["지식재산 공동귀속"],
+    "SW산출물 반출 절차 등": ["SW산출물 반출 절차 등", "SW산출물 반출 절차"],
+    "지식재산권 공동 활용 범위에 관한 사항": ["지식재산권 공동 활용 범위에 관한 사항"],
+    "기타 유의사항": ["기타 유의사항"],
+    "붙임 및 별지": ["붙임", "별첨", "별표", "별지서식"],
     "사업 환경의 이해": ["사업환경의 이해", "사업 환경의 이해", "사업환경의이해"],
     "사업의 배경 및 목적": ["사업의 배경 및 목적", "사업 배경 및 목적", "사업배경 및 목적", "배경 및 필요성", "사업목적", "추진목적", "추진방향"],
     "제안의 범위": ["제안의 범위", "사업수행범위", "제안 범위"],
@@ -267,6 +336,32 @@ def _collect_keywords(texts: List[str], limit: int = 12) -> List[str]:
     return keywords
 
 
+def _resolve_section_group(relative_path: str, fallback: str = "기타") -> str:
+    rel_obj = Path(relative_path) if relative_path else None
+    if rel_obj and len(rel_obj.parts) >= 3:
+        return rel_obj.parts[2]
+    if rel_obj and len(rel_obj.parts) >= 2:
+        return rel_obj.parts[1]
+    return fallback
+
+
+def _extract_page_content_items(page_text: str, page_title: str, limit: int = 8) -> List[str]:
+    title_norm = _normalize_for_compare(page_title)
+    items: List[str] = []
+    for raw_line in str(page_text or "").splitlines():
+        cleaned = _clean_line(raw_line)
+        if not cleaned:
+            continue
+        if _normalize_for_compare(cleaned) == title_norm:
+            continue
+        if len(cleaned) < 2:
+            continue
+        items.append(cleaned)
+        if len(items) >= limit:
+            break
+    return items
+
+
 def _extract_slides(file_path: str) -> List[Dict[str, Any]]:
     prs = Presentation(file_path)
     slides: List[Dict[str, Any]] = []
@@ -381,6 +476,115 @@ def build_pptx_structure(file_path: str, relative_path: str = "") -> Dict[str, A
         "structure_mode": "semantic_sections",
         "sections": sections,
     }
+
+
+def build_text_semantic_structure(
+    text: str,
+    *,
+    document_id: Optional[int] = None,
+    file_name: str = "",
+    relative_path: str = "",
+    file_type: str = "",
+) -> Dict[str, Any]:
+    """
+    OCR/파싱 결과 텍스트에서 범용 semantic structure를 생성한다.
+
+    - cover/toc/page 구조를 우선 보존
+    - Step 5의 chunk_semantic_sections()가 바로 사용할 수 있는 형태로 맞춘다
+    """
+    normalized_text = _normalize_space(str(text or ""))
+    rel_path = relative_path or file_name
+    section_group = _resolve_section_group(rel_path)
+    analysis = rfp_pattern_analyzer.analyze_text_content(normalized_text) if normalized_text else {}
+
+    extractor = get_document_structure_extractor()
+    doc_id = int(document_id or 0)
+    doc_structure = extractor.extract_structure(
+        text=normalized_text,
+        document_id=doc_id,
+        folder_path=rel_path,
+        file_type=file_type.lower().lstrip(".") if file_type else "",
+    )
+
+    top_labels = {
+        "cover": "표지",
+        "toc": "목차",
+        "content": section_group or "본문",
+        "appendix": "부록",
+    }
+    grouped_pages: Dict[str, List[Dict[str, Any]]] = {}
+    section_seq = 1
+
+    toc_titles = analysis.get("toc", {}).get("section_titles", []) or []
+    toc_leaf_titles = [{"title": title, "slide_numbers": []} for title in toc_titles[:12]]
+
+    for page in doc_structure.pages:
+        page_type = str(page.page_type or "content")
+        top_section = top_labels.get(page_type, section_group or "본문")
+        page_title = _clean_line(str(page.page_title or "")) or f"페이지 {page.page_no}"
+        content_items = _extract_page_content_items(page.text_content, page_title)
+        leaf_sections = toc_leaf_titles if page_type == "toc" and toc_leaf_titles else []
+        keywords = _collect_keywords([page_title] + content_items + [item.get("title", "") for item in leaf_sections])
+
+        grouped_pages.setdefault(top_section, []).append({
+            "section_id": str(section_seq),
+            "section_name": page_title,
+            "page_no": page.page_no,
+            "page_type": page_type,
+            "content_items": content_items,
+            "keywords": keywords,
+            "leaf_sections": leaf_sections,
+        })
+        section_seq += 1
+
+    sections: List[Dict[str, Any]] = []
+    for top_index, (top_section, entries) in enumerate(grouped_pages.items(), start=1):
+        top_page_numbers = [int(entry["page_no"]) for entry in entries]
+        top_keyword_texts = [top_section]
+        subsection_entries: List[Dict[str, Any]] = []
+
+        for sub_index, entry in enumerate(entries, start=1):
+            top_keyword_texts.extend([entry["section_name"]] + entry["content_items"] + [leaf.get("title", "") for leaf in entry["leaf_sections"]])
+            subsection_entries.append({
+                "section_id": f"{top_index}.{sub_index}",
+                "section_name": entry["section_name"],
+                "parent_section": f"{top_index}. {top_section}",
+                "slide_range": [entry["page_no"], entry["page_no"]],
+                "slide_numbers": [entry["page_no"]],
+                "slide_label": f"페이지 {entry['page_no']}",
+                "subsections": entry["leaf_sections"],
+                "content_items": entry["content_items"],
+                "keywords": entry["keywords"],
+                "page_type": entry["page_type"],
+            })
+
+        sections.append({
+            "section_id": str(top_index),
+            "section_name": top_section,
+            "slide_range": [min(top_page_numbers), max(top_page_numbers)] if top_page_numbers else [],
+            "slide_numbers": sorted(set(top_page_numbers)),
+            "slide_label": f"페이지 {min(top_page_numbers)}~{max(top_page_numbers)}" if len(set(top_page_numbers)) > 1 else (f"페이지 {top_page_numbers[0]}" if top_page_numbers else "페이지 미상"),
+            "keywords": _collect_keywords(top_keyword_texts),
+            "subsections": subsection_entries,
+        })
+
+    structured = {
+        "file_name": file_name or Path(rel_path).name,
+        "source_path": "",
+        "relative_path": Path(rel_path).as_posix() if rel_path else "",
+        "section_group": section_group,
+        "document_type": file_type.lower().lstrip(".") if file_type else "",
+        "total_slides": doc_structure.total_pages,
+        "structure_mode": "semantic_sections",
+        "sections": sections,
+        "cover_page": analysis.get("cover_page", {}),
+        "toc": analysis.get("toc", {}),
+        "detected_sections": analysis.get("detected_sections", []),
+        "document_summary": analysis.get("summary", ""),
+        "page_types": [str(page.page_type or "content") for page in doc_structure.pages],
+    }
+    structured["semantic_tags"] = infer_semantic_tags(structured)
+    return structured
 
 
 def infer_semantic_tags(structured: Dict[str, Any]) -> Dict[str, Any]:

@@ -12,6 +12,7 @@ from pathlib import Path
 import asyncio
 import json
 import logging
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
@@ -23,15 +24,21 @@ from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus
 from app.services.processed_text_store import processed_text_store, ProcessingResult
-from app.services.semantic_structure_service import build_pptx_structure, infer_semantic_tags
+from app.services.semantic_structure_service import (
+    build_pptx_structure,
+    build_text_semantic_structure,
+    infer_semantic_tags,
+)
 from app.extractors.extractor import DocumentExtractor
 from app.services.metadata_extractor import rule_based_extractor
-from app.services.dataset_context import get_source_dataset_context
+from app.services.dataset_build_settings import get_step_config
+from app.services.dataset_context import get_source_dataset_context, update_source_dataset_status
 from app.services.runtime_compute_settings import (
     describe_stage_compute_mode,
     get_runtime_compute_settings,
     is_stage_gpu_enabled,
 )
+from app.services.source_artifact_index import sync_source_index
 
 
 logger = logging.getLogger(__name__)
@@ -93,6 +100,17 @@ def _iso_now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _normalize_step4_parse_config(source_id: Optional[str]) -> dict:
+    raw_config = get_step_config(source_id, "4") if source_id else {}
+    return {
+        "ocr_dpi": max(72, int(raw_config.get("ocr_dpi") or 300)),
+        "ocr_language": str(raw_config.get("ocr_language") or "kor+eng"),
+        "ocr_min_text_length": max(0, int(raw_config.get("ocr_min_text_length") or 50)),
+        "ocr_engine": str(raw_config.get("ocr_engine") or "tesseract"),
+        "ocr_mode": str(raw_config.get("ocr_mode") or "auto"),
+    }
+
+
 def _build_step4_event(
     *,
     stage: str,
@@ -131,11 +149,16 @@ def _build_step4_event(
     return event
 
 
-def _extract_document_sync(file_path: str, ocr_use_gpu: bool) -> dict:
+def _extract_document_sync(file_path: str, ocr_use_gpu: bool, parse_config: Optional[dict] = None) -> dict:
     """CPU 집약적인 추출을 워커 스레드에서 실행한다."""
+    parse_config = parse_config or {}
     extractor = DocumentExtractor(
         use_ocr=True,
         ocr_use_gpu=ocr_use_gpu,
+        ocr_dpi=int(parse_config.get("ocr_dpi") or 300),
+        ocr_language=str(parse_config.get("ocr_language") or "kor+eng"),
+        ocr_min_text_length=int(parse_config.get("ocr_min_text_length") or 50),
+        ocr_engine=str(parse_config.get("ocr_engine") or "tesseract"),
     )
     # 워커 스레드에서 새 이벤트 루프를 생성하여 async 함수 실행
     # asyncio.run()은 이미 루프가 실행 중일 때 RuntimeError 발생 가능
@@ -148,9 +171,9 @@ def _extract_document_sync(file_path: str, ocr_use_gpu: bool) -> dict:
         asyncio.set_event_loop(None)
 
 
-async def _extract_document_in_worker(file_path: str, ocr_use_gpu: bool) -> dict:
+async def _extract_document_in_worker(file_path: str, ocr_use_gpu: bool, parse_config: Optional[dict] = None) -> dict:
     """이벤트 루프 블로킹을 피하기 위해 문서 추출을 thread worker로 오프로드한다."""
-    return await asyncio.to_thread(_extract_document_sync, file_path, ocr_use_gpu)
+    return await asyncio.to_thread(_extract_document_sync, file_path, ocr_use_gpu, parse_config)
 
 
 async def parse_document(
@@ -158,6 +181,7 @@ async def parse_document(
     file_path: str,
     force: bool = False,
     metadata_ctx: Optional[dict] = None,
+    parse_config: Optional[dict] = None,
 ) -> dict:
     """
     단일 문서 파싱 처리 (Strategy Pattern 적용)
@@ -177,6 +201,7 @@ async def parse_document(
         "processing_time_ms": 0,
         "ocr_use_gpu": False,
     }
+    parse_config = parse_config or {}
 
     try:
         # 이미 처리된 문서는 건너뛰기 (force=False인 경우)
@@ -252,14 +277,19 @@ async def parse_document(
         ocr_use_gpu = is_stage_gpu_enabled("ocr", runtime_settings)
         result["ocr_use_gpu"] = ocr_use_gpu
         logger.info(
-            "[Step4] parse_document worker dispatch: document_id=%s ocr_use_gpu=%s file=%s",
+            "[Step4] parse_document worker dispatch: document_id=%s ocr_use_gpu=%s ocr_mode=%s ocr_engine=%s ocr_dpi=%s ocr_language=%s min_text_length=%s file=%s",
             document_id,
             ocr_use_gpu,
+            parse_config.get("ocr_mode"),
+            parse_config.get("ocr_engine"),
+            parse_config.get("ocr_dpi"),
+            parse_config.get("ocr_language"),
+            parse_config.get("ocr_min_text_length"),
             file_path,
         )
 
         # CPU 집약적인 OCR/파싱은 워커 스레드에서 실행해 SSE/health check를 막지 않는다.
-        extract_result = await _extract_document_in_worker(file_path, ocr_use_gpu)
+        extract_result = await _extract_document_in_worker(file_path, ocr_use_gpu, parse_config)
 
         # 추출 결과 매핑
         text = extract_result.get("content", "")
@@ -273,12 +303,47 @@ async def parse_document(
         if metadata:
             processing_result.quality = metadata.get("quality", {})
             processing_result.ocr_required = metadata.get("is_scanned", False) or metadata.get("ocr_required", False)
+            selected_ocr_engine = str(
+                metadata.get("ocr_engine")
+                or metadata.get("selected_method")
+                or metadata.get("preferred_ocr_engine")
+                or ""
+            ).lower()
+            if selected_ocr_engine in {"olmocr", "easyocr", "tesseract"}:
+                processing_result.ocr_engine = selected_ocr_engine
             if metadata.get("pages"):
                 processing_result.pages = [{"page_num": i, "text": "", "char_count": 0} for i in range(1, metadata["pages"] + 1)]
+
+        extracted_pages = extract_result.get("pages")
+        if isinstance(extracted_pages, list) and extracted_pages:
+            normalized_pages = []
+            for index, page in enumerate(extracted_pages, start=1):
+                page_num = page.get("page_num") or page.get("page_number") or index
+                page_text = page.get("text") or page.get("content") or ""
+                normalized_pages.append({
+                    "page_num": page_num,
+                    "text": page_text,
+                    "char_count": len(str(page_text or "")),
+                })
+            if normalized_pages:
+                processing_result.pages = normalized_pages
 
         if file_ext == ".pptx":
             try:
                 structured_data = build_pptx_structure(file_path, processing_result.relative_path or file_name)
+                if text.strip():
+                    text_structure = build_text_semantic_structure(
+                        text,
+                        document_id=document_id,
+                        file_name=file_name,
+                        relative_path=processing_result.relative_path or file_name,
+                        file_type=file_ext,
+                    )
+                    structured_data["cover_page"] = text_structure.get("cover_page", {})
+                    structured_data["toc"] = text_structure.get("toc", {})
+                    structured_data["detected_sections"] = text_structure.get("detected_sections", [])
+                    structured_data["document_summary"] = text_structure.get("document_summary", "")
+                    structured_data["page_types"] = text_structure.get("page_types", [])
                 semantic_tags = infer_semantic_tags(structured_data)
                 structured_data["semantic_tags"] = semantic_tags
                 processing_result.structured_data = structured_data
@@ -292,6 +357,33 @@ async def parse_document(
             except Exception as structure_exc:
                 logger.warning(
                     "[Step4] semantic structure build failed: document_id=%s file=%s error=%s",
+                    document_id,
+                    file_path,
+                    structure_exc,
+                )
+        elif text.strip():
+            try:
+                structured_data = build_text_semantic_structure(
+                    text,
+                    document_id=document_id,
+                    file_name=file_name,
+                    relative_path=processing_result.relative_path or file_name,
+                    file_type=file_ext,
+                )
+                semantic_tags = structured_data.get("semantic_tags") or {}
+                processing_result.structured_data = structured_data
+                processing_result.quality = {
+                    **(processing_result.quality or {}),
+                    "semantic_structure": bool(structured_data.get("sections")),
+                    "semantic_sections": sum(len(sec.get("subsections", [])) for sec in structured_data.get("sections", [])),
+                    "cover_page_detected": bool(structured_data.get("cover_page")),
+                    "toc_detected": bool(structured_data.get("toc", {}).get("sections")),
+                }
+                if semantic_tags.get("technology") and not processing_result.project_type:
+                    processing_result.project_type = semantic_tags.get("technology", "")
+            except Exception as structure_exc:
+                logger.warning(
+                    "[Step4] generic semantic structure build failed: document_id=%s file=%s error=%s",
                     document_id,
                     file_path,
                     structure_exc,
@@ -335,6 +427,23 @@ async def parse_document(
 
         # 저장
         if processed_text_store.save_result(processing_result):
+            processed_text_store.save_run_config(
+                str(document_id),
+                {
+                    "source_id": processing_result.source_id,
+                    "dataset_id": processing_result.dataset_id,
+                    "document_uid": processing_result.document_uid,
+                    "relative_path": processing_result.relative_path,
+                    "snapshot_id": "",
+                    "ocr": {
+                        "engine": str(parse_config.get("ocr_engine") or processing_result.ocr_engine or ""),
+                        "dpi": int(parse_config.get("ocr_dpi") or 300),
+                        "language": str(parse_config.get("ocr_language") or "kor+eng"),
+                        "min_text_length": int(parse_config.get("ocr_min_text_length") or 50),
+                        "parser_type": processing_result.parser_type,
+                    },
+                },
+            )
             result["success"] = True
             result["text_length"] = processing_result.text_length
             if result["warning"]:
@@ -501,12 +610,14 @@ async def parse_documents(
             request.document_ids,
             request.source_id,
         )
+        parse_config = _normalize_step4_parse_config(request.source_id)
         logger.info(
-            "[Step4] parse request: source_id=%s force_reparse=%s document_ids=%s target_count=%s",
+            "[Step4] parse request: source_id=%s force_reparse=%s document_ids=%s target_count=%s parse_config=%s",
             request.source_id,
             request.force_reparse,
             request.document_ids,
             len(documents),
+            parse_config,
         )
 
         if not documents:
@@ -546,6 +657,7 @@ async def parse_documents(
                 file_path=doc.file_path,
                 force=request.force_reparse,
                 metadata_ctx=metadata_ctx,
+                parse_config=parse_config,
             )
 
             if result["success"]:
@@ -568,6 +680,10 @@ async def parse_documents(
 
         # ocr_* flush 후 일괄 커밋
         _commit_step4_progress(db)
+        if request.source_id:
+            if processed > 0:
+                update_source_dataset_status(request.source_id, "text_extracted")
+            sync_source_index(request.source_id, db=db)
 
         end_time = datetime.now()
         processing_time = (end_time - start_time).total_seconds()
@@ -680,26 +796,32 @@ async def refresh_ocr_metadata(
 
 
 @router.get("/status", response_model=Step4StatusResponse)
-async def get_step4_status(db: Session = Depends(get_db)):
+async def get_step4_status(source_id: Optional[str] = None, db: Session = Depends(get_db)):
     """
     Step 4 처리 상태를 조회합니다.
     """
     try:
         # 전체 검수 완료 문서 수 (제외/삭제되지 않은 문서만)
-        total = db.query(func.count(DocumentMetadata.id)).filter(
+        total_query = db.query(func.count(DocumentMetadata.id)).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag.is_(True),
             DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
-        ).scalar()
+        )
+        if source_id:
+            total_query = total_query.filter(DocumentMetadata.source_id == source_id)
+        total = total_query.scalar()
 
         # 처리 완료 문서 확인
-        documents = db.query(DocumentMetadata).filter(
+        documents_query = db.query(DocumentMetadata).filter(
             DocumentMetadata.meta_status == MetaStatus.METADATA_REVIEWED.value,
             DocumentMetadata.include_in_rag.is_(True),
             DocumentMetadata.is_excluded.is_(False),
             DocumentMetadata.removed_at.is_(None),
-        ).all()
+        )
+        if source_id:
+            documents_query = documents_query.filter(DocumentMetadata.source_id == source_id)
+        documents = documents_query.all()
 
         completed = 0
         failed = 0
@@ -905,6 +1027,58 @@ async def get_parse_results(
 
 # Step 4 파싱 작업을 위한 job 저장소 (간단한 in-memory 구현)
 _parse_jobs: dict[str, dict] = {}
+_STEP4_JOB_DIR = Path(__file__).resolve().parents[3] / "data" / "jobs" / "step4_parse"
+
+
+def _step4_job_path(job_id: str) -> Path:
+    safe_job_id = "".join(ch for ch in str(job_id or "") if ch.isalnum() or ch in ("-", "_"))
+    return _STEP4_JOB_DIR / f"{safe_job_id}.json"
+
+
+def _serialize_parse_job(job: dict) -> dict:
+    return {
+        "job_id": job.get("job_id"),
+        "status": job.get("status", "unknown"),
+        "created_at": job.get("created_at"),
+        "last_event": job.get("last_event"),
+        "result": job.get("result"),
+        "error": job.get("error"),
+        "persisted_at": _iso_now(),
+    }
+
+
+def _persist_parse_job(job: dict) -> None:
+    try:
+        _STEP4_JOB_DIR.mkdir(parents=True, exist_ok=True)
+        _step4_job_path(job.get("job_id")).write_text(
+            json.dumps(_serialize_parse_job(job), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        logger.exception("[Step4] failed to persist parse job: %s", job.get("job_id"))
+
+
+def _load_persisted_parse_job(job_id: str) -> Optional[dict]:
+    try:
+        job_path = _step4_job_path(job_id)
+        if not job_path.exists():
+            return None
+        payload = json.loads(job_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return None
+        return {
+            "job_id": payload.get("job_id") or job_id,
+            "queue": None,
+            "status": payload.get("status", "unknown"),
+            "created_at": payload.get("created_at"),
+            "last_event": payload.get("last_event"),
+            "result": payload.get("result"),
+            "error": payload.get("error"),
+            "persisted_only": True,
+        }
+    except Exception:
+        logger.exception("[Step4] failed to load persisted parse job: %s", job_id)
+        return None
 
 
 def create_parse_job(job_id: str) -> dict:
@@ -919,12 +1093,20 @@ def create_parse_job(job_id: str) -> dict:
         "error": None,
     }
     _parse_jobs[job_id] = job
+    _persist_parse_job(job)
     return job
 
 
 def get_parse_job(job_id: str) -> Optional[dict]:
     """파싱 작업 조회."""
-    return _parse_jobs.get(job_id)
+    job = _parse_jobs.get(job_id)
+    if job:
+        return job
+    persisted = _load_persisted_parse_job(job_id)
+    if persisted:
+        _parse_jobs[job_id] = persisted
+        return persisted
+    return None
 
 
 async def emit_parse_event(job_id: str, event: dict):
@@ -942,7 +1124,9 @@ async def emit_parse_event(job_id: str, event: dict):
             job["status"] = "completed"
             job["result"] = event.get("result")
 
-    if job["queue"]:
+    _persist_parse_job(job)
+
+    if job.get("queue"):
         await job["queue"].put(event)
 
 
@@ -958,14 +1142,16 @@ async def parse_documents_streaming(
         # 기본 일괄 실행은 검수 완료 문서만 대상으로 유지한다.
         # 단, 명시적인 document_ids 재처리는 개별 진단/복구 목적이므로 meta_status 제한을 두지 않는다.
         documents = _get_step4_target_documents(db, document_ids, source_id)
+        parse_config = _normalize_step4_parse_config(source_id)
         total = len(documents)
         logger.info(
-            "[Step4] stream start: job_id=%s source_id=%s force_reparse=%s document_ids=%s target_count=%s",
+            "[Step4] stream start: job_id=%s source_id=%s force_reparse=%s document_ids=%s target_count=%s parse_config=%s",
             job_id,
             source_id,
             force_reparse,
             document_ids,
             total,
+            parse_config,
         )
 
         await emit_parse_event(job_id, {
@@ -1035,6 +1221,7 @@ async def parse_documents_streaming(
                 file_path=doc.file_path,
                 force=force_reparse,
                 metadata_ctx=metadata_ctx,
+                parse_config=parse_config,
             )
 
             if result["success"]:
@@ -1245,12 +1432,26 @@ async def stream_parse_progress(job_id: str, token: Optional[str] = None):
     if not job:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
 
-    queue: asyncio.Queue = job["queue"]
+    queue: Optional[asyncio.Queue] = job.get("queue")
 
     async def generate():
+        if queue is None:
+            fallback_event = job.get("last_event") or {
+                "stage": "오류",
+                "level": "error",
+                "log": "Step 4 작업 스트림이 복구되지 않았습니다. 상태 조회 폴백을 사용하세요.",
+                "progress": 0,
+                "done": True,
+                "error": job.get("error") or "parse_job_stream_unavailable",
+                "timestamp": _iso_now(),
+            }
+            yield f"data: {json.dumps(fallback_event, ensure_ascii=False)}\n\n"
+            return
+        # 초기 이벤트를 바로 보내 프록시 idle timeout에 걸리지 않게 한다.
+        yield "data: {\"connected\": true, \"heartbeat\": true}\n\n"
         while True:
             try:
-                event = await asyncio.wait_for(queue.get(), timeout=30)
+                event = await asyncio.wait_for(queue.get(), timeout=10)
             except asyncio.TimeoutError:
                 yield "data: {\"heartbeat\": true}\n\n"
                 continue
@@ -1260,4 +1461,12 @@ async def stream_parse_progress(job_id: str, token: Optional[str] = None):
             if event.get("done"):
                 break
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

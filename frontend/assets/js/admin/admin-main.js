@@ -213,7 +213,7 @@
         ...idx,
         staged_only: false,
         faiss_indexed: idx.index_exists,
-        doc_count: idx.doc_count ?? 0,
+        doc_count: idx.doc_count ?? idx.document_count ?? 0,
         chunks_exist: (idx.chunk_count || 0) > 0,
         chunks_size_mb: idx.index_size_mb ?? 0,
       });
@@ -261,12 +261,18 @@
     };
     el.innerHTML = indexes.map(idx => {
       const createdAtStr = formatCreatedAt(idx.created_at);
+      const sourceLabel = idx.source_id ? `Source: ${idx.source_id}` : '';
+      const datasetLabel = idx.dataset_id ? `Dataset: ${idx.dataset_id}` : '';
+      const statusLabel = idx.status ? `Status: ${idx.status}` : '';
+      const queryableLabel = idx.queryable ? '검색 가능' : '검색 불가';
       return `
       <div class="index-item ${idx.is_active ? 'active-idx' : ''}">
         <div class="index-name">${esc(idx.snapshot)}</div>
         <div class="index-chips">
           ${idx.is_active ? '<span class="pill amber">● 활성</span>' : ''}
           ${idx.staged_only ? '<span class="pill">○ staged only</span>' : ''}
+          ${idx.registry_backed ? '<span class="pill">● registry</span>' : ''}
+          <span class="pill" style="color:${idx.queryable ? 'var(--green)' : 'var(--muted)'}">${queryableLabel}</span>
           ${idx.doc_count ? `<span class="chip">${Number(idx.doc_count).toLocaleString()} docs</span>` : ''}
           <span class="chip">${idx.index_size_mb} MB</span>
           <span class="chip">${idx.chunk_count.toLocaleString()} chunks</span>
@@ -277,6 +283,12 @@
           ${!idx.index_exists && !idx.chunks_exist ? '<span class="chip" style="color:var(--muted)">청킹 전</span>' : ''}
           ${createdAtStr ? `<span class="chip" style="color:var(--muted)" title="생성일시">${createdAtStr}</span>` : ''}
         </div>
+        ${(sourceLabel || datasetLabel || statusLabel) ? `
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">
+          ${sourceLabel ? `<div>${esc(sourceLabel)}</div>` : ''}
+          ${datasetLabel ? `<div>${esc(datasetLabel)}</div>` : ''}
+          ${statusLabel ? `<div>${esc(statusLabel)}</div>` : ''}
+        </div>` : ''}
         ${idx.manifest_file ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">${esc(idx.manifest_file)}</div>` : ''}
         ${!idx.is_active && idx.index_exists ? `
         <div class="index-actions" style="display:flex;align-items:center;gap:6px">
@@ -2307,8 +2319,10 @@
         setValue('pfClientName', '미설정');
         setValue('pfClientId', '미설정');
         ensureModelOption('pfLlmModel', runtimeCfg.answer_model || '');
+        ensureModelOption('wikiBuildModel', runtimeCfg.answer_model || '');
         ensureModelOption('pfEmbedModel', runtimeCfg.embedding_model || '');
         setValue('pfLlmModel', runtimeCfg.answer_model || '');
+        setValue('wikiBuildModel', runtimeCfg.answer_model || '');
         setValue('pfEmbedModel', runtimeCfg.embedding_model || '');
         setText('pfModelHint', '등록된 Client가 없어 서버 DB 설정을 표시할 수 없습니다.');
         return;
@@ -2320,6 +2334,8 @@
       // LLM 모델 설정
       ensureModelOption('pfLlmModel', client.default_llm_model || '');
       setValue('pfLlmModel', client.default_llm_model || '');
+      ensureModelOption('wikiBuildModel', client.default_llm_model || runtimeCfg.answer_model || '');
+      setValue('wikiBuildModel', client.default_llm_model || runtimeCfg.answer_model || '');
       // 임베딩 모델 설정
       ensureModelOption('pfEmbedModel', client.default_embedding_model || '');
       ensureModelOption('pfEmbedModel', runtimeCfg.active_embedding_model || runtimeCfg.embedding_model || '');
@@ -5372,13 +5388,19 @@
     return value && value !== '-' ? value : '';
   }
 
+  function getPreferredEmbeddingModel(fallback = '') {
+    const systemModel = document.getElementById('pfEmbedModel')?.value?.trim();
+    const runtimeModel = readRuntimeValue('serverEmbedModel');
+    return systemModel || runtimeModel || fallback;
+  }
+
   function applyServerConfigToBuilderDefaults(cfg) {
     if (!cfg) return;
     setSelectIfOptionExists('dbStep6EmbedModel', cfg.embedding_model);
     setFieldValue('dbStep6EmbedDim', cfg.embedding_dim);
     setSelectIfOptionExists('wrStep2EmbedModel', cfg.embedding_model);
     setFieldValue('wrStep2EmbedDim', cfg.embedding_dim);
-    ['wrStep8LlmModel', 'wrStep9LlmModel', 'wrStep10LlmModel'].forEach((id) => {
+    ['wrStep8LlmModel', 'wrStep9LlmModel', 'wrStep10LlmModel', 'wikiBuildModel'].forEach((id) => {
       setSelectIfOptionExists(id, cfg.answer_model);
     });
   }
@@ -5968,7 +5990,7 @@
     let body = {};
     const currentSource = getCurrentSourceId() || window._selectedSourceId || '';
     const runtimeEmbedProvider = readRuntimeValue('serverEmbedProvider') || 'ollama';
-    const runtimeEmbedModel = readRuntimeValue('serverEmbedModel') || 'nomic-embed-text';
+    const runtimeEmbedModel = getPreferredEmbeddingModel('nomic-embed-text');
     const runtimeAnswerModel = readRuntimeValue('serverAnswerModel') || 'llama3:8b';
 
     switch(stepNum) {
@@ -6116,7 +6138,7 @@
 
         const chunkSize = parseInt(document.getElementById('wrStep2ChunkSize')?.value || '1000', 10) || 1000;
         const chunkOverlap = parseInt(document.getElementById('wrStep2ChunkOverlap')?.value || '200', 10) || 200;
-        const embeddingModel = document.getElementById('wrStep2EmbedModel')?.value || 'nomic-embed-text';
+        const embeddingModel = document.getElementById('wrStep2EmbedModel')?.value || getPreferredEmbeddingModel('nomic-embed-text');
         const currentDatasetId = getCurrentDatasetId?.() || '';
         const snapshotId = createNewSnapshotId();
 
@@ -6885,8 +6907,11 @@ LIMIT 10`;
     if (pageName === 'graph-overview') loadGraphOverviewStats();
     if (pageName === 'schema-viewer') loadGraphSchema();
     if (pageName === 'agent-logs') loadAgentLogs();
-    // Settings 페이지 서버 데이터 로드 (2026-06-15)
-    if (pageName === 'settings') loadWrSettingsFromServer();
+    // Settings 페이지 서버 데이터 로드 (2026-06-15, 2026-07-08 DB 시스템 설정 추가)
+    if (pageName === 'settings') {
+      loadWrSettingsFromServer();
+      loadDbSystemSettings();
+    }
     // Dataset Builder 페이지 진입 시 상태 요약 로드
     if (pageName === 'rag-build-wizard') scheduleDatasetStatusSummaryLoad(400);
     if (pageName === 'search-quality') wrLoadBenchmarkHistory();
@@ -7619,7 +7644,7 @@ LIMIT 10`;
     const wikiType = ['project', 'organization', 'technology'].includes(groupBy) ? groupBy : 'project';
     const model = document.getElementById('wikiBuildModel')?.value
       || document.getElementById('wrStep8LlmModel')?.value
-      || 'llama3:8b';
+      || 'qwen3:8b';
     return { sourceId, snapshotId, wikiType, model };
   }
 
@@ -10578,6 +10603,184 @@ LIMIT 10`;
     }
   }
 
+  // ── DB 시스템 설정 관리 함수들 (2026-07-08 추가) ────────────────────────
+  let _dbSettingsMetadata = [];  // 설정 메타데이터 캐시
+
+  /**
+   * DB 시스템 설정 로드.
+   * @param {string} category - 카테고리 필터 (all이면 전체)
+   */
+  async function loadDbSystemSettings(category = 'all') {
+    const tbody = document.getElementById('wrDbSettingsBody');
+    if (!tbody) return;
+
+    // 카테고리 탭 활성화 상태 업데이트
+    document.querySelectorAll('.wr-settings-cat-btn').forEach(btn => {
+      btn.classList.toggle('wr-is-active', btn.dataset.category === category);
+    });
+
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--wr-text-muted)">로딩 중...</td></tr>';
+
+    try {
+      const res = await platformFetch('/admin/system-settings/metadata');
+      if (!res.success) throw new Error(res.detail || '메타데이터 조회 실패');
+
+      _dbSettingsMetadata = res.metadata || [];
+      let filtered = _dbSettingsMetadata;
+
+      if (category && category !== 'all') {
+        filtered = filtered.filter(item => item.category === category);
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--wr-text-muted)">설정 항목이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        const displayValue = item.is_sensitive ? '********' : (item.value || '-');
+        const truncatedValue = displayValue.length > 60 ? displayValue.substring(0, 60) + '...' : displayValue;
+        const editDisabled = !item.editable ? 'disabled' : '';
+        const platformBadge = item.platform === 'all' ? '<span class="wr-badge">all</span>' :
+          item.platform === 'windows' ? '<span class="wr-badge" style="background:#0078d4">win</span>' :
+          '<span class="wr-badge" style="background:#f57c00">linux</span>';
+
+        return `
+          <tr data-category="${item.category}" data-key="${item.key}">
+            <td><span class="wr-badge wr-badge-outline">${item.category}</span></td>
+            <td style="font-family:monospace;font-size:12px">${item.key}</td>
+            <td style="font-family:monospace;font-size:11px" title="${displayValue}">${truncatedValue}</td>
+            <td>${platformBadge}</td>
+            <td style="font-size:11px;color:var(--wr-text-muted)">${item.description || '-'}</td>
+            <td>
+              <button class="wr-btn wr-btn-sm" type="button"
+                onclick="openSettingEditModal('${item.category}', '${item.key}')"
+                ${editDisabled} title="${item.editable ? '수정' : '수정 불가'}">
+                <i class="bx bx-edit"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+    } catch (e) {
+      console.error('[loadDbSystemSettings] 오류:', e);
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ef4444">오류: ${e.message}</td></tr>`;
+    }
+  }
+
+  /**
+   * 설정 수정 모달 열기.
+   */
+  function openSettingEditModal(category, key) {
+    const item = _dbSettingsMetadata.find(m => m.category === category && m.key === key);
+    if (!item) {
+      alert('설정 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    document.getElementById('wrSettingEditCategory').value = category;
+    document.getElementById('wrSettingEditKey').value = key;
+    document.getElementById('wrSettingEditCurrentValue').value = item.is_sensitive ? '********' : (item.value || '');
+    document.getElementById('wrSettingEditNewValue').value = item.is_sensitive ? '' : (item.value || '');
+    document.getElementById('wrSettingEditPlatform').value = '';
+    document.getElementById('wrSettingEditDesc').textContent = item.description || '';
+    document.getElementById('wrSettingEditTitle').textContent = `설정 수정: ${category}.${key}`;
+
+    document.getElementById('wrSettingEditModal').style.display = 'flex';
+  }
+
+  /**
+   * 설정 수정 모달 닫기.
+   */
+  function closeSettingEditModal() {
+    document.getElementById('wrSettingEditModal').style.display = 'none';
+  }
+
+  /**
+   * DB 설정값 저장.
+   */
+  async function saveDbSetting() {
+    const category = document.getElementById('wrSettingEditCategory').value;
+    const key = document.getElementById('wrSettingEditKey').value;
+    const newValue = document.getElementById('wrSettingEditNewValue').value;
+    const platform = document.getElementById('wrSettingEditPlatform').value || null;
+
+    if (!category || !key) {
+      alert('카테고리와 키가 필요합니다.');
+      return;
+    }
+
+    try {
+      const res = await platformFetch(`/admin/system-settings/${category}/${key}`, {
+        method: 'PUT',
+        body: JSON.stringify({ value: newValue, platform: platform })
+      });
+
+      if (!res.success) throw new Error(res.detail || '설정 저장 실패');
+
+      showWrToast(`설정 저장 완료: ${category}.${key}`);
+      closeSettingEditModal();
+
+      // 현재 카테고리 다시 로드
+      const activeBtn = document.querySelector('.wr-settings-cat-btn.wr-is-active');
+      const activeCategory = activeBtn?.dataset.category || 'all';
+      loadDbSystemSettings(activeCategory);
+
+    } catch (e) {
+      console.error('[saveDbSetting] 오류:', e);
+      alert(`설정 저장 실패: ${e.message}`);
+    }
+  }
+
+  /**
+   * 연결 테스트 (Ollama, MySQL 등).
+   */
+  async function testDbConnection(endpointType) {
+    try {
+      showWrToast(`${endpointType} 연결 테스트 중...`);
+
+      const res = await platformFetch('/admin/system-settings/test-connection', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint_type: endpointType })
+      });
+
+      if (res.success) {
+        let msg = `${endpointType} 연결 성공!`;
+        if (res.models) msg += ` 모델 ${res.models.length}개 감지`;
+        if (res.collections) msg += ` 컬렉션 ${res.collections.length}개`;
+        showWrToast(msg);
+        alert(msg);
+      } else {
+        const errMsg = `${endpointType} 연결 실패: ${res.error || '알 수 없는 오류'}`;
+        showWrToast(errMsg);
+        alert(errMsg);
+      }
+
+    } catch (e) {
+      console.error('[testDbConnection] 오류:', e);
+      alert(`연결 테스트 오류: ${e.message}`);
+    }
+  }
+
+  /**
+   * DB 설정 캐시 갱신.
+   */
+  async function refreshDbSettingsCache() {
+    try {
+      const res = await platformFetch('/admin/system-settings/refresh', { method: 'POST' });
+      if (res.success) {
+        showWrToast('설정 캐시가 갱신되었습니다.');
+        loadDbSystemSettings();
+      } else {
+        throw new Error(res.detail || '캐시 갱신 실패');
+      }
+    } catch (e) {
+      console.error('[refreshDbSettingsCache] 오류:', e);
+      alert(`캐시 갱신 실패: ${e.message}`);
+    }
+  }
+
   // ── Dashboard Figma 개선 함수들 ────────────────────────────────────
   let _dashboardRefreshInterval = null;
 
@@ -11595,6 +11798,7 @@ LIMIT 10`;
     showToast(`Chunk Build 실행 중... ${getRuntimeGpuModeLabel('chunk')}`, 'info');
     try {
       const sourceId = getCurrentSourceId?.() || '';
+      const snapshotId = getCurrentSnapshotId?.() || getSelectedSnapshot?.() || '';
       if (!sourceId) {
         throw new Error('Document Source를 먼저 선택하세요.');
       }
@@ -11603,6 +11807,7 @@ LIMIT 10`;
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(getStep5ChunkRequestPayload({
           source_id: sourceId,
+          snapshot_id: snapshotId || null,
         })),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -11627,32 +11832,41 @@ LIMIT 10`;
       if (!sourceId) {
         throw new Error('Document Source를 먼저 선택하세요.');
       }
-      const model = document.getElementById('dbStep6EmbedModel')?.value || 'nomic-embed-text';
+      const model = document.getElementById('dbStep6EmbedModel')?.value || getPreferredEmbeddingModel('nomic-embed-text');
       const batchSize = parseInt(document.getElementById('dbStep6BatchSize')?.value || '32', 10) || 32;
       const retryCount = parseInt(document.getElementById('dbStep6RetryCount')?.value || '3', 10) || 3;
+      const snapshotId = getCurrentSnapshotId?.() || getSelectedSnapshot?.() || '';
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step6/embed'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source_id: sourceId,
+          snapshot_id: snapshotId || null,
           model,
           batch_size: batchSize,
           retry_count: retryCount,
           force_rebuild: _wizardForceRebuild || false
         }),
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
-      if (d.success) {
-        if (d.embedding_dim) {
-          const dimEl = document.getElementById('dbStep6EmbedDim');
-          if (dimEl) dimEl.value = String(d.embedding_dim);
-        }
-        showToast(`Embedding Build 완료! 처리: ${d.processed || 0}개, 모델: ${d.model || model}`, 'success', 5000);
-        if (typeof loadEmbeddingPca3d === 'function') setTimeout(() => loadEmbeddingPca3d(), 300);
-      } else {
-        showToast('Embedding Build 실패: ' + (d.message || d.error), 'error');
+      const startData = await r.json().catch(() => ({}));
+      if (!r.ok || startData.success === false) {
+        throw new Error(startData.detail || startData.message || `HTTP ${r.status}`);
       }
+      const jobId = startData.job_id;
+      showToast(`Embedding Build 작업 시작: ${jobId}`, 'info', 4000);
+      const d = await _pollStep6EmbeddingJob(null, jobId, {
+        onProgress: (status) => {
+          const progress = Number(status.progress || 0);
+          const stage = status.stage || '임베딩 진행 중';
+          showToast(`${stage} (${progress}%)`, 'info', 1500);
+        }
+      });
+      if (d.embedding_dim) {
+        const dimEl = document.getElementById('dbStep6EmbedDim');
+        if (dimEl) dimEl.value = String(d.embedding_dim);
+      }
+      showToast(`Embedding Build 완료! 처리: ${d.processed || 0}개, 모델: ${d.model || model}`, 'success', 5000);
+      if (typeof loadEmbeddingPca3d === 'function') setTimeout(() => loadEmbeddingPca3d(), 300);
       if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
       if (typeof refreshDatasetBuilderUiAssistants === 'function') refreshDatasetBuilderUiAssistants('db-step-6');
     } catch (e) {
@@ -11746,7 +11960,7 @@ LIMIT 10`;
       const wikiType = document.getElementById('wrStep8WikiType')?.value
         || document.getElementById('wikiBuildGroupBy')?.value
         || 'project';
-      const model = document.getElementById('wrStep8LlmModel')?.value || 'llama3:8b';
+      const model = document.getElementById('wrStep8LlmModel')?.value || 'qwen3:8b';
       if (!sourceId) throw new Error('Document Source가 선택되지 않았습니다.');
       const r = await fetch(apiUrl('/api/admin/llm-wiki/build'), {
         method: 'POST',
@@ -12944,6 +13158,49 @@ LIMIT 10`;
     throw lastError || new Error('Step 4 작업 상태 조회 실패');
   }
 
+  async function _getStep6EmbeddingJob(jobId) {
+    const response = await fetch(apiUrl(`/api/admin/dataset-builder/step6/embed/jobs/${jobId}`), {
+      headers: { Authorization: 'Bearer ' + getToken() }
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || `HTTP ${response.status}`);
+    }
+    return await response.json().catch(() => ({}));
+  }
+
+  async function _pollStep6EmbeddingJob(step, jobId, options = {}) {
+    const intervalMs = Number(options.intervalMs || 3000);
+    const timeoutMs = Number(options.timeoutMs || 60 * 60 * 1000);
+    const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+    const startedAt = Date.now();
+    let lastStage = '';
+
+    while (Date.now() - startedAt < timeoutMs) {
+      const data = await _getStep6EmbeddingJob(jobId);
+      const stage = String(data.stage || '');
+      const progress = Number(data.progress || 0);
+
+      if (stage && stage !== lastStage) {
+        lastStage = stage;
+        if (step) _wizardAppendLog(step, `[poll ${progress}%] ${stage}`);
+      }
+
+      if (onProgress) onProgress(data);
+
+      if (data.status === 'completed') {
+        return data.result || data;
+      }
+      if (data.status === 'failed') {
+        throw new Error(data.error || 'Embedding Build 실패');
+      }
+
+      await _wizardSleep(intervalMs);
+    }
+
+    throw new Error('Embedding Build 상태 조회 타임아웃');
+  }
+
   async function _wizardPollStep4JobUntilDone(step, jobId, options = {}) {
     const intervalMs = Number(options.intervalMs || 3000);
     const timeoutMs = Number(options.timeoutMs || 60 * 60 * 1000);
@@ -13055,7 +13312,7 @@ LIMIT 10`;
       try {
         const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
         const datasetId = getCurrentDatasetId?.() || '';
-        const model = document.getElementById('dbStep6EmbedModel')?.value || 'nomic-embed-text';
+        const model = document.getElementById('dbStep6EmbedModel')?.value || getPreferredEmbeddingModel('nomic-embed-text');
         const batchSize = parseInt(document.getElementById('dbStep6BatchSize')?.value || '32', 10) || 32;
         const retryCount = parseInt(document.getElementById('dbStep6RetryCount')?.value || '3', 10) || 3;
         const existingSnapshot = _wizardFaissSnapshot || getSelectedSnapshot?.() || '';
@@ -13090,16 +13347,23 @@ LIMIT 10`;
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
             source_id: sourceId,
+            snapshot_id: snapshotId,
             model,
             batch_size: batchSize,
             retry_count: retryCount,
             force_rebuild: _wizardForceRebuild || false,
           }),
         });
-        const embedData = await embedResponse.json().catch(() => ({}));
-        if (!embedResponse.ok || embedData.success === false) {
-          throw new Error(embedData.detail || embedData.message || `HTTP ${embedResponse.status}`);
+        const embedStartData = await embedResponse.json().catch(() => ({}));
+        if (!embedResponse.ok || embedStartData.success === false) {
+          throw new Error(embedStartData.detail || embedStartData.message || `HTTP ${embedResponse.status}`);
         }
+        _wizardAppendLog(step, `Embedding Job 시작: ${embedStartData.job_id || '-'}`);
+        const embedData = await _pollStep6EmbeddingJob(step, embedStartData.job_id, {
+          onProgress: (statusData) => {
+            _wizardSetStatus(step, `임베딩 진행 중... ${statusData.job_id || ''}`.trim(), 'running');
+          }
+        });
         _wizardAppendLog(step, `임베딩 완료: 처리 ${embedData.processed || 0}개, 건너뜀 ${embedData.skipped || 0}개, 벡터 ${embedData.total_embeddings || 0}개`);
 
         _wizardAppendLog(step, 'POST /api/admin/dataset-builder/step7/build');
@@ -13224,7 +13488,7 @@ LIMIT 10`;
       const snapshot = _wizardFaissSnapshot || getSelectedSnapshot();
       const groupBy = document.getElementById('wikiBuildGroupBy')?.value || 'project';
       const wikiType = ['project', 'organization', 'technology'].includes(groupBy) ? groupBy : 'project';
-      const model = document.getElementById('wikiBuildModel')?.value || 'llama3:8b';
+      const model = document.getElementById('wikiBuildModel')?.value || 'qwen3:8b';
       if (!sourceId) {
         _wizardMarkError(step, 'Document Source가 선택되지 않았습니다.');
         return false;

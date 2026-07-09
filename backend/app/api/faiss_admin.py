@@ -31,6 +31,7 @@ from pydantic import BaseModel
 
 from app.core.auth import require_admin_token
 from app.core.config import settings
+from app.services.runtime_model_settings import get_runtime_embedding_model
 from app.services import faiss_job_runner as runner
 from app.services.active_snapshot_state import get_active_snapshot_state
 from app.services.dataset_context import generate_dataset_id, get_source_dataset_context
@@ -38,6 +39,7 @@ from app.services.incremental_rag_service import add_documents_to_active_snapsho
 from app.models.snapshot_manifest import SnapshotManifest
 from app.services.rag_runtime import run_rag_query, get_active_snapshot
 from app.services.snapshot_manager import delete_snapshot as delete_snapshot_service
+from app.services.snapshot_registry_service import activate_snapshot_registry, list_snapshot_registry
 
 router = APIRouter(
     prefix="/admin/faiss",
@@ -257,12 +259,12 @@ async def faiss_status():
 
     active_embedding_model = (
         _normalize_embedding_model(snapshot_manifest.rag_build.embedding_model) if snapshot_manifest else None
-    ) or _normalize_embedding_model(active_payload.get("embedding_model")) or settings.ollama_embed_model
+    ) or _normalize_embedding_model(active_payload.get("embedding_model")) or get_runtime_embedding_model()
 
     # 서버 실제 설정값 (운영 .env 기준)
     server_config = {
         "embedding_provider": settings.embedding_provider,
-        "embedding_model": active_embedding_model,
+        "embedding_model": get_runtime_embedding_model(active_embedding_model),
         "embedding_dim": settings.embedding_dim,
         "max_embed_chars": settings.max_embed_chars,
         "ollama_host": settings.ollama_host,
@@ -271,7 +273,7 @@ async def faiss_status():
         "active_snapshot": snapshot,  # active_index.json에서 읽은 값 사용
         "active_source_id": source_id,
         "active_dataset_id": dataset_id,
-        "active_embedding_model": active_embedding_model,
+        "active_embedding_model": get_runtime_embedding_model(active_embedding_model),
     }
 
     if not active:
@@ -297,19 +299,75 @@ async def faiss_status():
 
 @router.get("/indexes")
 async def list_indexes():
-    """FAISS 인덱스 디렉토리에서 사용 가능한 스냅샷 목록."""
+    """레지스트리/파일시스템 기준으로 사용 가능한 스냅샷 목록."""
     active = runner.read_active_index()
-    active_snapshot = (active or {}).get("snapshot", "")
+    active_snapshot = (active or {}).get("snapshot", "") or (active or {}).get("active_snapshot", "")
     snapshots = _list_snapshots()
+    merged: dict[str, dict] = {}
+
+    for row in list_snapshot_registry():
+        snapshot_id = str(row.get("snapshot_id") or "").strip()
+        if not snapshot_id:
+            continue
+        stats = _index_stats(snapshot_id)
+        merged[snapshot_id] = {
+            "snapshot": snapshot_id,
+            "snapshot_id": snapshot_id,
+            "snapshot_name": row.get("snapshot_name") or snapshot_id,
+            "source_id": row.get("source_id") or "",
+            "dataset_id": row.get("dataset_id") or "",
+            "status": row.get("status") or "",
+            "is_active": bool(row.get("is_active")) or snapshot_id == active_snapshot,
+            "queryable": bool(row.get("queryable")),
+            "doc_count": int(row.get("document_count") or 0),
+            "document_count": int(row.get("document_count") or 0),
+            "vector_count": int(row.get("vector_count") or 0),
+            "chunk_count": int(row.get("chunk_count") or 0),
+            "faiss_index_id": row.get("faiss_index_id") or snapshot_id,
+            "index_file": row.get("index_file") or "",
+            "metadata_file": row.get("metadata_file") or "",
+            "manifest_file": row.get("manifest_path") or "",
+            "registry_backed": True,
+            **stats,
+        }
+
+    for snapshot_id in snapshots:
+        stats = _index_stats(snapshot_id)
+        source_id, dataset_id = _resolve_snapshot_source_dataset(snapshot_id)
+        current = merged.get(snapshot_id, {})
+        merged[snapshot_id] = {
+            "snapshot": snapshot_id,
+            "snapshot_id": snapshot_id,
+            "snapshot_name": current.get("snapshot_name") or snapshot_id,
+            "source_id": current.get("source_id") or source_id or "",
+            "dataset_id": current.get("dataset_id") or dataset_id or "",
+            "status": current.get("status") or "",
+            "is_active": bool(current.get("is_active")) or snapshot_id == active_snapshot,
+            "queryable": bool(current.get("queryable")) or bool(stats.get("index_exists")),
+            "doc_count": int(current.get("doc_count") or current.get("document_count") or 0),
+            "document_count": int(current.get("document_count") or current.get("doc_count") or 0),
+            "vector_count": int(current.get("vector_count") or 0),
+            "chunk_count": int(current.get("chunk_count") or stats.get("chunk_count") or 0),
+            "faiss_index_id": current.get("faiss_index_id") or snapshot_id,
+            "index_file": current.get("index_file") or "",
+            "metadata_file": current.get("metadata_file") or "",
+            "manifest_file": current.get("manifest_file") or "",
+            "registry_backed": bool(current.get("registry_backed")),
+            **stats,
+        }
+
+    items = sorted(
+        merged.values(),
+        key=lambda row: (
+            bool(row.get("is_active")),
+            bool(row.get("index_exists")),
+            str(row.get("created_at") or ""),
+            str(row.get("snapshot") or ""),
+        ),
+        reverse=True,
+    )
     return {
-        "indexes": [
-            {
-                "snapshot":  s,
-                "is_active": s == active_snapshot,
-                **_index_stats(s),
-            }
-            for s in snapshots
-        ]
+        "indexes": items
     }
 
 # 작성일: 2026-05-12 | 기능: 특정 스냅샷의 카테고리 서브-인덱스 상세 정보 반환
@@ -468,6 +526,12 @@ async def activate_index(req: ActivateRequest):
         req.dataset_id,
     )
     result = runner.activate_snapshot(req.snapshot, resolved_source_id, resolved_dataset_id)
+    activate_snapshot_registry(
+        req.snapshot,
+        source_id=resolved_source_id,
+        dataset_id=resolved_dataset_id,
+        activated_at=result.get("activated_at"),
+    )
     return {
         "activated": result,
         "stats": stats,

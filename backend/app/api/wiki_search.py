@@ -6,6 +6,11 @@ Wiki 데이터 검색 API:
 3차: 파일 본문 내용
 
 검색 결과는 근거 자료로 반환됩니다.
+
+[2026-07-08] 3개 Wiki 타입 디렉토리 검색 지원:
+- projects/ (프로젝트 Wiki)
+- organizations/ (기관 Wiki)
+- technologies/ (기술 Wiki)
 """
 
 from fastapi import APIRouter, Query, HTTPException
@@ -20,10 +25,14 @@ router = APIRouter(prefix="/wiki", tags=["Wiki Search"])
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 WIKI_DIR = PROJECT_ROOT / "data" / "wiki"
 
+# 지원하는 Wiki 타입 디렉토리 목록
+WIKI_TYPE_DIRS = ["projects", "organizations", "technologies"]
+
 
 class WikiSearchHit(BaseModel):
     """Wiki 검색 결과 항목"""
     match_level: str = Field(..., description="매칭 레벨: directory, filename, content")
+    wiki_type: str = Field(default="project", description="Wiki 타입: project, organization, technology")
     project_folder: str = Field(..., description="프로젝트 폴더명")
     project_name: str = Field(..., description="프로젝트명")
     wiki_file: str = Field(..., description="Wiki 파일명")
@@ -42,8 +51,29 @@ class WikiSearchResponse(BaseModel):
     search_time_ms: float
 
 
+def _dir_to_wiki_type(dir_name: str) -> str:
+    """디렉토리 이름을 wiki_type 단수형으로 변환."""
+    mapping = {"projects": "project", "organizations": "organization", "technologies": "technology"}
+    return mapping.get(dir_name, "project")
+
+
+def _normalize_doc_ids(values) -> list[int]:
+    """"DOC-000123" 같은 레거시 문자열 ID와 정수 ID를 모두 정수로 변환한다.
+
+    [2026-07-08] 작업지시서에 따라 추가.
+    WikiSearchHit.document_ids가 List[int]로 선언되어 있으므로,
+    레거시 문자열 ID가 남아 있어도 검색이 죽지 않도록 방어한다.
+    """
+    result = []
+    for v in values or []:
+        m = re.search(r"(\d+)$", str(v))
+        if m:
+            result.append(int(m.group(1)))
+    return result
+
+
 def search_wiki_directories(query: str, source_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    """1차: 디렉토리명(프로젝트 폴더) 검색"""
+    """1차: 디렉토리명(프로젝트 폴더) 검색 - index.json 기반."""
     hits = []
     pattern = re.compile(re.escape(query), re.IGNORECASE)
 
@@ -66,16 +96,17 @@ def search_wiki_directories(query: str, source_id: Optional[str] = None) -> List
         try:
             index_data = json.loads(index_path.read_text(encoding='utf-8'))
 
-            for project in index_data:
-                project_folder = project.get("project_folder", "")
+            for entry in index_data:
+                project_folder = entry.get("project_folder", "")
                 if pattern.search(project_folder):
                     hits.append({
                         "match_level": "directory",
+                        "wiki_type": entry.get("wiki_type", "project"),
                         "project_folder": project_folder,
-                        "project_name": project.get("project_name", project_folder),
-                        "wiki_file": project.get("wiki_file", ""),
+                        "project_name": entry.get("project_name", project_folder),
+                        "wiki_file": entry.get("wiki_file", ""),
                         "source_id": src_id,
-                        "document_ids": project.get("document_ids", []),
+                        "document_ids": _normalize_doc_ids(entry.get("document_ids", [])),
                         "matched_text": project_folder,
                         "score": 1.0  # 디렉토리명 매칭: 최고 점수
                     })
@@ -86,7 +117,7 @@ def search_wiki_directories(query: str, source_id: Optional[str] = None) -> List
 
 
 def search_wiki_filenames(query: str, source_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    """2차: 파일명 검색"""
+    """2차: 파일명 검색 - 3개 타입 디렉토리 모두 검색."""
     hits = []
     pattern = re.compile(re.escape(query), re.IGNORECASE)
 
@@ -101,39 +132,43 @@ def search_wiki_filenames(query: str, source_id: Optional[str] = None) -> List[D
                 wiki_sources.append((source_dir.name, source_dir))
 
     for src_id, source_dir in wiki_sources:
-        projects_dir = source_dir / "projects"
-        if not projects_dir.exists():
-            continue
-
+        # index.json 로드
         index_path = source_dir / "index.json"
         index_map = {}
         if index_path.exists():
             try:
                 index_data = json.loads(index_path.read_text(encoding='utf-8'))
-                for proj in index_data:
-                    index_map[proj.get("wiki_file", "")] = proj
+                for entry in index_data:
+                    index_map[entry.get("wiki_file", "")] = entry
             except Exception:
                 pass
 
-        for wiki_file in projects_dir.glob("*.md"):
-            if pattern.search(wiki_file.stem):
-                proj_info = index_map.get(wiki_file.name, {})
-                hits.append({
-                    "match_level": "filename",
-                    "project_folder": proj_info.get("project_folder", wiki_file.stem),
-                    "project_name": proj_info.get("project_name", wiki_file.stem),
-                    "wiki_file": wiki_file.name,
-                    "source_id": src_id,
-                    "document_ids": proj_info.get("document_ids", []),
-                    "matched_text": wiki_file.stem,
-                    "score": 0.8  # 파일명 매칭
-                })
+        # 3개 타입 디렉토리 모두 검색
+        for type_dir_name in WIKI_TYPE_DIRS:
+            type_dir = source_dir / type_dir_name
+            if not type_dir.exists():
+                continue
+
+            for wiki_file in type_dir.glob("*.md"):
+                if pattern.search(wiki_file.stem):
+                    entry_info = index_map.get(wiki_file.name, {})
+                    hits.append({
+                        "match_level": "filename",
+                        "wiki_type": entry_info.get("wiki_type", _dir_to_wiki_type(type_dir_name)),
+                        "project_folder": entry_info.get("project_folder", wiki_file.stem),
+                        "project_name": entry_info.get("project_name", wiki_file.stem),
+                        "wiki_file": wiki_file.name,
+                        "source_id": src_id,
+                        "document_ids": _normalize_doc_ids(entry_info.get("document_ids", [])),
+                        "matched_text": wiki_file.stem,
+                        "score": 0.8  # 파일명 매칭
+                    })
 
     return hits
 
 
 def search_wiki_content(query: str, source_id: Optional[str] = None, max_snippets: int = 3) -> List[Dict[str, Any]]:
-    """3차: 본문 내용 검색"""
+    """3차: 본문 내용 검색 - 3개 타입 디렉토리 모두 검색."""
     hits = []
     pattern = re.compile(re.escape(query), re.IGNORECASE)
 
@@ -148,53 +183,57 @@ def search_wiki_content(query: str, source_id: Optional[str] = None, max_snippet
                 wiki_sources.append((source_dir.name, source_dir))
 
     for src_id, source_dir in wiki_sources:
-        projects_dir = source_dir / "projects"
-        if not projects_dir.exists():
-            continue
-
+        # index.json 로드
         index_path = source_dir / "index.json"
         index_map = {}
         if index_path.exists():
             try:
                 index_data = json.loads(index_path.read_text(encoding='utf-8'))
-                for proj in index_data:
-                    index_map[proj.get("wiki_file", "")] = proj
+                for entry in index_data:
+                    index_map[entry.get("wiki_file", "")] = entry
             except Exception:
                 pass
 
-        for wiki_file in projects_dir.glob("*.md"):
-            try:
-                content = wiki_file.read_text(encoding='utf-8', errors='replace')
+        # 3개 타입 디렉토리 모두 검색
+        for type_dir_name in WIKI_TYPE_DIRS:
+            type_dir = source_dir / type_dir_name
+            if not type_dir.exists():
+                continue
 
-                # 매칭되는 부분 찾기
-                matches = list(pattern.finditer(content))
-                if not matches:
-                    continue
+            for wiki_file in type_dir.glob("*.md"):
+                try:
+                    content = wiki_file.read_text(encoding='utf-8', errors='replace')
 
-                # 각 매칭 위치에서 스니펫 추출
-                snippets = []
-                for match in matches[:max_snippets]:
-                    start = max(0, match.start() - 100)
-                    end = min(len(content), match.end() + 100)
-                    snippet = content[start:end].strip()
-                    # 줄바꿈을 공백으로 변환
-                    snippet = re.sub(r'\s+', ' ', snippet)
-                    snippets.append(f"...{snippet}...")
+                    # 매칭되는 부분 찾기
+                    matches = list(pattern.finditer(content))
+                    if not matches:
+                        continue
 
-                proj_info = index_map.get(wiki_file.name, {})
-                hits.append({
-                    "match_level": "content",
-                    "project_folder": proj_info.get("project_folder", wiki_file.stem),
-                    "project_name": proj_info.get("project_name", wiki_file.stem),
-                    "wiki_file": wiki_file.name,
-                    "source_id": src_id,
-                    "document_ids": proj_info.get("document_ids", []),
-                    "matched_text": " | ".join(snippets),
-                    "score": 0.6  # 본문 매칭
-                })
+                    # 각 매칭 위치에서 스니펫 추출
+                    snippets = []
+                    for match in matches[:max_snippets]:
+                        start = max(0, match.start() - 100)
+                        end = min(len(content), match.end() + 100)
+                        snippet = content[start:end].strip()
+                        # 줄바꿈을 공백으로 변환
+                        snippet = re.sub(r'\s+', ' ', snippet)
+                        snippets.append(f"...{snippet}...")
 
-            except Exception:
-                pass
+                    entry_info = index_map.get(wiki_file.name, {})
+                    hits.append({
+                        "match_level": "content",
+                        "wiki_type": entry_info.get("wiki_type", _dir_to_wiki_type(type_dir_name)),
+                        "project_folder": entry_info.get("project_folder", wiki_file.stem),
+                        "project_name": entry_info.get("project_name", wiki_file.stem),
+                        "wiki_file": wiki_file.name,
+                        "source_id": src_id,
+                        "document_ids": _normalize_doc_ids(entry_info.get("document_ids", [])),
+                        "matched_text": " | ".join(snippets),
+                        "score": 0.6  # 본문 매칭
+                    })
+
+                except Exception:
+                    pass
 
     return hits
 
@@ -254,7 +293,7 @@ async def search_wiki(
 
 @router.get("/status")
 async def get_wiki_status(source_id: Optional[str] = None):
-    """Wiki 인덱스 상태 조회"""
+    """Wiki 인덱스 상태 조회 - 3개 타입 디렉토리 지원."""
     try:
         if source_id:
             source_dirs = [WIKI_DIR / source_id] if (WIKI_DIR / source_id).exists() else []
@@ -265,15 +304,22 @@ async def get_wiki_status(source_id: Optional[str] = None):
         for source_dir in source_dirs:
             build_info_path = source_dir / "build_info.json"
             index_path = source_dir / "index.json"
-            projects_dir = source_dir / "projects"
 
-            wiki_count = len(list(projects_dir.glob("*.md"))) if projects_dir.exists() else 0
+            # 3개 타입 디렉토리의 Wiki 개수 집계
+            wiki_counts = {}
+            total_wiki_count = 0
+            for type_dir_name in WIKI_TYPE_DIRS:
+                type_dir = source_dir / type_dir_name
+                count = len(list(type_dir.glob("*.md"))) if type_dir.exists() else 0
+                wiki_counts[type_dir_name] = count
+                total_wiki_count += count
 
             source_info = {
                 "source_id": source_dir.name,
                 "has_build_info": build_info_path.exists(),
                 "has_index": index_path.exists(),
-                "wiki_count": wiki_count
+                "wiki_count": total_wiki_count,
+                "wiki_counts_by_type": wiki_counts
             }
 
             if build_info_path.exists():

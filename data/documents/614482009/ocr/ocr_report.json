@@ -1,0 +1,196 @@
+{
+  "document_id": "614482009",
+  "file_name": "RFP_국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_614482009",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 11916,
+  "quality": {
+    "text_length": 11916,
+    "char_count": 8578,
+    "korean_count": 7523,
+    "english_count": 141,
+    "number_count": 127,
+    "special_count": 787,
+    "garbage_count": 0,
+    "korean_ratio": 0.877,
+    "english_ratio": 0.0164,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구.hwp",
+    "section_group": "RFP_국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "제 안 요 청 서",
+          "<표>",
+          ". 7.",
+          "<그림>",
+          "디지털혁신본부 국제농업실",
+          ". 개요"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "제 안 요 청 서",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "2025. 7.",
+              "<표>",
+              "<그림>",
+              "디지털혁신본부 국제농업실",
+              "<표>",
+              "<표>",
+              "1. 개요"
+            ],
+            "keywords": [
+              "제 안 요 청 서",
+              "<표>",
+              ". 7.",
+              "<그림>",
+              "디지털혁신본부 국제농업실",
+              ". 개요"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "제 안 요 청 서",
+      "organization": "디지털혁신본부",
+      "project_name": ") 국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구",
+      "date": "2025년 7월",
+      "document_type": "",
+      "keywords": [],
+      "confidence": 0.9
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업 추진 방향",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "디지털농정 현황 분석",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "분야별 수준진단 요소 발굴 및 분류체계 개발",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "디지털농정 전환 수준진단 도구 개발",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "사업 추진 방향",
+        "디지털농정 현황 분석",
+        "분야별 수준진단 요소 발굴 및 분류체계 개발",
+        "디지털농정 전환 수준진단 도구 개발"
+      ],
+      "keywords": [
+        "도구",
+        "발굴",
+        "수준진단",
+        "현황",
+        "전환",
+        "개발",
+        "요소",
+        "방향",
+        "분야별",
+        "추진",
+        "사업",
+        "분석",
+        "디지털농정",
+        "분류체계"
+      ],
+      "confidence": 0.5
+    },
+    "detected_sections": [
+      "사업 추진 방향",
+      "디지털농정 현황 분석",
+      "분야별 수준진단 요소 발굴 및 분류체계 개발",
+      "디지털농정 전환 수준진단 도구 개발",
+      "사업명",
+      "담당",
+      "사업기간",
+      "추진배경",
+      "주요내용",
+      "추진체계",
+      "추진일정"
+    ],
+    "document_summary": "제 안 요 청 서 | 제 안 요 청 서  <표>  2025. 7.  <표>  <그림>  디지털혁신본부 국제농업실  <표>  <표>  1. 개요  <그림>  (사업명) 국제농업협력사업(ODA) 정보화 수준진단 도구 개발 및 현지조사 방안 연구  <그림>  (사업목적) 우리나라 디지털농정 모델의 해외 확산 및 역량 수준에 맞는 단계적 로드맵 제시에 필요한 맞춤형 디지털농정 전환을",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:04:25",
+  "updated_at": "2026-07-07T15:04:25",
+  "processing_time_ms": 1542
+}

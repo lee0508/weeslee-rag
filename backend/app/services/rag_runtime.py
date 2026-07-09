@@ -15,6 +15,7 @@ except Exception as exc:  # pragma: no cover
     raise RuntimeError("faiss-cpu is required for rag_runtime") from exc
 
 from app.core.config import settings
+from app.services.runtime_model_settings import get_runtime_embedding_model
 from app.services.active_snapshot_state import get_active_snapshot_id as get_db_active_snapshot_id
 
 
@@ -38,10 +39,11 @@ def _snapshots_dir() -> Path:
 
 def _active_snapshot_paths() -> list[Path]:
     return [
-        # Snapshot V2 state should override the older flat active file.
+        _active_index_path(),
+        # Snapshot V2 state should override the older flat active file only when
+        # the explicit active index is absent.
         _snapshots_dir() / "active_snapshot.json",
         PROJECT_ROOT / "data" / "active_snapshot.json",
-        _active_index_path(),
     ]
 
 
@@ -254,7 +256,7 @@ def _build_args(
         embedding_provider=settings.embedding_provider,
         embedding_dim=settings.embedding_dim,
         ollama_embed_url=settings.ollama_embed_url,
-        ollama_embed_model=settings.ollama_embed_model,
+        ollama_embed_model=get_runtime_embedding_model(),
         answer_provider=answer_provider or settings.answer_provider,
         answer_model=answer_model or settings.answer_model,
         ollama_generate_url=settings.ollama_generate_url,

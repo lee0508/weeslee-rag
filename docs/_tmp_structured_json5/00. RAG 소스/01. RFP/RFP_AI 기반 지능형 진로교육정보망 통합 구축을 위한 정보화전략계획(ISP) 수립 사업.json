@@ -1,0 +1,1160 @@
+{
+  "file_name": "RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.hwp",
+  "section_group": "01. RFP",
+  "document_type": "hwp",
+  "total_slides": 70,
+  "structure_mode": "manual_rfp_sample",
+  "sections": [
+    {
+      "section_id": "1",
+      "section_name": "사업 개요",
+      "slide_range": [
+        4,
+        4
+      ],
+      "slide_numbers": [
+        4
+      ],
+      "slide_label": "페이지 4",
+      "keywords": [
+        "사업 개요",
+        "추진 배경 및 필요성",
+        "사업 범위",
+        "기대효과 및 성과지표"
+      ],
+      "subsections": [
+        {
+          "section_id": "1.1",
+          "section_name": "추진 배경 및 필요성",
+          "parent_section": "사업 개요",
+          "slide_range": [
+            4,
+            4
+          ],
+          "slide_numbers": [
+            4
+          ],
+          "slide_label": "페이지 4",
+          "subsections": [],
+          "content_items": [
+            "추진 배경 및 필요성"
+          ],
+          "keywords": [
+            "추진 배경 및 필요성"
+          ]
+        },
+        {
+          "section_id": "1.2",
+          "section_name": "사업 범위",
+          "parent_section": "사업 개요",
+          "slide_range": [
+            5,
+            5
+          ],
+          "slide_numbers": [
+            5
+          ],
+          "slide_label": "페이지 5",
+          "subsections": [],
+          "content_items": [
+            "사업 범위"
+          ],
+          "keywords": [
+            "사업 범위"
+          ]
+        },
+        {
+          "section_id": "1.3",
+          "section_name": "기대효과 및 성과지표",
+          "parent_section": "사업 개요",
+          "slide_range": [
+            8,
+            8
+          ],
+          "slide_numbers": [
+            8
+          ],
+          "slide_label": "페이지 8",
+          "subsections": [],
+          "content_items": [
+            "기대효과 및 성과지표"
+          ],
+          "keywords": [
+            "기대효과 및 성과지표"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "2",
+      "section_name": "현황 및 문제점",
+      "slide_range": [
+        9,
+        9
+      ],
+      "slide_numbers": [
+        9
+      ],
+      "slide_label": "페이지 9",
+      "keywords": [
+        "현황 및 문제점",
+        "서비스 현황",
+        "정보화 현황",
+        "선진사례",
+        "문제점 및 개선 방향"
+      ],
+      "subsections": [
+        {
+          "section_id": "2.1",
+          "section_name": "서비스 현황",
+          "parent_section": "현황 및 문제점",
+          "slide_range": [
+            9,
+            9
+          ],
+          "slide_numbers": [
+            9
+          ],
+          "slide_label": "페이지 9",
+          "subsections": [],
+          "content_items": [
+            "서비스 현황"
+          ],
+          "keywords": [
+            "서비스 현황"
+          ]
+        },
+        {
+          "section_id": "2.2",
+          "section_name": "정보화 현황",
+          "parent_section": "현황 및 문제점",
+          "slide_range": [
+            12,
+            12
+          ],
+          "slide_numbers": [
+            12
+          ],
+          "slide_label": "페이지 12",
+          "subsections": [],
+          "content_items": [
+            "정보화 현황"
+          ],
+          "keywords": [
+            "정보화 현황"
+          ]
+        },
+        {
+          "section_id": "2.3",
+          "section_name": "선진사례",
+          "parent_section": "현황 및 문제점",
+          "slide_range": [
+            18,
+            18
+          ],
+          "slide_numbers": [
+            18
+          ],
+          "slide_label": "페이지 18",
+          "subsections": [],
+          "content_items": [
+            "선진사례"
+          ],
+          "keywords": [
+            "선진사례"
+          ]
+        },
+        {
+          "section_id": "2.4",
+          "section_name": "문제점 및 개선 방향",
+          "parent_section": "현황 및 문제점",
+          "slide_range": [
+            19,
+            19
+          ],
+          "slide_numbers": [
+            19
+          ],
+          "slide_label": "페이지 19",
+          "subsections": [],
+          "content_items": [
+            "문제점 및 개선 방향"
+          ],
+          "keywords": [
+            "문제점 및 개선 방향"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "3",
+      "section_name": "사업 추진방안",
+      "slide_range": [
+        21,
+        21
+      ],
+      "slide_numbers": [
+        21
+      ],
+      "slide_label": "페이지 21",
+      "keywords": [
+        "사업 추진방안",
+        "추진 폭표",
+        "추진전략",
+        "추진체계",
+        "추진일정"
+      ],
+      "subsections": [
+        {
+          "section_id": "3.1",
+          "section_name": "추진 폭표",
+          "parent_section": "사업 추진방안",
+          "slide_range": [
+            21,
+            21
+          ],
+          "slide_numbers": [
+            21
+          ],
+          "slide_label": "페이지 21",
+          "subsections": [],
+          "content_items": [
+            "추진 폭표"
+          ],
+          "keywords": [
+            "추진 폭표"
+          ]
+        },
+        {
+          "section_id": "3.2",
+          "section_name": "추진전략",
+          "parent_section": "사업 추진방안",
+          "slide_range": [
+            22,
+            22
+          ],
+          "slide_numbers": [
+            22
+          ],
+          "slide_label": "페이지 22",
+          "subsections": [],
+          "content_items": [
+            "추진전략"
+          ],
+          "keywords": [
+            "추진전략"
+          ]
+        },
+        {
+          "section_id": "3.3",
+          "section_name": "추진체계",
+          "parent_section": "사업 추진방안",
+          "slide_range": [
+            23,
+            23
+          ],
+          "slide_numbers": [
+            23
+          ],
+          "slide_label": "페이지 23",
+          "subsections": [],
+          "content_items": [
+            "추진체계"
+          ],
+          "keywords": [
+            "추진체계"
+          ]
+        },
+        {
+          "section_id": "3.4",
+          "section_name": "추진일정",
+          "parent_section": "사업 추진방안",
+          "slide_range": [
+            24,
+            24
+          ],
+          "slide_numbers": [
+            24
+          ],
+          "slide_label": "페이지 24",
+          "subsections": [],
+          "content_items": [
+            "추진일정"
+          ],
+          "keywords": [
+            "추진일정"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "4",
+      "section_name": "제안요청 내용",
+      "slide_range": [
+        25,
+        25
+      ],
+      "slide_numbers": [
+        25
+      ],
+      "slide_label": "페이지 25",
+      "keywords": [
+        "제안요청 내용",
+        "제안요청 개요",
+        "용어의 정의",
+        "상세 요구사항"
+      ],
+      "subsections": [
+        {
+          "section_id": "4.1",
+          "section_name": "제안요청 개요",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            25,
+            25
+          ],
+          "slide_numbers": [
+            25
+          ],
+          "slide_label": "페이지 25",
+          "subsections": [],
+          "content_items": [
+            "제안요청 개요"
+          ],
+          "keywords": [
+            "제안요청 개요"
+          ]
+        },
+        {
+          "section_id": "4.2",
+          "section_name": "용어의 정의",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            25,
+            25
+          ],
+          "slide_numbers": [
+            25
+          ],
+          "slide_label": "페이지 25",
+          "subsections": [],
+          "content_items": [
+            "용어의 정의"
+          ],
+          "keywords": [
+            "용어의 정의"
+          ]
+        },
+        {
+          "section_id": "4.3",
+          "section_name": "상세 요구사항",
+          "parent_section": "제안요청 내용",
+          "slide_range": [
+            28,
+            28
+          ],
+          "slide_numbers": [
+            28
+          ],
+          "slide_label": "페이지 28",
+          "subsections": [],
+          "content_items": [
+            "상세 요구사항"
+          ],
+          "keywords": [
+            "상세 요구사항"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "5",
+      "section_name": "제안서 작성 요령",
+      "slide_range": [
+        51,
+        51
+      ],
+      "slide_numbers": [
+        51
+      ],
+      "slide_label": "페이지 51",
+      "keywords": [
+        "제안서 작성 요령",
+        "제안서의 효력",
+        "제안서 작성 지침 및 유의 사항",
+        "제안서 목차",
+        "제안서 세부 작성 지침",
+        "제안 안내 사항",
+        "기타 사항",
+        "[붙임 : 제안서 및 입찰 관련 서식]"
+      ],
+      "subsections": [
+        {
+          "section_id": "5.1",
+          "section_name": "제안서의 효력",
+          "parent_section": "제안서 작성 요령",
+          "slide_range": [
+            51,
+            51
+          ],
+          "slide_numbers": [
+            51
+          ],
+          "slide_label": "페이지 51",
+          "subsections": [],
+          "content_items": [
+            "제안서의 효력"
+          ],
+          "keywords": [
+            "제안서의 효력"
+          ]
+        },
+        {
+          "section_id": "5.2",
+          "section_name": "제안서 작성 지침 및 유의 사항",
+          "parent_section": "제안서 작성 요령",
+          "slide_range": [
+            52,
+            52
+          ],
+          "slide_numbers": [
+            52
+          ],
+          "slide_label": "페이지 52",
+          "subsections": [],
+          "content_items": [
+            "제안서 작성 지침 및 유의 사항"
+          ],
+          "keywords": [
+            "제안서 작성 지침 및 유의 사항"
+          ]
+        },
+        {
+          "section_id": "5.3",
+          "section_name": "제안서 목차",
+          "parent_section": "제안서 작성 요령",
+          "slide_range": [
+            54,
+            54
+          ],
+          "slide_numbers": [
+            54
+          ],
+          "slide_label": "페이지 54",
+          "subsections": [],
+          "content_items": [
+            "제안서 목차"
+          ],
+          "keywords": [
+            "제안서 목차"
+          ]
+        },
+        {
+          "section_id": "5.4",
+          "section_name": "제안서 세부 작성 지침",
+          "parent_section": "제안서 작성 요령",
+          "slide_range": [
+            55,
+            55
+          ],
+          "slide_numbers": [
+            55
+          ],
+          "slide_label": "페이지 55",
+          "subsections": [],
+          "content_items": [
+            "제안서 세부 작성 지침"
+          ],
+          "keywords": [
+            "제안서 세부 작성 지침"
+          ]
+        },
+        {
+          "section_id": "5.5",
+          "section_name": "제안 안내 사항",
+          "parent_section": "제안서 작성 요령",
+          "slide_range": [
+            57,
+            57
+          ],
+          "slide_numbers": [
+            57
+          ],
+          "slide_label": "페이지 57",
+          "subsections": [],
+          "content_items": [
+            "제안 안내 사항"
+          ],
+          "keywords": [
+            "제안 안내 사항"
+          ]
+        },
+        {
+          "section_id": "5.6",
+          "section_name": "기타 사항",
+          "parent_section": "제안서 작성 요령",
+          "slide_range": [
+            68,
+            68
+          ],
+          "slide_numbers": [
+            68
+          ],
+          "slide_label": "페이지 68",
+          "subsections": [],
+          "content_items": [
+            "기타 사항"
+          ],
+          "keywords": [
+            "기타 사항"
+          ]
+        },
+        {
+          "section_id": "5.7",
+          "section_name": "[붙임 : 제안서 및 입찰 관련 서식]",
+          "parent_section": "제안서 작성 요령",
+          "slide_range": [
+            70,
+            70
+          ],
+          "slide_numbers": [
+            70
+          ],
+          "slide_label": "페이지 70",
+          "subsections": [],
+          "content_items": [
+            "[붙임 : 제안서 및 입찰 관련 서식]"
+          ],
+          "keywords": [
+            "[붙임 : 제안서 및 입찰 관련 서식]"
+          ]
+        }
+      ]
+    }
+  ],
+  "cover_page": {
+    "title": "제안요청서",
+    "organization": "한국직업능력연구원",
+    "project_name": "AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업",
+    "date": "2023. 5.",
+    "document_type": "제안요청서",
+    "confidence": 0.9
+  },
+  "toc": {
+    "sections": [],
+    "section_titles": [],
+    "keywords": [],
+    "confidence": 0.0
+  },
+  "detected_sections": [
+    "사업 개요",
+    "현황 및 문제점",
+    "사업 추진방안",
+    "제안요청 내용",
+    "제안서 작성 요령"
+  ],
+  "document_summary": "AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업 | 제안요청서 AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업 한국직업능력연구원 2023. 5. 담당: 국가진로교육연구센터 연구원 박봉남, 044-415-5381, torid@krivet.re.kr 연구원 안중석, 044-415-3880, jsahn@krivet.re.kr 사업 개요 추진 배경 및 필요성 사업 범위 기",
+  "page_types": [
+    "cover"
+  ],
+  "manual_sample": {
+    "original_lines": [
+      "경로명: C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP",
+      "파일명: RFP_AI 기반 지능형 진로교육정보망 통합 구축을 위한 정보화전략계획(ISP) 수립 사업.hwp",
+      "표지내용 - page 1",
+      "1. 제목: 제안요청서",
+      "2. 사업명: AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업",
+      "3. 주관기관: 한국직업능력연구원",
+      "4. 년월: 2023. 5.",
+      "5. 담당: 국가진로교육연구센터",
+      "6. 연구원 박봉남, 044-415-5381, torid@krivet.re.kr",
+      "7. 연구원 안중석, 044-415-3880, jsahn@krivet.re.kr",
+      "목차 - page 2 - 3",
+      "사업 개요  - page 4",
+      "  - 추진 배경 및 필요성 - page 4",
+      "  - 사업 범위 - page 5",
+      "  - 기대효과 및 성과지표 - page 8",
+      "현황 및 문제점 - page 9",
+      "  - 서비스 현황 - page 9",
+      "  - 정보화 현황 - page 12",
+      "  - 선진사례 - page 18",
+      "  - 문제점 및 개선 방향 - page 19",
+      "사업 추진방안 - page 21",
+      "  - 추진 폭표 - page 21",
+      "  - 추진전략 - page 22",
+      "  - 추진체계 - page 23",
+      "  - 추진일정 - page 24",
+      "제안요청 내용 - page 25",
+      "  - 제안요청 개요 - page 25",
+      "  - 용어의 정의 - page 25",
+      "  - 상세 요구사항 - page 28",
+      "제안서 작성 요령 - page 51",
+      "  - 제안서의 효력 - page 51",
+      "  - 제안서 작성 지침 및 유의 사항 - page 52",
+      "  - 제안서 목차 - page 54",
+      "  - 제안서 세부 작성 지침 - page 55",
+      "  - 제안 안내 사항 - page 57",
+      "  - 기타 사항 - page 68",
+      "  - [붙임 : 제안서 및 입찰 관련 서식] - page 70"
+    ],
+    "cover_lines": [
+      "1. 제목: 제안요청서",
+      "2. 사업명: AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업",
+      "3. 주관기관: 한국직업능력연구원",
+      "4. 년월: 2023. 5.",
+      "5. 담당: 국가진로교육연구센터",
+      "6. 연구원 박봉남, 044-415-5381, torid@krivet.re.kr",
+      "7. 연구원 안중석, 044-415-3880, jsahn@krivet.re.kr"
+    ],
+    "toc_lines": [
+      "목차 - page 2 - 3"
+    ]
+  },
+  "pattern_metadata": {
+    "project_name": "AI 기반 지능형 진로교육정보망 통합을 위한 정보화전략계획() 사업",
+    "project_type": "ISP",
+    "category": "",
+    "document_type": "RFP",
+    "organization": "한국직업능력연구원",
+    "year": 2023,
+    "technology_keywords": [
+      "AI",
+      "지능형"
+    ],
+    "domain": "교육",
+    "detected_sections": [
+      "사업 개요",
+      "추진 배경 및 필요성",
+      "사업 범위",
+      "기대효과 및 성과지표",
+      "현황 및 문제점",
+      "서비스 현황",
+      "정보화 현황",
+      "선진사례",
+      "문제점 및 개선 방향",
+      "사업 추진방안",
+      "추진 폭표",
+      "추진전략",
+      "추진체계",
+      "추진일정",
+      "제안요청 내용",
+      "제안요청 개요",
+      "용어의 정의",
+      "상세 요구사항",
+      "제안서 작성 요령",
+      "제안서의 효력"
+    ],
+    "keywords": [
+      "RFP",
+      "AI",
+      "기반",
+      "지능형",
+      "진로교육정보망",
+      "통합",
+      "구축을",
+      "위한",
+      "정보화전략계획",
+      "ISP",
+      "방향",
+      "세부",
+      "제안서",
+      "re",
+      "제안요청",
+      "추진일정",
+      "관련",
+      "요구사항",
+      "요령",
+      "제안요청서",
+      "사항",
+      "용어의",
+      "입찰",
+      "제안서의",
+      "개선",
+      "정보화",
+      "기대효과",
+      "추진체계",
+      "kr",
+      "선진사례"
+    ],
+    "summary": "AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업 | 제안요청서 AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업 한국직업능력연구원 2023. 5. 담당: 국가진로교육연구센터 연구원 박봉남, 044-415-5381, torid@krivet.re.kr 연구원 안중석, 044-415-3880, jsahn@krivet.re.kr 사업 개요 추진 배경 및 필요성 사업 범위 기",
+    "confidence": 1.0,
+    "metadata_source": "rfp_pattern_analyzer",
+    "cover_page": {
+      "title": "제안요청서",
+      "organization": "한국직업능력연구원",
+      "project_name": "AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업",
+      "date": "2023년 5월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "제안요청서"
+      ],
+      "confidence": 1.0
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업 개요",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "추진 배경 및 필요성",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "사업 범위",
+          "page": 5
+        },
+        {
+          "level": 2,
+          "title": "기대효과 및 성과지표",
+          "page": 8
+        },
+        {
+          "level": 1,
+          "title": "현황 및 문제점",
+          "page": 9
+        },
+        {
+          "level": 2,
+          "title": "서비스 현황",
+          "page": 9
+        },
+        {
+          "level": 2,
+          "title": "정보화 현황",
+          "page": 12
+        },
+        {
+          "level": 2,
+          "title": "선진사례",
+          "page": 18
+        },
+        {
+          "level": 2,
+          "title": "문제점 및 개선 방향",
+          "page": 19
+        },
+        {
+          "level": 1,
+          "title": "사업 추진방안",
+          "page": 21
+        },
+        {
+          "level": 2,
+          "title": "추진 폭표",
+          "page": 21
+        },
+        {
+          "level": 2,
+          "title": "추진전략",
+          "page": 22
+        },
+        {
+          "level": 2,
+          "title": "추진체계",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "추진일정",
+          "page": 24
+        },
+        {
+          "level": 1,
+          "title": "제안요청 내용",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "제안요청 개요",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "용어의 정의",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "상세 요구사항",
+          "page": 28
+        },
+        {
+          "level": 1,
+          "title": "제안서 작성 요령",
+          "page": 51
+        },
+        {
+          "level": 2,
+          "title": "제안서의 효력",
+          "page": 51
+        },
+        {
+          "level": 2,
+          "title": "제안서 작성 지침 및 유의 사항",
+          "page": 52
+        },
+        {
+          "level": 2,
+          "title": "제안서 목차",
+          "page": 54
+        },
+        {
+          "level": 2,
+          "title": "제안서 세부 작성 지침",
+          "page": 55
+        },
+        {
+          "level": 2,
+          "title": "제안 안내 사항",
+          "page": 57
+        },
+        {
+          "level": 2,
+          "title": "기타 사항",
+          "page": 68
+        },
+        {
+          "level": 2,
+          "title": "[붙임 : 제안서 및 입찰 관련 서식]",
+          "page": 70
+        }
+      ],
+      "section_titles": [
+        "사업 개요",
+        "추진 배경 및 필요성",
+        "사업 범위",
+        "기대효과 및 성과지표",
+        "현황 및 문제점",
+        "서비스 현황",
+        "정보화 현황",
+        "선진사례",
+        "문제점 및 개선 방향",
+        "사업 추진방안",
+        "추진 폭표",
+        "추진전략",
+        "추진체계",
+        "추진일정",
+        "제안요청 내용",
+        "제안요청 개요",
+        "용어의 정의",
+        "상세 요구사항",
+        "제안서 작성 요령",
+        "제안서의 효력",
+        "제안서 작성 지침 및 유의 사항",
+        "제안서 목차",
+        "제안서 세부 작성 지침",
+        "제안 안내 사항",
+        "기타 사항",
+        "[붙임 : 제안서 및 입찰 관련 서식]"
+      ],
+      "keywords": [
+        "방향",
+        "세부",
+        "제안서",
+        "제안요청",
+        "추진일정",
+        "관련",
+        "요구사항",
+        "요령",
+        "사항",
+        "용어의",
+        "입찰",
+        "제안서의",
+        "개선",
+        "정보화",
+        "개요",
+        "기대효과",
+        "추진체계",
+        "선진사례",
+        "상세",
+        "안내"
+      ],
+      "confidence": 1.0
+    }
+  },
+  "metadata_auto": {
+    "document_type": "RFP",
+    "project_name": "AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업",
+    "organization": "한국직업능력연구원",
+    "project_year": "2023",
+    "business_domain": "ISP",
+    "technology_tags": [
+      "지능형",
+      "AI",
+      "RAG"
+    ],
+    "business_tags": [
+      "ISP"
+    ],
+    "deliverable_tags": [],
+    "summary": "AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업 | 제안요청서 AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업 한국직업능력연구원 2023. 5. 담당: 국가진로교육연구센터 연구원 박봉남, 044-415-5381, torid@krivet.re.kr 연구원 안중석, 044-415-3880, jsahn@krivet.re.kr 사업 개요 추진 배경 및 필요성 사업 범위 기",
+    "reuse_level": "high",
+    "confidence": 1.0,
+    "reason": "RFP 패턴 분석 기반; 문서 그룹: RFP; 감지된 섹션: 20개; 표지 정보 포함; 목차 정보 포함",
+    "year": 2023,
+    "project_type": "ISP",
+    "domain": "교육",
+    "detected_sections": [
+      "제안서 작성 요령",
+      "사업 추진방안",
+      "추진일정",
+      "사업 범위",
+      "용어의 정의",
+      "제안요청 내용",
+      "사업 개요",
+      "기대효과 및 성과지표",
+      "제안요청 개요",
+      "문제점 및 개선 방향",
+      "제안서의 효력",
+      "추진체계",
+      "추진 배경 및 필요성",
+      "추진 폭표",
+      "선진사례",
+      "제안서 세부 작성 지침",
+      "제안서 목차",
+      "상세 요구사항",
+      "제안 안내 사항",
+      "추진전략"
+    ],
+    "keywords": [
+      "방향",
+      "세부",
+      "제안서",
+      "re",
+      "제안요청",
+      "추진일정",
+      "선진사례",
+      "관련",
+      "지능형",
+      "요구사항",
+      "RFP",
+      "진로교육정보망",
+      "통합",
+      "위한",
+      "요령",
+      "제안요청서",
+      "사항",
+      "용어의",
+      "AI",
+      "입찰",
+      "구축을",
+      "제안서의",
+      "ISP",
+      "개선",
+      "정보화",
+      "정보화전략계획",
+      "기대효과",
+      "추진체계",
+      "kr",
+      "기반"
+    ],
+    "cover_page": {
+      "title": "제안요청서",
+      "organization": "한국직업능력연구원",
+      "project_name": "AI 기반 지능형 진로교육정보망 통합 구축을     위한 정보화전략계획(ISP) 수립 사업",
+      "date": "2023년 5월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "제안요청서"
+      ],
+      "confidence": 1.0
+    },
+    "title": "제안요청서",
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "사업 개요",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "추진 배경 및 필요성",
+          "page": 4
+        },
+        {
+          "level": 2,
+          "title": "사업 범위",
+          "page": 5
+        },
+        {
+          "level": 2,
+          "title": "기대효과 및 성과지표",
+          "page": 8
+        },
+        {
+          "level": 1,
+          "title": "현황 및 문제점",
+          "page": 9
+        },
+        {
+          "level": 2,
+          "title": "서비스 현황",
+          "page": 9
+        },
+        {
+          "level": 2,
+          "title": "정보화 현황",
+          "page": 12
+        },
+        {
+          "level": 2,
+          "title": "선진사례",
+          "page": 18
+        },
+        {
+          "level": 2,
+          "title": "문제점 및 개선 방향",
+          "page": 19
+        },
+        {
+          "level": 1,
+          "title": "사업 추진방안",
+          "page": 21
+        },
+        {
+          "level": 2,
+          "title": "추진 폭표",
+          "page": 21
+        },
+        {
+          "level": 2,
+          "title": "추진전략",
+          "page": 22
+        },
+        {
+          "level": 2,
+          "title": "추진체계",
+          "page": 23
+        },
+        {
+          "level": 2,
+          "title": "추진일정",
+          "page": 24
+        },
+        {
+          "level": 1,
+          "title": "제안요청 내용",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "제안요청 개요",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "용어의 정의",
+          "page": 25
+        },
+        {
+          "level": 2,
+          "title": "상세 요구사항",
+          "page": 28
+        },
+        {
+          "level": 1,
+          "title": "제안서 작성 요령",
+          "page": 51
+        },
+        {
+          "level": 2,
+          "title": "제안서의 효력",
+          "page": 51
+        },
+        {
+          "level": 2,
+          "title": "제안서 작성 지침 및 유의 사항",
+          "page": 52
+        },
+        {
+          "level": 2,
+          "title": "제안서 목차",
+          "page": 54
+        },
+        {
+          "level": 2,
+          "title": "제안서 세부 작성 지침",
+          "page": 55
+        },
+        {
+          "level": 2,
+          "title": "제안 안내 사항",
+          "page": 57
+        },
+        {
+          "level": 2,
+          "title": "기타 사항",
+          "page": 68
+        },
+        {
+          "level": 2,
+          "title": "[붙임 : 제안서 및 입찰 관련 서식]",
+          "page": 70
+        }
+      ],
+      "section_titles": [
+        "사업 개요",
+        "추진 배경 및 필요성",
+        "사업 범위",
+        "기대효과 및 성과지표",
+        "현황 및 문제점",
+        "서비스 현황",
+        "정보화 현황",
+        "선진사례",
+        "문제점 및 개선 방향",
+        "사업 추진방안",
+        "추진 폭표",
+        "추진전략",
+        "추진체계",
+        "추진일정",
+        "제안요청 내용",
+        "제안요청 개요",
+        "용어의 정의",
+        "상세 요구사항",
+        "제안서 작성 요령",
+        "제안서의 효력",
+        "제안서 작성 지침 및 유의 사항",
+        "제안서 목차",
+        "제안서 세부 작성 지침",
+        "제안 안내 사항",
+        "기타 사항",
+        "[붙임 : 제안서 및 입찰 관련 서식]"
+      ],
+      "keywords": [
+        "방향",
+        "세부",
+        "제안서",
+        "제안요청",
+        "추진일정",
+        "관련",
+        "요구사항",
+        "요령",
+        "사항",
+        "용어의",
+        "입찰",
+        "제안서의",
+        "개선",
+        "정보화",
+        "개요",
+        "기대효과",
+        "추진체계",
+        "선진사례",
+        "상세",
+        "안내"
+      ],
+      "confidence": 1.0
+    },
+    "metadata_source": "enhanced",
+    "primary_source": "rfp_pattern",
+    "document_group": "RFP",
+    "category": "제안요청서",
+    "folder_name": "00. RAG 소스\\01. RFP"
+  }
+}

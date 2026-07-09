@@ -1,0 +1,17 @@
+{
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_552394830",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_민간형 정보시스템 구축 ISP 수립.hwpx",
+  "snapshot_id": "",
+  "ocr": {
+    "engine": "tesseract",
+    "dpi": 300,
+    "language": "kor+eng",
+    "min_text_length": 50,
+    "parser_type": "hwpx-zip"
+  },
+  "document_id": "552394830",
+  "updated_at": "2026-07-07T15:04:43.712721",
+  "created_at": "2026-07-07T15:04:43.705529"
+}

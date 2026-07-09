@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
 """
 Admin API endpoints for document management and RAG pipeline
 """
@@ -36,6 +37,17 @@ from app.services.runtime_compute_settings import (
 )
 from app.services.snapshot_registry_service import list_snapshot_registry
 from app.core.config import settings
+from app.services.runtime_model_settings import get_runtime_embedding_model
+
+
+def _get_ollama_host() -> str:
+    """DB 설정 우선, 없으면 config fallback."""
+    try:
+        from app.services.system_settings_service import get_endpoint_setting
+        return get_endpoint_setting("ollama_host", settings.ollama_host)
+    except Exception:
+        return settings.ollama_host
+
 from app.models.document_pipeline_status import DatasetStatusSummary
 
 
@@ -562,7 +574,7 @@ async def system_check():
     # Ollama
     ollama_ok, ollama_msg = False, ""
     try:
-        r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
+        r = httpx.get(f"{_get_ollama_host()}/api/tags", timeout=3.0)
         ollama_ok = r.status_code == 200
         tags = [m.get("name", "") for m in r.json().get("models", [])]
         ollama_msg = f"{len(tags)} models: {', '.join(tags[:5])}"
@@ -636,7 +648,7 @@ async def get_admin_stats_cached():
     ollama_ok = False
     try:
         import httpx
-        r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
+        r = httpx.get(f"{_get_ollama_host()}/api/tags", timeout=3.0)
         ollama_ok = r.status_code == 200
     except Exception:
         pass
@@ -726,7 +738,7 @@ async def get_admin_stats():
     ollama_ok = False
     try:
         import httpx
-        r = httpx.get("http://localhost:11434/api/tags", timeout=3.0)
+        r = httpx.get(f"{_get_ollama_host()}/api/tags", timeout=3.0)
         ollama_ok = r.status_code == 200
     except Exception:
         pass
@@ -1407,17 +1419,13 @@ async def get_dataset_status_summary(source_id: Optional[str] = None):
         db.close()
 
     # ── Step 4: OCR/Parser ─────────────────────────────────────────────────
-    # processed_text 디렉토리에서 OCR 완료 문서 집계
-    text_dir = project_root / "data" / "processed_text"
     quality_sum = 0.0
     quality_count = 0
-
-    if text_dir.exists():
-        text_files = list(text_dir.glob("*.txt"))
-        summary.step4_completed = len(text_files)
-
-        # OCR 품질 정보가 있는 경우 집계 (향후 구현)
-        # ocr_report.json 파일에서 품질 점수 읽기
+    try:
+        step4_stats = processed_text_store.get_statistics()
+        summary.step4_completed = int(step4_stats.get("done", 0))
+    except Exception:
+        pass
 
     if quality_count > 0:
         summary.step4_avg_quality = round(quality_sum / quality_count, 3)
@@ -1448,7 +1456,7 @@ async def get_dataset_status_summary(source_id: Optional[str] = None):
                 # Step 6: Embedding (manifest에서 읽기)
                 summary.step6_total_embeddings = summary.step5_total_chunks
                 summary.step6_completed = summary.step5_completed
-                summary.step6_embedding_model = settings.ollama_embed_model
+                summary.step6_embedding_model = get_runtime_embedding_model()
 
                 # Step 7: FAISS
                 summary.step7_snapshot_id = snapshot
@@ -1458,7 +1466,7 @@ async def get_dataset_status_summary(source_id: Optional[str] = None):
 
         # manifest가 없는 경우 index 파일 존재 여부만 확인
         elif (faiss_dir / f"{snapshot}_ollama.index").exists():
-            summary.step6_embedding_model = settings.ollama_embed_model
+            summary.step6_embedding_model = get_runtime_embedding_model()
             summary.step7_snapshot_id = snapshot
 
     # collection 수 집계 (glob은 빠름)

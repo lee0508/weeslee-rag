@@ -1,0 +1,17 @@
+{
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_362261117",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_디지털플랫폼 기반 범죄예방 교육 강화 및 대민업무 환경개선 로드맵 수립.hwp",
+  "snapshot_id": "",
+  "ocr": {
+    "engine": "tesseract",
+    "dpi": 300,
+    "language": "kor+eng",
+    "min_text_length": 50,
+    "parser_type": "hwp5txt_direct+supplements"
+  },
+  "document_id": "362261117",
+  "updated_at": "2026-07-07T15:04:37.769357",
+  "created_at": "2026-07-07T15:04:37.761092"
+}

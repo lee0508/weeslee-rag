@@ -1,0 +1,195 @@
+{
+  "document_id": "282495973",
+  "file_name": "RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_282495973",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 21732,
+  "quality": {
+    "text_length": 21732,
+    "char_count": 15444,
+    "korean_count": 13530,
+    "english_count": 273,
+    "number_count": 288,
+    "special_count": 1353,
+    "garbage_count": 0,
+    "korean_ratio": 0.8761,
+    "english_ratio": 0.0177,
+    "garbage_char_ratio": 0.0,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+    "section_group": "RFP_AI 기반 e-감사시스템 재구축 ISP 컨설팅.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "<그림>",
+          "<표>",
+          ". 4.",
+          "한국자산관리공사",
+          ". 사업개요",
+          "□ (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "<그림>",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "2025. 4.",
+              "한국자산관리공사",
+              "<표>",
+              "<표>",
+              "<표>",
+              "1. 사업개요",
+              "□ (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅"
+            ],
+            "keywords": [
+              "<그림>",
+              "<표>",
+              ". 4.",
+              "한국자산관리공사",
+              ". 사업개요",
+              "□ (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "<표>",
+      "organization": "한국자산관리공사",
+      "project_name": ") AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+      "date": "2025년 4월",
+      "document_type": "ISP",
+      "keywords": [],
+      "confidence": 1.0
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 1,
+          "title": "주요 사업 범위",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "주요 전산화 방향",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "기대 효과",
+          "page": null
+        },
+        {
+          "level": 1,
+          "title": "기타 일반 사항",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "주요 사업 범위",
+        "주요 전산화 방향",
+        "기대 효과",
+        "기타 일반 사항"
+      ],
+      "keywords": [
+        "전산화",
+        "기타",
+        "일반",
+        "범위",
+        "방향",
+        "기대",
+        "사업",
+        "효과",
+        "사항",
+        "주요"
+      ],
+      "confidence": 0.5
+    },
+    "detected_sections": [
+      "주요 사업 범위",
+      "주요 전산화 방향",
+      "기대 효과",
+      "기타 일반 사항",
+      "사업명",
+      "제안요청서",
+      "사업개요",
+      "사업내용",
+      "사업기간",
+      "추진배경",
+      "기대효과",
+      "이행계획 수립",
+      "제약사항",
+      "입찰 참가자격 요건"
+    ],
+    "document_summary": "<표> | <표>  2025. 4.   <그림>   한국자산관리공사  <표>  <표>  <표>  1. 사업개요   □ (사업명) AI 기반 e-감사시스템 재구축 ISP 컨설팅  □ (사업예산) 169,600,000원(부가가치세 포함)  □ (사업기간) 계약 체결일로부터 3개월   □ (업체 선정방식) 제한경쟁입찰(협상에 의한 계약*)   *「국가를 당사자로 하는 계약",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "감사",
+      "technology": "AI"
+    }
+  },
+  "created_at": "2026-07-07T15:03:07",
+  "updated_at": "2026-07-07T15:03:07",
+  "processing_time_ms": 5267
+}

@@ -1,0 +1,236 @@
+{
+  "document_id": "681356129",
+  "file_name": "RFP_KICE 연구사업관리시스템(RIMS) 재구축 정보화전략계획(ISP) 수립.hwp",
+  "source_path": "C:\\xampp\\htdocs\\weeslee-mnt\\00. RAG 소스\\01. RFP\\RFP_KICE 연구사업관리시스템(RIMS) 재구축 정보화전략계획(ISP) 수립.hwp",
+  "file_extension": ".hwp",
+  "source_id": "manual_rfp_sample",
+  "dataset_id": "manual_rfp_sample",
+  "document_uid": "manual_681356129",
+  "relative_path": "00. RAG 소스/01. RFP/RFP_KICE 연구사업관리시스템(RIMS) 재구축 정보화전략계획(ISP) 수립.hwp",
+  "project_name": "",
+  "organization": "",
+  "organization_type": "",
+  "client_type": "",
+  "project_type": "",
+  "parser_type": "hwp5txt_direct+supplements",
+  "ocr_required": false,
+  "ocr_engine": "tesseract",
+  "pdf_converted": false,
+  "status": "done",
+  "error_message": "",
+  "page_count": 0,
+  "text_length": 17137,
+  "quality": {
+    "text_length": 17137,
+    "char_count": 12083,
+    "korean_count": 10400,
+    "english_count": 232,
+    "number_count": 313,
+    "special_count": 1138,
+    "garbage_count": 1,
+    "korean_ratio": 0.8607,
+    "english_ratio": 0.0192,
+    "garbage_char_ratio": 0.0001,
+    "empty_page_count": 0,
+    "total_page_count": 0,
+    "empty_page_ratio": 0.0,
+    "cid_count": 0,
+    "cid_ratio": 0.0,
+    "cid_detected": false,
+    "quality_score": 1.0,
+    "decision": "use_direct_text",
+    "decision_reason": "품질 양호 (점수: 0.90)",
+    "warnings": [],
+    "recommendation": "excellent",
+    "rag_ready": true
+  },
+  "failed_pages": [],
+  "structured_data": {
+    "file_name": "RFP_KICE 연구사업관리시스템(RIMS) 재구축 정보화전략계획(ISP) 수립.hwp",
+    "source_path": "",
+    "relative_path": "00. RAG 소스/01. RFP/RFP_KICE 연구사업관리시스템(RIMS) 재구축 정보화전략계획(ISP) 수립.hwp",
+    "section_group": "RFP_KICE 연구사업관리시스템(RIMS) 재구축 정보화전략계획(ISP) 수립.hwp",
+    "document_type": "hwp",
+    "total_slides": 1,
+    "structure_mode": "semantic_sections",
+    "sections": [
+      {
+        "section_id": "1",
+        "section_name": "표지",
+        "slide_range": [
+          1,
+          1
+        ],
+        "slide_numbers": [
+          1
+        ],
+        "slide_label": "페이지 1",
+        "keywords": [
+          "표지",
+          "제안요청서",
+          "<표>",
+          ". 11.",
+          "<그림>",
+          "기획조정본부",
+          "[목차]"
+        ],
+        "subsections": [
+          {
+            "section_id": "1.1",
+            "section_name": "제안요청서",
+            "parent_section": "1. 표지",
+            "slide_range": [
+              1,
+              1
+            ],
+            "slide_numbers": [
+              1
+            ],
+            "slide_label": "페이지 1",
+            "subsections": [],
+            "content_items": [
+              "<표>",
+              "2023. 11.",
+              "<그림>",
+              "기획조정본부",
+              "[목차]",
+              "<표>",
+              "<표>",
+              "<표>"
+            ],
+            "keywords": [
+              "제안요청서",
+              "<표>",
+              ". 11.",
+              "<그림>",
+              "기획조정본부",
+              "[목차]"
+            ],
+            "page_type": "cover"
+          }
+        ]
+      }
+    ],
+    "cover_page": {
+      "title": "제안요청서",
+      "organization": "제안요청",
+      "project_name": "",
+      "date": "2023년 11월",
+      "document_type": "제안요청서",
+      "keywords": [
+        "제안요청서"
+      ],
+      "confidence": 0.8
+    },
+    "toc": {
+      "sections": [
+        {
+          "level": 2,
+          "title": "기대 효과",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "시스템 기능 현황",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진 목표",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진 전략",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진체계 및 역할",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진 일정 : 계약체결일 ~ 3개월",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "추진 방안",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "제안요청 개요",
+          "page": null
+        },
+        {
+          "level": 2,
+          "title": "상세 요구사항",
+          "page": null
+        }
+      ],
+      "section_titles": [
+        "기대 효과",
+        "시스템 기능 현황",
+        "추진 목표",
+        "추진 전략",
+        "추진체계 및 역할",
+        "추진 일정 : 계약체결일 ~ 3개월",
+        "추진 방안",
+        "제안요청 개요",
+        "상세 요구사항"
+      ],
+      "keywords": [
+        "계약체결일",
+        "개월",
+        "개요",
+        "상세",
+        "목표",
+        "현황",
+        "일정",
+        "역할",
+        "기능",
+        "기대",
+        "전략",
+        "추진",
+        "추진체계",
+        "효과",
+        "방안",
+        "시스템",
+        "요구사항",
+        "제안요청"
+      ],
+      "confidence": 1.0
+    },
+    "detected_sections": [
+      "기대 효과",
+      "시스템 기능 현황",
+      "추진 목표",
+      "추진 전략",
+      "추진체계 및 역할",
+      "추진 일정 : 계약체결일 ~ 3개월",
+      "추진 방안",
+      "제안요청 개요",
+      "상세 요구사항",
+      "목차",
+      "제안요청서",
+      "추진방향",
+      "추진체계",
+      "이행계획 수립",
+      "제약사항"
+    ],
+    "document_summary": "제안요청서 | 제안요청서  <표>  2023. 11.  <그림>  기획조정본부 [목차] <표>  <표>  <표>  가. 추진 배경 및 필요성  □ 디지털 환경변화에 부합하는 시스템 구축 필요  ◦ IT 기술발전에 따라 변화된 디지털 환경에 적용 가능한 시스템 구축   - MS의 IE 지원 종료(2022.06.15.)와 전자정부 표준프레임워크 전환으로 웹 표준 브라우저(크",
+    "page_types": [
+      "cover"
+    ],
+    "semantic_tags": {
+      "methodology": "",
+      "domain": "",
+      "technology": ""
+    }
+  },
+  "created_at": "2026-07-07T15:03:43",
+  "updated_at": "2026-07-07T15:03:43",
+  "processing_time_ms": 3172
+}

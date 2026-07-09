@@ -8,10 +8,21 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from pathlib import Path
 from datetime import datetime
+import re
 
 from app.core.database import get_db
+from app.services.dataset_context import update_source_dataset_status
 from app.services.chunking import ChunkingService
 from app.services.processed_text_store import ProcessedTextStore
+from app.services.source_artifact_index import sync_source_index
+
+# [2026-07-08] structured_json fallback을 위한 resolver 임포트
+try:
+    from app.services.structured_content_resolver import StructuredContentResolver
+    HAS_STRUCTURED_RESOLVER = True
+except ImportError:
+    HAS_STRUCTURED_RESOLVER = False
+    StructuredContentResolver = None
 
 router = APIRouter(prefix="/admin/dataset-builder/step5")
 
@@ -21,6 +32,7 @@ router = APIRouter(prefix="/admin/dataset-builder/step5")
 class ChunkBuildRequest(BaseModel):
     """청킹 설정 요청"""
     source_id: Optional[str] = Field(None, description="Document Source ID (특정 소스만 처리)")
+    snapshot_id: Optional[str] = Field(None, description="연결할 Snapshot ID")
     document_ids: Optional[List[int]] = Field(None, description="처리할 문서 ID 목록 (비어있으면 전체)")
     chunk_size: int = Field(512, ge=100, le=2000, description="청크 크기 (토큰)")
     chunk_overlap: int = Field(50, ge=0, le=500, description="청크 오버랩 (토큰)")
@@ -81,6 +93,90 @@ class DocumentChunksResponse(BaseModel):
 def get_text_store() -> ProcessedTextStore:
     """ProcessedTextStore 인스턴스 반환"""
     return ProcessedTextStore()
+
+
+_ORDER_PREFIX_RE = re.compile(r"^\s*\d+\.\s*")
+
+
+def strip_order_prefix(name: str) -> str:
+    """폴더/섹션명 앞의 '숫자. ' 접두사를 제거한다."""
+    return _ORDER_PREFIX_RE.sub("", str(name or "")).strip()
+
+
+def build_chunk_meta(doc, file_name: str, structured_data: dict, snapshot_id: str = "") -> dict:
+    """Step 5 청크 메타데이터를 정규화해 생성한다."""
+    organization = (
+        getattr(doc, "final_organization", None)
+        or getattr(doc, "ocr_organization", None)
+        or getattr(doc, "organization", None)
+        or getattr(doc, "scan_organization", None)
+        or ""
+    )
+    project_name = (
+        getattr(doc, "final_project_name", None)
+        or getattr(doc, "ocr_project_name", None)
+        or getattr(doc, "project_name", None)
+        or getattr(doc, "scan_project_name", None)
+        or ""
+    )
+
+    org_type = ""
+    project_type = ""
+    try:
+        from app.services.knowledge_graph import get_organization_type, classify_project_type
+
+        org_type = get_organization_type(organization) or ""
+        proj_types = classify_project_type(
+            " ".join(
+                part for part in [
+                    project_name,
+                    file_name,
+                    getattr(doc, "relative_path", "") or "",
+                ]
+                if part
+            )
+        )
+        project_type = proj_types[0] if proj_types else ""
+    except Exception:
+        org_type = getattr(doc, "organization_type", "") or ""
+        project_type = getattr(doc, "project_type", "") or ""
+
+    org_type = getattr(doc, "organization_type", "") or org_type
+    project_type = getattr(doc, "project_type", "") or project_type
+
+    chunk_meta = {
+        "document_id": doc.document_id,
+        "file_name": file_name,
+        "source_id": doc.source_id,
+        "dataset_id": doc.dataset_id,
+        "document_uid": doc.document_uid,
+        "relative_path": doc.relative_path,
+        "snapshot_id": snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+        "document_group": strip_order_prefix(getattr(doc, "document_group", "") or ""),
+        "document_category": strip_order_prefix(
+            getattr(doc, "final_document_category", None)
+            or getattr(doc, "scan_document_category", None)
+            or getattr(doc, "section_type", None)
+            or ""
+        ),
+        "category_id": getattr(doc, "category_id", "") or "",
+        "section_type": strip_order_prefix(getattr(doc, "section_type", "") or ""),
+        "project_name": project_name,
+        "organization": organization,
+        "organization_type": org_type,
+        "client_type": org_type,
+        "project_type": project_type,
+    }
+
+    semantic_tags = (structured_data or {}).get("semantic_tags") or {}
+    if semantic_tags:
+        chunk_meta.update({
+            "methodology": semantic_tags.get("methodology", ""),
+            "domain": semantic_tags.get("domain", ""),
+            "technology": semantic_tags.get("technology", ""),
+        })
+
+    return chunk_meta
 
 
 def save_chunks_to_store(document_id: int, chunks: list, text_store: ProcessedTextStore) -> dict:
@@ -243,6 +339,23 @@ async def build_chunks(
                 report = processed_text_store.get_report(str(document_id)) or {}
                 structured_data = processed_text_store.get_structured_data(str(document_id)) or {}
 
+                # [2026-07-08] structured_json fallback - sections 정보가 없으면 외부 파일에서 로드
+                if not structured_data.get("sections") and HAS_STRUCTURED_RESOLVER:
+                    try:
+                        resolver = StructuredContentResolver({
+                            "use_structured_txt": True,
+                            "use_structured_json": True,
+                            "prefer_structured_content": True,
+                        })
+                        external_content = resolver.resolve_document_content(doc)
+                        if external_content.get("structured_json"):
+                            external_json = external_content["structured_json"]
+                            if external_json.get("sections"):
+                                structured_data = external_json
+                                structured_data["_source"] = "structured_json_fallback"
+                    except Exception:
+                        pass  # fallback 실패 시 무시하고 기존 로직 진행
+
                 # Step 4 품질 게이트 통과 문서만 청킹한다.
                 quality_ok, quality_error = validate_step4_quality(document_id, processed_text_store)
                 if not quality_ok:
@@ -287,21 +400,7 @@ async def build_chunks(
                         "content": content,
                     })
 
-                chunk_meta = {
-                    "document_id": document_id,
-                    "file_name": file_name,
-                    "source_id": doc.source_id,
-                    "dataset_id": doc.dataset_id,
-                    "document_uid": doc.document_uid,
-                    "relative_path": doc.relative_path,
-                }
-                semantic_tags = structured_data.get("semantic_tags") or {}
-                if semantic_tags:
-                    chunk_meta.update({
-                        "methodology": semantic_tags.get("methodology", ""),
-                        "domain": semantic_tags.get("domain", ""),
-                        "technology": semantic_tags.get("technology", ""),
-                    })
+                chunk_meta = build_chunk_meta(doc, file_name, structured_data, req.snapshot_id or "")
 
                 # 청킹 실행
                 use_semantic = (
@@ -319,8 +418,29 @@ async def build_chunks(
                 save_result = save_chunks_to_store(document_id, chunks, text_store)
 
                 if save_result["success"]:
+                    text_store.save_run_config(
+                        str(document_id),
+                        {
+                            "source_id": doc.source_id or "",
+                            "dataset_id": doc.dataset_id or "",
+                            "document_uid": doc.document_uid or "",
+                            "relative_path": doc.relative_path or "",
+                            "snapshot_id": req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+                            "chunk": {
+                                "chunk_size": req.chunk_size,
+                                "chunk_overlap": req.chunk_overlap,
+                                "min_chunk_size": req.min_chunk_size,
+                                "chunking_mode": req.chunking_mode,
+                                "chunks_count": save_result["chunks_count"],
+                                "total_tokens": save_result["total_tokens"],
+                            },
+                        },
+                        snapshot_id=req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+                    )
                     processed += 1
                     total_chunks += save_result["chunks_count"]
+                    if req.snapshot_id:
+                        doc.faiss_snapshot = req.snapshot_id
                     doc.status = ProcessingStatus.CHUNKED.value
                     doc.chunk_count = save_result["chunks_count"]
                     doc.updated_at = datetime.utcnow()
@@ -354,6 +474,10 @@ async def build_chunks(
                 ))
 
         db.commit()
+        if req.source_id:
+            if processed > 0:
+                update_source_dataset_status(req.source_id, "chunked")
+            sync_source_index(req.source_id, db=db)
 
         return ChunkBuildResponse(
             success=True,

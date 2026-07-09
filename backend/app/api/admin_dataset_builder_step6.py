@@ -2,26 +2,42 @@
 """
 Step 5에서 생성된 청크에 대해 임베딩 벡터를 생성
 """
+import asyncio
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Any, Callable, List, Optional
 from pydantic import BaseModel, Field
 import numpy as np
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
 import random
 
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.core.config import settings
+from app.services.dataset_context import update_source_dataset_status
 from app.services.ollama import OllamaService, get_ollama
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.faiss_job_runner import read_active_index
+from app.services.runtime_model_settings import get_runtime_embedding_model
+from app.services.source_artifact_index import sync_source_index
+from app.services.chunking import TextChunk
+from app.services.contextual_chunking import ContextualEnricher, MeaningfulnessGate, OllamaContextLLM
+from app.services.late_chunking import (
+    LateChunkingEmbedder,
+    resolve_late_chunk_model_name,
+    supports_late_chunking,
+)
 
 router = APIRouter(prefix="/admin/dataset-builder/step6")
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 FAISS_DIR = DATA_DIR / "indexes" / "faiss"
+logger = logging.getLogger(__name__)
+_EMBEDDING_BUILD_JOBS: dict[str, dict[str, Any]] = {}
 
 
 # ── Request/Response Models ──────────────────────────────────────────────
@@ -29,11 +45,17 @@ FAISS_DIR = DATA_DIR / "indexes" / "faiss"
 class EmbeddingBuildRequest(BaseModel):
     """임베딩 생성 요청"""
     source_id: Optional[str] = Field(None, description="Document Source ID (특정 소스만 처리)")
+    snapshot_id: Optional[str] = Field(None, description="연결할 Snapshot ID")
     document_ids: Optional[List[int]] = Field(None, description="처리할 문서 ID 목록 (비어있으면 전체)")
-    model: str = Field("nomic-embed-text", description="임베딩 모델명")
+    model: Optional[str] = Field(None, description="임베딩 모델명")
     batch_size: int = Field(32, ge=1, le=100, description="배치 크기")
     retry_count: int = Field(3, ge=0, le=10, description="실패 시 재시도 횟수")
     force_rebuild: bool = Field(False, description="이미 임베딩된 문서도 재처리")
+    embedding_strategy: str = Field("auto", description="임베딩 전략 (auto, standard, late_chunking)")
+    contextual_retrieval_mode: str = Field("auto", description="Contextual Retrieval 적용 (auto, off, rfp, all)")
+    contextual_weight: float = Field(0.35, ge=0.0, le=1.0, description="Late Chunking + Contextual 결합 가중치")
+    drop_meaningless: bool = Field(False, description="Contextual 게이트 탈락 청크를 제외할지 여부")
+    wait_for_completion: bool = Field(False, description="True면 동기 실행 후 완료 응답 반환")
 
 
 class EmbeddingBuildResult(BaseModel):
@@ -57,6 +79,37 @@ class EmbeddingBuildResponse(BaseModel):
     results: List[EmbeddingBuildResult]
     model: str
     embedding_dim: int
+
+
+class EmbeddingBuildJobStartResponse(BaseModel):
+    success: bool
+    job_id: str
+    status: str
+    message: str
+    source_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    started_at: str
+
+
+class EmbeddingBuildJobStatusResponse(BaseModel):
+    success: bool
+    job_id: str
+    status: str
+    stage: str = ""
+    progress: int = 0
+    source_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    model: Optional[str] = None
+    total_documents: int = 0
+    processed: int = 0
+    failed: int = 0
+    skipped: int = 0
+    total_embeddings: int = 0
+    embedding_dim: int = 0
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    error: Optional[str] = None
+    result: Optional[dict[str, Any]] = None
 
 
 class EmbeddingStatusResponse(BaseModel):
@@ -104,6 +157,120 @@ class EmbeddingPcaResponse(BaseModel):
 def get_text_store() -> ProcessedTextStore:
     """ProcessedTextStore 인스턴스 반환"""
     return ProcessedTextStore()
+
+
+def _now_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _create_embedding_job(req: EmbeddingBuildRequest) -> dict[str, Any]:
+    job_id = str(uuid.uuid4())
+    job = {
+        "job_id": job_id,
+        "status": "running",
+        "stage": "초기화",
+        "progress": 0,
+        "source_id": req.source_id or "",
+        "snapshot_id": req.snapshot_id or "",
+        "model": req.model or "",
+        "total_documents": 0,
+        "processed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total_embeddings": 0,
+        "embedding_dim": 0,
+        "started_at": _now_iso(),
+        "finished_at": None,
+        "error": None,
+        "result": None,
+    }
+    _EMBEDDING_BUILD_JOBS[job_id] = job
+    return job
+
+
+def _update_embedding_job(job_id: str, **updates: Any) -> None:
+    job = _EMBEDDING_BUILD_JOBS.get(job_id)
+    if not job:
+        return
+    job.update(updates)
+
+
+def _get_embedding_job(job_id: str) -> Optional[dict[str, Any]]:
+    return _EMBEDDING_BUILD_JOBS.get(job_id)
+
+
+def _doc_to_text_chunks(chunks: list) -> list[TextChunk]:
+    result: list[TextChunk] = []
+    for idx, chunk in enumerate(chunks):
+        result.append(
+            TextChunk(
+                content=str(chunk.get("content") or ""),
+                index=int(chunk.get("chunk_index", idx) or idx),
+                start_char=int(chunk.get("start_char") or 0),
+                end_char=int(chunk.get("end_char") or 0),
+                token_count=int(chunk.get("token_count") or 0),
+                page_number=chunk.get("page_number"),
+                metadata=chunk.get("metadata") or {},
+            )
+        )
+    return result
+
+
+def _is_rfp_document(doc) -> bool:
+    candidates = [
+        doc.document_group,
+        doc.document_type,
+        doc.category_id,
+        doc.section_type,
+        doc.file_name,
+        doc.relative_path,
+    ]
+    joined = " ".join(str(value or "") for value in candidates).lower()
+    return "rfp" in joined or "제안요청서" in joined or "과업지시서" in joined
+
+
+def _resolve_embedding_strategy(req: EmbeddingBuildRequest) -> str:
+    strategy = str(req.embedding_strategy or "auto").strip().lower()
+    if strategy != "auto":
+        return strategy
+    return "late_chunking" if supports_late_chunking(req.model) else "standard"
+
+
+def _resolve_contextual_mode(req: EmbeddingBuildRequest, doc) -> str:
+    mode = str(req.contextual_retrieval_mode or "auto").strip().lower()
+    if mode in {"off", "all", "rfp"}:
+        return mode
+    return "rfp" if _is_rfp_document(doc) else "off"
+
+
+def _build_contextual_texts(
+    full_text: str,
+    chunk_objs: list[TextChunk],
+    req: EmbeddingBuildRequest,
+) -> tuple[list[str], int]:
+    context_llm = OllamaContextLLM(
+        model=getattr(settings, "contextual_retrieval_model", settings.ollama_model),
+        host=settings.ollama_host,
+        max_document_chars=getattr(settings, "contextual_retrieval_doc_chars", 6000),
+    )
+    enricher = ContextualEnricher(
+        gate=MeaningfulnessGate(),
+        context_llm=context_llm,
+        drop_meaningless=req.drop_meaningless,
+    )
+    enriched = enricher.enrich(full_text, chunk_objs)
+    by_index = {item.original.index: item for item in enriched}
+    ordered_texts: list[str] = []
+    contextual_count = 0
+    for chunk in chunk_objs:
+        item = by_index.get(chunk.index)
+        if not item:
+            ordered_texts.append(chunk.content)
+            continue
+        ordered_texts.append(item.embed_text or chunk.content)
+        if item.context:
+            contextual_count += 1
+    return ordered_texts, contextual_count
 
 
 def _eligible_documents_query(db: Session, source_id: Optional[str] = None):
@@ -288,7 +455,7 @@ def _build_snapshot_pca_response(source_id: Optional[str], sample_limit: int, gr
         except Exception:
             model_used = None
     if not model_used:
-        model_used = getattr(settings, "ollama_embed_model", None)
+        model_used = get_runtime_embedding_model()
 
     if not reservoir:
         return EmbeddingPcaResponse(
@@ -394,40 +561,71 @@ async def generate_embeddings_for_document(
     model: str,
     batch_size: int,
     retry_count: int,
+    req: EmbeddingBuildRequest,
     ollama: OllamaService,
     text_store: ProcessedTextStore
 ) -> dict:
     """문서의 청크들에 대해 임베딩 생성"""
     try:
-        # 청크 텍스트 추출
-        texts = [chunk["content"] for chunk in chunks]
+        full_text = text_store.get_text(str(document_id), format="txt") or ""
+        chunk_objs = _doc_to_text_chunks(chunks)
+        strategy = _resolve_embedding_strategy(req)
+        contextual_mode = _resolve_contextual_mode(req, doc_meta["doc"])
+        contextual_enabled = contextual_mode == "all" or (contextual_mode == "rfp" and _is_rfp_document(doc_meta["doc"]))
 
-        # 배치 단위로 임베딩 생성
-        all_embeddings = []
-        for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i:i + batch_size]
+        contextual_texts: list[str] = [chunk.content for chunk in chunk_objs]
+        contextual_chunks = 0
+        if contextual_enabled and full_text.strip():
+            contextual_texts, contextual_chunks = _build_contextual_texts(full_text, chunk_objs, req)
+
+        all_embeddings: list[list[float]] = []
+        late_chunking_applied = False
+        applied_strategy = "standard"
+
+        if strategy == "late_chunking" and full_text.strip():
             try:
-                batch_embeddings = await ollama.get_embeddings_batch(
-                    batch_texts,
-                    model=model,
-                    batch_size=batch_size,
+                late_embedder = LateChunkingEmbedder(
+                    model_name=resolve_late_chunk_model_name(model),
+                    model_max_length=getattr(settings, "late_chunk_model_max_length", 8192),
+                    macro_overlap_tokens=getattr(settings, "late_chunk_macro_overlap_tokens", 128),
                 )
-                all_embeddings.extend(batch_embeddings)
-            except Exception:
-                # 배치 실패 시 개별로 재시도
-                for text in batch_texts:
-                    emb = []
-                    for _ in range(retry_count + 1):
-                        try:
-                            emb = await ollama.get_embedding(text, model=model)
-                            if emb:
-                                break
-                        except Exception:
-                            emb = []
-                    # 실패한 청크는 빈 벡터로 채움
-                    all_embeddings.append(emb or [])
+                late_vectors = late_embedder.embed_existing_chunks(
+                    full_text,
+                    chunk_objs,
+                    contextual_texts=contextual_texts if contextual_enabled else None,
+                    contextual_weight=req.contextual_weight,
+                )
+                if len(late_vectors) == len(chunk_objs):
+                    all_embeddings = [item.embedding for item in late_vectors]
+                    late_chunking_applied = True
+                    applied_strategy = "late_chunking"
+            except Exception as exc:
+                applied_strategy = "standard_fallback"
+                logger.warning("Late chunking fallback for document %s: %s", document_id, exc)
 
-        # 임베딩 차원 확인
+        if not all_embeddings:
+            texts = contextual_texts if contextual_enabled else [chunk["content"] for chunk in chunks]
+            for i in range(0, len(texts), batch_size):
+                batch_texts = texts[i:i + batch_size]
+                try:
+                    batch_embeddings = await ollama.get_embeddings_batch(
+                        batch_texts,
+                        model=model,
+                        batch_size=batch_size,
+                    )
+                    all_embeddings.extend(batch_embeddings)
+                except Exception:
+                    for text in batch_texts:
+                        emb = []
+                        for _ in range(retry_count + 1):
+                            try:
+                                emb = await ollama.get_embedding(text, model=model)
+                                if emb:
+                                    break
+                            except Exception:
+                                emb = []
+                        all_embeddings.append(emb or [])
+
         valid_embeddings = [e for e in all_embeddings if len(e) > 0]
         if not valid_embeddings:
             return {
@@ -442,14 +640,24 @@ async def generate_embeddings_for_document(
             document_id,
             all_embeddings,
             model=model,
-            metadata=doc_meta,
+            metadata={
+                **doc_meta,
+                "embedding_provider": "late_chunking_hf" if late_chunking_applied else "ollama",
+                "embedding_strategy": applied_strategy,
+                "contextual_retrieval_mode": contextual_mode if contextual_enabled else "off",
+                "contextual_model": getattr(settings, "contextual_retrieval_model", settings.ollama_model) if contextual_enabled else "",
+                "late_chunking_applied": late_chunking_applied,
+                "contextual_chunks": contextual_chunks,
+            },
         )
 
         return {
             "success": True,
             "chunks_count": len(chunks),
             "embeddings_count": len(valid_embeddings),
-            "embedding_dim": embedding_dim
+            "embedding_dim": embedding_dim,
+            "embedding_strategy": applied_strategy,
+            "contextual_retrieval_mode": contextual_mode if contextual_enabled else "off",
         }
 
     except Exception as e:
@@ -461,17 +669,13 @@ async def generate_embeddings_for_document(
 
 # ── API Endpoints ────────────────────────────────────────────────────────
 
-@router.post("/embed", response_model=EmbeddingBuildResponse)
-async def build_embeddings(
+async def execute_embedding_build(
     req: EmbeddingBuildRequest,
-    db: Session = Depends(get_db),
-    ollama: OllamaService = Depends(get_ollama)
-):
-    """
-    Step 6: 임베딩 생성 실행
-
-    Step 5에서 생성된 청크에 대해 임베딩 벡터를 생성합니다.
-    """
+    db: Session,
+    ollama: OllamaService,
+    progress_callback: Optional[Callable[..., None]] = None,
+) -> EmbeddingBuildResponse:
+    """Step 6 동기 임베딩 실행 로직."""
     text_store = get_text_store()
 
     results = []
@@ -482,6 +686,8 @@ async def build_embeddings(
     embedding_dim = 0
 
     try:
+        req.model = get_runtime_embedding_model(req.model)
+
         # Ollama 연결 확인
         health = await ollama.check_connection()
         if not health.get("connected"):
@@ -503,8 +709,20 @@ async def build_embeddings(
             query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
 
         docs = query.all()
+        total_documents = len(docs)
+        if progress_callback:
+            progress_callback(
+                stage="임베딩 준비",
+                progress=0,
+                total_documents=total_documents,
+                processed=processed,
+                failed=failed,
+                skipped=skipped,
+                total_embeddings=total_embeddings,
+                embedding_dim=embedding_dim,
+            )
 
-        for doc in docs:
+        for index, doc in enumerate(docs, start=1):
             document_id = doc.document_id
             file_name = Path(doc.file_path).name if doc.file_path else f"doc_{document_id}"
 
@@ -522,6 +740,17 @@ async def build_embeddings(
                         embedding_dim=0,
                         error="No chunks found"
                     ))
+                    if progress_callback:
+                        progress_callback(
+                            stage=f"임베딩 진행 중 ({index}/{total_documents})",
+                            progress=int((index / max(total_documents, 1)) * 100),
+                            total_documents=total_documents,
+                            processed=processed,
+                            failed=failed,
+                            skipped=skipped,
+                            total_embeddings=total_embeddings,
+                            embedding_dim=embedding_dim,
+                        )
                     continue
 
                 # 이미 임베딩되었는지 확인
@@ -541,6 +770,17 @@ async def build_embeddings(
                                 embeddings_count=len(valid_emb),
                                 embedding_dim=emb_dim
                             ))
+                            if progress_callback:
+                                progress_callback(
+                                    stage=f"임베딩 진행 중 ({index}/{total_documents})",
+                                    progress=int((index / max(total_documents, 1)) * 100),
+                                    total_documents=total_documents,
+                                    processed=processed,
+                                    failed=failed,
+                                    skipped=skipped,
+                                    total_embeddings=total_embeddings,
+                                    embedding_dim=embedding_dim,
+                                )
                             continue
 
                 # 임베딩 생성
@@ -548,24 +788,50 @@ async def build_embeddings(
                     document_id=document_id,
                     chunks=chunks,
                     doc_meta={
+                        "doc": doc,
                         "source_id": doc.source_id or "",
                         "dataset_id": doc.dataset_id or "",
                         "document_uid": doc.document_uid or "",
                         "relative_path": doc.relative_path or "",
-                        "snapshot_id": "",
+                        "snapshot_id": req.snapshot_id or doc.faiss_snapshot or "",
                     },
                     model=req.model,
                     batch_size=req.batch_size,
                     retry_count=req.retry_count,
+                    req=req,
                     ollama=ollama,
                     text_store=text_store
                 )
 
                 if result["success"]:
+                    text_store.save_run_config(
+                        str(document_id),
+                        {
+                            "source_id": doc.source_id or "",
+                            "dataset_id": doc.dataset_id or "",
+                            "document_uid": doc.document_uid or "",
+                            "relative_path": doc.relative_path or "",
+                            "snapshot_id": req.snapshot_id or doc.faiss_snapshot or "",
+                            "embedding": {
+                                "provider": "ollama",
+                                "model": req.model,
+                                "batch_size": req.batch_size,
+                                "retry_count": req.retry_count,
+                                "embedding_dim": result["embedding_dim"],
+                                "embeddings_count": result["embeddings_count"],
+                                "embedding_strategy": result.get("embedding_strategy") or req.embedding_strategy,
+                                "contextual_retrieval_mode": result.get("contextual_retrieval_mode") or req.contextual_retrieval_mode,
+                                "contextual_model": getattr(settings, "contextual_retrieval_model", settings.ollama_model),
+                            },
+                        },
+                        snapshot_id=req.snapshot_id or doc.faiss_snapshot or "",
+                    )
                     processed += 1
                     total_embeddings += result["embeddings_count"]
                     if embedding_dim == 0:
                         embedding_dim = result["embedding_dim"]
+                    if req.snapshot_id:
+                        doc.faiss_snapshot = req.snapshot_id
                     doc.status = ProcessingStatus.EMBEDDED.value
                     doc.updated_at = datetime.utcnow()
 
@@ -601,9 +867,25 @@ async def build_embeddings(
                     error=str(e)
                 ))
 
-        db.commit()
+            if progress_callback:
+                progress_callback(
+                    stage=f"임베딩 진행 중 ({index}/{total_documents})",
+                    progress=int((index / max(total_documents, 1)) * 100),
+                    total_documents=total_documents,
+                    processed=processed,
+                    failed=failed,
+                    skipped=skipped,
+                    total_embeddings=total_embeddings,
+                    embedding_dim=embedding_dim,
+                )
 
-        return EmbeddingBuildResponse(
+        db.commit()
+        if req.source_id:
+            if processed > 0:
+                update_source_dataset_status(req.source_id, "embedded")
+            sync_source_index(req.source_id, db=db)
+
+        response = EmbeddingBuildResponse(
             success=True,
             processed=processed,
             failed=failed,
@@ -613,11 +895,97 @@ async def build_embeddings(
             model=req.model,
             embedding_dim=embedding_dim
         )
+        if progress_callback:
+            progress_callback(
+                stage="임베딩 완료",
+                progress=100,
+                total_documents=total_documents,
+                processed=processed,
+                failed=failed,
+                skipped=skipped,
+                total_embeddings=total_embeddings,
+                embedding_dim=embedding_dim,
+            )
+        return response
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Embedding build failed: {str(e)}")
+
+
+async def _run_embedding_job(job_id: str, req_data: dict[str, Any]) -> None:
+    db = SessionLocal()
+    ollama = OllamaService()
+
+    def progress_callback(**updates: Any) -> None:
+        _update_embedding_job(job_id, **updates)
+
+    try:
+        req = EmbeddingBuildRequest(**req_data)
+        result = await execute_embedding_build(req, db, ollama, progress_callback=progress_callback)
+        _update_embedding_job(
+            job_id,
+            status="completed",
+            stage="임베딩 완료",
+            progress=100,
+            finished_at=_now_iso(),
+            result=result.model_dump(),
+            processed=result.processed,
+            failed=result.failed,
+            skipped=result.skipped,
+            total_embeddings=result.total_embeddings,
+            embedding_dim=result.embedding_dim,
+            total_documents=result.processed + result.failed + result.skipped,
+        )
+    except Exception as exc:
+        _update_embedding_job(
+            job_id,
+            status="failed",
+            stage="오류",
+            finished_at=_now_iso(),
+            error=str(exc),
+        )
+        logger.exception("[Step6] embedding job failed: job_id=%s", job_id)
+    finally:
+        db.close()
+
+
+@router.post("/embed")
+async def build_embeddings(
+    req: EmbeddingBuildRequest,
+    db: Session = Depends(get_db),
+    ollama: OllamaService = Depends(get_ollama)
+):
+    """
+    Step 6: 임베딩 생성 실행
+
+    기본값은 비동기 job 시작이다. 내부 API/일괄 실행에서는 wait_for_completion=True로 동기 실행할 수 있다.
+    """
+    if req.wait_for_completion:
+        result = await execute_embedding_build(req, db, ollama)
+        return result.model_dump()
+
+    req.model = get_runtime_embedding_model(req.model)
+    job = _create_embedding_job(req)
+    asyncio.create_task(_run_embedding_job(job["job_id"], req.model_dump()))
+    return EmbeddingBuildJobStartResponse(
+        success=True,
+        job_id=job["job_id"],
+        status="running",
+        message="Embedding build started",
+        source_id=req.source_id,
+        snapshot_id=req.snapshot_id,
+        started_at=job["started_at"],
+    )
+
+
+@router.get("/embed/jobs/{job_id}", response_model=EmbeddingBuildJobStatusResponse)
+async def get_embedding_build_job(job_id: str):
+    job = _get_embedding_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Embedding job not found: {job_id}")
+    return EmbeddingBuildJobStatusResponse(success=True, **job)
 
 
 @router.get("/status", response_model=EmbeddingStatusResponse)

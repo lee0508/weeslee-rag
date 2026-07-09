@@ -88,6 +88,9 @@ def parse_args() -> argparse.Namespace:
                         help="Enable Tesseract OCR for scanned PDFs")
     parser.add_argument("--auto-ocr", action="store_true",
                         help="Auto-enable OCR if tesseract is available (overrides --use-ocr detection)")
+    parser.add_argument("--ocr-dpi", type=int, default=300, help="OCR DPI for image conversion")
+    parser.add_argument("--ocr-lang", default="kor+eng", help="OCR language for tesseract")
+    parser.add_argument("--ocr-min-text-length", type=int, default=50, help="Minimum text threshold to treat PDF as text-based")
     return parser.parse_args()
 
 
@@ -206,7 +209,12 @@ async def run_batch(args: argparse.Namespace) -> int:
     if not args.use_ocr and not args.auto_ocr:
         _detect_ocr()  # print status even when OCR not requested
 
-    extractor = DocumentExtractor(use_ocr=use_ocr)
+    extractor = DocumentExtractor(
+        use_ocr=use_ocr,
+        ocr_dpi=args.ocr_dpi,
+        ocr_language=args.ocr_lang,
+        ocr_min_text_length=args.ocr_min_text_length,
+    )
     results: list[ExtractionRow] = []
 
     # 전체 문서 수 파악을 위해 먼저 CSV를 읽음
