@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
+from app.core.locale_env import normalize_process_locale_env
 from app.core.database import init_db
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
@@ -77,6 +78,7 @@ except ImportError:
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
+APP_LOCALE = normalize_process_locale_env(prefer_korean=True)
 
 
 @asynccontextmanager
@@ -86,6 +88,7 @@ async def lifespan(app: FastAPI):
     print(f"Starting {settings.app_name}...")
     print(f"Environment: {settings.app_env}")
     print(f"Debug: {settings.debug}")
+    print(f"Locale: {APP_LOCALE}")
 
     # Initialize database tables when credentials are available.
     # The RAG query UI can still start without DB-backed admin features.

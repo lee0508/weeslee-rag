@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.extractors.base import BaseExtractor, ExtractionResult
+from app.core.locale_env import build_utf8_locale_env
 from app.extractors.preconverted_txt_fallback import load_preconverted_artifacts
 
 
@@ -284,6 +285,7 @@ class HwpExtractor(BaseExtractor):
                 [_hwp5txt_path(), file_path],
                 capture_output=True,
                 timeout=60,
+                env=build_utf8_locale_env(),
             )
             text = result.stdout.decode("utf-8", errors="replace").strip()
             if not text:
@@ -395,6 +397,7 @@ class HwpExtractor(BaseExtractor):
                 [_hwp5proc_path(), "cat", file_path, "PrvText"],
                 capture_output=True,
                 timeout=60,
+                env=build_utf8_locale_env(),
             )
             raw = result.stdout or b""
             if not raw:
@@ -568,6 +571,7 @@ class HwpExtractor(BaseExtractor):
                 [_libreoffice_path(), "--headless", "--convert-to", "pdf", "--outdir", tmpdir, file_path],
                 capture_output=True,
                 timeout=120,
+                env=build_utf8_locale_env(),
             )
             if process.returncode != 0:
                 shutil.rmtree(tmpdir, ignore_errors=True)

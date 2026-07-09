@@ -15,6 +15,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 import logging
 
+from app.core.locale_env import build_utf8_locale_env
+
 logger = logging.getLogger(__name__)
 
 
@@ -410,6 +412,7 @@ class HWPTableExtractor:
                     cmd,
                     capture_output=True,
                     timeout=120,
+                    env=build_utf8_locale_env(),
                 )
 
                 if result.returncode != 0:

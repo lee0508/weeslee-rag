@@ -15,6 +15,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
+from app.core.locale_env import build_utf8_locale_env
 from app.extractors.base import BaseExtractor, ExtractionResult
 
 logger = logging.getLogger(__name__)
@@ -416,7 +417,12 @@ class PptxExtractor(BaseExtractor):
                     "--outdir", tmpdir,
                     file_path,
                 ]
-                process = subprocess.run(cmd, capture_output=True, timeout=120)
+                process = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    timeout=120,
+                    env=build_utf8_locale_env(),
+                )
                 if process.returncode != 0:
                     return None
 
