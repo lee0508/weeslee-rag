@@ -33,6 +33,7 @@ from app.services.runtime_compute_settings import (
 )
 from app.services.dataset_build_settings import get_step_config
 from app.services.runtime_model_settings import get_runtime_embedding_model
+from app.services.source_data_paths import get_source_paths
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = PROJECT_ROOT / "backend" / "scripts"
@@ -124,7 +125,25 @@ def _find_manifest_csv(manifest_dir: Path, snapshot: str) -> Path:
     return preferred
 
 
-def _paths(snapshot: str) -> dict[str, Path]:
+def _paths(snapshot: str, source_id: str = None) -> dict[str, Path]:
+    """경로 딕셔너리 반환. source_id가 있으면 통합 경로 사용."""
+    # 통합 경로 사용 (source_id가 있는 경우)
+    if source_id:
+        paths = get_source_paths(source_id)
+        paths.ensure_dirs()
+        return {
+            "manifest_csv":   paths.base_dir / f"{snapshot}_manifest.csv",
+            "summary_csv":    paths.step1_dir / f"{snapshot}_extraction_summary.csv",
+            "text_dir":       paths.step2_dir,
+            "metadata_dir":   paths.step4_dir,
+            "chunks_dir":     paths.step3_dir,
+            "chunks_jsonl":   paths.chunks_jsonl,
+            "faiss_dir":      paths.step6_dir,
+            "index_path":     paths.faiss_index,
+            "meta_path":      paths.faiss_metadata_jsonl,
+        }
+
+    # 기존 경로 (하위 호환)
     manifest_dir = DATA_DIR / "staged" / "manifest"
     manifest_csv = _find_manifest_csv(manifest_dir, snapshot)
     return {
@@ -263,7 +282,8 @@ async def run_pipeline(job_id: str) -> None:
     source_id = job.get("source_id") or ""
     start_from = job.get("start_from_stage", 1)
     end_stage = job.get("end_stage", 6)
-    p = _paths(snapshot)
+    # source_id가 있으면 통합 경로 사용
+    p = _paths(snapshot, source_id=source_id if source_id else None)
 
     def should_run(stage: int) -> bool:
         return start_from <= stage <= end_stage
@@ -290,7 +310,7 @@ async def run_pipeline(job_id: str) -> None:
             if not p["manifest_csv"].exists():
                 emit(5, "manifest CSV 생성", f"source_id={source_id}")
                 manifest = build_manifest(snapshot_name=snapshot, source_id=source_id, overwrite=True)
-                p = _paths(snapshot)
+                p = _paths(snapshot, source_id=source_id if source_id else None)
                 emit(5, "manifest CSV 생성", f"생성 완료: {Path(manifest['manifest_csv']).name} ({manifest['total']}건)")
             if not p["manifest_csv"].exists():
                 raise FileNotFoundError(

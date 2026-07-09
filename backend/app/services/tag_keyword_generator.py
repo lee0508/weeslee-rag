@@ -21,6 +21,7 @@ from app.services.dataset_build_settings import get_step_config
 from app.services.ollama_metadata_keyword_enricher import OllamaMetadataKeywordEnricher
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.structured_content_resolver import StructuredContentResolver
+from app.services.source_data_paths import get_source_paths
 import app.services.processed_text_store_extensions  # noqa: F401
 
 
@@ -727,21 +728,13 @@ class TagKeywordGenerator:
         document_tag_map: Dict,
         document_keyword_map: Dict,
     ) -> str:
-        """Snapshot 기준 결과 JSON을 저장합니다."""
-        # 프로젝트 루트 찾기
-        current_file = Path(__file__).resolve()
-        project_root = current_file.parents[3]  # backend/app/services -> project root
+        """Snapshot 기준 결과 JSON을 저장합니다. (통합 경로 사용)"""
+        # 통합 경로 헬퍼 사용
+        paths = get_source_paths(self.source_id)
+        output_path = paths.tag_keyword_result_json
 
-        base_dir = project_root / "data" / "tag_keyword"
-
-        if self.snapshot_id:
-            output_dir = base_dir / self.source_id / self.snapshot_id
-        else:
-            output_dir = base_dir / self.source_id / "latest"
-
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        output_path = output_dir / "tag_keyword_result.json"
+        # 디렉토리 생성
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         payload = {
             "generated_at": datetime.now().isoformat(),
