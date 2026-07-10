@@ -2,15 +2,19 @@
 """
 Step 4에서 추출된 텍스트를 청킹하여 FAISS 인덱싱 준비
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel, Field
-from pathlib import Path
-from datetime import datetime
+import asyncio
+import logging
 import re
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, List, Optional
 
-from app.core.database import get_db
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.core.database import SessionLocal, get_db
 from app.services.dataset_context import update_source_dataset_status
 from app.services.chunking import ChunkingService
 from app.services.processed_text_store import ProcessedTextStore
@@ -25,6 +29,8 @@ except ImportError:
     StructuredContentResolver = None
 
 router = APIRouter(prefix="/admin/dataset-builder/step5")
+logger = logging.getLogger(__name__)
+_CHUNK_BUILD_JOBS: dict[str, dict[str, Any]] = {}
 
 
 # ── Request/Response Models ──────────────────────────────────────────────
@@ -39,6 +45,7 @@ class ChunkBuildRequest(BaseModel):
     min_chunk_size: int = Field(100, ge=50, le=500, description="최소 청크 크기")
     force_rebuild: bool = Field(False, description="이미 청킹된 문서도 재처리")
     chunking_mode: str = Field("auto", description="청킹 모드 (auto, semantic, plain)")
+    wait_for_completion: bool = Field(False, description="True면 동기 실행 후 완료 응답 반환")
 
 
 class ChunkInfo(BaseModel):
@@ -71,6 +78,35 @@ class ChunkBuildResponse(BaseModel):
     chunk_overlap: int
 
 
+class ChunkBuildJobStartResponse(BaseModel):
+    success: bool
+    job_id: str
+    status: str
+    message: str
+    source_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    started_at: str
+
+
+class ChunkBuildJobStatusResponse(BaseModel):
+    success: bool
+    job_id: str
+    status: str
+    stage: str = ""
+    progress: int = 0
+    source_id: Optional[str] = None
+    snapshot_id: Optional[str] = None
+    total_documents: int = 0
+    processed: int = 0
+    failed: int = 0
+    skipped: int = 0
+    total_chunks: int = 0
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    error: Optional[str] = None
+    result: Optional[dict[str, Any]] = None
+
+
 class ChunkStatusResponse(BaseModel):
     """청킹 상태 조회"""
     total_documents: int
@@ -93,6 +129,44 @@ class DocumentChunksResponse(BaseModel):
 def get_text_store() -> ProcessedTextStore:
     """ProcessedTextStore 인스턴스 반환"""
     return ProcessedTextStore()
+
+
+def _now_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _create_chunk_job(req: ChunkBuildRequest) -> dict[str, Any]:
+    job_id = str(uuid.uuid4())
+    job = {
+        "job_id": job_id,
+        "status": "running",
+        "stage": "초기화",
+        "progress": 0,
+        "source_id": req.source_id or "",
+        "snapshot_id": req.snapshot_id or "",
+        "total_documents": 0,
+        "processed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total_chunks": 0,
+        "started_at": _now_iso(),
+        "finished_at": None,
+        "error": None,
+        "result": None,
+    }
+    _CHUNK_BUILD_JOBS[job_id] = job
+    return job
+
+
+def _update_chunk_job(job_id: str, **updates: Any) -> None:
+    job = _CHUNK_BUILD_JOBS.get(job_id)
+    if not job:
+        return
+    job.update(updates)
+
+
+def _get_chunk_job(job_id: str) -> Optional[dict[str, Any]]:
+    return _CHUNK_BUILD_JOBS.get(job_id)
 
 
 _ORDER_PREFIX_RE = re.compile(r"^\s*\d+\.\s*")
@@ -274,11 +348,11 @@ def allow_parser_text_fallback(
 
 # ── API Endpoints ────────────────────────────────────────────────────────
 
-@router.post("/chunk", response_model=ChunkBuildResponse)
-async def build_chunks(
+def execute_chunk_build(
     req: ChunkBuildRequest,
-    db: Session = Depends(get_db)
-):
+    db: Session,
+    progress_callback: Optional[Callable[..., None]] = None,
+) -> ChunkBuildResponse:
     """
     Step 5: 텍스트 청킹 실행
 
@@ -314,12 +388,35 @@ async def build_chunks(
             query = query.filter(DocumentMetadata.document_id.in_(req.document_ids))
 
         docs = query.all()
+        total_documents = len(docs)
 
-        for doc in docs:
+        if progress_callback:
+            progress_callback(
+                stage="청킹 대상 조회 완료",
+                progress=0,
+                total_documents=total_documents,
+                processed=processed,
+                failed=failed,
+                skipped=skipped,
+                total_chunks=total_chunks,
+            )
+
+        for index, doc in enumerate(docs, start=1):
             document_id = doc.document_id
             file_name = Path(doc.file_path).name if doc.file_path else f"doc_{document_id}"
 
             try:
+                if progress_callback:
+                    progress_callback(
+                        stage=f"[{index}/{total_documents}] {file_name} 청킹 중",
+                        progress=int(((index - 1) / max(total_documents, 1)) * 100),
+                        total_documents=total_documents,
+                        processed=processed,
+                        failed=failed,
+                        skipped=skipped,
+                        total_chunks=total_chunks,
+                    )
+
                 # 이미 청킹되었는지 확인
                 if not req.force_rebuild:
                     existing = text_store.load_chunks(document_id)
@@ -332,6 +429,16 @@ async def build_chunks(
                             chunks_count=len(existing),
                             total_tokens=sum(c.get("token_count", 0) for c in existing)
                         ))
+                        if progress_callback:
+                            progress_callback(
+                                stage=f"[{index}/{total_documents}] {file_name} 기존 청크 사용",
+                                progress=int((index / max(total_documents, 1)) * 100),
+                                total_documents=total_documents,
+                                processed=processed,
+                                failed=failed,
+                                skipped=skipped,
+                                total_chunks=total_chunks,
+                            )
                         continue
 
                 # Step 4에서 추출된 텍스트/페이지 결과 로드
@@ -376,6 +483,16 @@ async def build_chunks(
                             total_tokens=0,
                             error=quality_error
                         ))
+                        if progress_callback:
+                            progress_callback(
+                                stage=f"[{index}/{total_documents}] {file_name} 품질 게이트로 제외",
+                                progress=int((index / max(total_documents, 1)) * 100),
+                                total_documents=total_documents,
+                                processed=processed,
+                                failed=failed,
+                                skipped=skipped,
+                                total_chunks=total_chunks,
+                            )
                         continue
 
                 # 텍스트 없으면 스킵
@@ -389,6 +506,16 @@ async def build_chunks(
                         total_tokens=0,
                         error="No extracted text from Step 4"
                     ))
+                    if progress_callback:
+                        progress_callback(
+                            stage=f"[{index}/{total_documents}] {file_name} 추출 텍스트 없음",
+                            progress=int((index / max(total_documents, 1)) * 100),
+                            total_documents=total_documents,
+                            processed=processed,
+                            failed=failed,
+                            skipped=skipped,
+                            total_chunks=total_chunks,
+                        )
                     continue
 
                 page_rows = []
@@ -453,6 +580,16 @@ async def build_chunks(
                         chunks_count=save_result["chunks_count"],
                         total_tokens=save_result["total_tokens"]
                     ))
+                    if progress_callback:
+                        progress_callback(
+                            stage=f"[{index}/{total_documents}] {file_name} 청킹 완료",
+                            progress=int((index / max(total_documents, 1)) * 100),
+                            total_documents=total_documents,
+                            processed=processed,
+                            failed=failed,
+                            skipped=skipped,
+                            total_chunks=total_chunks,
+                        )
                 else:
                     failed += 1
                     results.append(ChunkBuildResult(
@@ -463,6 +600,16 @@ async def build_chunks(
                         total_tokens=0,
                         error=save_result["error"]
                     ))
+                    if progress_callback:
+                        progress_callback(
+                            stage=f"[{index}/{total_documents}] {file_name} 저장 실패",
+                            progress=int((index / max(total_documents, 1)) * 100),
+                            total_documents=total_documents,
+                            processed=processed,
+                            failed=failed,
+                            skipped=skipped,
+                            total_chunks=total_chunks,
+                        )
 
             except Exception as e:
                 failed += 1
@@ -474,6 +621,16 @@ async def build_chunks(
                     total_tokens=0,
                     error=str(e)
                 ))
+                if progress_callback:
+                    progress_callback(
+                        stage=f"[{index}/{total_documents}] {file_name} 오류",
+                        progress=int((index / max(total_documents, 1)) * 100),
+                        total_documents=total_documents,
+                        processed=processed,
+                        failed=failed,
+                        skipped=skipped,
+                        total_chunks=total_chunks,
+                    )
 
         db.commit()
         if req.source_id:
@@ -481,7 +638,7 @@ async def build_chunks(
                 update_source_dataset_status(req.source_id, "chunked")
             sync_source_index(req.source_id, db=db)
 
-        return ChunkBuildResponse(
+        response = ChunkBuildResponse(
             success=True,
             processed=processed,
             failed=failed,
@@ -491,9 +648,98 @@ async def build_chunks(
             chunk_size=req.chunk_size,
             chunk_overlap=req.chunk_overlap
         )
+        if progress_callback:
+            progress_callback(
+                stage="청킹 완료",
+                progress=100,
+                total_documents=total_documents,
+                processed=processed,
+                failed=failed,
+                skipped=skipped,
+                total_chunks=total_chunks,
+            )
+        return response
 
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Chunking failed: {str(e)}")
+
+
+def _execute_chunk_job_sync(
+    req_data: dict[str, Any],
+    progress_callback: Optional[Callable[..., None]] = None,
+) -> ChunkBuildResponse:
+    db = SessionLocal()
+    try:
+        req = ChunkBuildRequest(**req_data)
+        return execute_chunk_build(req, db, progress_callback)
+    finally:
+        db.close()
+
+
+async def _run_chunk_job(job_id: str, req_data: dict[str, Any]) -> None:
+    def progress_callback(**updates: Any) -> None:
+        _update_chunk_job(job_id, **updates)
+
+    try:
+        result = await asyncio.to_thread(_execute_chunk_job_sync, req_data, progress_callback)
+        _update_chunk_job(
+            job_id,
+            status="completed",
+            stage="청킹 완료",
+            progress=100,
+            finished_at=_now_iso(),
+            result=result.model_dump(),
+            processed=result.processed,
+            failed=result.failed,
+            skipped=result.skipped,
+            total_chunks=result.total_chunks,
+        )
+    except Exception as exc:
+        _update_chunk_job(
+            job_id,
+            status="failed",
+            stage="오류",
+            finished_at=_now_iso(),
+            error=str(exc),
+        )
+        logger.exception("[Step5] chunk build job failed: job_id=%s", job_id)
+
+
+@router.post("/chunk")
+async def build_chunks(
+    req: ChunkBuildRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 5: 텍스트 청킹 실행
+
+    기본값은 비동기 job 시작이다. 내부 API/일괄 실행에서는
+    wait_for_completion=True로 동기 실행할 수 있다.
+    """
+    if req.wait_for_completion:
+        result = execute_chunk_build(req, db)
+        return result.model_dump()
+
+    job = _create_chunk_job(req)
+    asyncio.create_task(_run_chunk_job(job["job_id"], req.model_dump()))
+    return ChunkBuildJobStartResponse(
+        success=True,
+        job_id=job["job_id"],
+        status="running",
+        message="Chunk build started",
+        source_id=req.source_id,
+        snapshot_id=req.snapshot_id,
+        started_at=job["started_at"],
+    )
+
+
+@router.get("/chunk/jobs/{job_id}", response_model=ChunkBuildJobStatusResponse)
+async def get_chunk_build_job(job_id: str):
+    job = _get_chunk_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Chunk build job not found: {job_id}")
+    return ChunkBuildJobStatusResponse(success=True, **job)
 
 
 @router.get("/status", response_model=ChunkStatusResponse)

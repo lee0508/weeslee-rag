@@ -11808,15 +11808,23 @@ LIMIT 10`;
         body: JSON.stringify(getStep5ChunkRequestPayload({
           source_id: sourceId,
           snapshot_id: snapshotId || null,
+          force_rebuild: _wizardForceRebuild || false,
         })),
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
-      if (d.success) {
-        showToast(`Chunk Build 완료! 처리: ${d.processed || 0}개`, 'success', 5000);
-      } else {
-        showToast('Chunk Build 실패: ' + (d.message || d.error), 'error');
+      const startData = await r.json().catch(() => ({}));
+      if (!r.ok || startData.success === false) {
+        throw new Error(startData.detail || startData.message || `HTTP ${r.status}`);
       }
+      const jobId = startData.job_id;
+      showToast(`Chunk Build 작업 시작: ${jobId}`, 'info', 4000);
+      const d = await _pollStep5ChunkJob(null, jobId, {
+        onProgress: (status) => {
+          const progress = Number(status.progress || 0);
+          const stage = status.stage || '청킹 진행 중';
+          showToast(`${stage} (${progress}%)`, 'info', 1500);
+        }
+      });
+      showToast(`Chunk Build 완료! 처리: ${d.processed || 0}개, 청크: ${d.total_chunks || 0}개`, 'success', 5000);
       if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();
       if (typeof refreshDatasetBuilderUiAssistants === 'function') refreshDatasetBuilderUiAssistants('db-step-5');
     } catch (e) {
@@ -13169,6 +13177,49 @@ LIMIT 10`;
     return await response.json().catch(() => ({}));
   }
 
+  async function _getStep5ChunkJob(jobId) {
+    const response = await fetch(apiUrl(`/api/admin/dataset-builder/step5/chunk/jobs/${jobId}`), {
+      headers: { Authorization: 'Bearer ' + getToken() }
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || `HTTP ${response.status}`);
+    }
+    return await response.json().catch(() => ({}));
+  }
+
+  async function _pollStep5ChunkJob(step, jobId, options = {}) {
+    const intervalMs = Number(options.intervalMs || 3000);
+    const timeoutMs = Number(options.timeoutMs || 60 * 60 * 1000);
+    const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+    const startedAt = Date.now();
+    let lastStage = '';
+
+    while (Date.now() - startedAt < timeoutMs) {
+      const data = await _getStep5ChunkJob(jobId);
+      const stage = String(data.stage || '');
+      const progress = Number(data.progress || 0);
+
+      if (stage && stage !== lastStage) {
+        lastStage = stage;
+        if (step) _wizardAppendLog(step, `[poll ${progress}%] ${stage}`);
+      }
+
+      if (onProgress) onProgress(data);
+
+      if (data.status === 'completed') {
+        return data.result || data;
+      }
+      if (data.status === 'failed') {
+        throw new Error(data.error || 'Chunk Build 실패');
+      }
+
+      await _wizardSleep(intervalMs);
+    }
+
+    throw new Error('Chunk Build 상태 조회 타임아웃');
+  }
+
   async function _pollStep6EmbeddingJob(step, jobId, options = {}) {
     const intervalMs = Number(options.intervalMs || 3000);
     const timeoutMs = Number(options.timeoutMs || 60 * 60 * 1000);
@@ -13332,13 +13383,20 @@ LIMIT 10`;
           headers: { Authorization: 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify(getStep5ChunkRequestPayload({
             source_id: sourceId,
+            snapshot_id: snapshotId,
             force_rebuild: _wizardForceRebuild || false,
           })),
         });
-        const chunkData = await chunkResponse.json().catch(() => ({}));
-        if (!chunkResponse.ok || chunkData.success === false) {
-          throw new Error(chunkData.detail || chunkData.message || `HTTP ${chunkResponse.status}`);
+        const chunkStartData = await chunkResponse.json().catch(() => ({}));
+        if (!chunkResponse.ok || chunkStartData.success === false) {
+          throw new Error(chunkStartData.detail || chunkStartData.message || `HTTP ${chunkResponse.status}`);
         }
+        _wizardAppendLog(step, `Chunk Job 시작: ${chunkStartData.job_id || '-'}`);
+        const chunkData = await _pollStep5ChunkJob(step, chunkStartData.job_id, {
+          onProgress: (statusData) => {
+            _wizardSetStatus(step, `청킹 진행 중... ${statusData.job_id || ''}`.trim(), 'running');
+          }
+        });
         _wizardAppendLog(step, `청킹 완료: 처리 ${chunkData.processed || 0}개, 건너뜀 ${chunkData.skipped || 0}개, 청크 ${chunkData.total_chunks || 0}개`);
 
         _wizardAppendLog(step, 'POST /api/admin/dataset-builder/step6/embed');
@@ -14930,15 +14988,20 @@ LIMIT 10`;
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(getStep5ChunkRequestPayload({
           document_ids: documentIds,
+          force_rebuild: _wizardForceRebuild || false,
         }))
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Chunking failed');
+      const startData = await response.json().catch(() => ({}));
+      if (!response.ok || startData.success === false) {
+        throw new Error(startData.detail || startData.message || 'Chunking failed');
       }
-
-      const data = await response.json();
+      const data = await _pollStep5ChunkJob(null, startData.job_id, {
+        onProgress: (status) => {
+          const progress = Number(status.progress || 0);
+          const stage = status.stage || '청킹 진행 중';
+          showToast(`${stage} (${progress}%)`, 'info', 1500);
+        }
+      });
       showToast(`청킹 완료: 처리 ${data.processed || 0}개, 건너뜀 ${data.skipped || 0}개, 실패 ${data.failed || 0}개, 청크 ${data.total_chunks || 0}개`, 'success', 5000);
 
       if (typeof loadDatasetStatusSummary === 'function') loadDatasetStatusSummary();

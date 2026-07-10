@@ -1129,6 +1129,7 @@ async def run_step2_chunk_embed_faiss(
             chunk_overlap=request.chunk_overlap,
             min_chunk_size=request.min_chunk_size,
             force_rebuild=request.force_rebuild,
+            wait_for_completion=True,
         ),
         db,
     )
