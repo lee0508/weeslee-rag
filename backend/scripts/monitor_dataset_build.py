@@ -29,6 +29,13 @@ logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
+try:
+    _bind = SessionLocal.kw.get("bind")
+    if _bind is not None:
+        _bind.echo = False
+except Exception:
+    pass
+
 
 def _safe_read_json(path: Path) -> dict[str, Any]:
     try:
