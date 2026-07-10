@@ -224,18 +224,20 @@ def _build_snapshot_metadata_row(
 ) -> dict:
     chunk_meta = chunk.get("metadata") or {}
     content = str(chunk.get("content") or "")
+    # [2026-07-10] 우선순위 수정: scan(파일명 기반)이 ocr보다 신뢰도 높음
+    # ocr_project_name은 목차명("개요 4", "범위 1")이 잘못 추출되는 문제가 있음
     project_name = (
         doc.final_project_name
-        or doc.ocr_project_name
         or doc.project_name
         or doc.scan_project_name
+        or doc.ocr_project_name
         or ""
     )
     organization = (
         doc.final_organization
-        or doc.ocr_organization
         or doc.organization
         or doc.scan_organization
+        or doc.ocr_organization
         or ""
     )
     organization_type, project_type = _infer_contract_types(
@@ -601,18 +603,19 @@ async def build_faiss_index(
                         "dataset_id": dataset_id,
                         "document_uid": doc.document_uid or "",
                         "category": doc.category_id or "",
+                        # [2026-07-10] 우선순위 수정
                         "organization": (
                             doc.final_organization
-                            or doc.ocr_organization
                             or doc.organization
                             or doc.scan_organization
+                            or doc.ocr_organization
                             or ""
                         ),
                         "project_name": (
                             doc.final_project_name
-                            or doc.ocr_project_name
                             or doc.project_name
                             or doc.scan_project_name
+                            or doc.ocr_project_name
                             or ""
                         ),
                     })

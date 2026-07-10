@@ -474,6 +474,25 @@ class RuleBasedMetadataExtractor:
     신뢰도가 낮은 항목은 이후 LLM 보완 대상이 된다.
     """
 
+    # [2026-07-10] 목차/섹션명 블록리스트 - project_name 오탐 방지
+    # OCR 텍스트에서 "개요 4", "범위 1" 같은 목차 항목이 사업명으로 잘못 추출되는 문제 해결
+    _PROJECT_NAME_BLOCKLIST_PATTERNS = re.compile(
+        r'^(?:'
+        r'개요|범위|배경|목차|목표|필요성|기대효과|추진방향|추진체계|추진전략|'
+        r'일정|예산|조직|인력|방법론|산출물|보안|품질|위험|이슈|'
+        r'현황|분석|설계|구축|운영|유지보수|'
+        r'제\s*\d+\s*장|제\s*\d+\s*절|제\s*\d+\s*조|'
+        r'\d+\.\s*개요|\d+\.\s*범위|\d+\.\s*배경|\d+\.\s*목차|'
+        r'[IVX]+\.\s|[①②③④⑤⑥⑦⑧⑨⑩]|'
+        r'부록|별첨|참고|첨부'
+        r')'
+        r'(?:\s*\d+)?$',  # "개요 4", "범위 1" 형태 매칭
+        re.IGNORECASE
+    )
+
+    # 너무 짧거나 숫자로만 구성된 사업명 필터링
+    _PROJECT_NAME_MIN_LENGTH = 8  # 최소 8자 이상 (의미 있는 사업명)
+
     _ORG_NAME_PATTERN = re.compile(
         r"("
         r"[가-힣A-Za-z0-9·&-]{2,20}"
@@ -551,6 +570,37 @@ class RuleBasedMetadataExtractor:
                 return False
         return True
 
+    def _is_valid_project_name(self, name: Optional[str]) -> bool:
+        """
+        [2026-07-10] 사업명 유효성 검증.
+        목차명("개요 4", "범위 1")이나 너무 짧은 값을 필터링한다.
+        """
+        if not name:
+            return False
+
+        # 공백 제거 후 길이 검사
+        stripped = name.strip()
+        if len(stripped) < self._PROJECT_NAME_MIN_LENGTH:
+            return False
+
+        # 숫자로만 구성된 경우 제외
+        if stripped.isdigit():
+            return False
+
+        # 목차/섹션명 패턴 검사
+        if self._PROJECT_NAME_BLOCKLIST_PATTERNS.match(stripped):
+            return False
+
+        # 숫자 + 공백 + 한글 1~2자 패턴 ("4 개요", "1 범위" 등) 제외
+        if re.match(r'^\d+\s+[가-힣]{1,4}$', stripped):
+            return False
+
+        # 한글 1~4자 + 공백 + 숫자 패턴 ("개요 4", "범위 1" 등) 제외
+        if re.match(r'^[가-힣]{1,4}\s+\d+$', stripped):
+            return False
+
+        return True
+
     def extract_project_name(self, text: str) -> tuple[Optional[str], float]:
         """레이블 기반 → 키워드 패턴 순으로 사업명을 추출한다."""
         head = text[:_ANALYSIS_LIMIT]
@@ -561,7 +611,8 @@ class RuleBasedMetadataExtractor:
             min_len=5,
             max_len=100,
         )
-        if labeled_name:
+        # [2026-07-10] 목차명 필터링 적용
+        if labeled_name and self._is_valid_project_name(labeled_name):
             return labeled_name, 0.88
 
         keyword_match = re.search(
@@ -571,7 +622,8 @@ class RuleBasedMetadataExtractor:
         )
         if keyword_match:
             name = self._clean_line_value(keyword_match.group(1))
-            if name:
+            # [2026-07-10] 목차명 필터링 적용
+            if name and self._is_valid_project_name(name):
                 return name[:200], 0.60
 
         return None, 0.0

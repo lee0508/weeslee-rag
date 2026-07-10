@@ -105,18 +105,20 @@ def strip_order_prefix(name: str) -> str:
 
 def build_chunk_meta(doc, file_name: str, structured_data: dict, snapshot_id: str = "") -> dict:
     """Step 5 청크 메타데이터를 정규화해 생성한다."""
+    # [2026-07-10] 우선순위 수정: scan(파일명 기반)이 ocr보다 신뢰도 높음
+    # ocr_project_name은 목차명("개요 4", "범위 1")이 잘못 추출되는 문제가 있음
     organization = (
         getattr(doc, "final_organization", None)
-        or getattr(doc, "ocr_organization", None)
         or getattr(doc, "organization", None)
         or getattr(doc, "scan_organization", None)
+        or getattr(doc, "ocr_organization", None)
         or ""
     )
     project_name = (
         getattr(doc, "final_project_name", None)
-        or getattr(doc, "ocr_project_name", None)
         or getattr(doc, "project_name", None)
         or getattr(doc, "scan_project_name", None)
+        or getattr(doc, "ocr_project_name", None)
         or ""
     )
 

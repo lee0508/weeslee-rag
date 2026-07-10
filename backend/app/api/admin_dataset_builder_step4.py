@@ -549,18 +549,20 @@ def _build_processing_metadata_ctx(doc: DocumentMetadata, dataset_id_cache: dict
     """Step 4 산출물에 저장할 문서 컨텍스트를 정규화한다."""
     _fill_dataset_id_if_needed(doc, dataset_id_cache)
 
+    # [2026-07-10] 우선순위 수정: scan_project_name(파일명 기반)이 ocr보다 신뢰도 높음
+    # ocr_project_name은 목차명("개요 4", "범위 1")이 잘못 추출되는 문제가 있음
     project_name = (
         doc.final_project_name
-        or doc.ocr_project_name
         or doc.project_name
         or doc.scan_project_name
+        or doc.ocr_project_name
         or ""
     )
     organization = (
         doc.final_organization
-        or doc.ocr_organization
         or doc.organization
         or doc.scan_organization
+        or doc.ocr_organization
         or ""
     )
 
