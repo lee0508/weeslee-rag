@@ -25,7 +25,9 @@ SOURCE_ROOT = DATA_DIR / "source"
 JOB_ROOT = DATA_DIR / "jobs"
 
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
 
 def _safe_read_json(path: Path) -> dict[str, Any]:
