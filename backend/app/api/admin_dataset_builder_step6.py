@@ -3,18 +3,18 @@
 Step 5에서 생성된 청크에 대해 임베딩 벡터를 생성
 """
 import asyncio
-import uuid
-
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import Any, Callable, List, Optional
-from pydantic import BaseModel, Field
-import numpy as np
 import json
 import logging
-from pathlib import Path
-from datetime import datetime
 import random
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, List, Optional
+
+import numpy as np
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, get_db
 from app.core.config import settings
@@ -38,6 +38,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 FAISS_DIR = DATA_DIR / "indexes" / "faiss"
 logger = logging.getLogger(__name__)
 _EMBEDDING_BUILD_JOBS: dict[str, dict[str, Any]] = {}
+_STEP6_JOB_DIR = Path(__file__).resolve().parents[3] / "data" / "jobs" / "step6_embed"
 
 
 # ── Request/Response Models ──────────────────────────────────────────────
@@ -163,6 +164,89 @@ def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _step6_job_path(job_id: str) -> Path:
+    safe_job_id = "".join(ch for ch in str(job_id or "") if ch.isalnum() or ch in ("-", "_"))
+    return _STEP6_JOB_DIR / f"{safe_job_id}.json"
+
+
+def _serialize_embedding_job(job: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "job_id": job.get("job_id"),
+        "status": job.get("status", "unknown"),
+        "stage": job.get("stage", ""),
+        "progress": int(job.get("progress", 0) or 0),
+        "source_id": job.get("source_id") or "",
+        "snapshot_id": job.get("snapshot_id") or "",
+        "model": job.get("model") or "",
+        "total_documents": int(job.get("total_documents", 0) or 0),
+        "processed": int(job.get("processed", 0) or 0),
+        "failed": int(job.get("failed", 0) or 0),
+        "skipped": int(job.get("skipped", 0) or 0),
+        "total_embeddings": int(job.get("total_embeddings", 0) or 0),
+        "embedding_dim": int(job.get("embedding_dim", 0) or 0),
+        "started_at": job.get("started_at"),
+        "finished_at": job.get("finished_at"),
+        "error": job.get("error"),
+        "result": job.get("result"),
+        "persisted_at": _now_iso(),
+    }
+
+
+def _persist_embedding_job(job: dict[str, Any]) -> None:
+    try:
+        _STEP6_JOB_DIR.mkdir(parents=True, exist_ok=True)
+        _step6_job_path(str(job.get("job_id") or "")).write_text(
+            json.dumps(_serialize_embedding_job(job), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        logger.exception("[Step6] failed to persist embedding job: job_id=%s", job.get("job_id"))
+
+
+def _load_persisted_embedding_job(job_id: str) -> Optional[dict[str, Any]]:
+    try:
+        job_path = _step6_job_path(job_id)
+        if not job_path.exists():
+            return None
+        payload = json.loads(job_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return None
+        return {
+            "job_id": payload.get("job_id") or job_id,
+            "status": payload.get("status", "unknown"),
+            "stage": payload.get("stage", ""),
+            "progress": int(payload.get("progress", 0) or 0),
+            "source_id": payload.get("source_id") or "",
+            "snapshot_id": payload.get("snapshot_id") or "",
+            "model": payload.get("model") or "",
+            "total_documents": int(payload.get("total_documents", 0) or 0),
+            "processed": int(payload.get("processed", 0) or 0),
+            "failed": int(payload.get("failed", 0) or 0),
+            "skipped": int(payload.get("skipped", 0) or 0),
+            "total_embeddings": int(payload.get("total_embeddings", 0) or 0),
+            "embedding_dim": int(payload.get("embedding_dim", 0) or 0),
+            "started_at": payload.get("started_at"),
+            "finished_at": payload.get("finished_at"),
+            "error": payload.get("error"),
+            "result": payload.get("result"),
+            "persisted_only": True,
+        }
+    except Exception:
+        logger.exception("[Step6] failed to load persisted embedding job: job_id=%s", job_id)
+        return None
+
+
+def _list_persisted_embedding_jobs() -> list[dict[str, Any]]:
+    if not _STEP6_JOB_DIR.exists():
+        return []
+    jobs: list[dict[str, Any]] = []
+    for path in sorted(_STEP6_JOB_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True):
+        job = _load_persisted_embedding_job(path.stem)
+        if job:
+            jobs.append(job)
+    return jobs
+
+
 def _create_embedding_job(req: EmbeddingBuildRequest) -> dict[str, Any]:
     job_id = str(uuid.uuid4())
     job = {
@@ -185,18 +269,48 @@ def _create_embedding_job(req: EmbeddingBuildRequest) -> dict[str, Any]:
         "result": None,
     }
     _EMBEDDING_BUILD_JOBS[job_id] = job
+    _persist_embedding_job(job)
     return job
 
 
 def _update_embedding_job(job_id: str, **updates: Any) -> None:
     job = _EMBEDDING_BUILD_JOBS.get(job_id)
     if not job:
-        return
+        persisted = _load_persisted_embedding_job(job_id)
+        if not persisted:
+            return
+        _EMBEDDING_BUILD_JOBS[job_id] = persisted
+        job = persisted
     job.update(updates)
+    _persist_embedding_job(job)
 
 
 def _get_embedding_job(job_id: str) -> Optional[dict[str, Any]]:
-    return _EMBEDDING_BUILD_JOBS.get(job_id)
+    job = _EMBEDDING_BUILD_JOBS.get(job_id)
+    if job:
+        return job
+    persisted = _load_persisted_embedding_job(job_id)
+    if persisted:
+        _EMBEDDING_BUILD_JOBS[job_id] = persisted
+        return persisted
+    return None
+
+
+def _list_embedding_jobs(source_id: Optional[str] = None, status: Optional[str] = None) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    jobs: list[dict[str, Any]] = []
+    for job in list(_EMBEDDING_BUILD_JOBS.values()) + _list_persisted_embedding_jobs():
+        job_id = str(job.get("job_id") or "").strip()
+        if not job_id or job_id in seen:
+            continue
+        seen.add(job_id)
+        if source_id and str(job.get("source_id") or "") != str(source_id):
+            continue
+        if status and str(job.get("status") or "") != str(status):
+            continue
+        jobs.append(_serialize_embedding_job(job))
+    jobs.sort(key=lambda item: str(item.get("started_at") or ""), reverse=True)
+    return jobs
 
 
 def _doc_to_text_chunks(chunks: list) -> list[TextChunk]:
@@ -978,6 +1092,18 @@ async def build_embeddings(
         snapshot_id=req.snapshot_id,
         started_at=job["started_at"],
     )
+
+
+@router.get("/embed/jobs")
+async def list_embedding_build_jobs(source_id: Optional[str] = None, status: Optional[str] = None, limit: int = 20):
+    jobs = _list_embedding_jobs(source_id=source_id, status=status)
+    safe_limit = max(1, min(int(limit or 20), 200))
+    return {
+        "success": True,
+        "jobs": jobs[:safe_limit],
+        "count": len(jobs[:safe_limit]),
+        "total": len(jobs),
+    }
 
 
 @router.get("/embed/jobs/{job_id}", response_model=EmbeddingBuildJobStatusResponse)

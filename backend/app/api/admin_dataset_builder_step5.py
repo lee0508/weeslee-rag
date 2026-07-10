@@ -3,6 +3,7 @@
 Step 4에서 추출된 텍스트를 청킹하여 FAISS 인덱싱 준비
 """
 import asyncio
+import json
 import logging
 import re
 import uuid
@@ -31,6 +32,7 @@ except ImportError:
 router = APIRouter(prefix="/admin/dataset-builder/step5")
 logger = logging.getLogger(__name__)
 _CHUNK_BUILD_JOBS: dict[str, dict[str, Any]] = {}
+_STEP5_JOB_DIR = Path(__file__).resolve().parents[3] / "data" / "jobs" / "step5_chunk"
 
 
 # ── Request/Response Models ──────────────────────────────────────────────
@@ -135,6 +137,85 @@ def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _step5_job_path(job_id: str) -> Path:
+    safe_job_id = "".join(ch for ch in str(job_id or "") if ch.isalnum() or ch in ("-", "_"))
+    return _STEP5_JOB_DIR / f"{safe_job_id}.json"
+
+
+def _serialize_chunk_job(job: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "job_id": job.get("job_id"),
+        "status": job.get("status", "unknown"),
+        "stage": job.get("stage", ""),
+        "progress": int(job.get("progress", 0) or 0),
+        "source_id": job.get("source_id") or "",
+        "snapshot_id": job.get("snapshot_id") or "",
+        "total_documents": int(job.get("total_documents", 0) or 0),
+        "processed": int(job.get("processed", 0) or 0),
+        "failed": int(job.get("failed", 0) or 0),
+        "skipped": int(job.get("skipped", 0) or 0),
+        "total_chunks": int(job.get("total_chunks", 0) or 0),
+        "started_at": job.get("started_at"),
+        "finished_at": job.get("finished_at"),
+        "error": job.get("error"),
+        "result": job.get("result"),
+        "persisted_at": _now_iso(),
+    }
+
+
+def _persist_chunk_job(job: dict[str, Any]) -> None:
+    try:
+        _STEP5_JOB_DIR.mkdir(parents=True, exist_ok=True)
+        _step5_job_path(str(job.get("job_id") or "")).write_text(
+            json.dumps(_serialize_chunk_job(job), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        logger.exception("[Step5] failed to persist chunk job: job_id=%s", job.get("job_id"))
+
+
+def _load_persisted_chunk_job(job_id: str) -> Optional[dict[str, Any]]:
+    try:
+        job_path = _step5_job_path(job_id)
+        if not job_path.exists():
+            return None
+        payload = json.loads(job_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return None
+        return {
+            "job_id": payload.get("job_id") or job_id,
+            "status": payload.get("status", "unknown"),
+            "stage": payload.get("stage", ""),
+            "progress": int(payload.get("progress", 0) or 0),
+            "source_id": payload.get("source_id") or "",
+            "snapshot_id": payload.get("snapshot_id") or "",
+            "total_documents": int(payload.get("total_documents", 0) or 0),
+            "processed": int(payload.get("processed", 0) or 0),
+            "failed": int(payload.get("failed", 0) or 0),
+            "skipped": int(payload.get("skipped", 0) or 0),
+            "total_chunks": int(payload.get("total_chunks", 0) or 0),
+            "started_at": payload.get("started_at"),
+            "finished_at": payload.get("finished_at"),
+            "error": payload.get("error"),
+            "result": payload.get("result"),
+            "persisted_only": True,
+        }
+    except Exception:
+        logger.exception("[Step5] failed to load persisted chunk job: job_id=%s", job_id)
+        return None
+
+
+def _list_persisted_chunk_jobs() -> list[dict[str, Any]]:
+    if not _STEP5_JOB_DIR.exists():
+        return []
+    jobs: list[dict[str, Any]] = []
+    for path in sorted(_STEP5_JOB_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True):
+        job = _load_persisted_chunk_job(path.stem)
+        if job:
+            jobs.append(job)
+    return jobs
+
+
 def _create_chunk_job(req: ChunkBuildRequest) -> dict[str, Any]:
     job_id = str(uuid.uuid4())
     job = {
@@ -155,18 +236,48 @@ def _create_chunk_job(req: ChunkBuildRequest) -> dict[str, Any]:
         "result": None,
     }
     _CHUNK_BUILD_JOBS[job_id] = job
+    _persist_chunk_job(job)
     return job
 
 
 def _update_chunk_job(job_id: str, **updates: Any) -> None:
     job = _CHUNK_BUILD_JOBS.get(job_id)
     if not job:
-        return
+        persisted = _load_persisted_chunk_job(job_id)
+        if not persisted:
+            return
+        _CHUNK_BUILD_JOBS[job_id] = persisted
+        job = persisted
     job.update(updates)
+    _persist_chunk_job(job)
+
+
+def _list_chunk_jobs(source_id: Optional[str] = None, status: Optional[str] = None) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    jobs: list[dict[str, Any]] = []
+    for job in list(_CHUNK_BUILD_JOBS.values()) + _list_persisted_chunk_jobs():
+        job_id = str(job.get("job_id") or "").strip()
+        if not job_id or job_id in seen:
+            continue
+        seen.add(job_id)
+        if source_id and str(job.get("source_id") or "") != str(source_id):
+            continue
+        if status and str(job.get("status") or "") != str(status):
+            continue
+        jobs.append(_serialize_chunk_job(job))
+    jobs.sort(key=lambda item: str(item.get("started_at") or ""), reverse=True)
+    return jobs
 
 
 def _get_chunk_job(job_id: str) -> Optional[dict[str, Any]]:
-    return _CHUNK_BUILD_JOBS.get(job_id)
+    job = _CHUNK_BUILD_JOBS.get(job_id)
+    if job:
+        return job
+    persisted = _load_persisted_chunk_job(job_id)
+    if persisted:
+        _CHUNK_BUILD_JOBS[job_id] = persisted
+        return persisted
+    return None
 
 
 _ORDER_PREFIX_RE = re.compile(r"^\s*\d+\.\s*")
@@ -732,6 +843,18 @@ async def build_chunks(
         snapshot_id=req.snapshot_id,
         started_at=job["started_at"],
     )
+
+
+@router.get("/chunk/jobs")
+async def list_chunk_build_jobs(source_id: Optional[str] = None, status: Optional[str] = None, limit: int = 20):
+    jobs = _list_chunk_jobs(source_id=source_id, status=status)
+    safe_limit = max(1, min(int(limit or 20), 200))
+    return {
+        "success": True,
+        "jobs": jobs[:safe_limit],
+        "count": len(jobs[:safe_limit]),
+        "total": len(jobs),
+    }
 
 
 @router.get("/chunk/jobs/{job_id}", response_model=ChunkBuildJobStatusResponse)
