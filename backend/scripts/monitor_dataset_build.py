@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 import time
@@ -22,6 +23,9 @@ from app.services.source_build_validation import build_source_validation_report
 DATA_DIR = PROJECT_ROOT / "data"
 SOURCE_ROOT = DATA_DIR / "source"
 JOB_ROOT = DATA_DIR / "jobs"
+
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
 
 
 def _safe_read_json(path: Path) -> dict[str, Any]:
