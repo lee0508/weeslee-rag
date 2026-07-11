@@ -13845,9 +13845,16 @@ LIMIT 10`;
     }
 
     // ── 의존 서비스(OCR, Ollama) 준비 확인 ─────────────────────────────────
-    showToast('서비스 상태 확인 중...', 'info', 2000);
+    // Force 재처리 체크 여부에 따라 서비스 강제 재시작
+    const forceRebuildChecked = document.getElementById('wizardForceRebuild')?.checked || false;
+    if (forceRebuildChecked) {
+      showToast('Force 재처리 모드: 모든 서비스 강제 재시작 중...', 'info', 3000);
+    } else {
+      showToast('서비스 상태 확인 중...', 'info', 2000);
+    }
     try {
-      const ensureResp = await fetch(apiUrl('/health/services/ensure-ready'), { method: 'POST' });
+      const ensureUrl = apiUrl(`/health/services/ensure-ready?force_restart=${forceRebuildChecked}`);
+      const ensureResp = await fetch(ensureUrl, { method: 'POST' });
       const ensureData = await ensureResp.json();
       if (!ensureData.all_ready) {
         const failedServices = (ensureData.actions || [])
@@ -13859,10 +13866,13 @@ LIMIT 10`;
         return;
       }
       const restartedServices = (ensureData.actions || [])
-        .filter(a => a.action === 'restarted')
+        .filter(a => a.action === 'restarted' || a.action === 'force_restarted')
         .map(a => a.service);
       if (restartedServices.length > 0) {
-        showToast(`서비스 재시작됨: ${restartedServices.join(', ')}`, 'info', 3000);
+        const msg = forceRebuildChecked
+          ? `서비스 강제 재시작 완료: ${restartedServices.join(', ')}`
+          : `서비스 재시작됨: ${restartedServices.join(', ')}`;
+        showToast(msg, 'info', 3000);
       }
     } catch (err) {
       console.error('[wizardRunAll] 서비스 준비 확인 오류:', err);

@@ -34,10 +34,14 @@ async def restart_service(service_key: str):
 
 
 @router.post("/health/services/ensure-ready")
-async def ensure_services_ready():
-    """모든 필수 서비스가 준비되었는지 확인하고 필요시 재시작."""
+async def ensure_services_ready(force_restart: bool = False):
+    """모든 필수 서비스가 준비되었는지 확인하고 필요시 재시작.
+
+    Args:
+        force_restart: True이면 모든 서비스를 무조건 재시작 (Force 재처리 모드용)
+    """
     from app.services.service_manager import ensure_services_ready as do_ensure
-    return await do_ensure()
+    return await do_ensure(force_restart=force_restart)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _FAISS_DIR = _PROJECT_ROOT / "data" / "indexes" / "faiss"

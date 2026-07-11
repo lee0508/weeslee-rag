@@ -180,31 +180,23 @@ async def restart_service(service_key: str) -> dict:
     return await loop.run_in_executor(None, restart_service_sync, service_key)
 
 
-async def ensure_services_ready() -> dict:
+async def ensure_services_ready(force_restart: bool = False) -> dict:
     """
     데이터셋 빌드에 필요한 모든 서비스가 준비되었는지 확인.
-    필요시 자동 재시작.
+    force_restart=True인 경우 모든 서비스를 강제로 재시작.
     """
-    results = {"actions": [], "all_ready": True}
+    results = {"actions": [], "all_ready": True, "force_restart": force_restart}
 
     for key, config in SERVICES.items():
-        health = await check_service_health(key)
-
-        if health.get("status") == "healthy":
-            results["actions"].append({
-                "service": config.name,
-                "action": "none",
-                "status": "already_healthy",
-            })
-        else:
-            # 서비스 재시작 시도
-            logger.warning(f"[ServiceManager] {config.name} 비정상 ({health.get('status')}), 재시작 시도")
+        if force_restart:
+            # Force 모드: 무조건 재시작
+            logger.info(f"[ServiceManager] {config.name} 강제 재시작 (force_restart=True)")
             restart_result = await restart_service(key)
 
             if restart_result.get("success"):
                 results["actions"].append({
                     "service": config.name,
-                    "action": "restarted",
+                    "action": "force_restarted",
                     "status": "success",
                 })
             else:
@@ -215,5 +207,33 @@ async def ensure_services_ready() -> dict:
                     "message": restart_result.get("message"),
                 })
                 results["all_ready"] = False
+        else:
+            # 일반 모드: 헬스체크 후 필요시에만 재시작
+            health = await check_service_health(key)
+
+            if health.get("status") == "healthy":
+                results["actions"].append({
+                    "service": config.name,
+                    "action": "none",
+                    "status": "already_healthy",
+                })
+            else:
+                logger.warning(f"[ServiceManager] {config.name} 비정상 ({health.get('status')}), 재시작 시도")
+                restart_result = await restart_service(key)
+
+                if restart_result.get("success"):
+                    results["actions"].append({
+                        "service": config.name,
+                        "action": "restarted",
+                        "status": "success",
+                    })
+                else:
+                    results["actions"].append({
+                        "service": config.name,
+                        "action": "restart_failed",
+                        "status": "error",
+                        "message": restart_result.get("message"),
+                    })
+                    results["all_ready"] = False
 
     return results
