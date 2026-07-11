@@ -14,6 +14,84 @@
     return `${API_BASE}${value.startsWith('/') ? value : '/' + value}`;
   }
 
+  // ── Dataset Builder 잠금 관리 ────────────────────────────────────────────
+
+  const DATASET_BUILDER_SESSION_KEY = 'dataset_builder_session_id';
+
+  function getDatasetBuilderSessionId() {
+    let sid = sessionStorage.getItem(DATASET_BUILDER_SESSION_KEY);
+    if (!sid) {
+      sid = 'session_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      sessionStorage.setItem(DATASET_BUILDER_SESSION_KEY, sid);
+    }
+    return sid;
+  }
+
+  async function checkDatasetBuilderLock() {
+    try {
+      const resp = await fetch(apiUrl('/admin/dataset-builder/lock/status'), {
+        headers: authHeaders()
+      });
+      if (!resp.ok) return { locked: false };
+      return await resp.json();
+    } catch (e) {
+      console.error('잠금 상태 확인 실패:', e);
+      return { locked: false };
+    }
+  }
+
+  async function acquireDatasetBuilderLock(sourceId = null) {
+    try {
+      const resp = await fetch(apiUrl('/admin/dataset-builder/lock/acquire'), {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({
+          session_id: getDatasetBuilderSessionId(),
+          source_id: sourceId
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        return { success: false, ...data.detail };
+      }
+      return data;
+    } catch (e) {
+      console.error('잠금 획득 실패:', e);
+      return { success: false, message: e.message };
+    }
+  }
+
+  async function releaseDatasetBuilderLock() {
+    try {
+      const resp = await fetch(apiUrl('/admin/dataset-builder/lock/release'), {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({
+          session_id: getDatasetBuilderSessionId(),
+          force: false
+        })
+      });
+      return await resp.json();
+    } catch (e) {
+      console.error('잠금 해제 실패:', e);
+      return { success: false, message: e.message };
+    }
+  }
+
+  async function checkActiveJobs(sourceId = null) {
+    try {
+      const url = sourceId
+        ? apiUrl(`/admin/dataset-builder/jobs/resumable/${sourceId}`)
+        : apiUrl('/admin/dataset-builder/jobs/active');
+      const resp = await fetch(url, { headers: authHeaders() });
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      console.error('활성 Job 조회 실패:', e);
+      return null;
+    }
+  }
+
   // ── 인증 ─────────────────────────────────────────────────────────────────
 
   const TOKEN_KEY = 'admin_token';
@@ -6309,13 +6387,65 @@ LIMIT 10`;
     navigateToDatasetBuilder();
   }
 
-  function navigateToDatasetBuilder() {
+  async function navigateToDatasetBuilder() {
+    // 1. 잠금 상태 확인
+    const lockStatus = await checkDatasetBuilderLock();
+    const mySessionId = getDatasetBuilderSessionId();
+
+    // 2. 다른 세션이 잠금 중이면 경고 후 차단
+    if (lockStatus.locked && lockStatus.session_id !== mySessionId) {
+      const lockedAt = lockStatus.locked_at
+        ? new Date(lockStatus.locked_at).toLocaleString('ko-KR')
+        : '알 수 없음';
+      const stepInfo = lockStatus.current_step
+        ? `Step ${lockStatus.current_step}`
+        : '진행 중';
+      showToast(
+        `Dataset Builder가 다른 세션에서 사용 중입니다.\n시작: ${lockedAt}\n상태: ${stepInfo}`,
+        'warning',
+        5000
+      );
+      return;
+    }
+
+    // 3. 잠금 획득 시도
+    const acquired = await acquireDatasetBuilderLock();
+    if (!acquired.success) {
+      showToast('Dataset Builder 잠금 획득에 실패했습니다: ' + (acquired.message || ''), 'error', 4000);
+      return;
+    }
+
+    // 4. 활성 Job 확인 (재개 가능한 작업 있는지)
+    const activeJobs = await checkActiveJobs();
+    if (activeJobs?.count > 0) {
+      const latestJob = activeJobs.active_jobs[0];
+      showToast(
+        `이전 작업이 중단되었습니다.\nSource: ${latestJob.source_id || '알 수 없음'}\nStep: ${latestJob.step}`,
+        'info',
+        4000
+      );
+    }
+
+    // 5. 기존 로직 수행
     const opened = window.openWrDocsPage?.('rag-build-wizard');
     if (!opened) {
       showWrPage('rag-build-wizard');
     }
     scheduleDatasetStatusSummaryLoad(400);
   }
+
+  // 페이지 언로드 시 잠금 해제
+  window.addEventListener('beforeunload', () => {
+    // 동기 방식으로 잠금 해제 시도 (navigator.sendBeacon 사용)
+    const sessionId = sessionStorage.getItem(DATASET_BUILDER_SESSION_KEY);
+    if (sessionId) {
+      const data = JSON.stringify({ session_id: sessionId, force: false });
+      navigator.sendBeacon(
+        apiUrl('/admin/dataset-builder/lock/release'),
+        new Blob([data], { type: 'application/json' })
+      );
+    }
+  });
 
   function openDashboardAlerts() {
     if (window.openWrDocsPage?.('overview')) {

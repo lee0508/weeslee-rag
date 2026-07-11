@@ -1728,3 +1728,111 @@ async def get_inventory_list(source_id: Optional[str] = None):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inventory 조회 실패: {str(e)}")
+
+
+# ── Dataset Builder 잠금 및 상태 관리 API ─────────────────────────────────────
+
+
+from app.services.dataset_builder_lock import (
+    get_lock_status,
+    acquire_lock,
+    release_lock,
+    update_progress,
+    get_active_jobs,
+    get_resumable_state,
+)
+
+
+class LockRequest(BaseModel):
+    """잠금 요청"""
+    session_id: str
+    source_id: Optional[str] = None
+
+
+class LockReleaseRequest(BaseModel):
+    """잠금 해제 요청"""
+    session_id: str
+    force: bool = False
+
+
+class ProgressUpdateRequest(BaseModel):
+    """진행 상태 업데이트 요청"""
+    session_id: str
+    current_step: int
+    progress: int
+    source_id: Optional[str] = None
+    message: Optional[str] = None
+
+
+@router.get("/lock/status")
+async def get_dataset_builder_lock_status():
+    """
+    Dataset Builder 잠금 상태 조회.
+    브라우저 접속 시 호출하여 현재 상태 확인.
+    """
+    return get_lock_status()
+
+
+@router.post("/lock/acquire")
+async def acquire_dataset_builder_lock(req: LockRequest):
+    """
+    Dataset Builder 잠금 획득.
+    탭 열 때 호출. 이미 다른 세션이 사용 중이면 실패.
+    """
+    result = acquire_lock(req.session_id, req.source_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=423, detail=result)
+    return result
+
+
+@router.post("/lock/release")
+async def release_dataset_builder_lock(req: LockReleaseRequest):
+    """
+    Dataset Builder 잠금 해제.
+    탭 닫을 때 또는 빌드 완료 시 호출.
+    """
+    return release_lock(req.session_id, req.force)
+
+
+@router.post("/lock/heartbeat")
+async def update_dataset_builder_progress(req: ProgressUpdateRequest):
+    """
+    진행 상태 업데이트 (heartbeat).
+    빌드 진행 중 주기적으로 호출하여 상태 갱신.
+    """
+    return update_progress(
+        session_id=req.session_id,
+        current_step=req.current_step,
+        progress=req.progress,
+        source_id=req.source_id,
+        message=req.message,
+    )
+
+
+@router.get("/jobs/active")
+async def list_active_jobs(source_id: Optional[str] = None):
+    """
+    진행 중인 Job 목록 조회.
+    재접속 시 호출하여 중단된 작업 확인.
+    """
+    jobs = get_active_jobs(source_id)
+    return {
+        "active_jobs": jobs,
+        "count": len(jobs),
+    }
+
+
+@router.get("/jobs/resumable/{source_id}")
+async def get_resumable_job_state(source_id: str):
+    """
+    특정 source_id의 재개 가능한 상태 조회.
+    중단된 빌드를 이어서 진행할 때 사용.
+    """
+    state = get_resumable_state(source_id)
+    if not state:
+        return {
+            "can_resume": False,
+            "source_id": source_id,
+            "message": "재개 가능한 작업이 없습니다.",
+        }
+    return state
