@@ -183,6 +183,17 @@ async def check_all_services() -> dict:
     }
 
 
+def _wait_for_port_listen(port: int, timeout_sec: int = 30) -> bool:
+    """포트가 LISTEN 상태가 될 때까지 대기."""
+    start = time.time()
+    while time.time() - start < timeout_sec:
+        pid = _port_owner_pid(port)
+        if pid:
+            return True
+        time.sleep(1)
+    return False
+
+
 def restart_service_sync(service_key: str) -> dict:
     """서비스 동기 재시작 (subprocess 사용)."""
     if service_key not in SERVICES:
@@ -191,47 +202,59 @@ def restart_service_sync(service_key: str) -> dict:
     config = SERVICES[service_key]
     logger.info(f"[ServiceManager] {config.name} 재시작 시작")
     before_identity = _service_identity(service_key, config)
+    was_running = before_identity is not None
+    logger.info(f"[ServiceManager] {config.name} before_identity={before_identity}, was_running={was_running}")
 
     try:
-        # 1. 서비스 중지
+        # 1. 서비스 중지 (이미 죽어있어도 진행)
         stop_result = _run_shell_command(
             config.stop_cmd,
             timeout=10,
         )
-        if stop_result.returncode != 0 and before_identity:
-            return {
-                "success": False,
-                "service": config.name,
-                "message": f"중지 명령 실패: {_short_error_text(stop_result)}",
-            }
-        logger.info(f"[ServiceManager] {config.name} 중지 완료")
+        # pkill은 프로세스가 없으면 returncode=1을 반환하므로, 이미 죽어있는 경우 무시
+        if stop_result.returncode != 0 and was_running:
+            logger.warning(f"[ServiceManager] {config.name} 중지 명령 실패 (무시하고 계속): {_short_error_text(stop_result)}")
+        logger.info(f"[ServiceManager] {config.name} 중지 완료 (returncode={stop_result.returncode})")
 
-        # 2. 잠시 대기
-        time.sleep(2)
+        # 2. 포트가 해제될 때까지 대기 (최대 10초)
+        for _ in range(10):
+            if _port_owner_pid(config.port) is None:
+                break
+            time.sleep(1)
+        else:
+            logger.warning(f"[ServiceManager] {config.name} 포트 {config.port} 아직 사용 중")
 
         # 3. 서비스 시작
         start_result = _run_shell_command(
             config.start_cmd,
             timeout=15,
         )
-        if start_result.returncode != 0:
+        # nohup & 명령은 즉시 리턴하므로 returncode만으로 판단 불가
+        logger.info(f"[ServiceManager] {config.name} 시작 명령 실행 (returncode={start_result.returncode})")
+
+        # 4. 포트 리슨 대기 (최대 30초)
+        if not _wait_for_port_listen(config.port, timeout_sec=30):
             return {
                 "success": False,
                 "service": config.name,
-                "message": f"시작 명령 실패: {_short_error_text(start_result)}",
+                "message": f"서비스 시작 후 포트 {config.port} 리슨 대기 타임아웃",
             }
-        logger.info(f"[ServiceManager] {config.name} 시작 명령 실행")
+        logger.info(f"[ServiceManager] {config.name} 포트 {config.port} 리슨 확인")
 
-        # 4. 시작 대기 (최대 30초)
-        for _ in range(15):
+        # 5. 헬스체크 대기 (최대 30초)
+        for attempt in range(15):
             time.sleep(2)
             try:
                 import requests
                 resp = requests.get(config.health_url, timeout=3)
                 if resp.status_code == 200:
                     after_identity = _service_identity(service_key, config)
+                    logger.info(f"[ServiceManager] {config.name} after_identity={after_identity}")
+
+                    # 재시작 검증: 이전에 실행 중이었고 PID가 같으면 실패
                     if (
                         config.verify_identity
+                        and was_running
                         and before_identity
                         and after_identity
                         and before_identity == after_identity
@@ -246,21 +269,25 @@ def restart_service_sync(service_key: str) -> dict:
                             "before_identity": before_identity,
                             "after_identity": after_identity,
                         }
+
+                    # 새로 시작한 경우(was_running=False) 또는 PID가 변경된 경우 성공
                     logger.info(f"[ServiceManager] {config.name} 정상 시작 확인")
                     return {
                         "success": True,
                         "service": config.name,
-                        "message": "서비스 재시작 완료",
+                        "message": "서비스 재시작 완료" if was_running else "서비스 시작 완료",
                         "before_identity": before_identity,
                         "after_identity": after_identity,
+                        "was_running": was_running,
                     }
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ServiceManager] {config.name} 헬스체크 시도 {attempt+1}/15 실패: {e}")
                 continue
 
         return {
             "success": False,
             "service": config.name,
-            "message": "서비스 시작 후 응답 없음",
+            "message": "서비스 시작 후 헬스체크 응답 없음",
         }
 
     except subprocess.TimeoutExpired:
