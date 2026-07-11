@@ -25,6 +25,8 @@ class ServiceConfig:
     port: int
     timeout: float = 5.0
     verify_identity: bool = False
+    port_wait_timeout: int = 60  # 포트 리슨 대기 타임아웃 (초)
+    health_wait_timeout: int = 60  # 헬스체크 대기 타임아웃 (초)
 
 
 # 서비스 설정
@@ -40,6 +42,8 @@ SERVICES = {
         port=5000,
         timeout=10.0,
         verify_identity=True,
+        port_wait_timeout=90,  # OCR 서버는 GPU 초기화로 오래 걸림
+        health_wait_timeout=90,
     ),
     "ollama": ServiceConfig(
         name="Ollama",
@@ -49,6 +53,8 @@ SERVICES = {
         port=11434,
         timeout=5.0,
         verify_identity=True,
+        port_wait_timeout=60,
+        health_wait_timeout=60,
     ),
 }
 
@@ -232,17 +238,18 @@ def restart_service_sync(service_key: str) -> dict:
         # nohup & 명령은 즉시 리턴하므로 returncode만으로 판단 불가
         logger.info(f"[ServiceManager] {config.name} 시작 명령 실행 (returncode={start_result.returncode})")
 
-        # 4. 포트 리슨 대기 (최대 30초)
-        if not _wait_for_port_listen(config.port, timeout_sec=30):
+        # 4. 포트 리슨 대기 (config 설정값 사용)
+        if not _wait_for_port_listen(config.port, timeout_sec=config.port_wait_timeout):
             return {
                 "success": False,
                 "service": config.name,
-                "message": f"서비스 시작 후 포트 {config.port} 리슨 대기 타임아웃",
+                "message": f"서비스 시작 후 포트 {config.port} 리슨 대기 타임아웃 ({config.port_wait_timeout}초)",
             }
         logger.info(f"[ServiceManager] {config.name} 포트 {config.port} 리슨 확인")
 
-        # 5. 헬스체크 대기 (최대 30초)
-        for attempt in range(15):
+        # 5. 헬스체크 대기 (config 설정값 사용)
+        max_attempts = config.health_wait_timeout // 2  # 2초 간격으로 체크
+        for attempt in range(max_attempts):
             time.sleep(2)
             try:
                 import requests
@@ -281,13 +288,13 @@ def restart_service_sync(service_key: str) -> dict:
                         "was_running": was_running,
                     }
             except Exception as e:
-                logger.debug(f"[ServiceManager] {config.name} 헬스체크 시도 {attempt+1}/15 실패: {e}")
+                logger.debug(f"[ServiceManager] {config.name} 헬스체크 시도 {attempt+1}/{max_attempts} 실패: {e}")
                 continue
 
         return {
             "success": False,
             "service": config.name,
-            "message": "서비스 시작 후 헬스체크 응답 없음",
+            "message": f"서비스 시작 후 헬스체크 응답 없음 ({config.health_wait_timeout}초 대기)",
         }
 
     except subprocess.TimeoutExpired:
