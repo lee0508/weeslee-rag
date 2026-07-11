@@ -20,6 +20,7 @@ from app.services.dataset_context import update_source_dataset_status
 from app.services.chunking import ChunkingService
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.source_artifact_index import sync_source_index
+from app.services.source_data_paths import get_source_paths
 
 # [2026-07-08] structured_json fallback을 위한 resolver 임포트
 try:
@@ -33,6 +34,46 @@ router = APIRouter(prefix="/admin/dataset-builder/step5")
 logger = logging.getLogger(__name__)
 _CHUNK_BUILD_JOBS: dict[str, dict[str, Any]] = {}
 _STEP5_JOB_DIR = Path(__file__).resolve().parents[3] / "data" / "jobs" / "step5_chunk"
+
+
+def _load_from_unified_path(source_id: str, document_id: int) -> dict:
+    """통합 경로(step2_extract)에서 OCR 결과물을 로드한다.
+
+    Returns:
+        {
+            "extracted_text": str or None,
+            "structured_data": dict or None,
+            "ocr_report": dict or None,
+            "loaded_from": "unified_path" or None
+        }
+    """
+    result = {"extracted_text": None, "structured_data": None, "ocr_report": None, "loaded_from": None}
+    try:
+        paths = get_source_paths(source_id)
+        doc_dir = paths.document_dir(str(document_id))
+
+        # full_text.txt 로드
+        full_text_path = doc_dir / "full_text.txt"
+        if full_text_path.exists():
+            result["extracted_text"] = full_text_path.read_text(encoding="utf-8")
+
+        # structured.json 로드
+        structured_path = doc_dir / "structured.json"
+        if structured_path.exists():
+            result["structured_data"] = json.loads(structured_path.read_text(encoding="utf-8"))
+
+        # ocr_report.json 로드
+        ocr_report_path = doc_dir / "ocr_report.json"
+        if ocr_report_path.exists():
+            result["ocr_report"] = json.loads(ocr_report_path.read_text(encoding="utf-8"))
+
+        if result["extracted_text"] or result["structured_data"]:
+            result["loaded_from"] = "unified_path"
+
+    except Exception as e:
+        logger.debug(f"Failed to load from unified path: {e}")
+
+    return result
 
 
 # ── Request/Response Models ──────────────────────────────────────────────
@@ -555,11 +596,21 @@ def execute_chunk_build(
                         continue
 
                 # Step 4에서 추출된 텍스트/페이지 결과 로드
-                from app.services.processed_text_store import processed_text_store
-                extracted_text = processed_text_store.get_text(str(document_id), format="txt")
-                extraction_result = processed_text_store.get_result(str(document_id))
-                report = processed_text_store.get_report(str(document_id)) or {}
-                structured_data = processed_text_store.get_structured_data(str(document_id)) or {}
+                # [2026-07-11] 통합 경로(step2_extract) 우선 참조
+                unified_data = _load_from_unified_path(doc.source_id, document_id)
+                extracted_text = unified_data.get("extracted_text")
+                structured_data = unified_data.get("structured_data") or {}
+                report = unified_data.get("ocr_report") or {}
+
+                # 통합 경로에 없으면 메모리 캐시(processed_text_store)에서 로드
+                if not extracted_text:
+                    from app.services.processed_text_store import processed_text_store
+                    extracted_text = processed_text_store.get_text(str(document_id), format="txt")
+                    extraction_result = processed_text_store.get_result(str(document_id))
+                    if not report:
+                        report = processed_text_store.get_report(str(document_id)) or {}
+                    if not structured_data:
+                        structured_data = processed_text_store.get_structured_data(str(document_id)) or {}
 
                 # [2026-07-08] structured_json fallback - sections 정보가 없으면 외부 파일에서 로드
                 if not structured_data.get("sections") and HAS_STRUCTURED_RESOLVER:
@@ -650,16 +701,61 @@ def execute_chunk_build(
                     or (req.chunking_mode == "auto" and bool(structured_data))
                 )
                 if use_semantic and structured_data:
+                    logger.info(
+                        "[Step5] chunk strategy=semantic document_id=%s source_id=%s snapshot_id=%s sections=%s file=%s",
+                        document_id,
+                        doc.source_id,
+                        req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+                        len((structured_data or {}).get("sections") or []),
+                        file_name,
+                    )
                     chunks = chunking_service.chunk_semantic_sections(structured_data, metadata=chunk_meta)
                 elif page_rows and req.chunking_mode != "plain":
+                    logger.info(
+                        "[Step5] chunk strategy=pages document_id=%s source_id=%s snapshot_id=%s pages=%s file=%s",
+                        document_id,
+                        doc.source_id,
+                        req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+                        len(page_rows),
+                        file_name,
+                    )
                     chunks = chunking_service.chunk_pages(page_rows, metadata=chunk_meta)
                 else:
+                    logger.info(
+                        "[Step5] chunk strategy=plain document_id=%s source_id=%s snapshot_id=%s text_chars=%s file=%s",
+                        document_id,
+                        doc.source_id,
+                        req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+                        len(extracted_text or ""),
+                        file_name,
+                    )
                     chunks = chunking_service.chunk_text(extracted_text, metadata=chunk_meta)
 
                 # 저장
+                logger.info(
+                    "[Step5] save_chunks start: document_id=%s chunks=%s file=%s",
+                    document_id,
+                    len(chunks),
+                    file_name,
+                )
                 save_result = save_chunks_to_store(document_id, chunks, text_store)
+                logger.info(
+                    "[Step5] save_chunks done: document_id=%s success=%s chunks_count=%s total_tokens=%s error=%s file=%s",
+                    document_id,
+                    save_result.get("success"),
+                    save_result.get("chunks_count"),
+                    save_result.get("total_tokens"),
+                    save_result.get("error"),
+                    file_name,
+                )
 
                 if save_result["success"]:
+                    logger.info(
+                        "[Step5] save_run_config start: document_id=%s snapshot_id=%s file=%s",
+                        document_id,
+                        req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+                        file_name,
+                    )
                     text_store.save_run_config(
                         str(document_id),
                         {
@@ -679,13 +775,33 @@ def execute_chunk_build(
                         },
                         snapshot_id=req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
                     )
+                    logger.info(
+                        "[Step5] save_run_config done: document_id=%s file=%s",
+                        document_id,
+                        file_name,
+                    )
                     processed += 1
                     total_chunks += save_result["chunks_count"]
+                    logger.info(
+                        "[Step5] db status update start: document_id=%s processed=%s skipped=%s total_chunks=%s file=%s",
+                        document_id,
+                        processed,
+                        skipped,
+                        total_chunks,
+                        file_name,
+                    )
                     if req.snapshot_id:
                         doc.faiss_snapshot = req.snapshot_id
                     doc.status = ProcessingStatus.CHUNKED.value
                     doc.chunk_count = save_result["chunks_count"]
                     doc.updated_at = datetime.utcnow()
+                    logger.info(
+                        "[Step5] db status update done: document_id=%s status=%s chunk_count=%s file=%s",
+                        document_id,
+                        doc.status,
+                        doc.chunk_count,
+                        file_name,
+                    )
                     results.append(ChunkBuildResult(
                         document_id=document_id,
                         file_name=file_name,
@@ -694,6 +810,11 @@ def execute_chunk_build(
                         total_tokens=save_result["total_tokens"]
                     ))
                     if progress_callback:
+                        logger.info(
+                            "[Step5] progress_callback start: document_id=%s stage=chunk_complete file=%s",
+                            document_id,
+                            file_name,
+                        )
                         progress_callback(
                             stage=f"[{index}/{total_documents}] {file_name} 청킹 완료",
                             progress=int((index / max(total_documents, 1)) * 100),
@@ -702,6 +823,11 @@ def execute_chunk_build(
                             failed=failed,
                             skipped=skipped,
                             total_chunks=total_chunks,
+                        )
+                        logger.info(
+                            "[Step5] progress_callback done: document_id=%s file=%s",
+                            document_id,
+                            file_name,
                         )
                 else:
                     failed += 1
@@ -745,7 +871,21 @@ def execute_chunk_build(
                         total_chunks=total_chunks,
                     )
 
+        logger.info(
+            "[Step5] db.commit start: source_id=%s snapshot_id=%s processed=%s failed=%s skipped=%s total_chunks=%s",
+            req.source_id,
+            req.snapshot_id,
+            processed,
+            failed,
+            skipped,
+            total_chunks,
+        )
         db.commit()
+        logger.info(
+            "[Step5] db.commit done: source_id=%s snapshot_id=%s",
+            req.source_id,
+            req.snapshot_id,
+        )
         if req.source_id:
             if processed > 0:
                 update_source_dataset_status(req.source_id, "chunked")
