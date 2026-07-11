@@ -13844,6 +13844,31 @@ LIMIT 10`;
       return;
     }
 
+    // ── 의존 서비스(OCR, Ollama) 준비 확인 ─────────────────────────────────
+    showToast('서비스 상태 확인 중...', 'info', 2000);
+    try {
+      const ensureResp = await fetch(apiUrl('/health/services/ensure-ready'), { method: 'POST' });
+      const ensureData = await ensureResp.json();
+      if (!ensureData.all_ready) {
+        const failedServices = (ensureData.actions || [])
+          .filter(a => a.status === 'error')
+          .map(a => a.service)
+          .join(', ');
+        showToast(`서비스 준비 실패: ${failedServices}. 전체 순차 실행을 중단합니다.`, 'error', 5000);
+        console.error('[wizardRunAll] 서비스 준비 실패:', ensureData);
+        return;
+      }
+      const restartedServices = (ensureData.actions || [])
+        .filter(a => a.action === 'restarted')
+        .map(a => a.service);
+      if (restartedServices.length > 0) {
+        showToast(`서비스 재시작됨: ${restartedServices.join(', ')}`, 'info', 3000);
+      }
+    } catch (err) {
+      console.error('[wizardRunAll] 서비스 준비 확인 오류:', err);
+      showToast('서비스 준비 확인 중 오류가 발생했습니다. 계속 진행합니다.', 'warning', 3000);
+    }
+
     // ── 전체 실행 전 상태 초기화 ───────────────────────────────────────────
     // 기존 선택된 스냅샷 유지 여부 확인
     const keepSnapshot = getSelectedSnapshot();

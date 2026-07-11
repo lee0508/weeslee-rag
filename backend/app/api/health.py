@@ -4,9 +4,40 @@ Health check endpoints
 import json
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 
 router = APIRouter()
+
+
+# ── OCR 서버 헬스체크 ─────────────────────────────────────────────────────────
+@router.get("/health/ocr")
+async def ocr_health():
+    """OCR 서버 연결 헬스체크."""
+    from app.services.service_manager import check_service_health
+    return await check_service_health("ocr")
+
+
+# ── 서비스 통합 헬스체크 ──────────────────────────────────────────────────────
+@router.get("/health/services")
+async def services_health():
+    """Dataset Builder 의존 서비스 전체 헬스체크."""
+    from app.services.service_manager import check_all_services
+    return await check_all_services()
+
+
+# ── 서비스 재시작 API ─────────────────────────────────────────────────────────
+@router.post("/health/services/{service_key}/restart")
+async def restart_service(service_key: str):
+    """특정 서비스 재시작."""
+    from app.services.service_manager import restart_service as do_restart
+    return await do_restart(service_key)
+
+
+@router.post("/health/services/ensure-ready")
+async def ensure_services_ready():
+    """모든 필수 서비스가 준비되었는지 확인하고 필요시 재시작."""
+    from app.services.service_manager import ensure_services_ready as do_ensure
+    return await do_ensure()
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _FAISS_DIR = _PROJECT_ROOT / "data" / "indexes" / "faiss"
