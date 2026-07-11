@@ -326,20 +326,36 @@ async def restart_service(service_key: str) -> dict:
 async def ensure_services_ready(force_restart: bool = False) -> dict:
     """
     데이터셋 빌드에 필요한 모든 서비스가 준비되었는지 확인.
-    force_restart=True인 경우 모든 서비스를 강제로 재시작.
+
+    force_restart=True인 경우:
+    - 먼저 헬스체크 수행
+    - 정상이면 재시작 안함 (불필요한 대기시간 절약)
+    - 비정상이면 해당 서비스만 재시작
     """
     results = {"actions": [], "all_ready": True, "force_restart": force_restart}
 
     for key, config in SERVICES.items():
-        if force_restart:
-            # Force 모드: 무조건 재시작
-            logger.info(f"[ServiceManager] {config.name} 강제 재시작 (force_restart=True)")
+        # 항상 헬스체크 먼저 수행
+        health = await check_service_health(key)
+        is_healthy = health.get("status") == "healthy"
+
+        if is_healthy:
+            # 서비스 정상 → 재시작 불필요
+            results["actions"].append({
+                "service": config.name,
+                "action": "none",
+                "status": "already_healthy",
+                "message": "헬스체크 통과, 재시작 불필요" if force_restart else None,
+            })
+        else:
+            # 서비스 비정상 → 재시작 시도
+            logger.warning(f"[ServiceManager] {config.name} 비정상 ({health.get('status')}), 재시작 시도")
             restart_result = await restart_service(key)
 
             if restart_result.get("success"):
                 results["actions"].append({
                     "service": config.name,
-                    "action": "force_restarted",
+                    "action": "restarted",
                     "status": "success",
                 })
             else:
@@ -359,43 +375,6 @@ async def ensure_services_ready(force_restart: bool = False) -> dict:
                         "status": "warning",
                         "message": f"{config.name}은(는) 재시작 없이 계속 진행 (non-critical)",
                     })
-        else:
-            # 일반 모드: 헬스체크 후 필요시에만 재시작
-            health = await check_service_health(key)
-
-            if health.get("status") == "healthy":
-                results["actions"].append({
-                    "service": config.name,
-                    "action": "none",
-                    "status": "already_healthy",
-                })
-            else:
-                logger.warning(f"[ServiceManager] {config.name} 비정상 ({health.get('status')}), 재시작 시도")
-                restart_result = await restart_service(key)
-
-                if restart_result.get("success"):
-                    results["actions"].append({
-                        "service": config.name,
-                        "action": "restarted",
-                        "status": "success",
-                    })
-                else:
-                    # critical=False인 서비스는 재시작 실패해도 경고만 하고 진행
-                    if config.critical:
-                        results["actions"].append({
-                            "service": config.name,
-                            "action": "restart_failed",
-                            "status": "error",
-                            "message": restart_result.get("message"),
-                        })
-                        results["all_ready"] = False
-                    else:
-                        results["actions"].append({
-                            "service": config.name,
-                            "action": "restart_skipped",
-                            "status": "warning",
-                            "message": f"{config.name}은(는) 재시작 없이 계속 진행 (non-critical)",
-                        })
 
     return results
 
