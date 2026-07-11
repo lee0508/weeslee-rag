@@ -537,8 +537,24 @@ class ProcessedTextStore:
         except Exception:
             return None
 
-    def exists(self, document_id: str) -> bool:
-        """처리 결과 존재 여부 확인."""
+    def exists(self, document_id: str, check_unified_only: bool = True) -> bool:
+        """
+        처리 결과 존재 여부 확인.
+
+        Args:
+            document_id: 문서 ID
+            check_unified_only: True이면 통합 경로(use_unified_path=True인 경우)만 확인,
+                               False이면 레거시 경로까지 모두 확인
+
+        Returns:
+            처리 결과 존재 여부
+        """
+        if self.use_unified_path and check_unified_only:
+            # 통합 경로만 확인 (레거시 경로 무시)
+            report_path = self._doc_dir(document_id) / "ocr_report.json"
+            return report_path.exists()
+
+        # 레거시 경로 포함 전체 확인
         return self._first_existing_path(self._path_candidates(document_id, "ocr", "ocr_report.json")) is not None
 
     def get_structured_data(self, document_id: str) -> Optional[dict]:
