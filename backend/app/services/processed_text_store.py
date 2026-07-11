@@ -230,9 +230,17 @@ class ProcessedTextStore:
         return self._stage_dir(document_id, "ocr")
 
     def _chunk_dir(self, document_id: str) -> Path:
+        if self.use_unified_path:
+            # 통합 경로: /data/source/{source_id}/step5_chunk/documents/{document_id}/
+            project_root = Path(__file__).resolve().parents[3]
+            return project_root / "data" / "source" / self.source_id / "step5_chunk" / "documents" / document_id
         return self._stage_dir(document_id, "chunk")
 
     def _embedding_dir(self, document_id: str) -> Path:
+        if self.use_unified_path:
+            # 통합 경로: /data/source/{source_id}/step6_embed/documents/{document_id}/
+            project_root = Path(__file__).resolve().parents[3]
+            return project_root / "data" / "source" / self.source_id / "step6_embed" / "documents" / document_id
         return self._stage_dir(document_id, "embedding")
 
     def _metadata_dir(self, document_id: str) -> Path:
@@ -259,10 +267,21 @@ class ProcessedTextStore:
     def _path_candidates(self, document_id: str, stage: str, file_name: str) -> list[Path]:
         """파일 검색을 위한 후보 경로 목록 반환 (우선순위 순서)."""
         candidates = []
+        project_root = Path(__file__).resolve().parents[3]
 
         if self.use_unified_path:
-            # 1순위: 통합 경로 (플랫 구조)
+            # 1순위: 통합 경로 (플랫 구조 - step2_extract용)
             candidates.append(self._doc_dir(document_id) / file_name)
+
+            # chunk/embedding 단계는 별도 통합 경로
+            if stage == "chunk":
+                candidates.append(
+                    project_root / "data" / "source" / self.source_id / "step5_chunk" / "documents" / document_id / file_name
+                )
+            elif stage == "embedding":
+                candidates.append(
+                    project_root / "data" / "source" / self.source_id / "step6_embed" / "documents" / document_id / file_name
+                )
 
         # 2순위: 현재 base_dir 기반 stage 경로
         candidates.append(self._stage_dir(document_id, stage) / file_name)

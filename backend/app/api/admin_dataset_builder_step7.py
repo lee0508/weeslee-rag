@@ -77,9 +77,10 @@ class FAISSStatusResponse(BaseModel):
 
 # ── Helper Functions ─────────────────────────────────────────────────────
 
-def get_text_store() -> ProcessedTextStore:
-    """ProcessedTextStore 인스턴스 반환"""
-    return ProcessedTextStore()
+def get_text_store(source_id: Optional[str] = None) -> ProcessedTextStore:
+    """ProcessedTextStore 인스턴스 반환 (source_id 지정 시 통합 경로 사용)"""
+    from app.services.processed_text_store import get_processed_text_store
+    return get_processed_text_store(source_id)
 
 
 def get_faiss_dir() -> Path:

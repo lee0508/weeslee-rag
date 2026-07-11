@@ -128,9 +128,10 @@ class DocumentChunksResponse(BaseModel):
 
 # ── Helper Functions ─────────────────────────────────────────────────────
 
-def get_text_store() -> ProcessedTextStore:
-    """ProcessedTextStore 인스턴스 반환"""
-    return ProcessedTextStore()
+def get_text_store(source_id: Optional[str] = None) -> ProcessedTextStore:
+    """ProcessedTextStore 인스턴스 반환 (source_id 지정 시 통합 경로 사용)"""
+    from app.services.processed_text_store import get_processed_text_store
+    return get_processed_text_store(source_id)
 
 
 def _now_iso() -> str:
@@ -469,7 +470,8 @@ def execute_chunk_build(
 
     Step 4에서 추출된 텍스트를 설정에 따라 청킹합니다.
     """
-    text_store = get_text_store()
+    # source_id 지정 시 통합 경로 사용 (step5_chunk 폴더)
+    text_store = get_text_store(req.source_id)
     chunking_service = ChunkingService(
         chunk_size=req.chunk_size,
         chunk_overlap=req.chunk_overlap,
