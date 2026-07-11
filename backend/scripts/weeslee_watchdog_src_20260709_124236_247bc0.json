@@ -1,0 +1,37 @@
+{
+  "checks": [
+    {
+      "name": "business_name_search_e_audit",
+      "query": "AI 기반 e-감사시스템 재구축 ISP 컨설팅",
+      "expected_terms": [
+        "e-감사시스템",
+        "isp"
+      ],
+      "min_documents": 1,
+      "require_original_text": true
+    },
+    {
+      "name": "organization_search_kamco",
+      "query": "한국자산관리공사",
+      "expected_terms": [
+        "한국자산관리공사"
+      ],
+      "min_documents": 1,
+      "require_original_text": true
+    },
+    {
+      "name": "project_management_communication",
+      "query": "의사소통 관리",
+      "expected_terms": [
+        "의사소통"
+      ],
+      "document_category": "프로젝트관리",
+      "section_type": "프로젝트관리",
+      "snapshot_ids": [
+        "snapshot_20260709_src_20260709_124236_247bc0_V1"
+      ],
+      "min_documents": 1,
+      "require_original_text": true
+    }
+  ]
+}

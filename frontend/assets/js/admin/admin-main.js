@@ -12991,6 +12991,27 @@ LIMIT 10`;
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  function _wizardFormatDurationMs(ms) {
+    const safeMs = Math.max(0, Number(ms) || 0);
+    const totalSeconds = Math.floor(safeMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}초`;
+    return `${minutes}분 ${seconds}초`;
+  }
+
+  function _wizardStep4ProgressKey(data) {
+    const lastEvent = data?.last_event || {};
+    return [
+      String(data?.status || ''),
+      String(lastEvent.timestamp || ''),
+      String(data?.persisted_at || ''),
+      String(lastEvent.stage || ''),
+      String(lastEvent.progress || ''),
+      String(lastEvent.document_id || '')
+    ].join('|');
+  }
+
   async function _wizardGetFaissJob(jobId) {
     const response = await fetch(apiUrl('/api/admin/faiss/jobs'), {
       headers: { Authorization: 'Bearer ' + getToken() }
@@ -13276,10 +13297,19 @@ LIMIT 10`;
       let lastStage = '';
       let settled = false;
       let lastResult = null;
+      let lastMeaningfulEventAt = Date.now();
+      let warnedStale = false;
+      const staleWarningMs = 3 * 60 * 1000;
+      const staleTimeoutMs = 8 * 60 * 1000;
+
+      const clearWatchdog = () => {
+        if (watchdogTimer) clearInterval(watchdogTimer);
+      };
 
       const finishResolve = () => {
         if (settled) return;
         settled = true;
+        clearWatchdog();
         sse.close();
         resolve(lastResult || {});
       };
@@ -13287,13 +13317,40 @@ LIMIT 10`;
       const finishReject = (error) => {
         if (settled) return;
         settled = true;
+        clearWatchdog();
         sse.close();
         reject(error);
       };
 
+      const watchdogTimer = setInterval(() => {
+        if (settled) return;
+        const idleMs = Date.now() - lastMeaningfulEventAt;
+        if (idleMs >= staleWarningMs && !warnedStale) {
+          warnedStale = true;
+          _wizardAppendLog(step, `Step 4 진행 이벤트가 ${_wizardFormatDurationMs(idleMs)} 동안 없어 상태 정체 여부를 확인합니다.`);
+        }
+        if (idleMs < staleTimeoutMs) return;
+        clearWatchdog();
+        sse.close();
+        (async () => {
+          try {
+            _wizardAppendLog(step, `Step 4 SSE heartbeat만 유지되고 실제 진행 이벤트가 ${_wizardFormatDurationMs(idleMs)} 동안 없어 상태 조회 폴백으로 전환합니다.`);
+            const result = await _wizardPollStep4JobUntilDone(step, jobId, { staleWarningMs, staleTimeoutMs });
+            finishResolve(result || {});
+          } catch (pollError) {
+            finishReject(new Error(pollError?.message || 'Step 4 stale 상태 조회 실패'));
+          }
+        })();
+      }, 15000);
+
       sse.onmessage = (e) => {
         try {
           const ev = JSON.parse(e.data);
+          const isHeartbeat = !!ev.heartbeat || !!ev.connected;
+          if (!isHeartbeat) {
+            lastMeaningfulEventAt = Date.now();
+            warnedStale = false;
+          }
           if (ev.log) _wizardAppendJobLog(step, formatStep4EventLog(ev));
           if (ev.stage && ev.stage !== lastStage) {
             lastStage = ev.stage;
@@ -13438,15 +13495,27 @@ LIMIT 10`;
   async function _wizardPollStep4JobUntilDone(step, jobId, options = {}) {
     const intervalMs = Number(options.intervalMs || 3000);
     const timeoutMs = Number(options.timeoutMs || 60 * 60 * 1000);
+    const staleWarningMs = Number(options.staleWarningMs || 3 * 60 * 1000);
+    const staleTimeoutMs = Number(options.staleTimeoutMs || 8 * 60 * 1000);
     const startedAt = Date.now();
     let lastStage = '';
     let seenDoneMessage = false;
+    let lastProgressKey = '';
+    let lastProgressObservedAt = Date.now();
+    let warnedStale = false;
 
     while (Date.now() - startedAt < timeoutMs) {
       const data = await _wizardGetStep4Job(jobId);
       const lastEvent = data.last_event || {};
       const stage = String(lastEvent.stage || '');
       const progress = Number(lastEvent.progress || 0);
+      const progressKey = _wizardStep4ProgressKey(data);
+
+      if (progressKey !== lastProgressKey) {
+        lastProgressKey = progressKey;
+        lastProgressObservedAt = Date.now();
+        warnedStale = false;
+      }
 
       if (stage && stage !== lastStage) {
         lastStage = stage;
@@ -13465,6 +13534,18 @@ LIMIT 10`;
       }
       if (data.status === 'failed') {
         throw new Error(data.error || 'Step 4 작업 실패');
+      }
+
+      if (data.status === 'running') {
+        const idleMs = Date.now() - lastProgressObservedAt;
+        if (idleMs >= staleWarningMs && !warnedStale) {
+          warnedStale = true;
+          _wizardAppendLog(step, `Step 4 상태가 ${_wizardFormatDurationMs(idleMs)} 동안 갱신되지 않았습니다. 현재 문서를 확인합니다.`);
+        }
+        if (idleMs >= staleTimeoutMs) {
+          const staleAt = lastEvent.timestamp || data.persisted_at || data.created_at || '-';
+          throw new Error(`Step 4 작업이 ${_wizardFormatDurationMs(idleMs)} 동안 갱신되지 않았습니다. 마지막 이벤트: ${staleAt}`);
+        }
       }
 
       await _wizardSleep(intervalMs);

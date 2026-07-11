@@ -66,6 +66,42 @@ async def get_active_jobs(source_id: str = None):
     from app.services.service_manager import get_active_build_jobs
     return get_active_build_jobs(source_id=source_id)
 
+
+@router.get("/health/jobs/stale")
+async def check_stale_jobs(source_id: str = None, auto_update: bool = False):
+    """Stale job 감지 - running 상태이지만 오래 정지된 Job 체크.
+
+    Args:
+        source_id: 특정 source_id만 필터링 (없으면 전체)
+        auto_update: True이면 stale job 상태를 자동으로 stalled/interrupted로 변경
+
+    Returns:
+        - stale_jobs: 정지 의심/중단된 Job 목록
+        - healthy_jobs: 정상 진행 중인 Job 목록
+        - thresholds: stalled(5분), interrupted(15분) 기준
+    """
+    from app.services.dataset_builder_lock import check_stale_jobs as do_check
+    return do_check(auto_update=auto_update, source_id=source_id)
+
+
+@router.get("/health/jobs/status")
+async def get_job_health_status(source_id: str = None):
+    """Job 상태 요약 (UI 표시용).
+
+    running job이 실제로 진행 중인지, stale 상태인지 판단하여 반환.
+
+    Args:
+        source_id: 특정 source_id만 필터링 (없으면 전체)
+
+    Returns:
+        - overall_status: running | stalled | interrupted | idle
+        - message: 상태 메시지
+        - recommendation: 권장 조치 (stale인 경우)
+        - problem_file: 문제 문서명 (stale인 경우)
+    """
+    from app.services.dataset_builder_lock import get_job_health_status as do_status
+    return do_status(source_id=source_id)
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _FAISS_DIR = _PROJECT_ROOT / "data" / "indexes" / "faiss"
 _ACTIVE_INDEX_PATH = _PROJECT_ROOT / "data" / "active_index.json"

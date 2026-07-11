@@ -1,0 +1,18 @@
+{
+  "checks": [
+    {
+      "name": "business_name_search",
+      "query": "사업명 또는 기관명 예시",
+      "expected_terms": ["사업명", "기관명"],
+      "min_documents": 1,
+      "require_original_text": true
+    },
+    {
+      "name": "technology_search",
+      "query": "기술명 예시",
+      "expected_terms": ["기술명"],
+      "min_documents": 1,
+      "require_original_text": true
+    }
+  ]
+}

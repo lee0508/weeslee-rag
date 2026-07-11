@@ -44,6 +44,7 @@ from app.services.runtime_compute_settings import (
     is_stage_gpu_enabled,
 )
 from app.services.source_artifact_index import sync_source_index
+from app.services.source_data_paths import get_source_paths
 
 
 logger = logging.getLogger(__name__)
@@ -521,10 +522,55 @@ def _save_ocr_metadata(
         doc.ocr_metadata_status = "success"
         doc.updated_at = datetime.utcnow()
 
+        # 통합 경로에 메타데이터 파일 저장 (/data/source/{source_id}/step3_metadata/)
+        if doc.source_id:
+            _save_metadata_to_unified_path(doc, document_id, ocr_meta, report)
+
         db.flush()
     except Exception:
         doc.ocr_metadata_status = "failed"
         # ocr_* 저장 실패는 파싱 성공 여부에 영향 없음
+
+
+def _save_metadata_to_unified_path(
+    doc: DocumentMetadata,
+    document_id: int,
+    ocr_meta: dict,
+    report: dict,
+) -> None:
+    """통합 경로에 메타데이터 파일을 저장한다.
+
+    저장 경로: /data/source/{source_id}/step4_metadata/documents/{document_id}/metadata.json
+    """
+    try:
+        paths = get_source_paths(doc.source_id)
+        metadata_dir = paths.step4_dir / "documents" / str(document_id)
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+
+        metadata_file = metadata_dir / "metadata.json"
+        metadata_content = {
+            "document_id": document_id,
+            "document_uid": doc.document_uid,
+            "source_id": doc.source_id,
+            "file_name": Path(doc.file_path or "").name if doc.file_path else None,
+            "relative_path": doc.relative_path,
+            "ocr_project_name": ocr_meta.get("ocr_project_name"),
+            "ocr_organization": ocr_meta.get("ocr_organization"),
+            "ocr_year": ocr_meta.get("ocr_year"),
+            "ocr_document_category": ocr_meta.get("ocr_document_category"),
+            "ocr_confidence": ocr_meta.get("ocr_confidence"),
+            "ocr_quality_score": (report.get("quality") or {}).get("quality_score"),
+            "ocr_parser_type": report.get("parser_type"),
+            "ocr_page_count": report.get("page_count"),
+            "extracted_at": datetime.utcnow().isoformat(),
+        }
+
+        metadata_file.write_text(
+            json.dumps(metadata_content, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to save metadata to unified path: {e}")
 
 
 def _get_step4_target_documents(
@@ -1431,6 +1477,7 @@ async def get_parse_job_status(job_id: str):
         "job_id": job["job_id"],
         "status": job.get("status", "unknown"),
         "created_at": job.get("created_at"),
+        "persisted_at": job.get("persisted_at"),
         "last_event": job.get("last_event"),
         "result": job.get("result"),
         "error": job.get("error"),
