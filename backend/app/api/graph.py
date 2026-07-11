@@ -88,9 +88,15 @@ _METHODOLOGY_PREFIXES = ("methodology", "method")
 
 
 def _get_graph_dir(source_id: Optional[str] = None) -> Path:
-    """source_id별 Graph 디렉토리 반환."""
+    """source_id별 Graph 디렉토리 반환.
+
+    Args:
+        source_id: source_id가 있으면 통합 경로 사용 (/data/source/{source_id}/step8_graph/)
+                   없으면 기존 전역 경로 사용 (/data/indexes/graph/)
+    """
     if source_id:
-        return DATA_DIR / "indexes" / "graph" / source_id
+        # 통합 경로: /data/source/{source_id}/step8_graph/
+        return DATA_DIR / "source" / source_id / "step8_graph"
     return GRAPH_DIR
 
 

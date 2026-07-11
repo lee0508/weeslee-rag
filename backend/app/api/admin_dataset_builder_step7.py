@@ -83,9 +83,18 @@ def get_text_store(source_id: Optional[str] = None) -> ProcessedTextStore:
     return get_processed_text_store(source_id)
 
 
-def get_faiss_dir() -> Path:
-    """FAISS 저장 디렉토리"""
-    faiss_dir = Path(settings.faiss_index_dir).expanduser().resolve()
+def get_faiss_dir(source_id: Optional[str] = None) -> Path:
+    """FAISS 저장 디렉토리.
+
+    Args:
+        source_id: source_id가 있으면 통합 경로 사용 (/data/source/{source_id}/step7_index/)
+                   없으면 기존 전역 경로 사용 (settings.faiss_index_dir)
+    """
+    if source_id:
+        # 통합 경로: /data/source/{source_id}/step7_index/
+        faiss_dir = PROJECT_ROOT / "data" / "source" / source_id / "step7_index"
+    else:
+        faiss_dir = Path(settings.faiss_index_dir).expanduser().resolve()
     faiss_dir.mkdir(parents=True, exist_ok=True)
     return faiss_dir
 
@@ -407,7 +416,8 @@ def _write_snapshot_outputs(
     model_name: str,
     document_count: int,
 ) -> str:
-    faiss_dir = get_faiss_dir()
+    # source_id가 있으면 통합 경로 사용 (/data/source/{source_id}/step7_index/)
+    faiss_dir = get_faiss_dir(source_id)
     snapshot_index_path = faiss_dir / f"{snapshot_id}_ollama.index"
     snapshot_metadata_path = faiss_dir / f"{snapshot_id}_ollama_metadata.jsonl"
 
@@ -530,9 +540,6 @@ async def build_faiss_index(
 
     Step 6에서 생성된 임베딩으로 FAISS 인덱스를 빌드합니다.
     """
-    text_store = get_text_store()
-    faiss_dir = get_faiss_dir()
-
     try:
         # 처리할 문서 조회 (RAG 포함 + 제외/삭제되지 않은 문서)
         from app.models.document_metadata import DocumentMetadata, ProcessingStatus
@@ -540,6 +547,10 @@ async def build_faiss_index(
         source_id = str(req.source_id or "").strip()
         if not source_id:
             raise HTTPException(status_code=400, detail="source_id는 필수입니다.")
+
+        # source_id 기반 통합 경로 사용 (step7_index 폴더)
+        text_store = get_text_store(source_id)
+        faiss_dir = get_faiss_dir(source_id)
 
         dataset_id, snapshot_id = _resolve_source_dataset_snapshot(source_id, req.snapshot_id)
 
@@ -731,7 +742,7 @@ async def build_faiss_index(
             chunk_count=len(metadata_rows),
             document_count=len([d for d in document_infos if d.status == "success"]),
             index_file=index_path,
-            metadata_file=str(get_faiss_dir() / f"{snapshot_id}_ollama_metadata.jsonl"),
+            metadata_file=str(get_faiss_dir(source_id) / f"{snapshot_id}_ollama_metadata.jsonl"),
             manifest_path=str(get_snapshot_dir() / f"{snapshot_id}.json"),
         )
         sync_source_index(source_id, db=db)
@@ -758,11 +769,14 @@ async def build_faiss_index(
 
 
 @router.get("/status", response_model=FAISSStatusResponse)
-async def get_faiss_status(db: Session = Depends(get_db)):
+async def get_faiss_status(source_id: Optional[str] = None, db: Session = Depends(get_db)):
     """
-    FAISS 인덱스 상태 조회
+    FAISS 인덱스 상태 조회.
+
+    Args:
+        source_id: 지정 시 통합 경로(/data/source/{source_id}/step7_index/) 조회
     """
-    faiss_dir = get_faiss_dir()
+    faiss_dir = get_faiss_dir(source_id)
 
     try:
         collections = []
@@ -796,11 +810,14 @@ async def get_faiss_status(db: Session = Depends(get_db)):
 
 
 @router.get("/collection/{collection_name}")
-async def get_collection_info(collection_name: str):
+async def get_collection_info(collection_name: str, source_id: Optional[str] = None):
     """
-    특정 컬렉션 정보 조회
+    특정 컬렉션 정보 조회.
+
+    Args:
+        source_id: 지정 시 통합 경로(/data/source/{source_id}/step7_index/) 조회
     """
-    faiss_dir = get_faiss_dir()
+    faiss_dir = get_faiss_dir(source_id)
     collection_dir = faiss_dir / collection_name
 
     if not collection_dir.exists():
@@ -829,11 +846,14 @@ async def get_collection_info(collection_name: str):
 
 
 @router.delete("/collection/{collection_name}")
-async def delete_collection(collection_name: str):
+async def delete_collection(collection_name: str, source_id: Optional[str] = None):
     """
-    컬렉션 삭제
+    컬렉션 삭제.
+
+    Args:
+        source_id: 지정 시 통합 경로(/data/source/{source_id}/step7_index/) 사용
     """
-    faiss_dir = get_faiss_dir()
+    faiss_dir = get_faiss_dir(source_id)
     collection_dir = faiss_dir / collection_name
 
     if not collection_dir.exists():
@@ -853,11 +873,14 @@ async def delete_collection(collection_name: str):
 
 
 @router.get("/stats")
-async def get_faiss_stats():
+async def get_faiss_stats(source_id: Optional[str] = None):
     """
-    FAISS 전체 통계
+    FAISS 전체 통계.
+
+    Args:
+        source_id: 지정 시 통합 경로(/data/source/{source_id}/step7_index/) 조회
     """
-    faiss_dir = get_faiss_dir()
+    faiss_dir = get_faiss_dir(source_id)
 
     try:
         stats = {
