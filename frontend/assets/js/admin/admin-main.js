@@ -11128,9 +11128,43 @@ LIMIT 10`;
     showToast(`Step ${stepNum} 설정을 저장했습니다.`, 'success', 2000);
   }
 
+  // Dataset Builder 단계별 실행 상태 관리
+  const _datasetBuilderStepRunning = {};
+
+  // Dataset Builder 버튼 상태 업데이트
+  function updateDatasetBuilderStepButton(stepNum, isRunning) {
+    _datasetBuilderStepRunning[stepNum] = isRunning;
+    // 모든 해당 Step 버튼 찾기
+    const buttons = document.querySelectorAll(`[data-step-btn="${stepNum}"], [onclick*="runDatasetBuilderStep(${stepNum})"]`);
+    buttons.forEach(btn => {
+      if (isRunning) {
+        btn.textContent = `Step ${stepNum} 중지`;
+        btn.classList.add('wr-btn-danger');
+        btn.classList.remove('wr-btn-primary');
+      } else {
+        btn.textContent = `Step ${stepNum} 실행`;
+        btn.classList.remove('wr-btn-danger');
+        btn.classList.add('wr-btn-primary');
+      }
+    });
+  }
+
+  // Dataset Builder Step 실행 중지
+  function stopDatasetBuilderStep(stepNum) {
+    _datasetBuilderStepRunning[stepNum] = false;
+    updateDatasetBuilderStepButton(stepNum, false);
+    showToast(`Step ${stepNum} 중지 요청됨`, 'warning');
+  }
+
   // Dataset Builder 단계별 실행 (10단계 구조)
   // 2026-06-12 수정: Step 7에서 wizardRun(10) 호출 금지 (FAISS Activate는 Step 10에서 수동 실행)
   async function runDatasetBuilderStep(stepNum) {
+    // 이미 실행 중이면 중지
+    if (_datasetBuilderStepRunning[stepNum]) {
+      stopDatasetBuilderStep(stepNum);
+      return;
+    }
+
     const requiresDatasetContext = stepNum >= 1 && stepNum <= 9;
     if (requiresDatasetContext) {
       const sourceId = getCurrentSourceId();
@@ -11145,44 +11179,52 @@ LIMIT 10`;
       }
     }
 
-    switch(stepNum) {
-      case 1: // Source Scan
-        await runSourceScan();
-        break;
-      case 2: // Metadata Builder
-        await runMetadataAuto();
-        break;
-      case 3: // Metadata Review
-        // Step 3 화면에 이미 검수 대기 문서 목록이 표시되어 있으므로 페이지 이동 없이 안내만 표시
-        showToast('아래 검수 대기 문서 목록에서 개별 문서를 선택하여 검수하세요.', 'info', 3000);
-        // 검수 대기 문서 목록 새로고침
-        if (typeof loadStep3ReviewList === 'function') {
-          loadStep3ReviewList();
-        }
-        break;
-      case 4: // OCR/Parser
-        await runOcrParser();
-        break;
-      case 5: // Chunk Build
-        await runStep5ChunkBuild();
-        break;
-      case 6: // Embedding Build
-        await runStep6EmbedBuild();
-        break;
-      case 7: // FAISS Build
-        await runStep7FaissBuild();
-        break;
-      case 8: // Graph Build
-        await runStep8GraphBuild();
-        break;
-      case 9: // Wiki Build
-        await runStep9WikiBuild();
-        break;
-      case 10: // FAISS Activate
-        await wizardRun(10);
-        break;
-      default:
-        showToast(`Step ${stepNum} 실행 함수를 찾을 수 없습니다.`, 'error');
+    // 실행 시작 - 버튼 상태 변경
+    updateDatasetBuilderStepButton(stepNum, true);
+
+    try {
+      switch(stepNum) {
+        case 1: // Source Scan
+          await runSourceScan();
+          break;
+        case 2: // Metadata Builder
+          await runMetadataAuto();
+          break;
+        case 3: // Metadata Review
+          // Step 3 화면에 이미 검수 대기 문서 목록이 표시되어 있으므로 페이지 이동 없이 안내만 표시
+          showToast('아래 검수 대기 문서 목록에서 개별 문서를 선택하여 검수하세요.', 'info', 3000);
+          // 검수 대기 문서 목록 새로고침
+          if (typeof loadStep3ReviewList === 'function') {
+            loadStep3ReviewList();
+          }
+          break;
+        case 4: // OCR/Parser
+          await runOcrParser();
+          break;
+        case 5: // Chunk Build
+          await runStep5ChunkBuild();
+          break;
+        case 6: // Embedding Build
+          await runStep6EmbedBuild();
+          break;
+        case 7: // FAISS Build
+          await runStep7FaissBuild();
+          break;
+        case 8: // Graph Build
+          await runStep8GraphBuild();
+          break;
+        case 9: // Wiki Build
+          await runStep9WikiBuild();
+          break;
+        case 10: // FAISS Activate
+          await wizardRun(10);
+          break;
+        default:
+          showToast(`Step ${stepNum} 실행 함수를 찾을 수 없습니다.`, 'error');
+      }
+    } finally {
+      // 실행 완료 - 버튼 상태 복원
+      updateDatasetBuilderStepButton(stepNum, false);
     }
   }
 
@@ -12773,6 +12815,11 @@ LIMIT 10`;
       _wizardAppendLog(step, `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     }
 
+    // 버튼 상태 복원
+    if (typeof updateWizardStepButton === 'function') {
+      updateWizardStepButton(step, false);
+    }
+
     renderWizardProgressBar();
     if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
   }
@@ -12783,6 +12830,12 @@ LIMIT 10`;
     _wizardSetRunSummary(_wizardBuildSummary(step, msg), 'err');
     const el = document.querySelector(`.wizard-step[data-step="${step}"]`);
     if (el) el.classList.remove('active-step');
+
+    // 버튼 상태 복원
+    if (typeof updateWizardStepButton === 'function') {
+      updateWizardStepButton(step, false);
+    }
+
     renderWizardProgressBar();
     if (typeof window.syncWizardStepperState === 'function') window.syncWizardStepperState();
   }
@@ -13290,7 +13343,45 @@ LIMIT 10`;
     throw new Error('Step 4 상태 조회 타임아웃');
   }
 
+  // Wizard Step 실행 상태 관리
+  const _wizardStepRunning = {};
+
+  // Wizard 버튼 상태 업데이트
+  function updateWizardStepButton(step, isRunning) {
+    _wizardStepRunning[step] = isRunning;
+    // 모든 해당 Step 버튼 찾기
+    const buttons = document.querySelectorAll(`[data-wizard-btn="${step}"], [onclick*="wizardRun(${step})"]`);
+    buttons.forEach(btn => {
+      if (isRunning) {
+        btn.textContent = '중지';
+        btn.classList.add('btn-danger');
+        btn.classList.remove('btn-secondary', 'btn-primary');
+      } else {
+        btn.textContent = '실행';
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-secondary');
+      }
+    });
+  }
+
+  // Wizard Step 실행 중지
+  function stopWizardStep(step) {
+    _wizardStepRunning[step] = false;
+    _wizardAutoStop = true;
+    updateWizardStepButton(step, false);
+    showToast(`Step ${step} 중지 요청됨`, 'warning');
+  }
+
   async function wizardRun(step) {
+    // 이미 실행 중이면 중지
+    if (_wizardStepRunning[step]) {
+      stopWizardStep(step);
+      return false;
+    }
+
+    // 실행 시작 - 버튼 상태 변경
+    updateWizardStepButton(step, true);
+
     const cfg    = WIZARD_STEPS[step];
     const stepEl = document.querySelector(`.wizard-step[data-step="${step}"]`);
     const logEl  = document.getElementById('wlog-' + step);

@@ -409,6 +409,17 @@
   background: var(--wr-primary-hover);
 }
 
+#wrAdminDocsApp .wr-btn-danger {
+  border-color: var(--red, #dc3545);
+  background: var(--red, #dc3545);
+  color: #fff;
+}
+
+#wrAdminDocsApp .wr-btn-danger:hover {
+  border-color: #c82333;
+  background: #c82333;
+}
+
 #wrAdminDocsApp .wr-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 300px;
