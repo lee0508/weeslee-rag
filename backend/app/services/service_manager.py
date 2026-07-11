@@ -27,6 +27,7 @@ class ServiceConfig:
     verify_identity: bool = False
     port_wait_timeout: int = 60  # 포트 리슨 대기 타임아웃 (초)
     health_wait_timeout: int = 60  # 헬스체크 대기 타임아웃 (초)
+    critical: bool = True  # False면 재시작 실패해도 전체 빌드 진행
 
 
 # 서비스 설정
@@ -48,13 +49,16 @@ SERVICES = {
     "ollama": ServiceConfig(
         name="Ollama",
         health_url="http://127.0.0.1:11434/api/tags",
-        start_cmd=os.getenv("WEESLEE_OLLAMA_START_CMD", "systemctl start ollama"),
-        stop_cmd=os.getenv("WEESLEE_OLLAMA_STOP_CMD", "systemctl stop ollama"),
+        # Ollama는 systemd 서비스로 실행되며 weeslee 사용자로는 재시작 불가
+        # 대신 health 체크만 수행하고 재시작 실패해도 빌드 계속 진행
+        start_cmd=os.getenv("WEESLEE_OLLAMA_START_CMD", "echo 'Ollama skip (systemd service)'"),
+        stop_cmd=os.getenv("WEESLEE_OLLAMA_STOP_CMD", "echo 'Ollama skip (systemd service)'"),
         port=11434,
         timeout=5.0,
-        verify_identity=True,
-        port_wait_timeout=60,
-        health_wait_timeout=60,
+        verify_identity=False,  # 재시작 건너뛰므로 PID 검증 불필요
+        port_wait_timeout=5,
+        health_wait_timeout=10,
+        critical=False,  # 재시작 실패해도 전체 빌드 진행
     ),
 }
 
@@ -338,13 +342,22 @@ async def ensure_services_ready(force_restart: bool = False) -> dict:
                     "status": "success",
                 })
             else:
-                results["actions"].append({
-                    "service": config.name,
-                    "action": "restart_failed",
-                    "status": "error",
-                    "message": restart_result.get("message"),
-                })
-                results["all_ready"] = False
+                # critical=False인 서비스는 재시작 실패해도 경고만 하고 진행
+                if config.critical:
+                    results["actions"].append({
+                        "service": config.name,
+                        "action": "restart_failed",
+                        "status": "error",
+                        "message": restart_result.get("message"),
+                    })
+                    results["all_ready"] = False
+                else:
+                    results["actions"].append({
+                        "service": config.name,
+                        "action": "restart_skipped",
+                        "status": "warning",
+                        "message": f"{config.name}은(는) 재시작 없이 계속 진행 (non-critical)",
+                    })
         else:
             # 일반 모드: 헬스체크 후 필요시에만 재시작
             health = await check_service_health(key)
@@ -366,13 +379,22 @@ async def ensure_services_ready(force_restart: bool = False) -> dict:
                         "status": "success",
                     })
                 else:
-                    results["actions"].append({
-                        "service": config.name,
-                        "action": "restart_failed",
-                        "status": "error",
-                        "message": restart_result.get("message"),
-                    })
-                    results["all_ready"] = False
+                    # critical=False인 서비스는 재시작 실패해도 경고만 하고 진행
+                    if config.critical:
+                        results["actions"].append({
+                            "service": config.name,
+                            "action": "restart_failed",
+                            "status": "error",
+                            "message": restart_result.get("message"),
+                        })
+                        results["all_ready"] = False
+                    else:
+                        results["actions"].append({
+                            "service": config.name,
+                            "action": "restart_skipped",
+                            "status": "warning",
+                            "message": f"{config.name}은(는) 재시작 없이 계속 진행 (non-critical)",
+                        })
 
     return results
 
