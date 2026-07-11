@@ -2,7 +2,18 @@
 """
 OCR/파싱 결과를 document_id 기준으로 저장하고 관리합니다.
 
-저장 구조:
+저장 구조 (source_id 지정 시 - 신규 통합 경로):
+    data/source/{source_id}/step2_extract/documents/{document_id}/
+    ├─ full_text.txt
+    ├─ full_text.md
+    ├─ pages.jsonl
+    ├─ tables.jsonl
+    ├─ ocr_report.json
+    ├─ structured_data.json
+    ├─ converted.pdf
+    └─ assets/
+
+저장 구조 (source_id 미지정 시 - 레거시 경로):
     data/documents/{document_id}/
     ├─ id_contract.json
     ├─ ocr/
@@ -22,9 +33,13 @@ OCR/파싱 결과를 document_id 기준으로 저장하고 관리합니다.
     기존 data/processed_text/{document_id}/ 구조도 읽기 fallback으로 지원
 
 사용 예시:
+    # 신규 통합 경로 사용 (권장)
+    store = ProcessedTextStore(source_id="src_20260711_090331_dda661")
+    store.save_result(result)
+
+    # 레거시 경로 사용
     store = ProcessedTextStore()
-    store.save_result(document_id, result)
-    result = store.get_result(document_id)
+    store.save_result(result)
 """
 from __future__ import annotations
 
@@ -154,24 +169,37 @@ class ProcessingResult:
 class ProcessedTextStore:
     """OCR/파싱 결과 저장소."""
 
-    def __init__(self, base_dir: Optional[str | Path] = None):
+    def __init__(self, base_dir: Optional[str | Path] = None, source_id: Optional[str] = None):
         """
         저장소 초기화.
 
         Args:
             base_dir: 저장 기본 디렉토리 (기본값: data/documents)
+            source_id: source_id 지정 시 통합 경로 사용
+                       /data/source/{source_id}/step2_extract/documents/
         """
-        if base_dir:
+        project_root = Path(__file__).resolve().parents[3]
+        self.source_id = source_id
+
+        if source_id:
+            # 신규 통합 경로: /data/source/{source_id}/step2_extract/documents/
+            self.base_dir = project_root / "data" / "source" / source_id / "step2_extract" / "documents"
+            self.use_unified_path = True
+        elif base_dir:
             self.base_dir = Path(base_dir)
-            self.legacy_base_dir = self.base_dir
+            self.use_unified_path = False
         else:
-            # 프로젝트 루트 기준
-            project_root = Path(__file__).resolve().parents[3]
+            # 레거시 경로: /data/documents/
             self.base_dir = project_root / "data" / "documents"
-            self.legacy_base_dir = project_root / "data" / "processed_text"
+            self.use_unified_path = False
+
+        # 레거시 fallback 경로
+        self.legacy_base_dir = project_root / "data" / "processed_text"
+        self.legacy_documents_dir = project_root / "data" / "documents"
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.legacy_base_dir.mkdir(parents=True, exist_ok=True)
+        if not self.use_unified_path:
+            self.legacy_base_dir.mkdir(parents=True, exist_ok=True)
 
     def _doc_dir(self, document_id: str) -> Path:
         """document_id에 해당하는 디렉토리 경로."""
@@ -181,14 +209,24 @@ class ProcessedTextStore:
         """기존 processed_text 경로."""
         return self.legacy_base_dir / document_id
 
+    def _legacy_documents_doc_dir(self, document_id: str) -> Path:
+        """기존 documents 경로."""
+        return self.legacy_documents_dir / document_id
+
     def get_document_root(self, document_id: str) -> Path:
         """현재 표준 문서 루트."""
         return self._doc_dir(document_id)
 
     def _stage_dir(self, document_id: str, stage: str) -> Path:
+        if self.use_unified_path:
+            # 통합 경로: document_id 폴더 바로 아래 (stage 무시, 플랫 구조)
+            return self._doc_dir(document_id)
         return self._doc_dir(document_id) / stage
 
     def _ocr_dir(self, document_id: str) -> Path:
+        if self.use_unified_path:
+            # 통합 경로: document_id 폴더 바로 아래
+            return self._doc_dir(document_id)
         return self._stage_dir(document_id, "ocr")
 
     def _chunk_dir(self, document_id: str) -> Path:
@@ -219,10 +257,33 @@ class ProcessedTextStore:
         return self._doc_dir(document_id) / "id_contract.json"
 
     def _path_candidates(self, document_id: str, stage: str, file_name: str) -> list[Path]:
-        canonical = self._stage_dir(document_id, stage) / file_name
-        legacy_stage = self._legacy_doc_dir(document_id) / stage / file_name
-        legacy_flat = self._legacy_doc_dir(document_id) / file_name
-        return [canonical, legacy_stage, legacy_flat]
+        """파일 검색을 위한 후보 경로 목록 반환 (우선순위 순서)."""
+        candidates = []
+
+        if self.use_unified_path:
+            # 1순위: 통합 경로 (플랫 구조)
+            candidates.append(self._doc_dir(document_id) / file_name)
+
+        # 2순위: 현재 base_dir 기반 stage 경로
+        candidates.append(self._stage_dir(document_id, stage) / file_name)
+
+        # 3순위: 레거시 documents 경로
+        candidates.append(self._legacy_documents_doc_dir(document_id) / stage / file_name)
+        candidates.append(self._legacy_documents_doc_dir(document_id) / file_name)
+
+        # 4순위: 레거시 processed_text 경로
+        candidates.append(self._legacy_doc_dir(document_id) / stage / file_name)
+        candidates.append(self._legacy_doc_dir(document_id) / file_name)
+
+        # 중복 제거하면서 순서 유지
+        seen = set()
+        unique = []
+        for c in candidates:
+            key = str(c)
+            if key not in seen:
+                seen.add(key)
+                unique.append(c)
+        return unique
 
     def _read_jsonl(self, path: Path) -> list[dict]:
         rows: list[dict] = []
@@ -638,13 +699,35 @@ class ProcessedTextStore:
         return self._first_existing_path(self._path_candidates(document_id, stage, file_name))
 
 
-# 싱글톤 인스턴스
+# 싱글톤 인스턴스 (레거시 호환용)
 try:
     import app.services.processed_text_store_extensions  # noqa: F401
 except Exception:
     pass
 
 processed_text_store = ProcessedTextStore()
+
+# source_id별 store 캐시
+_source_stores: dict[str, ProcessedTextStore] = {}
+
+
+def get_processed_text_store(source_id: Optional[str] = None) -> ProcessedTextStore:
+    """
+    source_id에 맞는 ProcessedTextStore 인스턴스 반환.
+
+    Args:
+        source_id: source_id 지정 시 통합 경로 사용
+
+    Returns:
+        ProcessedTextStore 인스턴스
+    """
+    if not source_id:
+        return processed_text_store
+
+    if source_id not in _source_stores:
+        _source_stores[source_id] = ProcessedTextStore(source_id=source_id)
+
+    return _source_stores[source_id]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

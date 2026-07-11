@@ -23,7 +23,12 @@ from sqlalchemy import func
 from app.core.auth import require_admin_token
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata, MetaStatus
-from app.services.processed_text_store import processed_text_store, ProcessingResult
+from app.services.processed_text_store import (
+    processed_text_store,
+    ProcessingResult,
+    ProcessedTextStore,
+    get_processed_text_store,
+)
 from app.services.semantic_structure_service import (
     build_pptx_structure,
     build_text_semantic_structure,
@@ -203,9 +208,13 @@ async def parse_document(
     }
     parse_config = parse_config or {}
 
+    # source_id 기반 store 선택 (통합 경로 사용)
+    source_id = (metadata_ctx or {}).get("source_id")
+    text_store = get_processed_text_store(source_id)
+
     try:
         # 이미 처리된 문서는 건너뛰기 (force=False인 경우)
-        if not force and processed_text_store.exists(str(document_id)):
+        if not force and text_store.exists(str(document_id)):
             logger.info(
                 "[Step4] skip existing OCR result: document_id=%s force=%s source_id=%s dataset_id=%s relative_path=%s",
                 document_id,
@@ -413,7 +422,7 @@ async def parse_document(
         if not processing_result.full_text.strip():
             processing_result.status = "failed"
             processing_result.error_message = processing_result.error_message or "Extracted text is empty"
-            processed_text_store.save_result(processing_result)
+            text_store.save_result(processing_result)
             result["error"] = processing_result.error_message
             return result
 
@@ -426,8 +435,8 @@ async def parse_document(
         processing_result.status = "done"
 
         # 저장
-        if processed_text_store.save_result(processing_result):
-            processed_text_store.save_run_config(
+        if text_store.save_result(processing_result):
+            text_store.save_run_config(
                 str(document_id),
                 {
                     "source_id": processing_result.source_id,
@@ -472,21 +481,27 @@ async def parse_document(
             status="failed",
             error_message=str(e),
         )
-        processed_text_store.save_result(processing_result)
+        text_store.save_result(processing_result)
 
     return result
 
 
-def _save_ocr_metadata(db: Session, doc: DocumentMetadata, document_id: int) -> None:
+def _save_ocr_metadata(
+    db: Session,
+    doc: DocumentMetadata,
+    document_id: int,
+    text_store: Optional[ProcessedTextStore] = None,
+) -> None:
     """파싱 완료 문서의 전문 텍스트로 ocr_* 필드를 추출하여 DB에 저장한다."""
     try:
-        report = processed_text_store.get_report(str(document_id))
+        store = text_store or get_processed_text_store(doc.source_id)
+        report = store.get_report(str(document_id))
         if not report:
             doc.ocr_metadata_status = "skipped"
             db.flush()
             return
 
-        full_text = processed_text_store.get_text(str(document_id)) or ""
+        full_text = store.get_text(str(document_id)) or ""
         if not full_text.strip():
             doc.ocr_metadata_status = "skipped"
             db.flush()
@@ -748,9 +763,14 @@ async def refresh_ocr_metadata(
         failures = []
         dataset_id_cache: dict = {}
 
+        # source_id 기반 store 선택
+        text_store = get_processed_text_store(request.source_id)
+
         for doc in documents:
-            report = processed_text_store.get_report(str(doc.document_id))
-            full_text = processed_text_store.get_text(str(doc.document_id)) or ""
+            # 문서별 source_id가 다를 수 있으므로 개별 store 사용
+            doc_store = get_processed_text_store(doc.source_id) if doc.source_id else text_store
+            report = doc_store.get_report(str(doc.document_id))
+            full_text = doc_store.get_text(str(doc.document_id)) or ""
 
             if not report or not full_text.strip():
                 doc.ocr_metadata_status = "skipped"
@@ -763,7 +783,7 @@ async def refresh_ocr_metadata(
                 continue
 
             _fill_dataset_id_if_needed(doc, dataset_id_cache)
-            _save_ocr_metadata(db, doc, doc.document_id)
+            _save_ocr_metadata(db, doc, doc.document_id, text_store=doc_store)
 
             if doc.ocr_metadata_status == "success":
                 processed += 1
@@ -832,8 +852,9 @@ async def get_step4_status(source_id: Optional[str] = None, db: Session = Depend
         by_file_type = {}
 
         for doc in documents:
-            # 처리 상태 확인
-            report = processed_text_store.get_report(str(doc.document_id))
+            # 처리 상태 확인 (source_id 기반 store 사용)
+            doc_store = get_processed_text_store(doc.source_id)
+            report = doc_store.get_report(str(doc.document_id))
 
             if report:
                 status = report.get("status", "pending")
@@ -918,8 +939,9 @@ async def get_document_text(
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
 
-        # 텍스트 조회
-        text = processed_text_store.get_text(str(document_id), format=format)
+        # 텍스트 조회 (source_id 기반 store 사용)
+        doc_store = get_processed_text_store(doc.source_id)
+        text = doc_store.get_text(str(document_id), format=format)
 
         if not text:
             raise HTTPException(status_code=404, detail="Text not found. Run Step 4 first.")
@@ -940,6 +962,7 @@ async def get_document_text(
 
 @router.get("/parse/results")
 async def get_parse_results(
+    source_id: Optional[str] = None,
     min_quality_score: Optional[float] = None,
     min_text_length: Optional[int] = None,
     status_filter: Optional[str] = None,  # "success", "failed", "skipped"
@@ -950,14 +973,16 @@ async def get_parse_results(
     Step 4 OCR/Parser 결과 목록을 조회합니다.
 
     필터 옵션:
+    - source_id: 특정 source의 결과만 조회
     - min_quality_score: 최소 품질 점수
     - min_text_length: 최소 텍스트 길이
     - status_filter: 상태 필터 (success/failed/skipped)
     - rag_ready_only: True이면 RAG 준비 완료된 문서만
     """
     try:
-        # ProcessedTextStore에서 모든 결과 조회 (limit을 크게 설정)
-        all_results = processed_text_store.list_documents(status=None, limit=10000)
+        # ProcessedTextStore에서 모든 결과 조회 (source_id 기반 store 사용)
+        text_store = get_processed_text_store(source_id)
+        all_results = text_store.list_documents(status=None, limit=10000)
 
         # 필터링
         filtered_results = []
