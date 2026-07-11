@@ -35,9 +35,10 @@ SERVICES = {
     "ocr": ServiceConfig(
         name="OCR Server",
         health_url="http://127.0.0.1:5000/health",
+        # setsid로 완전히 분리된 세션에서 실행하고 즉시 리턴
         start_cmd=os.getenv(
             "WEESLEE_OCR_START_CMD",
-            "cd /data/weeslee/pdf-ocr && nohup venv/bin/python python/advanced_ocr_server.py > /tmp/ocr_server.log 2>&1 &",
+            "setsid /data/weeslee/pdf-ocr/venv/bin/python /data/weeslee/pdf-ocr/python/advanced_ocr_server.py > /tmp/ocr_server.log 2>&1 < /dev/null &",
         ),
         stop_cmd="pkill -f 'advanced_ocr_server.py'",
         port=5000,
@@ -234,10 +235,10 @@ def restart_service_sync(service_key: str) -> dict:
         else:
             logger.warning(f"[ServiceManager] {config.name} 포트 {config.port} 아직 사용 중")
 
-        # 3. 서비스 시작
+        # 3. 서비스 시작 (nohup & 명령도 완료 대기하므로 30초로 설정)
         start_result = _run_shell_command(
             config.start_cmd,
-            timeout=15,
+            timeout=30,
         )
         # nohup & 명령은 즉시 리턴하므로 returncode만으로 판단 불가
         logger.info(f"[ServiceManager] {config.name} 시작 명령 실행 (returncode={start_result.returncode})")
