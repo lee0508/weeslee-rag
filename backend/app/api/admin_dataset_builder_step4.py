@@ -538,16 +538,16 @@ def _save_metadata_to_unified_path(
     ocr_meta: dict,
     report: dict,
 ) -> None:
-    """통합 경로에 메타데이터 파일을 저장한다.
+    """통합 경로에 2차 메타데이터 파일을 저장한다.
 
-    저장 경로: /data/source/{source_id}/step4_metadata/documents/{document_id}/metadata.json
+    저장 경로: /data/source/{source_id}/step2_extract/documents/{document_id}/metadata_ocr.json
     """
     try:
         paths = get_source_paths(doc.source_id)
-        metadata_dir = paths.step4_dir / "documents" / str(document_id)
-        metadata_dir.mkdir(parents=True, exist_ok=True)
+        doc_dir = paths.document_dir(str(document_id))
+        doc_dir.mkdir(parents=True, exist_ok=True)
 
-        metadata_file = metadata_dir / "metadata.json"
+        metadata_file = doc_dir / "metadata_ocr.json"
         metadata_content = {
             "document_id": document_id,
             "document_uid": doc.document_uid,

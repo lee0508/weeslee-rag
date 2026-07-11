@@ -755,4 +755,38 @@ class TagKeywordGenerator:
             encoding="utf-8"
         )
 
+        # 문서별 tag_keyword.json 저장
+        self._write_per_document_tag_keyword(paths, document_tag_map, document_keyword_map)
+
         return str(output_path)
+
+    def _write_per_document_tag_keyword(
+        self,
+        paths,
+        document_tag_map: Dict,
+        document_keyword_map: Dict,
+    ) -> None:
+        """각 문서 폴더에 tag_keyword.json을 저장한다."""
+        all_doc_ids = set(document_tag_map.keys()) | set(document_keyword_map.keys())
+
+        for doc_id in all_doc_ids:
+            try:
+                doc_dir = paths.document_dir(str(doc_id))
+                doc_dir.mkdir(parents=True, exist_ok=True)
+
+                doc_payload = {
+                    "document_id": doc_id,
+                    "source_id": self.source_id,
+                    "snapshot_id": self.snapshot_id,
+                    "tags": document_tag_map.get(doc_id, []),
+                    "keywords": document_keyword_map.get(doc_id, []),
+                    "generated_at": datetime.now().isoformat(),
+                }
+
+                tag_keyword_file = doc_dir / "tag_keyword.json"
+                tag_keyword_file.write_text(
+                    json.dumps(doc_payload, ensure_ascii=False, indent=2),
+                    encoding="utf-8"
+                )
+            except Exception:
+                pass

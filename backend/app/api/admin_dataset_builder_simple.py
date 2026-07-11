@@ -12,6 +12,7 @@ MySQL을 primary로, SQLite는 비동기 동기화 대상으로 사용
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
+import json
 import os
 import re
 
@@ -35,6 +36,7 @@ from app.services.metadata_enricher import enrich_confidence
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.runtime_model_settings import get_runtime_embedding_model
 from app.services.source_artifact_index import sync_source_index
+from app.services.source_data_paths import get_source_paths
 from app.services.structured_content_resolver import StructuredContentResolver
 from app.core.config import settings
 from app.core.mappings import mappings
@@ -469,6 +471,46 @@ def extract_scan_metadata(filename: str, relative_path: str) -> Dict[str, Any]:
     }
 
 
+def _save_scan_metadata_to_file(
+    source_id: str,
+    document_id: int,
+    scan_meta: Dict[str, Any],
+    file_info: Dict[str, Any],
+    document_uid: str,
+    document_group: str = "",
+) -> None:
+    """Scan 단계에서 생성된 1차 metadata를 파일로 저장한다."""
+    try:
+        paths = get_source_paths(source_id)
+        doc_dir = paths.document_dir(str(document_id))
+        doc_dir.mkdir(parents=True, exist_ok=True)
+
+        metadata_scan = {
+            "document_id": document_id,
+            "document_uid": document_uid,
+            "source_id": source_id,
+            "file_name": file_info.get("filename", ""),
+            "file_path": file_info.get("filepath", ""),
+            "relative_path": file_info.get("relative_path", ""),
+            "file_type": file_info.get("extension", ""),
+            "file_size": file_info.get("size", 0),
+            "file_modified_at": file_info.get("modified_at"),
+            "category_id": file_info.get("category_id"),
+            "document_group": document_group,
+            "section_type": file_info.get("section_type", ""),
+            "scan_project_name": scan_meta.get("scan_project_name"),
+            "scan_organization": scan_meta.get("scan_organization"),
+            "scan_year": scan_meta.get("scan_year"),
+            "scan_document_category": document_group or None,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+
+        out_path = doc_dir / "metadata_scan.json"
+        out_path.write_text(json.dumps(metadata_scan, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def generate_tag_keyword_for_source(body: TagKeywordGenerateRequest) -> dict:
     db = SessionLocal()
     try:
@@ -815,6 +857,14 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
                     include_in_wiki=True,
                 )
                 db.add(new_meta)
+                _save_scan_metadata_to_file(
+                    source_id=source_id,
+                    document_id=next_doc_id,
+                    scan_meta=scan_meta,
+                    file_info={**file_info, "relative_path": rel_path},
+                    document_uid=doc_uid,
+                    document_group=document_group,
+                )
                 new_count += 1
                 documents_created += 1
                 next_doc_id += 1
