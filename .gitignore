@@ -209,8 +209,12 @@ data/tag_keyword/
 data/config/
 data/extracted_text/
 data/processed_text/
+data/documents/
+data/source/
+data/jobs/
 data/rag_source_metadata.jsonl
 data/active_index.json.backup
+data/dataset_backup_*.tar.gz
 
 # === Added: Wiki content (not versioned) ===
 data/wiki/**/*.md

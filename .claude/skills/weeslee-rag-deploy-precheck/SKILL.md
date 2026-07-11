@@ -1,3 +1,8 @@
+---
+name: weeslee-rag-deploy-precheck
+description: weeslee-rag 프로젝트에서 코드 수정, 배포, 테스트 전에 로컬 Git, 원격 GitHub, 회사 서버 /data/weeslee/weeslee-rag 경로의 실제 변경 상태를 함께 점검할 때 사용한다.
+---
+
 # weeslee-rag 코드 작업 / 배포 전 상태 확인 스킬
 
 ## 목적

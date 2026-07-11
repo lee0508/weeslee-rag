@@ -1082,6 +1082,7 @@ class HybridRAGService:
             query_analysis_time = 0
             search_order = "parallel"
             sources_to_use = []
+            actual_sources_used: list[str] = []
 
             if self.query_router:
                 analysis_start = time.time()
@@ -1171,6 +1172,7 @@ class HybridRAGService:
 
             if search_order == "faiss_only":
                 # 단순 키워드 검색: FAISS만
+                actual_sources_used.append(RouterSearchSource.FAISS.value)
                 faiss_results, faiss_time = await self._search_faiss(
                     faiss_query,
                     top_k,
@@ -1182,6 +1184,7 @@ class HybridRAGService:
             elif search_order == "graph_first":
                 # Graph 우선: Graph → FAISS 순차
                 if self.enable_graph:
+                    actual_sources_used.append(RouterSearchSource.GRAPH.value)
                     graph_results, graph_cypher, graph_retry, graph_time, graph_question_type = await self._search_graph(
                         question,
                         metadata_filters=metadata_filters,
@@ -1193,6 +1196,7 @@ class HybridRAGService:
                 # graph_doc_ids가 빈 집합이면 FAISS 전체 검색으로 fallback
                 use_graph_filter = bool(graph_doc_ids) and not prefers_document_recall
 
+                actual_sources_used.append(RouterSearchSource.FAISS.value)
                 faiss_results, faiss_time = await self._search_faiss(
                     faiss_query,
                     max(top_k * 5, top_k) if graph_doc_ids else top_k,
@@ -1204,6 +1208,7 @@ class HybridRAGService:
 
                 # Wiki 검색 (필요시)
                 if self.enable_wiki and RouterSearchSource.WIKI.value in sources_to_use:
+                    actual_sources_used.append(RouterSearchSource.WIKI.value)
                     wiki_results, wiki_time = await self._search_wiki(
                         question, top_k // 2, organization=organization
                     )
@@ -1211,9 +1216,11 @@ class HybridRAGService:
             elif search_order == "wiki_first":
                 # Wiki 우선: 요약 요청
                 if self.enable_wiki:
+                    actual_sources_used.append(RouterSearchSource.WIKI.value)
                     wiki_results, wiki_time = await self._search_wiki(
                         faiss_query, top_k, organization=organization
                     )
+                actual_sources_used.append(RouterSearchSource.FAISS.value)
                 faiss_results, faiss_time = await self._search_faiss(
                     faiss_query,
                     top_k // 2,
@@ -1224,6 +1231,7 @@ class HybridRAGService:
 
             else:
                 # 기본: 병렬 검색
+                actual_sources_used.append(RouterSearchSource.FAISS.value)
                 tasks = [self._search_faiss(
                     faiss_query,
                     top_k,
@@ -1233,12 +1241,14 @@ class HybridRAGService:
                 )]
 
                 if self.enable_graph:
+                    actual_sources_used.append(RouterSearchSource.GRAPH.value)
                     tasks.append(self._search_graph(
                         question,
                         metadata_filters=metadata_filters,
                     ))
 
                 if self.enable_wiki:
+                    actual_sources_used.append(RouterSearchSource.WIKI.value)
                     tasks.append(self._search_wiki(faiss_query, top_k // 2, organization=organization))
 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -1360,8 +1370,8 @@ class HybridRAGService:
                     faiss_results = classic_faiss_results
                     merged_docs = classic_merged_docs
                     fallback_strategy = f"classic_rag_query:{classic_snapshot or 'unknown'}"
-                    if "classic_rag" not in sources_to_use:
-                        sources_to_use.append("classic_rag")
+                    if "classic_rag" not in actual_sources_used:
+                        actual_sources_used.append("classic_rag")
 
             merge_time = int((time.time() - merge_start) * 1000)
 
@@ -1442,7 +1452,7 @@ class HybridRAGService:
                 merge_time_ms=merge_time,
                 total_time_ms=total_time,
                 search_order=search_order,
-                sources_used=sources_to_use,
+                sources_used=list(dict.fromkeys(actual_sources_used)),
                 extracted_keywords=extracted_keywords,
             )
 

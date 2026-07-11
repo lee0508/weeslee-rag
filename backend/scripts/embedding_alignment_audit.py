@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 OLLAMA_HOST = "http://127.0.0.1:11434"
-EMBEDDING_MODEL = "bge-m3:latest"
+EMBEDDING_MODEL = "bge-m3:8k"  # num_ctx=8192 설정된 모델
 
 
 def load_faiss_index(snapshot_id: str):
