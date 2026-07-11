@@ -8,6 +8,10 @@ DB 기반 Wiki 생성 스크립트 (템플릿 방식, LLM 미사용)
 metadata.db의 documents 테이블만으로 마크다운 템플릿을 채워 Wiki를 생성한다.
 빠른 빌드가 필요할 때 사용하고, AI 요약이 필요하면 build_project_wiki.py를 사용한다.
 
+[2026-07-11] 통합 경로 지원 추가.
+Step4 OCR/Parse 결과가 저장된 통합 경로(step2_extract/documents/{doc_id}/)를
+우선 참조하고, 없을 경우 구버전 경로(processed_text/{doc_id}/)로 fallback.
+
 Wiki 파이프라인 산출물 계약:
   - data/wiki/{source_id}/projects/*.md
   - data/wiki/{source_id}/index.json
@@ -32,12 +36,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 from app.core.database import get_db
 from app.models.document_metadata import DocumentMetadata
 from app.utils.wiki_slug import make_wiki_slug
+from app.services.source_data_paths import get_source_paths
 from sqlalchemy import func
 
 # 경로 설정
 DATA_DIR = PROJECT_ROOT / "data"
 WIKI_DIR = DATA_DIR / "wiki"
-PROCESSED_TEXT_DIR = DATA_DIR / "processed_text"
+PROCESSED_TEXT_DIR = DATA_DIR / "processed_text"  # fallback용 구버전 경로
 
 # 문서 타입 매핑
 CATEGORY_KO = {
@@ -75,10 +80,42 @@ def get_project_folder_name(relative_path: str) -> Optional[str]:
     return parts[0] if parts else None
 
 
-def get_text_snippet(document_id: int, max_length: int = 500) -> str:
-    """document_id로 OCR 텍스트 조각 가져오기"""
-    text_path = PROCESSED_TEXT_DIR / str(document_id) / "full_text.txt"
-    if not text_path.exists():
+def _get_document_text_path(source_id: str, document_id: int) -> "Optional[Path]":
+    """문서 텍스트 파일 경로 조회 (통합 경로 우선, fallback 지원)"""
+    # 1순위: 통합 경로 (step2_extract/documents/{doc_id}/)
+    paths = get_source_paths(source_id)
+    unified_path = paths.document_dir(document_id) / "full_text.txt"
+    if unified_path.exists():
+        return unified_path
+    
+    # 2순위: 구버전 경로 (processed_text/{doc_id}/)
+    legacy_path = PROCESSED_TEXT_DIR / str(document_id) / "full_text.txt"
+    if legacy_path.exists():
+        return legacy_path
+    
+    return None
+
+
+def _get_document_structured_path(source_id: str, document_id: int) -> "Optional[Path]":
+    """문서 structured_data.json 경로 조회 (통합 경로 우선, fallback 지원)"""
+    # 1순위: 통합 경로 (step2_extract/documents/{doc_id}/)
+    paths = get_source_paths(source_id)
+    unified_path = paths.document_dir(document_id) / "structured_data.json"
+    if unified_path.exists():
+        return unified_path
+    
+    # 2순위: 구버전 경로 (processed_text/{doc_id}/)
+    legacy_path = PROCESSED_TEXT_DIR / str(document_id) / "structured_data.json"
+    if legacy_path.exists():
+        return legacy_path
+    
+    return None
+
+
+def get_text_snippet(source_id: str, document_id: int, max_length: int = 500) -> str:
+    """document_id로 OCR 텍스트 조각 가져오기 (통합 경로 우선)"""
+    text_path = _get_document_text_path(source_id, document_id)
+    if not text_path:
         return ""
 
     try:
@@ -93,10 +130,10 @@ def get_text_snippet(document_id: int, max_length: int = 500) -> str:
         return ""
 
 
-def get_semantic_sections(document_id: int, max_sections: int = 12) -> List[str]:
-    """document_id의 structured_data.json에서 의미 섹션 요약을 가져온다."""
-    structured_path = PROCESSED_TEXT_DIR / str(document_id) / "structured_data.json"
-    if not structured_path.exists():
+def get_semantic_sections(source_id: str, document_id: int, max_sections: int = 12) -> List[str]:
+    """document_id의 structured_data.json에서 의미 섹션 요약을 가져온다 (통합 경로 우선)"""
+    structured_path = _get_document_structured_path(source_id, document_id)
+    if not structured_path:
         return []
     try:
         data = json.loads(structured_path.read_text(encoding="utf-8"))
@@ -229,7 +266,7 @@ def generate_wiki_markdown(
             lines.append("")
 
             # 텍스트 스니펫
-            snippet = get_text_snippet(doc.document_id, max_length=300)
+            snippet = get_text_snippet(source_id, doc.document_id, max_length=300)
             if snippet:
                 lines.append("**텍스트 미리보기**:")
                 lines.append("")
@@ -238,7 +275,7 @@ def generate_wiki_markdown(
                 lines.append("```")
                 lines.append("")
 
-            semantic_sections = get_semantic_sections(doc.document_id, max_sections=10)
+            semantic_sections = get_semantic_sections(source_id, doc.document_id, max_sections=10)
             if semantic_sections:
                 lines.append("**주요 의미 섹션**:")
                 lines.append("")
