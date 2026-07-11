@@ -13866,10 +13866,10 @@ LIMIT 10`;
         // 서비스 준비 실패 처리
         const failedServices = (prepareData.services?.actions || [])
           .filter(a => a.status === 'error')
-          .map(a => a.service)
+          .map(a => `${a.service}${a.message ? ` (${a.message})` : ''}`)
           .join(', ');
         if (failedServices) {
-          showToast(`서비스 준비 실패: ${failedServices}. 전체 순차 실행을 중단합니다.`, 'error', 5000);
+          showToast(`서비스 준비 실패: ${failedServices}. 전체 순차 실행을 중단합니다.`, 'error', 7000);
         }
         console.error('[wizardRunAll] 빌드 환경 준비 실패:', prepareData);
         return;

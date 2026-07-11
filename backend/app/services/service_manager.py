@@ -4,7 +4,10 @@ OCR 서버, Ollama 등 데이터셋 빌드에 필요한 서비스들의 상태 �
 """
 import asyncio
 import logging
+import os
+import re
 import subprocess
+import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -21,6 +24,7 @@ class ServiceConfig:
     stop_cmd: str
     port: int
     timeout: float = 5.0
+    verify_identity: bool = False
 
 
 # 서비스 설정
@@ -28,20 +32,93 @@ SERVICES = {
     "ocr": ServiceConfig(
         name="OCR Server",
         health_url="http://127.0.0.1:5000/health",
-        start_cmd="cd /data/weeslee/pdf-ocr && source venv/bin/activate && nohup python python/advanced_ocr_server.py > /tmp/ocr_server.log 2>&1 &",
+        start_cmd=os.getenv(
+            "WEESLEE_OCR_START_CMD",
+            "cd /data/weeslee/pdf-ocr && nohup venv/bin/python python/advanced_ocr_server.py > /tmp/ocr_server.log 2>&1 &",
+        ),
         stop_cmd="pkill -f 'advanced_ocr_server.py'",
         port=5000,
         timeout=10.0,
+        verify_identity=True,
     ),
     "ollama": ServiceConfig(
         name="Ollama",
         health_url="http://127.0.0.1:11434/api/tags",
-        start_cmd="systemctl start ollama",
-        stop_cmd="systemctl stop ollama",
+        start_cmd=os.getenv("WEESLEE_OLLAMA_START_CMD", "systemctl start ollama"),
+        stop_cmd=os.getenv("WEESLEE_OLLAMA_STOP_CMD", "systemctl stop ollama"),
         port=11434,
         timeout=5.0,
+        verify_identity=True,
     ),
 }
+
+
+def _run_shell_command(command: str, *, timeout: int) -> subprocess.CompletedProcess:
+    """bash로 실행해 source/&& 같은 bash 문법과 stderr를 안정적으로 수집한다."""
+    return subprocess.run(
+        command,
+        shell=True,
+        executable="/bin/bash",
+        timeout=timeout,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _port_owner_pid(port: int) -> Optional[int]:
+    try:
+        result = subprocess.run(
+            ["ss", "-lntp"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        return None
+
+    for line in (result.stdout or "").splitlines():
+        if f":{port} " not in line and not line.rstrip().endswith(f":{port}"):
+            continue
+        match = re.search(r"pid=(\d+)", line)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _systemd_main_pid(service_name: str) -> Optional[int]:
+    try:
+        result = subprocess.run(
+            ["systemctl", "show", "-p", "MainPID", "--value", service_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        return None
+
+    raw = (result.stdout or "").strip()
+    if not raw or raw == "0":
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _service_identity(service_key: str, config: ServiceConfig) -> Optional[str]:
+    if service_key == "ollama":
+        pid = _systemd_main_pid("ollama")
+        return f"systemd:{pid}" if pid else None
+    pid = _port_owner_pid(config.port)
+    return f"port:{pid}" if pid else None
+
+
+def _short_error_text(result: subprocess.CompletedProcess) -> str:
+    stderr = (result.stderr or "").strip()
+    stdout = (result.stdout or "").strip()
+    return stderr or stdout or f"returncode={result.returncode}"
 
 
 async def check_service_health(service_key: str) -> dict:
@@ -113,28 +190,36 @@ def restart_service_sync(service_key: str) -> dict:
 
     config = SERVICES[service_key]
     logger.info(f"[ServiceManager] {config.name} 재시작 시작")
+    before_identity = _service_identity(service_key, config)
 
     try:
         # 1. 서비스 중지
-        subprocess.run(
+        stop_result = _run_shell_command(
             config.stop_cmd,
-            shell=True,
             timeout=10,
-            capture_output=True,
         )
+        if stop_result.returncode != 0 and before_identity:
+            return {
+                "success": False,
+                "service": config.name,
+                "message": f"중지 명령 실패: {_short_error_text(stop_result)}",
+            }
         logger.info(f"[ServiceManager] {config.name} 중지 완료")
 
         # 2. 잠시 대기
-        import time
         time.sleep(2)
 
         # 3. 서비스 시작
-        subprocess.Popen(
+        start_result = _run_shell_command(
             config.start_cmd,
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            timeout=15,
         )
+        if start_result.returncode != 0:
+            return {
+                "success": False,
+                "service": config.name,
+                "message": f"시작 명령 실패: {_short_error_text(start_result)}",
+            }
         logger.info(f"[ServiceManager] {config.name} 시작 명령 실행")
 
         # 4. 시작 대기 (최대 30초)
@@ -144,11 +229,30 @@ def restart_service_sync(service_key: str) -> dict:
                 import requests
                 resp = requests.get(config.health_url, timeout=3)
                 if resp.status_code == 200:
+                    after_identity = _service_identity(service_key, config)
+                    if (
+                        config.verify_identity
+                        and before_identity
+                        and after_identity
+                        and before_identity == after_identity
+                    ):
+                        return {
+                            "success": False,
+                            "service": config.name,
+                            "message": (
+                                "health 응답은 정상이지만 프로세스 식별자가 바뀌지 않아 "
+                                "실제 재시작이 확인되지 않았습니다."
+                            ),
+                            "before_identity": before_identity,
+                            "after_identity": after_identity,
+                        }
                     logger.info(f"[ServiceManager] {config.name} 정상 시작 확인")
                     return {
                         "success": True,
                         "service": config.name,
                         "message": "서비스 재시작 완료",
+                        "before_identity": before_identity,
+                        "after_identity": after_identity,
                     }
             except Exception:
                 continue
