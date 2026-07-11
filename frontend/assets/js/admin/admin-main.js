@@ -13844,28 +13844,44 @@ LIMIT 10`;
       return;
     }
 
-    // ── 의존 서비스(OCR, Ollama) 준비 확인 ─────────────────────────────────
-    // Force 재처리 체크 여부에 따라 서비스 강제 재시작
+    // ── 빌드 환경 준비 (Job 체크 + 서비스 체크) ─────────────────────────────
     const forceRebuildChecked = document.getElementById('wizardForceRebuild')?.checked || false;
     if (forceRebuildChecked) {
-      showToast('Force 재처리 모드: 모든 서비스 강제 재시작 중...', 'info', 3000);
+      showToast('Force 재처리 모드: 기존 Job 중단 및 서비스 강제 재시작 중...', 'info', 3000);
     } else {
-      showToast('서비스 상태 확인 중...', 'info', 2000);
+      showToast('빌드 환경 준비 중 (Job 및 서비스 상태 확인)...', 'info', 2000);
     }
     try {
-      const ensureUrl = apiUrl(`/health/services/ensure-ready?force_restart=${forceRebuildChecked}`);
-      const ensureResp = await fetch(ensureUrl, { method: 'POST' });
-      const ensureData = await ensureResp.json();
-      if (!ensureData.all_ready) {
-        const failedServices = (ensureData.actions || [])
+      const prepareUrl = apiUrl(`/health/build/prepare?source_id=${currentSourceId}&force_restart=${forceRebuildChecked}`);
+      const prepareResp = await fetch(prepareUrl, { method: 'POST' });
+      const prepareData = await prepareResp.json();
+
+      if (!prepareData.all_ready) {
+        // Job 관련 경고 처리
+        if (prepareData.jobs?.warning) {
+          showToast(`${prepareData.jobs.warning} Force 재처리를 체크하거나 기존 작업 완료 후 다시 시도하세요.`, 'warning', 5000);
+          console.warn('[wizardRunAll] 기존 Job 실행 중:', prepareData.jobs);
+          return;
+        }
+        // 서비스 준비 실패 처리
+        const failedServices = (prepareData.services?.actions || [])
           .filter(a => a.status === 'error')
           .map(a => a.service)
           .join(', ');
-        showToast(`서비스 준비 실패: ${failedServices}. 전체 순차 실행을 중단합니다.`, 'error', 5000);
-        console.error('[wizardRunAll] 서비스 준비 실패:', ensureData);
+        if (failedServices) {
+          showToast(`서비스 준비 실패: ${failedServices}. 전체 순차 실행을 중단합니다.`, 'error', 5000);
+        }
+        console.error('[wizardRunAll] 빌드 환경 준비 실패:', prepareData);
         return;
       }
-      const restartedServices = (ensureData.actions || [])
+
+      // Job 중단 결과 표시
+      if (prepareData.jobs?.interrupted?.interrupted_count > 0) {
+        showToast(`기존 Job ${prepareData.jobs.interrupted.interrupted_count}개 중단됨`, 'info', 2000);
+      }
+
+      // 서비스 재시작 결과 표시
+      const restartedServices = (prepareData.services?.actions || [])
         .filter(a => a.action === 'restarted' || a.action === 'force_restarted')
         .map(a => a.service);
       if (restartedServices.length > 0) {
@@ -13874,9 +13890,11 @@ LIMIT 10`;
           : `서비스 재시작됨: ${restartedServices.join(', ')}`;
         showToast(msg, 'info', 3000);
       }
+
+      console.log('[wizardRunAll] 빌드 환경 준비 완료:', prepareData);
     } catch (err) {
-      console.error('[wizardRunAll] 서비스 준비 확인 오류:', err);
-      showToast('서비스 준비 확인 중 오류가 발생했습니다. 계속 진행합니다.', 'warning', 3000);
+      console.error('[wizardRunAll] 빌드 환경 준비 오류:', err);
+      showToast('빌드 환경 준비 중 오류가 발생했습니다. 계속 진행합니다.', 'warning', 3000);
     }
 
     // ── 전체 실행 전 상태 초기화 ───────────────────────────────────────────

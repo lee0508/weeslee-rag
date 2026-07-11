@@ -237,3 +237,89 @@ async def ensure_services_ready(force_restart: bool = False) -> dict:
                     results["all_ready"] = False
 
     return results
+
+
+# ── Job 상태 관리 ──────────────────────────────────────────────────────────────
+
+
+def get_active_build_jobs(source_id: str = None) -> dict:
+    """현재 source_id에 대해 실행 중인 빌드 Job 조회."""
+    from app.services.dataset_builder_lock import get_active_jobs
+    jobs = get_active_jobs(source_id=source_id)
+    return {
+        "active_jobs": jobs,
+        "count": len(jobs),
+        "has_running_jobs": len(jobs) > 0,
+    }
+
+
+def interrupt_active_jobs(source_id: str = None, reason: str = "force_restart") -> dict:
+    """실행 중인 Job들을 interrupted 상태로 변경."""
+    import json
+    from pathlib import Path
+    from datetime import datetime, timezone
+    from app.services.dataset_builder_lock import get_active_jobs, JOBS_DIR
+
+    jobs = get_active_jobs(source_id=source_id)
+    interrupted_count = 0
+
+    for job in jobs:
+        job_file = Path(job.get("file_path", ""))
+        if not job_file.exists():
+            continue
+        try:
+            job_data = json.loads(job_file.read_text(encoding="utf-8"))
+            job_data["status"] = "interrupted"
+            job_data["interrupted_at"] = datetime.now(timezone.utc).isoformat()
+            job_data["interrupt_reason"] = reason
+            job_file.write_text(json.dumps(job_data, ensure_ascii=False, indent=2), encoding="utf-8")
+            interrupted_count += 1
+            logger.info(f"[ServiceManager] Job 중단: {job.get('job_id')} (reason={reason})")
+        except Exception as e:
+            logger.warning(f"[ServiceManager] Job 중단 오류 {job_file}: {e}")
+
+    return {
+        "interrupted_count": interrupted_count,
+        "total_jobs": len(jobs),
+        "reason": reason,
+    }
+
+
+async def prepare_build_environment(source_id: str, force_restart: bool = False) -> dict:
+    """
+    데이터셋 빌드 환경 준비.
+    1. 기존 running Job 확인 및 처리
+    2. 의존 서비스(OCR, Ollama) 확인/재시작
+    """
+    results = {
+        "source_id": source_id,
+        "force_restart": force_restart,
+        "jobs": {},
+        "services": {},
+        "all_ready": True,
+    }
+
+    # 1. 기존 running Job 처리
+    active_jobs = get_active_build_jobs(source_id=source_id)
+    results["jobs"]["active_before"] = active_jobs
+
+    if active_jobs["has_running_jobs"]:
+        if force_restart:
+            # Force 모드: 기존 Job 중단
+            interrupt_result = interrupt_active_jobs(source_id=source_id, reason="force_restart")
+            results["jobs"]["interrupted"] = interrupt_result
+            logger.info(f"[ServiceManager] Force 모드: {interrupt_result['interrupted_count']}개 Job 중단")
+        else:
+            # 일반 모드: 기존 Job이 있으면 경고
+            results["jobs"]["warning"] = f"실행 중인 Job이 {active_jobs['count']}개 있습니다."
+            results["all_ready"] = False
+            return results
+
+    # 2. 의존 서비스 확인/재시작
+    service_result = await ensure_services_ready(force_restart=force_restart)
+    results["services"] = service_result
+
+    if not service_result.get("all_ready"):
+        results["all_ready"] = False
+
+    return results

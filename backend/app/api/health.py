@@ -43,6 +43,29 @@ async def ensure_services_ready(force_restart: bool = False):
     from app.services.service_manager import ensure_services_ready as do_ensure
     return await do_ensure(force_restart=force_restart)
 
+
+@router.post("/health/build/prepare")
+async def prepare_build(source_id: str, force_restart: bool = False):
+    """데이터셋 빌드 환경 준비 (Job 체크 + 서비스 체크).
+
+    Args:
+        source_id: 빌드 대상 Document Source ID
+        force_restart: True이면 기존 Job 중단 + 서비스 강제 재시작
+    """
+    from app.services.service_manager import prepare_build_environment
+    return await prepare_build_environment(source_id=source_id, force_restart=force_restart)
+
+
+@router.get("/health/jobs/active")
+async def get_active_jobs(source_id: str = None):
+    """현재 실행 중인 빌드 Job 목록 조회.
+
+    Args:
+        source_id: 특정 source_id로 필터링 (없으면 전체)
+    """
+    from app.services.service_manager import get_active_build_jobs
+    return get_active_build_jobs(source_id=source_id)
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _FAISS_DIR = _PROJECT_ROOT / "data" / "indexes" / "faiss"
 _ACTIVE_INDEX_PATH = _PROJECT_ROOT / "data" / "active_index.json"
