@@ -408,21 +408,45 @@ def build_chunk_meta(doc, file_name: str, structured_data: dict, snapshot_id: st
     return chunk_meta
 
 
-def save_chunks_to_store(document_id: int, chunks: list, text_store: ProcessedTextStore) -> dict:
+def generate_chunk_id(source_id: str, document_id: int, chunk_index: int) -> str:
+    """고유 chunk_id 생성.
+
+    형식: {source_id}_{document_id}_{chunk_index:04d}
+    예: src_20260711_090331_dda661_96509_0001
+    """
+    return f"{source_id}_{document_id}_{chunk_index:04d}"
+
+
+def save_chunks_to_store(
+    document_id: int,
+    chunks: list,
+    text_store: ProcessedTextStore,
+    source_id: str = "",
+    document_uid: str = "",
+) -> dict:
     """청크를 ProcessedTextStore에 저장"""
     try:
         # 청크 데이터 준비
         chunks_data = []
         for idx, chunk in enumerate(chunks):
+            chunk_id = generate_chunk_id(source_id, document_id, idx)
+            chunk_metadata = chunk.metadata or {}
+            # chunk_id를 메타데이터에도 포함
+            chunk_metadata["chunk_id"] = chunk_id
+            chunk_metadata["document_uid"] = document_uid
             chunks_data.append({
+                "chunk_id": chunk_id,
                 "chunk_index": idx,
+                "document_id": document_id,
+                "source_id": source_id,
+                "document_uid": document_uid,
                 "content": chunk.content,
                 "token_count": chunk.token_count,
                 "char_count": len(chunk.content),
                 "start_char": chunk.start_char,
                 "end_char": chunk.end_char,
                 "page_number": chunk.page_number,
-                "metadata": chunk.metadata or {}
+                "metadata": chunk_metadata
             })
 
         # Store에 저장
@@ -431,7 +455,8 @@ def save_chunks_to_store(document_id: int, chunks: list, text_store: ProcessedTe
         return {
             "success": True,
             "chunks_count": len(chunks_data),
-            "total_tokens": sum(c["token_count"] for c in chunks_data)
+            "total_tokens": sum(c["token_count"] for c in chunks_data),
+            "chunk_ids": [c["chunk_id"] for c in chunks_data]
         }
     except Exception as e:
         return {
@@ -738,7 +763,13 @@ def execute_chunk_build(
                     len(chunks),
                     file_name,
                 )
-                save_result = save_chunks_to_store(document_id, chunks, text_store)
+                save_result = save_chunks_to_store(
+                    document_id,
+                    chunks,
+                    text_store,
+                    source_id=doc.source_id or "",
+                    document_uid=doc.document_uid or "",
+                )
                 logger.info(
                     "[Step5] save_chunks done: document_id=%s success=%s chunks_count=%s total_tokens=%s error=%s file=%s",
                     document_id,

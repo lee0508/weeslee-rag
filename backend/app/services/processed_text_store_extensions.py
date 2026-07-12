@@ -210,22 +210,25 @@ def save_embeddings(
             pickle.dump(embeddings, f)
 
         # 메타데이터 저장
+        input_metadata = metadata or {}
+        embedding_ids = list(input_metadata.get("embedding_ids") or [])
         metadata = {
             "document_id": document_id,
             "embeddings_count": len(embeddings),
             "embedding_dim": len(embeddings[0]) if embeddings and len(embeddings[0]) > 0 else 0,
             "model": model,
-            "source_id": str((metadata or {}).get("source_id") or ""),
-            "dataset_id": str((metadata or {}).get("dataset_id") or ""),
-            "document_uid": str((metadata or {}).get("document_uid") or ""),
-            "relative_path": str((metadata or {}).get("relative_path") or ""),
-            "snapshot_id": str((metadata or {}).get("snapshot_id") or ""),
-            "embedding_provider": str((metadata or {}).get("embedding_provider") or ""),
-            "embedding_strategy": str((metadata or {}).get("embedding_strategy") or ""),
-            "contextual_retrieval_mode": str((metadata or {}).get("contextual_retrieval_mode") or ""),
-            "contextual_model": str((metadata or {}).get("contextual_model") or ""),
-            "late_chunking_applied": bool((metadata or {}).get("late_chunking_applied") or False),
-            "contextual_chunks": int((metadata or {}).get("contextual_chunks") or 0),
+            "source_id": str(input_metadata.get("source_id") or ""),
+            "dataset_id": str(input_metadata.get("dataset_id") or ""),
+            "document_uid": str(input_metadata.get("document_uid") or ""),
+            "relative_path": str(input_metadata.get("relative_path") or ""),
+            "snapshot_id": str(input_metadata.get("snapshot_id") or ""),
+            "embedding_provider": str(input_metadata.get("embedding_provider") or ""),
+            "embedding_strategy": str(input_metadata.get("embedding_strategy") or ""),
+            "contextual_retrieval_mode": str(input_metadata.get("contextual_retrieval_mode") or ""),
+            "contextual_model": str(input_metadata.get("contextual_model") or ""),
+            "late_chunking_applied": bool(input_metadata.get("late_chunking_applied") or False),
+            "contextual_chunks": int(input_metadata.get("contextual_chunks") or 0),
+            "embedding_ids": embedding_ids,
             "created_at": datetime.now().isoformat()
         }
 
@@ -251,6 +254,7 @@ def save_embeddings(
                     "contextual_model": metadata["contextual_model"],
                     "late_chunking_applied": metadata["late_chunking_applied"],
                     "contextual_chunks": metadata["contextual_chunks"],
+                    "embedding_ids": metadata["embedding_ids"],
                 },
             },
             snapshot_id=metadata["snapshot_id"],

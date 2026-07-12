@@ -41,6 +41,15 @@ _EMBEDDING_BUILD_JOBS: dict[str, dict[str, Any]] = {}
 _STEP6_JOB_DIR = Path(__file__).resolve().parents[3] / "data" / "jobs" / "step6_embed"
 
 
+def generate_embedding_id(chunk_id: str) -> str:
+    """chunk_id를 기반으로 embedding_id 생성.
+
+    형식: {chunk_id}_emb
+    예: src_20260711_090331_dda661_96509_0001_emb
+    """
+    return f"{chunk_id}_emb"
+
+
 # ── Request/Response Models ──────────────────────────────────────────────
 
 class EmbeddingBuildRequest(BaseModel):
@@ -750,6 +759,13 @@ async def generate_embeddings_for_document(
 
         embedding_dim = len(valid_embeddings[0])
 
+        # 청크별 chunk_id와 embedding_id 생성
+        embedding_ids = []
+        for idx, chunk in enumerate(chunks):
+            chunk_id = chunk.get("chunk_id") or f"{doc_meta.get('source_id', '')}_{document_id}_{idx:04d}"
+            embedding_id = generate_embedding_id(chunk_id)
+            embedding_ids.append(embedding_id)
+
         # 임베딩 저장
         text_store.save_embeddings(
             document_id,
@@ -763,6 +779,7 @@ async def generate_embeddings_for_document(
                 "contextual_model": getattr(settings, "contextual_retrieval_model", settings.ollama_model) if contextual_enabled else "",
                 "late_chunking_applied": late_chunking_applied,
                 "contextual_chunks": contextual_chunks,
+                "embedding_ids": embedding_ids,
             },
         )
 
@@ -773,6 +790,7 @@ async def generate_embeddings_for_document(
             "embedding_dim": embedding_dim,
             "embedding_strategy": applied_strategy,
             "contextual_retrieval_mode": contextual_mode if contextual_enabled else "off",
+            "embedding_ids": embedding_ids,
         }
 
     except Exception as e:
