@@ -3780,7 +3780,7 @@ async function loadGraphFromQuery(query, documents = []) {
       badge.classList.remove('empty');
     }
 
-    showToast(`그래프 로드 완료: 노드 ${data.nodes.length}개, 엣지 ${data.edges.length}개`, 'success');
+    console.log(`그래프 로드 완료: 노드 ${data.nodes.length}개, 엣지 ${data.edges.length}개`);
 
   } catch (err) {
     console.error('Graph load error:', err);
