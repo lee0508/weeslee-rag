@@ -171,22 +171,32 @@ def _text_path(document_id: int) -> Path:
 def _processed_text_path(document_id: int, format: str = "txt", source_id: str = "") -> Path:
     """처리된 텍스트 파일 경로 반환.
 
-    [2026-07-12] 통합 경로 구조 지원 추가.
-    우선순위: 통합 경로 → 기존 documents 경로 → processed_text 경로
+    source_id가 있으면 Source별 Step 2 추출 경로를 우선 사용한다.
     """
     file_name = "full_text.md" if format == "md" else "full_text.txt"
 
-    # 1. 통합 경로: /data/source/{source_id}/documents/{document_id}/full_text.*
-    if source_id:
-        unified_path = DATA_DIR / "source" / source_id / "documents" / str(document_id) / file_name
-        if unified_path.is_file():
-            return unified_path
+    source_path = _source_document_file(source_id, document_id, file_name)
+    if source_path:
+        return source_path
 
     # 2. 기존 전역 경로
     canonical = DATA_DIR / "documents" / str(document_id) / "ocr" / file_name
     if canonical.is_file():
         return canonical
     return DATA_DIR / "processed_text" / str(document_id) / file_name
+
+
+def _source_document_file(source_id: str, document_id: int, file_name: str) -> Optional[Path]:
+    """Source별 문서 산출물의 현재 및 이전 호환 경로를 찾는다."""
+    if not source_id:
+        return None
+
+    source_root = DATA_DIR / "source" / str(source_id)
+    candidates = (
+        source_root / "documents" / str(document_id) / file_name,
+        source_root / "step2_extract" / "documents" / str(document_id) / file_name,
+    )
+    return next((path for path in candidates if path.is_file()), None)
 
 
 def _load_chunks_from_active_index(document_id: int) -> Optional[str]:
@@ -251,13 +261,12 @@ def _build_text(document_id: int, source_id: str = "") -> tuple[str, str, Option
 
     [2026-07-12] source_id 파라미터 추가 - 통합 경로 구조 지원.
     """
-    # 1. 통합 경로에서 먼저 찾기
-    if source_id:
-        unified_txt = DATA_DIR / "source" / source_id / "documents" / str(document_id) / "full_text.txt"
-        if unified_txt.is_file():
-            text = _read_text(unified_txt)
-            if text is not None:
-                return text, "unified_path", unified_txt
+    # 1. Source별 Step 2 추출 결과 또는 이전 호환 경로
+    source_txt = _source_document_file(source_id, document_id, "full_text.txt")
+    if source_txt:
+        text = _read_text(source_txt)
+        if text is not None:
+            return text, "source_extract", source_txt
 
     raw_text_path = _raw_text_path(document_id)
     raw_text = _read_text(raw_text_path)
@@ -310,6 +319,80 @@ def _document_from_sqlalchemy(document: Document) -> dict[str, Any]:
     }
 
 
+def _load_document_from_faiss_metadata(document_id: int) -> Optional[dict[str, Any]]:
+    """FAISS 인덱스 메타데이터에서 문서 정보 조회.
+
+    [2026-07-13] RAG 검색 결과의 document_id로 문서를 찾지 못할 때 fallback.
+    """
+    try:
+        # 활성 인덱스 디렉토리 찾기
+        indexes_dir = DATA_DIR / "indexes" / "faiss"
+        if not indexes_dir.exists():
+            return None
+
+        # active.json에서 활성 스냅샷 확인
+        active_snapshot = None
+        active_file = indexes_dir / "active.json"
+        if active_file.exists():
+            with open(active_file, "r", encoding="utf-8") as f:
+                active_info = json.load(f)
+                active_snapshot = active_info.get("snapshot_id", "")
+
+        # 메타데이터 파일 검색
+        snapshot_dirs = []
+        if active_snapshot:
+            snapshot_dirs.append(indexes_dir / active_snapshot)
+        # 최신 스냅샷부터 검색
+        for d in sorted(indexes_dir.iterdir(), reverse=True):
+            if d.is_dir() and d.name.startswith("snapshot_") and d not in snapshot_dirs:
+                snapshot_dirs.append(d)
+
+        doc_id_str = str(document_id)
+        for snapshot_dir in snapshot_dirs:
+            # metadata.jsonl 검색
+            metadata_path = snapshot_dir / "metadata.jsonl"
+            if metadata_path.exists():
+                with open(metadata_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if not line.strip():
+                            continue
+                        meta = json.loads(line)
+                        if str(meta.get("document_id", "")) == doc_id_str:
+                            return {
+                                "id": document_id,
+                                "file_name": meta.get("filename") or meta.get("file_name", ""),
+                                "file_path": meta.get("source_path") or meta.get("file_path", ""),
+                                "source_path": meta.get("source_path", ""),
+                                "source_id": meta.get("source_id", ""),
+                                "file_type": meta.get("file_type", ""),
+                                "summary": meta.get("summary", ""),
+                                "chunk_count": meta.get("chunk_count", 0),
+                            }
+
+            # chunks.jsonl에서 첫 번째 청크 메타데이터 사용
+            chunks_path = snapshot_dir / "chunks.jsonl"
+            if chunks_path.exists():
+                with open(chunks_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if not line.strip():
+                            continue
+                        chunk = json.loads(line)
+                        if str(chunk.get("document_id", "")) == doc_id_str:
+                            return {
+                                "id": document_id,
+                                "file_name": chunk.get("filename") or chunk.get("file_name", ""),
+                                "file_path": chunk.get("source_path") or chunk.get("file_path", ""),
+                                "source_path": chunk.get("source_path", ""),
+                                "source_id": chunk.get("source_id", ""),
+                                "file_type": chunk.get("file_type", ""),
+                                "summary": "",
+                                "chunk_count": 0,
+                            }
+    except Exception:
+        pass
+    return None
+
+
 def _resolve_document(document_id: int, db: Session) -> tuple[dict[str, Any], Optional[Document]]:
     metadata_doc = metadata_db_service.get_document(document_id)
     orm_doc = db.query(Document).filter(Document.id == document_id).first()
@@ -317,6 +400,12 @@ def _resolve_document(document_id: int, db: Session) -> tuple[dict[str, Any], Op
         return metadata_doc, orm_doc
     if orm_doc:
         return _document_from_sqlalchemy(orm_doc), orm_doc
+
+    # [2026-07-13] fallback: FAISS 인덱스 메타데이터에서 조회
+    faiss_doc = _load_document_from_faiss_metadata(document_id)
+    if faiss_doc:
+        return faiss_doc, None
+
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
 
@@ -351,13 +440,12 @@ def _build_markdown(document_id: int, record: dict[str, Any], metadata_payload: 
     """
     source_id = record.get("source_id") or ""
 
-    # 1. 통합 경로에서 먼저 찾기
-    if source_id:
-        unified_md = DATA_DIR / "source" / source_id / "documents" / str(document_id) / "full_text.md"
-        if unified_md.is_file():
-            md_text = _read_text(unified_md)
-            if md_text is not None:
-                return md_text, "unified_path", unified_md
+    # 1. Source별 Step 2 추출 결과 또는 이전 호환 경로
+    source_md = _source_document_file(source_id, document_id, "full_text.md")
+    if source_md:
+        md_text = _read_text(source_md)
+        if md_text is not None:
+            return md_text, "source_extract", source_md
 
     markdown_path = _content_path(document_id, "document.md")
     markdown = _read_text(markdown_path)
@@ -390,13 +478,12 @@ def _build_html(document_id: int, record: dict[str, Any], metadata_payload: dict
     """
     source_id = record.get("source_id") or ""
 
-    # 1. 통합 경로에서 먼저 찾기
-    if source_id:
-        unified_html = DATA_DIR / "source" / source_id / "documents" / str(document_id) / "full_text.html"
-        if unified_html.is_file():
-            html_text = _read_text(unified_html)
-            if html_text is not None:
-                return html_text, "unified_path", unified_html
+    # 1. Source별 Step 2 추출 결과 또는 이전 호환 경로
+    source_html = _source_document_file(source_id, document_id, "full_text.html")
+    if source_html:
+        html_text = _read_text(source_html)
+        if html_text is not None:
+            return html_text, "source_extract", source_html
 
     html_path = _content_path(document_id, "document.html")
     html = _read_text(html_path)
@@ -438,18 +525,17 @@ def _available_formats(document_id: int, record: dict[str, Any], orm_doc: Option
     processed_txt_exists = processed_text_store.get_text(str(document_id), format="txt") is not None
     processed_md_exists = processed_text_store.get_text(str(document_id), format="md") is not None
 
-    # 통합 경로 확인
+    # Source별 Step 2 추출 결과와 이전 호환 경로 확인
     source_id = record.get("source_id") or ""
-    unified_dir = DATA_DIR / "source" / source_id / "documents" / str(document_id) if source_id else None
-    unified_txt_exists = unified_dir and (unified_dir / "full_text.txt").is_file() if unified_dir else False
-    unified_md_exists = unified_dir and (unified_dir / "full_text.md").is_file() if unified_dir else False
-    unified_html_exists = unified_dir and (unified_dir / "full_text.html").is_file() if unified_dir else False
+    source_txt_exists = _source_document_file(source_id, document_id, "full_text.txt") is not None
+    source_md_exists = _source_document_file(source_id, document_id, "full_text.md") is not None
+    source_html_exists = _source_document_file(source_id, document_id, "full_text.html") is not None
 
     return {
         "original": original_path is not None,
-        "txt": unified_txt_exists or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists,
-        "md": unified_md_exists or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
-        "html": unified_html_exists or _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
+        "txt": source_txt_exists or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists,
+        "md": source_md_exists or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
+        "html": source_html_exists or source_md_exists or _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
         "summary": _summary_path(document_id).is_file() or bool(summary_text),
         "json": metadata_path is not None or bool(metadata_payload),
         "docx": original_path is not None and original_path.suffix.lower() == ".docx",
@@ -701,7 +787,7 @@ async def download_document(document_id: int, format: str, db: Session = Depends
         return FileResponse(path=str(original_path), media_type=media_type, headers=headers)
 
     if requested == "txt":
-        text, _, _ = _build_text(document_id)
+        text, _, _ = _build_text(document_id, record.get("source_id") or "")
         return Response(content=text, media_type=_MIME[".txt"], headers=_attachment_headers(_download_filename(file_name, ".txt")))
 
     if requested == "md":
