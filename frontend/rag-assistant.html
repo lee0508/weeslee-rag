@@ -3217,7 +3217,7 @@
         const data = await r.json();
         if (data.success && data.settings) {
           _systemDefaultLlmModel = data.settings.default_llm_model || data.settings.llm_model || '';
-          _systemDefaultEmbeddingModel = data.settings.embedding_model || '';
+          _systemDefaultEmbeddingModel = data.settings.default_embedding_model || data.settings.embedding_model || '';
           console.log('[SystemSettings] 기본 LLM:', _systemDefaultLlmModel, '임베딩:', _systemDefaultEmbeddingModel);
         }
       } catch (e) {
