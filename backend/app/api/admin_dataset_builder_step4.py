@@ -45,6 +45,7 @@ from app.services.runtime_compute_settings import (
 )
 from app.services.source_artifact_index import sync_source_index
 from app.services.source_data_paths import get_source_paths
+from app.services.page_source_loader import load_csv_page_units
 
 
 logger = logging.getLogger(__name__)
@@ -338,6 +339,30 @@ async def parse_document(
                 })
             if normalized_pages:
                 processing_result.pages = normalized_pages
+
+        # [2026-07-12] 원문 CSV(;[N] 페이지 마커) 우선 사용
+        # `01. RFP` 계열은 수동 변환 CSV에 실제 페이지 경계가 보존되어 있다.
+        # 이 CSV가 있으면 페이지 전문을 그대로 pages에 채워 청킹 단계에서
+        # 원문 손실 없이 페이지 단위로 청킹되도록 한다.
+        csv_page_result = load_csv_page_units(file_path)
+        if csv_page_result and csv_page_result.get("pages"):
+            processing_result.pages = csv_page_result["pages"]
+            processing_result.page_count = csv_page_result["page_count"]
+            # full_text를 페이지 원문 결합으로 정합화 (커버리지 검증 기준 통일)
+            csv_full_text = csv_page_result.get("full_text") or ""
+            if csv_full_text.strip():
+                processing_result.full_text = csv_full_text
+                processing_result.full_text_md = csv_full_text
+                text = csv_full_text
+            processing_result.parser_type = "csv_page_source"
+            result["parser_type"] = processing_result.parser_type
+            logger.info(
+                "[Step4] CSV page source used: document_id=%s pages=%s chars=%s csv=%s",
+                document_id,
+                csv_page_result["page_count"],
+                len(csv_full_text),
+                csv_page_result.get("csv_path"),
+            )
 
         if file_ext == ".pptx":
             try:

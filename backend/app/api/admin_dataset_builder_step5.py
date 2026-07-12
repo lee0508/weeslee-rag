@@ -35,6 +35,11 @@ logger = logging.getLogger(__name__)
 _CHUNK_BUILD_JOBS: dict[str, dict[str, Any]] = {}
 _STEP5_JOB_DIR = Path(__file__).resolve().parents[3] / "data" / "jobs" / "step5_chunk"
 
+# 원문 대비 청크 글자수 커버리지 경고 임계값.
+# 페이지/plain 청킹은 공백 정규화·오버랩 영향으로 0.5~1.1 범위가 정상이며,
+# semantic 요약형(원문 손실)은 보통 0.1 미만이라 이 값으로 유실을 잡아낸다.
+COVERAGE_WARN_THRESHOLD = 0.5
+
 
 def _load_from_unified_path(source_id: str, document_id: int) -> dict:
     """통합 경로(step2_extract)에서 OCR 결과물을 로드한다.
@@ -47,7 +52,7 @@ def _load_from_unified_path(source_id: str, document_id: int) -> dict:
             "loaded_from": "unified_path" or None
         }
     """
-    result = {"extracted_text": None, "structured_data": None, "ocr_report": None, "loaded_from": None}
+    result = {"extracted_text": None, "structured_data": None, "ocr_report": None, "pages": None, "loaded_from": None}
     try:
         paths = get_source_paths(source_id)
         doc_dir = paths.document_dir(str(document_id))
@@ -67,7 +72,16 @@ def _load_from_unified_path(source_id: str, document_id: int) -> dict:
         if ocr_report_path.exists():
             result["ocr_report"] = json.loads(ocr_report_path.read_text(encoding="utf-8"))
 
-        if result["extracted_text"] or result["structured_data"]:
+        # [2026-07-12] pages.jsonl 로드 (Step4가 저장한 페이지 단위 원문)
+        pages_path = doc_dir / "pages.jsonl"
+        if pages_path.exists():
+            pages = []
+            for line in pages_path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    pages.append(json.loads(line))
+            result["pages"] = pages
+
+        if result["extracted_text"] or result["structured_data"] or result["pages"]:
             result["loaded_from"] = "unified_path"
 
     except Exception as e:
@@ -106,6 +120,7 @@ class ChunkBuildResult(BaseModel):
     status: str  # success, failed, skipped
     chunks_count: int
     total_tokens: int
+    coverage: Optional[float] = None  # 원문 대비 청크 글자수 비율
     error: Optional[str] = None
 
 
@@ -434,6 +449,10 @@ def save_chunks_to_store(
             # chunk_id를 메타데이터에도 포함
             chunk_metadata["chunk_id"] = chunk_id
             chunk_metadata["document_uid"] = document_uid
+            # [2026-07-12] page_id 부여 (원문 페이지 추적용)
+            # 형식: {source_id}_{document_id}_p{page_number:04d}
+            if chunk.page_number is not None:
+                chunk_metadata["page_id"] = f"{source_id}_{document_id}_p{int(chunk.page_number):04d}"
             chunks_data.append({
                 "chunk_id": chunk_id,
                 "chunk_index": idx,
@@ -626,6 +645,8 @@ def execute_chunk_build(
                 extracted_text = unified_data.get("extracted_text")
                 structured_data = unified_data.get("structured_data") or {}
                 report = unified_data.get("ocr_report") or {}
+                unified_pages = unified_data.get("pages") or []
+                extraction_result = None
 
                 # 통합 경로에 없으면 메모리 캐시(processed_text_store)에서 로드
                 if not extracted_text:
@@ -707,8 +728,11 @@ def execute_chunk_build(
                         )
                     continue
 
+                # [2026-07-12] 페이지 원문 우선: 통합 경로 pages.jsonl > 메모리 캐시 pages
+                # 원문 전량이 페이지 단위로 청킹되도록 unified_pages를 최우선 사용한다.
+                page_source = unified_pages or (extraction_result.pages if extraction_result else [])
                 page_rows = []
-                for page in (extraction_result.pages if extraction_result else []):
+                for page in page_source:
                     page_number = page.get("page_number") or page.get("page_num")
                     content = page.get("content") or page.get("text") or ""
                     if page_number is None or not str(content).strip():
@@ -721,21 +745,10 @@ def execute_chunk_build(
                 chunk_meta = build_chunk_meta(doc, file_name, structured_data, req.snapshot_id or "")
 
                 # 청킹 실행
-                use_semantic = (
-                    req.chunking_mode == "semantic"
-                    or (req.chunking_mode == "auto" and bool(structured_data))
-                )
-                if use_semantic and structured_data:
-                    logger.info(
-                        "[Step5] chunk strategy=semantic document_id=%s source_id=%s snapshot_id=%s sections=%s file=%s",
-                        document_id,
-                        doc.source_id,
-                        req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
-                        len((structured_data or {}).get("sections") or []),
-                        file_name,
-                    )
-                    chunks = chunking_service.chunk_semantic_sections(structured_data, metadata=chunk_meta)
-                elif page_rows and req.chunking_mode != "plain":
+                # [2026-07-12] 우선순위 변경: 실제 페이지 원문(page_rows)이 있으면
+                # semantic(요약형) 대신 페이지 전문 청킹을 우선한다. semantic은 페이지가
+                # 없을 때만 사용한다. (원문 손실 방지)
+                if page_rows and req.chunking_mode != "plain" and req.chunking_mode != "semantic":
                     logger.info(
                         "[Step5] chunk strategy=pages document_id=%s source_id=%s snapshot_id=%s pages=%s file=%s",
                         document_id,
@@ -745,6 +758,19 @@ def execute_chunk_build(
                         file_name,
                     )
                     chunks = chunking_service.chunk_pages(page_rows, metadata=chunk_meta)
+                elif (
+                    (req.chunking_mode == "semantic" or req.chunking_mode == "auto")
+                    and structured_data
+                ):
+                    logger.info(
+                        "[Step5] chunk strategy=semantic document_id=%s source_id=%s snapshot_id=%s sections=%s file=%s",
+                        document_id,
+                        doc.source_id,
+                        req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
+                        len((structured_data or {}).get("sections") or []),
+                        file_name,
+                    )
+                    chunks = chunking_service.chunk_semantic_sections(structured_data, metadata=chunk_meta)
                 else:
                     logger.info(
                         "[Step5] chunk strategy=plain document_id=%s source_id=%s snapshot_id=%s text_chars=%s file=%s",
@@ -755,6 +781,23 @@ def execute_chunk_build(
                         file_name,
                     )
                     chunks = chunking_service.chunk_text(extracted_text, metadata=chunk_meta)
+
+                # [2026-07-12] 원문 보존 커버리지 검증
+                # 청크 총 글자수 / 원문 글자수. 원문 대부분이 청킹에서 유실되면
+                # 여기서 즉시 드러난다. (semantic 요약형은 보통 <0.1)
+                origin_chars = len(extracted_text or "")
+                chunk_chars = sum(len(getattr(c, "content", "") or "") for c in chunks)
+                coverage = round(chunk_chars / origin_chars, 3) if origin_chars > 0 else 0.0
+                if coverage < COVERAGE_WARN_THRESHOLD:
+                    logger.warning(
+                        "[Step5] LOW COVERAGE document_id=%s coverage=%.3f chunk_chars=%s origin_chars=%s chunks=%s file=%s",
+                        document_id, coverage, chunk_chars, origin_chars, len(chunks), file_name,
+                    )
+                else:
+                    logger.info(
+                        "[Step5] coverage document_id=%s coverage=%.3f chunk_chars=%s origin_chars=%s chunks=%s file=%s",
+                        document_id, coverage, chunk_chars, origin_chars, len(chunks), file_name,
+                    )
 
                 # 저장
                 logger.info(
@@ -802,6 +845,9 @@ def execute_chunk_build(
                                 "chunking_mode": req.chunking_mode,
                                 "chunks_count": save_result["chunks_count"],
                                 "total_tokens": save_result["total_tokens"],
+                                "coverage": coverage,
+                                "origin_chars": origin_chars,
+                                "chunk_chars": chunk_chars,
                             },
                         },
                         snapshot_id=req.snapshot_id or getattr(doc, "faiss_snapshot", "") or "",
@@ -838,7 +884,8 @@ def execute_chunk_build(
                         file_name=file_name,
                         status="success",
                         chunks_count=save_result["chunks_count"],
-                        total_tokens=save_result["total_tokens"]
+                        total_tokens=save_result["total_tokens"],
+                        coverage=coverage,
                     ))
                     if progress_callback:
                         logger.info(
