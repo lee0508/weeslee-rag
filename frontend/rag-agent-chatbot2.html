@@ -3749,10 +3749,11 @@ async function loadGraphFromQuery(query, documents = []) {
     container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">⏳</div><div>그래프 로딩 중...</div></div>`;
 
     const docIds = documents.map(d => d.document_id || d.id || '').filter(Boolean);
+    // [2026-07-13] source_id 추가 - 그래프 데이터 조회 시 source_id 필요
     const response = await fetch(`${CONFIG.base}/graph/cytoscape/documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document_ids: docIds, depth: 2 }),
+      body: JSON.stringify({ document_ids: docIds, source_id: graphSourceId, depth: 2 }),
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
