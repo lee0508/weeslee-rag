@@ -387,6 +387,72 @@ def _filter_docs_by_source(docs: list[dict], source_id: str) -> list[dict]:
     return filtered
 
 
+def _load_docs_from_db_by_source(source_id: str) -> list[dict]:
+    """DB에서 source_id에 해당하는 문서들만 직접 로드 (성능 최적화)."""
+    db = SessionLocal()
+    try:
+        rows = db.query(DocumentMetadata).filter(
+            DocumentMetadata.source_id == source_id,
+            DocumentMetadata.include_in_graph == True
+        ).all()
+        docs = []
+        for row in rows:
+            d = row.to_dict()
+            file_name = d.get("file_name") or ""
+            file_path = d.get("file_path") or ""
+            extension = Path(file_name).suffix.lstrip(".").lower() if file_name else ""
+            # category 결정: final_document_category > document_type > category_id 기반 추론
+            category = (
+                d.get("final_document_category")
+                or d.get("ocr_document_category")
+                or d.get("scan_document_category")
+                or d.get("document_type")
+                or _infer_category_from_path(file_path)
+            )
+            docs.append({
+                "document_id": d.get("document_id"),
+                "document_uid": d.get("document_uid"),
+                "source_id": d.get("source_id"),
+                "file_path": file_path,
+                "relative_path": d.get("relative_path") or "",
+                "file_name": file_name,
+                "source_path": file_path,
+                "project_name": d.get("final_project_name") or d.get("project_name") or "",
+                "organization": d.get("final_organization") or d.get("organization") or "",
+                "document_type": d.get("document_type") or "",
+                "year": d.get("final_year") or d.get("year") or "",
+                "include_in_graph": d.get("include_in_graph", True),
+                "category_id": d.get("category_id"),
+                "category": category or "기타",
+                "extension": extension,
+                "tags": d.get("tags"),
+                "keywords": d.get("keywords"),
+                "dataset_id": d.get("dataset_id") or "",
+                "snapshot_id": d.get("faiss_snapshot") or "",
+                **d  # 나머지 필드도 포함
+            })
+        return docs
+    except Exception as exc:
+        print(json.dumps({"warning": f"DB load by source_id failed: {exc}"}, ensure_ascii=False))
+        return []
+    finally:
+        db.close()
+
+
+def _infer_category_from_path(file_path: str) -> str:
+    """파일 경로에서 문서 카테고리 추론."""
+    path_lower = file_path.lower().replace("\\", "/")
+    if "rfp" in path_lower or "제안요청서" in path_lower:
+        return "RFP"
+    elif "제안서" in path_lower or "proposal" in path_lower:
+        return "제안서"
+    elif "산출물" in path_lower or "결과물" in path_lower or "deliverable" in path_lower:
+        return "산출물"
+    elif "보고서" in path_lower or "report" in path_lower:
+        return "보고서"
+    return "기타"
+
+
 def _get_graph_dir(source_id: str | None) -> Path:
     """source_id별 Graph 디렉토리 반환.
 
@@ -1866,30 +1932,32 @@ def main() -> int:
         source_path = ", ".join(str(p) for p in faiss_meta_paths)
         print(json.dumps({"source": "faiss_metadata", "files": [p.name for p in faiss_meta_paths],
                           "doc_count": len(docs)}, ensure_ascii=False))
+    elif source_id:
+        # source_id가 주어지면 DB에서 직접 로드 (manifest 121K 스캔 생략)
+        print(json.dumps({"progress": 12, "current": 2, "total": 6, "stage": f"DB에서 source_id '{source_id}' 문서 직접 로드"}), flush=True)
+        docs = _load_docs_from_db_by_source(source_id)
+        source_type = "database"
+        source_path = f"source_id={source_id}"
+        print(json.dumps({"source": "database", "source_id": source_id,
+                          "doc_count": len(docs)}, ensure_ascii=False))
+        if not docs:
+            print(json.dumps({"error": f"No documents found for source_id '{source_id}' in database"}))
+            return 1
     else:
         docs = _docs_from_manifests()
         source_type = "manifest_csv"
         source_path = str(MANIFEST_DIR)
         print(json.dumps({"source": "manifest_csv", "dir": str(MANIFEST_DIR),
                           "doc_count": len(docs)}, ensure_ascii=False))
+        # source_id 필터링 (manifest fallback인 경우)
+        docs = _enrich_docs_with_metadata(docs)
 
-    docs = _enrich_docs_with_metadata(docs)
+    # include_in_graph 필터링
     docs = [doc for doc in docs if doc.get("include_in_graph", True)]
 
     if not docs:
         print(json.dumps({"error": "No documents found — run pipeline first"}))
         return 1
-
-    # source_id 필터링 적용
-    original_count = len(docs)
-    if source_id:
-        print(json.dumps({"progress": 25, "current": 2, "total": 5, "stage": f"source_id '{source_id}' 필터링"}), flush=True)
-        docs = _filter_docs_by_source(docs, source_id)
-        print(json.dumps({"source_id": source_id, "filtered_count": len(docs),
-                          "original_count": original_count}, ensure_ascii=False))
-        if not docs:
-            print(json.dumps({"error": f"No documents found for source_id '{source_id}'"}))
-            return 1
 
     allowed_doc_ids = {doc["document_id"] for doc in docs if doc.get("document_id")}
     allowed_source_paths = {
@@ -1985,7 +2053,7 @@ def main() -> int:
         "output_dir":     str(out_dir),
         "doc_count":      len(docs),
         "chunk_count":    len(chunks),
-        "original_count": original_count if source_id else len(docs),
+        "original_count": len(docs),  # DB 직접 로드시에는 이미 필터링됨
         "node_count":     len(nodes),
         "edge_count":     len(edges),
         "project_count":  project_count,

@@ -84,7 +84,7 @@ def _get_document_text_path(source_id: str, document_id: int) -> "Optional[Path]
     """문서 텍스트 파일 경로 조회 (통합 경로 우선, fallback 지원)"""
     # 1순위: 통합 경로 (step2_extract/documents/{doc_id}/)
     paths = get_source_paths(source_id)
-    unified_path = paths.document_dir(document_id) / "full_text.txt"
+    unified_path = paths.document_dir(str(document_id)) / "full_text.txt"
     if unified_path.exists():
         return unified_path
     
@@ -100,7 +100,7 @@ def _get_document_structured_path(source_id: str, document_id: int) -> "Optional
     """문서 structured_data.json 경로 조회 (통합 경로 우선, fallback 지원)"""
     # 1순위: 통합 경로 (step2_extract/documents/{doc_id}/)
     paths = get_source_paths(source_id)
-    unified_path = paths.document_dir(document_id) / "structured_data.json"
+    unified_path = paths.document_dir(str(document_id)) / "structured_data.json"
     if unified_path.exists():
         return unified_path
     
