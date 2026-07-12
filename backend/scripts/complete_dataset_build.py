@@ -91,8 +91,8 @@ def chunk_document(doc: dict, source_id: str, chunk_size: int = 512) -> dict:
     text = ""
     ocr_dir = doc_dir / "ocr"
 
-    # 1. full_text 파일 시도
-    for candidate in ["full_text.md", "full_text.txt", "content.txt"]:
+    # 1. full_text 파일 시도 (원문 유지를 위해 .txt 우선)
+    for candidate in ["full_text.txt", "full_text.md", "content.txt"]:
         text_file = ocr_dir / candidate
         if text_file.exists():
             try:

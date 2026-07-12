@@ -306,7 +306,8 @@ async def parse_document(
         processing_result.parser_type = extract_result.get("method", "unknown")
         result["parser_type"] = processing_result.parser_type
         processing_result.full_text = text
-        processing_result.full_text_md = f"# {file_name}\n\n{text}"
+        # 원문 유지: 파일명 헤더를 추가하지 않음 (검색/청킹에서 원문 그대로 사용)
+        processing_result.full_text_md = text
 
         # 메타데이터 처리
         metadata = extract_result.get("metadata", {})

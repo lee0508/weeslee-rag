@@ -99,6 +99,22 @@ def save_chunks(self, document_id: int, chunks: List[Dict[str, Any]]) -> bool:
         with open(chunk_file_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
 
+        # chunks.jsonl도 생성 (FAISS 빌드 등 호환성)
+        chunks_jsonl_path = doc_dir / "chunks.jsonl"
+        with open(chunks_jsonl_path, "w", encoding="utf-8") as f:
+            for chunk in chunks:
+                # jsonl 형식에 맞게 text 필드 추가
+                jsonl_record = {
+                    "chunk_id": chunk.get("chunk_id", f"{document_id}_{chunk.get('chunk_index', 0)}"),
+                    "document_id": str(document_id),
+                    "chunk_index": chunk.get("chunk_index", 0),
+                    "text": chunk.get("content", ""),
+                    "char_count": chunk.get("char_count", len(chunk.get("content", ""))),
+                    "filename": id_contract.get("relative_path", "").split("/")[-1] if id_contract.get("relative_path") else f"doc_{document_id}",
+                    "source_id": id_contract.get("source_id", ""),
+                }
+                f.write(json.dumps(jsonl_record, ensure_ascii=False) + "\n")
+
         with open(chunk_pages_path, "w", encoding="utf-8") as f:
             json.dump({
                 "document_id": document_id,
