@@ -1758,6 +1758,24 @@
     .wiki-detail-content table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; }
     .wiki-detail-content td { padding: 6px 8px; border: 1px solid var(--gray-200); }
     .wiki-detail-content tr:first-child td { background: var(--gray-50); font-weight: 600; }
+    /* Document ID 링크 스타일 */
+    .doc-id-link {
+      color: var(--navy);
+      text-decoration: none;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      padding: 1px 4px;
+      background: var(--gray-100);
+      border-radius: 3px;
+      border: 1px solid var(--gray-200);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .doc-id-link:hover {
+      background: var(--navy);
+      color: white;
+      border-color: var(--navy);
+    }
 
     /* ── Agent 탭 스타일 ── */
     .agent-analysis {
@@ -5097,7 +5115,40 @@
           const cells = match.split('|').filter(c => c.trim());
           if (cells.every(c => /^-+$/.test(c.trim()))) return '';
           return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
-        });
+        })
+        // [2026-07-13] Document ID 링크 변환 (DOC-YYYYMMDD-NNNNNN 형식)
+        .replace(/\b(DOC-\d{8}-\d{6})\b/g, '<a href="#" class="doc-id-link" data-doc-id="$1" onclick="openDocumentById(\'$1\'); return false;">$1</a>');
+    }
+
+    // Document ID로 문서 상세 열기
+    async function openDocumentById(docIdStr) {
+      // DOC-20260506-000031 형식에서 숫자 ID 추출 (끝 6자리)
+      const match = docIdStr.match(/DOC-\d{8}-(\d{6})/);
+      if (!match) {
+        showToast('잘못된 Document ID 형식입니다.', 'warning');
+        return;
+      }
+      const numericId = parseInt(match[1], 10);
+
+      // 문서 상세 API 호출
+      try {
+        const res = await fetch(`${API_BASE}/documents/${numericId}`);
+        if (!res.ok) {
+          showToast(`문서를 찾을 수 없습니다: ${docIdStr}`, 'warning');
+          return;
+        }
+        const doc = await res.json();
+        // 문서 상세 패널 열기
+        if (doc && (doc.document_id || doc.id)) {
+          // document_id 필드 정규화
+          doc.document_id = doc.document_id || doc.id || numericId;
+          openDocDetail(doc, 'original');
+        } else {
+          showToast(`문서 정보가 없습니다: ${docIdStr}`, 'warning');
+        }
+      } catch (err) {
+        showToast('문서 조회 실패: ' + err.message, 'error');
+      }
     }
 
     // ── Agent 탭 쿼리 분석 결과 렌더링 ──────────────────────────────────
