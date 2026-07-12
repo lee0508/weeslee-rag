@@ -384,6 +384,20 @@ def _build_markdown(document_id: int, record: dict[str, Any], metadata_payload: 
 
 
 def _build_html(document_id: int, record: dict[str, Any], metadata_payload: dict[str, Any]) -> tuple[str, str, Optional[Path]]:
+    """HTML 파일 내용을 빌드한다.
+
+    [2026-07-13] 통합 경로 구조 지원 추가.
+    """
+    source_id = record.get("source_id") or ""
+
+    # 1. 통합 경로에서 먼저 찾기
+    if source_id:
+        unified_html = DATA_DIR / "source" / source_id / "documents" / str(document_id) / "full_text.html"
+        if unified_html.is_file():
+            html_text = _read_text(unified_html)
+            if html_text is not None:
+                return html_text, "unified_path", unified_html
+
     html_path = _content_path(document_id, "document.html")
     html = _read_text(html_path)
     if html is not None:
@@ -414,16 +428,28 @@ def _build_summary(document_id: int, record: dict[str, Any], metadata_payload: d
 
 
 def _available_formats(document_id: int, record: dict[str, Any], orm_doc: Optional[Document], metadata_payload: dict[str, Any]) -> dict[str, bool]:
+    """사용 가능한 포맷 확인.
+
+    [2026-07-13] 통합 경로 구조 지원 추가.
+    """
     original_path = _resolve_original_path(record, orm_doc)
     metadata_path = _find_metadata_file(document_id)
     summary_text = record.get("summary") or metadata_payload.get("summary")
     processed_txt_exists = processed_text_store.get_text(str(document_id), format="txt") is not None
     processed_md_exists = processed_text_store.get_text(str(document_id), format="md") is not None
+
+    # 통합 경로 확인
+    source_id = record.get("source_id") or ""
+    unified_dir = DATA_DIR / "source" / source_id / "documents" / str(document_id) if source_id else None
+    unified_txt_exists = unified_dir and (unified_dir / "full_text.txt").is_file() if unified_dir else False
+    unified_md_exists = unified_dir and (unified_dir / "full_text.md").is_file() if unified_dir else False
+    unified_html_exists = unified_dir and (unified_dir / "full_text.html").is_file() if unified_dir else False
+
     return {
         "original": original_path is not None,
-        "txt": _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists,
-        "md": _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
-        "html": _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
+        "txt": unified_txt_exists or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists,
+        "md": unified_md_exists or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
+        "html": unified_html_exists or _content_path(document_id, "document.html").is_file() or _content_path(document_id, "document.md").is_file() or _raw_text_path(document_id).is_file() or _text_path(document_id).is_file() or processed_txt_exists or processed_md_exists or bool(summary_text),
         "summary": _summary_path(document_id).is_file() or bool(summary_text),
         "json": metadata_path is not None or bool(metadata_payload),
         "docx": original_path is not None and original_path.suffix.lower() == ".docx",
