@@ -393,6 +393,60 @@ def _load_document_from_faiss_metadata(document_id: int) -> Optional[dict[str, A
     return None
 
 
+def _load_document_from_manifest(document_id: int) -> Optional[dict[str, Any]]:
+    """manifest JSONL 파일에서 문서 정보 조회.
+
+    [2026-07-13] Wiki Document ID (DOC-YYYYMMDD-NNNNNN 형식)의 상세 정보 조회를 위한 fallback.
+    숫자 ID(예: 31)를 DOC-YYYYMMDD-000031 형식에서 매칭.
+    """
+    try:
+        manifest_dir = DATA_DIR / "staged" / "manifest"
+        if not manifest_dir.exists():
+            return None
+
+        # 숫자 ID를 6자리 문자열로 변환 (예: 31 -> "000031")
+        id_suffix = f"{document_id:06d}"
+
+        # 모든 manifest JSONL 파일 검색 (최신 파일부터)
+        manifest_files = sorted(manifest_dir.glob("*.jsonl"), reverse=True)
+        for manifest_path in manifest_files:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        meta = json.loads(line)
+                        doc_id = meta.get("document_id", "")
+                        # DOC-YYYYMMDD-NNNNNN 형식에서 숫자 ID 매칭
+                        if doc_id.endswith(f"-{id_suffix}"):
+                            return {
+                                "id": document_id,
+                                "document_id": doc_id,
+                                "file_name": Path(meta.get("source_path", "")).name or meta.get("filename", ""),
+                                "file_path": meta.get("source_path", ""),
+                                "source_path": meta.get("source_path", ""),
+                                "relative_path": meta.get("relative_path", ""),
+                                "source_root": meta.get("source_root", ""),
+                                "source_id": meta.get("source_id", ""),
+                                "snapshot_name": meta.get("snapshot_name", ""),
+                                "snapshot_path": meta.get("snapshot_path", ""),
+                                "folder_name": meta.get("folder_name", ""),
+                                "category": meta.get("category", ""),
+                                "file_type": meta.get("extension", "").lstrip("."),
+                                "file_size": meta.get("size_bytes", 0),
+                                "sha256": meta.get("sha256", ""),
+                                "modified_at": meta.get("modified_at", ""),
+                                "copied_at": meta.get("copied_at", ""),
+                                "summary": "",
+                                "chunk_count": 0,
+                            }
+                    except json.JSONDecodeError:
+                        continue
+    except Exception:
+        pass
+    return None
+
+
 def _resolve_document(document_id: int, db: Session) -> tuple[dict[str, Any], Optional[Document]]:
     metadata_doc = metadata_db_service.get_document(document_id)
     orm_doc = db.query(Document).filter(Document.id == document_id).first()
@@ -405,6 +459,11 @@ def _resolve_document(document_id: int, db: Session) -> tuple[dict[str, Any], Op
     faiss_doc = _load_document_from_faiss_metadata(document_id)
     if faiss_doc:
         return faiss_doc, None
+
+    # [2026-07-13] fallback 2: manifest JSONL에서 조회 (Wiki Document ID용)
+    manifest_doc = _load_document_from_manifest(document_id)
+    if manifest_doc:
+        return manifest_doc, None
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
@@ -562,18 +621,32 @@ def _document_detail_payload(
     payload = {
         "document_id": document_id,
         "id": document_id,
+        # [2026-07-13] DOC-YYYYMMDD-NNNNNN 형식의 원본 document_id 보존
+        "document_id_full": record.get("document_id") or f"DOC-{document_id}",
         "file_name": record.get("file_name") or record.get("filename") or (original_path.name if original_path else ""),
         "file_path": record.get("file_path") or record.get("original_path") or (str(original_path) if original_path else ""),
         "file_type": record.get("file_type") or (original_path.suffix.lstrip(".") if original_path else ""),
         "file_size": record.get("file_size"),
         "status": record.get("status"),
         "meta_status": record.get("meta_status"),
-        "project_name": record.get("project_name"),
+        "project_name": record.get("project_name") or record.get("folder_name"),
         "organization": record.get("organization"),
         "project_year": record.get("project_year"),
         "business_domain": record.get("business_domain"),
         "chunk_count": record.get("chunk_count") or (orm_doc.chunk_count if orm_doc else 0),
         "summary": summary_text,
+        # [2026-07-13] manifest JSONL 추가 필드
+        "source_id": record.get("source_id"),
+        "source_root": record.get("source_root"),
+        "source_path": record.get("source_path"),
+        "relative_path": record.get("relative_path"),
+        "snapshot_name": record.get("snapshot_name"),
+        "snapshot_path": record.get("snapshot_path"),
+        "folder_name": record.get("folder_name"),
+        "category": record.get("category"),
+        "sha256": record.get("sha256"),
+        "modified_at": record.get("modified_at"),
+        "copied_at": record.get("copied_at"),
         "html_path": str(_content_path(document_id, "document.html")),
         "markdown_path": str(_content_path(document_id, "document.md")),
         "summary_path": str(_summary_path(document_id)),
