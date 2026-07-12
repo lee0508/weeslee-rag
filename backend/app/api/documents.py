@@ -189,6 +189,63 @@ def _processed_text_path(document_id: int, format: str = "txt", source_id: str =
     return DATA_DIR / "processed_text" / str(document_id) / file_name
 
 
+def _load_chunks_from_active_index(document_id: int) -> Optional[str]:
+    """활성 FAISS 인덱스의 chunks.jsonl에서 document_id로 청크를 검색하여 텍스트 재구성.
+
+    [2026-07-13] 텍스트 파일이 없을 때 fallback으로 사용.
+    """
+    try:
+        # 활성 인덱스 디렉토리 찾기
+        indexes_dir = DATA_DIR / "indexes" / "faiss"
+        if not indexes_dir.exists():
+            return None
+
+        # active.json에서 활성 스냅샷 확인
+        active_file = indexes_dir / "active.json"
+        if active_file.exists():
+            with open(active_file, "r", encoding="utf-8") as f:
+                active_info = json.load(f)
+                active_snapshot = active_info.get("snapshot_id", "")
+                if active_snapshot:
+                    chunks_path = indexes_dir / active_snapshot / "chunks.jsonl"
+                    if chunks_path.exists():
+                        return _extract_text_from_chunks_jsonl(chunks_path, document_id)
+
+        # active.json이 없으면 가장 최근 스냅샷 폴더에서 찾기
+        for snapshot_dir in sorted(indexes_dir.iterdir(), reverse=True):
+            if snapshot_dir.is_dir() and snapshot_dir.name.startswith("snapshot_"):
+                chunks_path = snapshot_dir / "chunks.jsonl"
+                if chunks_path.exists():
+                    result = _extract_text_from_chunks_jsonl(chunks_path, document_id)
+                    if result:
+                        return result
+
+    except Exception:
+        pass
+    return None
+
+
+def _extract_text_from_chunks_jsonl(chunks_path: Path, document_id: int) -> Optional[str]:
+    """chunks.jsonl에서 특정 document_id의 청크 텍스트를 추출."""
+    try:
+        chunk_texts = []
+        doc_id_str = str(document_id)
+        with open(chunks_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                chunk = json.loads(line)
+                if str(chunk.get("document_id", "")) == doc_id_str:
+                    text = chunk.get("text", "")
+                    if text:
+                        chunk_texts.append(text)
+        if chunk_texts:
+            return "\n\n".join(chunk_texts)
+    except Exception:
+        pass
+    return None
+
+
 def _build_text(document_id: int, source_id: str = "") -> tuple[str, str, Optional[Path]]:
     """텍스트 파일 내용을 빌드한다.
 
@@ -216,6 +273,19 @@ def _build_text(document_id: int, source_id: str = "") -> tuple[str, str, Option
     if processed_text is not None:
         processed_path = _processed_text_path(document_id, "txt", source_id)
         return processed_text, "processed_text", processed_path if processed_path.exists() else None
+
+    # [2026-07-13] fallback: 청크 데이터에서 텍스트 재구성
+    chunks = processed_text_store.load_chunks(document_id)
+    if chunks:
+        chunk_texts = [c.get("text", "") for c in chunks if c.get("text")]
+        if chunk_texts:
+            reconstructed = "\n\n".join(chunk_texts)
+            return reconstructed, "chunks_reconstructed", None
+
+    # [2026-07-13] fallback 2: 활성 FAISS 인덱스의 chunks.jsonl에서 검색
+    chunks_from_index = _load_chunks_from_active_index(document_id)
+    if chunks_from_index:
+        return chunks_from_index, "index_chunks_reconstructed", None
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text file not found")
 
