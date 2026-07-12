@@ -19,6 +19,7 @@ from app.models.snapshot_manifest import DatasetInfo, RAGBuildInfo, SnapshotMani
 from app.services.dataset_context import get_source_dataset_context
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.runtime_model_settings import get_runtime_embedding_model
+from app.services.source_data_paths import get_source_paths
 from app.services.runtime_compute_settings import is_stage_gpu_enabled
 from app.services.snapshot_registry_service import mark_snapshot_queryable, upsert_snapshot_manifest
 from app.services.snapshot_manager import create_snapshot_manifest, generate_snapshot_id, copy_index_to_operational_path
@@ -103,6 +104,22 @@ def get_snapshot_dir() -> Path:
     snapshot_dir = SNAPSHOT_DIR.expanduser().resolve()
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     return snapshot_dir
+
+
+def _load_metadata_ocr(source_id: str, document_id: int) -> dict:
+    """문서의 metadata_ocr.json을 로드한다.
+
+    [2026-07-12] P5 이슈: chain_project_name을 step7에서 사용하기 위해 추가.
+    """
+    try:
+        paths = get_source_paths(source_id)
+        doc_dir = paths.document_dir(str(document_id))
+        metadata_ocr_path = doc_dir / "metadata_ocr.json"
+        if metadata_ocr_path.exists():
+            return json.loads(metadata_ocr_path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
 
 
 def create_faiss_index(vectors: np.ndarray, index_type: str = "flat", metric: str = "l2") -> faiss.Index:
@@ -231,13 +248,17 @@ def _build_snapshot_metadata_row(
     dataset_id: str,
     snapshot_id: str,
     total_pages: int,
+    metadata_ocr: dict | None = None,
 ) -> dict:
     chunk_meta = chunk.get("metadata") or {}
+    metadata_ocr = metadata_ocr or {}
     content = str(chunk.get("content") or "")
+    # [2026-07-12] P5 이슈: chain_project_name을 최우선으로 사용하여 Graph 노드 분열 방지
     # [2026-07-10] 우선순위 수정: scan(파일명 기반)이 ocr보다 신뢰도 높음
     # ocr_project_name은 목차명("개요 4", "범위 1")이 잘못 추출되는 문제가 있음
     project_name = (
-        doc.final_project_name
+        metadata_ocr.get("chain_project_name")
+        or doc.final_project_name
         or doc.project_name
         or doc.scan_project_name
         or doc.ocr_project_name
@@ -594,6 +615,8 @@ async def build_faiss_index(
                 embeddings = text_store.load_embeddings(document_id)
                 chunks = text_store.load_chunks(document_id)
                 report = text_store.get_report(str(document_id)) or {}
+                # [2026-07-12] P5 이슈: chain_project_name 로드
+                metadata_ocr = _load_metadata_ocr(source_id, document_id)
 
                 if not embeddings or len(embeddings) == 0 or not chunks:
                     document_infos.append(DocumentIndexInfo(
@@ -622,7 +645,7 @@ async def build_faiss_index(
                         "dataset_id": dataset_id,
                         "document_uid": doc.document_uid or "",
                         "category": doc.category_id or "",
-                        # [2026-07-10] 우선순위 수정
+                        # [2026-07-12] P5 이슈: chain_project_name 최우선
                         "organization": (
                             doc.final_organization
                             or doc.organization
@@ -631,7 +654,8 @@ async def build_faiss_index(
                             or ""
                         ),
                         "project_name": (
-                            doc.final_project_name
+                            metadata_ocr.get("chain_project_name")
+                            or doc.final_project_name
                             or doc.project_name
                             or doc.scan_project_name
                             or doc.ocr_project_name
@@ -646,6 +670,7 @@ async def build_faiss_index(
                         dataset_id=dataset_id,
                         snapshot_id=snapshot_id,
                         total_pages=total_pages,
+                        metadata_ocr=metadata_ocr,
                     )
                     metadata_rows.append(metadata_row)
                     preview_chunk_rows.append({

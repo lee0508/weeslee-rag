@@ -410,7 +410,12 @@ def _eligible_documents_query(db: Session, source_id: Optional[str] = None):
     return query.order_by(DocumentMetadata.document_id)
 
 
-def _group_value(doc, group_by: str) -> tuple[str, str]:
+def _group_value(doc, group_by: str, metadata_ocr: dict | None = None) -> tuple[str, str]:
+    """문서 그룹화 값 반환.
+
+    [2026-07-12] P5 이슈: chain_project_name 우선순위 추가로 Graph 노드 분열 방지.
+    """
+    metadata_ocr = metadata_ocr or {}
     if group_by == "document":
         label = doc.file_name or (Path(doc.file_path).name if doc.file_path else f"doc_{doc.document_id}")
         return f"document:{doc.document_id}", label
@@ -418,7 +423,14 @@ def _group_value(doc, group_by: str) -> tuple[str, str]:
         label = doc.final_organization or doc.organization or doc.scan_organization or "미분류 기관"
         return f"organization:{label}", label
     if group_by == "project":
-        label = doc.final_project_name or doc.project_name or doc.scan_project_name or "미분류 프로젝트"
+        # chain_project_name을 최우선으로 사용
+        label = (
+            metadata_ocr.get("chain_project_name")
+            or doc.final_project_name
+            or doc.project_name
+            or doc.scan_project_name
+            or "미분류 프로젝트"
+        )
         return f"project:{label}", label
     label = doc.category_id or doc.final_document_category or doc.document_type or "미분류 카테고리"
     return f"category:{label}", label

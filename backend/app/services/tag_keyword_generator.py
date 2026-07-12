@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models.document_metadata import DocumentMetadata
 from app.services.dataset_build_settings import get_step_config
+from app.services.document_chain_service import get_document_chain_service
 from app.services.ollama_metadata_keyword_enricher import OllamaMetadataKeywordEnricher
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.structured_content_resolver import StructuredContentResolver
@@ -362,25 +363,17 @@ class TagKeywordGenerator:
         return "\n".join(part for part in parts if part).strip()
 
     def _extract_project_name(self, filename: str) -> str:
-        """파일명에서 prefix를 제거하고 프로젝트명을 추출합니다."""
-        name = Path(filename).stem
+        """파일명에서 prefix를 제거하고 프로젝트명을 추출합니다.
 
-        prefixes = [
-            "RFP_", "전략및방법론_", "기술및기능_", "프로젝트관리_",
-            "프로젝트지원_", "연구과제_", "감리_", "PMO_", "PoC_",
-            "환경분석_", "현황분석_", "목표모델_", "이행계획_"
-        ]
-
-        for prefix in prefixes:
-            if name.startswith(prefix):
-                return name[len(prefix):].strip()
-
-        if "_" in name:
-            left, right = name.split("_", 1)
-            if len(left) < 12:
-                return right.strip()
-
-        return name.strip()
+        [2026-07-12] DocumentChainService.normalize_project_name으로 통일.
+        P2 이슈: 접두사 목록 불일치로 인한 Graph 노드 분열 방지.
+        """
+        chain_service = get_document_chain_service()
+        normalized = chain_service.normalize_project_name(filename)
+        if normalized:
+            return normalized
+        # fallback: 파일명 그대로 반환
+        return Path(filename).stem
 
     def _extract_project_type_tags(self, text: str) -> List[str]:
         """ISP / ISMP / BPRISP 등 프로젝트 유형 태그를 추출합니다."""

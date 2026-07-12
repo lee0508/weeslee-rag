@@ -24,6 +24,7 @@ RFP(마스터) ──┬── 제안서/전략및방법론
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -98,9 +99,14 @@ class DocumentChainService:
           → "AI 기반 지능형 진로교육정보망 통합 구축을 위한 ISP"
         - "전략및방법론_AI 기반 지능형 진로교육정보망 통합 구축을 위한 ISP.pptx"
           → "AI 기반 지능형 진로교육정보망 통합 구축을 위한 ISP"
+
+        [2026-07-12] P3 이슈: NFC 정규화 추가 - NAS/macOS 환경에서 NFD로 저장된 파일명 처리.
         """
         if not filename:
             return None
+
+        # [P3] NFC 정규화 - NFD(자모 분리형)를 NFC(조합형)로 변환
+        filename = unicodedata.normalize("NFC", filename)
 
         # 확장자 제거
         name = filename.rsplit(".", 1)[0] if "." in filename else filename
