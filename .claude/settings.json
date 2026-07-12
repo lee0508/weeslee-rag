@@ -10,7 +10,18 @@
       "Bash(git stash *)",
       "Bash(grep -v \"^$\")",
       "Bash(Get-Item \"c:\\\\xampp\\\\htdocs\\\\weeslee-rag\\\\frontend\\\\admin.html\")",
-      "Bash(Select-Object Length,LastWriteTime)"
+      "Bash(Select-Object Length,LastWriteTime)",
+      "Bash(PYTHONPATH=. python -m pytest tests/test_page_source_loader.py -v -p no:cacheprovider)",
+      "Bash(PYTHONPATH=. python -c ' *)",
+      "Bash(PYTHONPATH=. ../venv/Scripts/python.exe -c ' *)",
+      "Bash(PYTHONPATH=. ../venv/Scripts/python.exe -c \"import jose; print\\('jose OK in venv'\\)\")",
+      "Bash(../venv/Scripts/python.exe -c \"import sys; print\\(sys.executable\\); import fastapi; print\\('fastapi', fastapi.__version__\\)\")",
+      "Bash(../venv/Scripts/python.exe -m py_compile app/api/admin_dataset_builder_step4.py app/api/admin_dataset_builder_step5.py app/services/page_source_loader.py)",
+      "Bash(powershell.exe -Command \"ipconfig | Select-String 'IPv4'\")",
+      "Bash(../weeslee-rag/venv/Scripts/python.exe -m py_compile backend/app/api/admin_dataset_builder_step5.py)",
+      "Bash(PYTHONPATH=. python -m pytest tests/test_page_source_loader.py -q -p no:cacheprovider)",
+      "Bash(venv/Scripts/python.exe -m pip install \"kiwipiepy>=0.20.0\" -q)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

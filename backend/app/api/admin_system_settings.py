@@ -23,7 +23,7 @@ from app.services.system_settings_service import (
     get_system_settings_service,
 )
 
-router = APIRouter(prefix="/api/admin/system-settings", tags=["system-settings"])
+router = APIRouter(prefix="/admin/system-settings", tags=["system-settings"])
 
 
 # ============================================================

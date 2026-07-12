@@ -51,6 +51,7 @@ from app.api.admin_knowledge_graph import router as admin_knowledge_graph_router
 from app.api.admin_llm_wiki import router as admin_llm_wiki_router
 from app.api.admin_publish import router as admin_publish_router
 from app.api.admin_search_scopes import router as admin_search_scopes_router
+from app.api.admin_system_settings import router as admin_system_settings_router
 from app.api.install import router as install_router
 from app.api.qa_services import router as qa_services_router
 from app.api.system_runtime import router as system_runtime_router
@@ -169,6 +170,7 @@ app.include_router(admin_knowledge_graph_router, prefix="/api", tags=["Admin - K
 app.include_router(admin_llm_wiki_router, prefix="/api", tags=["Admin - LLM Wiki"])
 app.include_router(admin_publish_router, prefix="/api", tags=["Admin - Publish"])
 app.include_router(admin_search_scopes_router, prefix="/api", tags=["Admin - Search Scopes"])
+app.include_router(admin_system_settings_router, prefix="/api", tags=["Admin - System Settings"])
 app.include_router(install_router, prefix="/api", tags=["Install"])
 app.include_router(qa_services_router, prefix="/api", tags=["QA Services"])
 app.include_router(system_runtime_router, prefix="/api", tags=["System Runtime"])
@@ -222,6 +224,7 @@ app.include_router(admin_knowledge_graph_router, prefix="/weeslee-rag/api", tags
 app.include_router(admin_llm_wiki_router, prefix="/weeslee-rag/api", tags=["Admin - LLM Wiki"])
 app.include_router(admin_publish_router, prefix="/weeslee-rag/api", tags=["Admin - Publish"])
 app.include_router(admin_search_scopes_router, prefix="/weeslee-rag/api", tags=["Admin - Search Scopes"])
+app.include_router(admin_system_settings_router, prefix="/weeslee-rag/api", tags=["Admin - System Settings"])
 app.include_router(install_router, prefix="/weeslee-rag/api", tags=["Install"])
 app.include_router(qa_services_router, prefix="/weeslee-rag/api", tags=["QA Services"])
 app.include_router(system_runtime_router, prefix="/weeslee-rag/api", tags=["System Runtime"])
