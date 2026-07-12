@@ -168,15 +168,40 @@ def _text_path(document_id: int) -> Path:
     return STAGED_TEXT_DIR / f"{document_id}.txt"
 
 
-def _processed_text_path(document_id: int, format: str = "txt") -> Path:
+def _processed_text_path(document_id: int, format: str = "txt", source_id: str = "") -> Path:
+    """처리된 텍스트 파일 경로 반환.
+
+    [2026-07-12] 통합 경로 구조 지원 추가.
+    우선순위: 통합 경로 → 기존 documents 경로 → processed_text 경로
+    """
     file_name = "full_text.md" if format == "md" else "full_text.txt"
+
+    # 1. 통합 경로: /data/source/{source_id}/documents/{document_id}/full_text.*
+    if source_id:
+        unified_path = DATA_DIR / "source" / source_id / "documents" / str(document_id) / file_name
+        if unified_path.is_file():
+            return unified_path
+
+    # 2. 기존 전역 경로
     canonical = DATA_DIR / "documents" / str(document_id) / "ocr" / file_name
     if canonical.is_file():
         return canonical
     return DATA_DIR / "processed_text" / str(document_id) / file_name
 
 
-def _build_text(document_id: int) -> tuple[str, str, Optional[Path]]:
+def _build_text(document_id: int, source_id: str = "") -> tuple[str, str, Optional[Path]]:
+    """텍스트 파일 내용을 빌드한다.
+
+    [2026-07-12] source_id 파라미터 추가 - 통합 경로 구조 지원.
+    """
+    # 1. 통합 경로에서 먼저 찾기
+    if source_id:
+        unified_txt = DATA_DIR / "source" / source_id / "documents" / str(document_id) / "full_text.txt"
+        if unified_txt.is_file():
+            text = _read_text(unified_txt)
+            if text is not None:
+                return text, "unified_path", unified_txt
+
     raw_text_path = _raw_text_path(document_id)
     raw_text = _read_text(raw_text_path)
     if raw_text is not None:
@@ -189,7 +214,7 @@ def _build_text(document_id: int) -> tuple[str, str, Optional[Path]]:
 
     processed_text = processed_text_store.get_text(str(document_id), format="txt")
     if processed_text is not None:
-        processed_path = _processed_text_path(document_id, "txt")
+        processed_path = _processed_text_path(document_id, "txt", source_id)
         return processed_text, "processed_text", processed_path if processed_path.exists() else None
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Text file not found")
@@ -250,6 +275,20 @@ def _resolve_original_path(record: dict[str, Any], orm_doc: Optional[Document]) 
 
 
 def _build_markdown(document_id: int, record: dict[str, Any], metadata_payload: dict[str, Any]) -> tuple[str, str, Optional[Path]]:
+    """마크다운 파일 내용을 빌드한다.
+
+    [2026-07-12] 통합 경로 구조 지원 추가.
+    """
+    source_id = record.get("source_id") or ""
+
+    # 1. 통합 경로에서 먼저 찾기
+    if source_id:
+        unified_md = DATA_DIR / "source" / source_id / "documents" / str(document_id) / "full_text.md"
+        if unified_md.is_file():
+            md_text = _read_text(unified_md)
+            if md_text is not None:
+                return md_text, "unified_path", unified_md
+
     markdown_path = _content_path(document_id, "document.md")
     markdown = _read_text(markdown_path)
     if markdown is not None:
@@ -257,11 +296,11 @@ def _build_markdown(document_id: int, record: dict[str, Any], metadata_payload: 
 
     processed_markdown = processed_text_store.get_text(str(document_id), format="md")
     if processed_markdown is not None:
-        processed_path = _processed_text_path(document_id, "md")
+        processed_path = _processed_text_path(document_id, "md", source_id)
         return processed_markdown, "processed_text_md", processed_path if processed_path.exists() else None
 
     try:
-        raw_text, source, text_path = _build_text(document_id)
+        raw_text, source, text_path = _build_text(document_id, source_id)
         return raw_text, f"generated_from_{source}", text_path
     except HTTPException:
         pass
@@ -476,7 +515,8 @@ async def get_document(document_id: int, db: Session = Depends(get_db)):
 async def get_document_text(document_id: int, db: Session = Depends(get_db)):
     record, orm_doc = _resolve_document(document_id, db)
     metadata_payload = _load_metadata_payload(document_id)
-    text, source, _ = _build_text(document_id)
+    source_id = record.get("source_id") or ""
+    text, source, _ = _build_text(document_id, source_id)
     return {
         "document_id": document_id,
         "text": text,
