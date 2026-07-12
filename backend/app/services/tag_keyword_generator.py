@@ -22,6 +22,7 @@ from app.services.ollama_metadata_keyword_enricher import OllamaMetadataKeywordE
 from app.services.processed_text_store import ProcessedTextStore
 from app.services.structured_content_resolver import StructuredContentResolver
 from app.services.source_data_paths import get_source_paths
+from app.services import korean_tokenizer
 import app.services.processed_text_store_extensions  # noqa: F401
 
 
@@ -438,9 +439,15 @@ class TagKeywordGenerator:
                     keywords.append(normalized)
                     break
 
-        # 일반 단어 추출 (특수문자 제거 후 토큰화)
-        clean = re.sub(r"[()\[\],·‧+/\-:>]", " ", text)
-        tokens = clean.split()
+        # [2026-07-12] Kiwi 형태소 분석 기반 토큰화 (교착어 처리)
+        # 공백 분리는 `계약일로부터`를 통째로 잡아 `계약일로부`로 잘리므로,
+        # Kiwi로 의미 있는 명사/복합명사만 추출한다. 미설치 시 기존 공백 분리로 폴백.
+        kiwi_tokens = korean_tokenizer.extract_keywords(text)
+        if kiwi_tokens:
+            tokens = kiwi_tokens
+        else:
+            clean = re.sub(r"[()\[\],·‧+/\-:>]", " ", text)
+            tokens = clean.split()
 
         for token in tokens:
             normalized = self._normalize_keyword_token(token, max_len=30)

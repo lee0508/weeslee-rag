@@ -33,6 +33,9 @@ pandas>=2.0.0
 # HWP (구형 바이너리) 텍스트 추출
 pyhwp>=0.1b15
 
+# 한국어 형태소 분석 (키워드 추출 품질 향상)
+kiwipiepy>=0.20.0
+
 # Admin 인증 (JWT)
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
