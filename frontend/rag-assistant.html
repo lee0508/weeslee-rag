@@ -5121,8 +5121,9 @@
     }
 
     // Document ID로 문서 상세 열기
+    // [2026-07-13] DOC-YYYYMMDD-NNNNNN 형식 전체를 서버로 전달하여 manifest에서 정확히 매칭
     async function openDocumentById(docIdStr) {
-      // DOC-20260506-000031 형식에서 숫자 ID 추출 (끝 6자리)
+      // DOC-20260506-000031 형식 검증
       const match = docIdStr.match(/DOC-\d{8}-(\d{6})/);
       if (!match) {
         showToast('잘못된 Document ID 형식입니다.', 'warning');
@@ -5130,9 +5131,9 @@
       }
       const numericId = parseInt(match[1], 10);
 
-      // 문서 상세 API 호출
+      // 문서 상세 API 호출 - 전체 document_id 사용
       try {
-        const res = await fetch(`${API_BASE}/documents/${numericId}`);
+        const res = await fetch(`${API_BASE}/documents/by-full-id/${encodeURIComponent(docIdStr)}`);
         if (!res.ok) {
           showToast(`문서를 찾을 수 없습니다: ${docIdStr}`, 'warning');
           return;
@@ -5142,6 +5143,8 @@
         if (doc && (doc.document_id || doc.id)) {
           // document_id 필드 정규화
           doc.document_id = doc.document_id || doc.id || numericId;
+          // document_id_full 저장 (원본 DOC-YYYYMMDD-NNNNNN 형식)
+          doc.document_id_full = doc.document_id_full || docIdStr;
           openDocDetail(doc, 'original');
         } else {
           showToast(`문서 정보가 없습니다: ${docIdStr}`, 'warning');

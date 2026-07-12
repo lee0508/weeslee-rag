@@ -393,22 +393,40 @@ def _load_document_from_faiss_metadata(document_id: int) -> Optional[dict[str, A
     return None
 
 
-def _load_document_from_manifest(document_id: int) -> Optional[dict[str, Any]]:
+def _load_document_from_manifest(document_id: int, full_doc_id: Optional[str] = None) -> Optional[dict[str, Any]]:
     """manifest JSONL 파일에서 문서 정보 조회.
 
     [2026-07-13] Wiki Document ID (DOC-YYYYMMDD-NNNNNN 형식)의 상세 정보 조회를 위한 fallback.
-    숫자 ID(예: 31)를 DOC-YYYYMMDD-000031 형식에서 매칭.
+
+    Args:
+        document_id: 숫자 ID (예: 31)
+        full_doc_id: 전체 Document ID 문자열 (예: "DOC-20260506-000031"). 지정되면 이것으로 정확히 매칭.
     """
     try:
         manifest_dir = DATA_DIR / "staged" / "manifest"
         if not manifest_dir.exists():
             return None
 
-        # 숫자 ID를 6자리 문자열로 변환 (예: 31 -> "000031")
-        id_suffix = f"{document_id:06d}"
-
         # 모든 manifest JSONL 파일 검색 (최신 파일부터)
         manifest_files = sorted(manifest_dir.glob("*.jsonl"), reverse=True)
+
+        # 전체 ID가 주어진 경우 정확히 매칭
+        if full_doc_id:
+            for manifest_path in manifest_files:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if not line.strip():
+                            continue
+                        try:
+                            meta = json.loads(line)
+                            if meta.get("document_id") == full_doc_id:
+                                return _manifest_to_dict(meta, document_id)
+                        except json.JSONDecodeError:
+                            continue
+            return None
+
+        # 숫자 ID만 있는 경우 suffix로 매칭
+        id_suffix = f"{document_id:06d}"
         for manifest_path in manifest_files:
             with open(manifest_path, "r", encoding="utf-8") as f:
                 for line in f:
@@ -419,32 +437,38 @@ def _load_document_from_manifest(document_id: int) -> Optional[dict[str, Any]]:
                         doc_id = meta.get("document_id", "")
                         # DOC-YYYYMMDD-NNNNNN 형식에서 숫자 ID 매칭
                         if doc_id.endswith(f"-{id_suffix}"):
-                            return {
-                                "id": document_id,
-                                "document_id": doc_id,
-                                "file_name": Path(meta.get("source_path", "")).name or meta.get("filename", ""),
-                                "file_path": meta.get("source_path", ""),
-                                "source_path": meta.get("source_path", ""),
-                                "relative_path": meta.get("relative_path", ""),
-                                "source_root": meta.get("source_root", ""),
-                                "source_id": meta.get("source_id", ""),
-                                "snapshot_name": meta.get("snapshot_name", ""),
-                                "snapshot_path": meta.get("snapshot_path", ""),
-                                "folder_name": meta.get("folder_name", ""),
-                                "category": meta.get("category", ""),
-                                "file_type": meta.get("extension", "").lstrip("."),
-                                "file_size": meta.get("size_bytes", 0),
-                                "sha256": meta.get("sha256", ""),
-                                "modified_at": meta.get("modified_at", ""),
-                                "copied_at": meta.get("copied_at", ""),
-                                "summary": "",
-                                "chunk_count": 0,
-                            }
+                            return _manifest_to_dict(meta, document_id)
                     except json.JSONDecodeError:
                         continue
     except Exception:
         pass
     return None
+
+
+def _manifest_to_dict(meta: dict[str, Any], numeric_id: int) -> dict[str, Any]:
+    """manifest 메타데이터를 API 응답 형식으로 변환."""
+    return {
+        "id": numeric_id,
+        "document_id": meta.get("document_id", ""),
+        "file_name": Path(meta.get("source_path", "")).name or meta.get("filename", ""),
+        "file_path": meta.get("source_path", ""),
+        "source_path": meta.get("source_path", ""),
+        "relative_path": meta.get("relative_path", ""),
+        "source_root": meta.get("source_root", ""),
+        "source_id": meta.get("source_id", ""),
+        "snapshot_name": meta.get("snapshot_name", ""),
+        "snapshot_path": meta.get("snapshot_path", ""),
+        "folder_name": meta.get("folder_name", ""),
+        "category": meta.get("category", ""),
+        "file_type": meta.get("extension", "").lstrip("."),
+        "file_size": meta.get("size_bytes", 0),
+        "sha256": meta.get("sha256", ""),
+        "modified_at": meta.get("modified_at", ""),
+        "copied_at": meta.get("copied_at", ""),
+        "project_name": meta.get("folder_name", ""),  # folder_name을 project_name으로도 사용
+        "summary": "",
+        "chunk_count": 0,
+    }
 
 
 def _resolve_document(document_id: int, db: Session) -> tuple[dict[str, Any], Optional[Document]]:
@@ -758,6 +782,35 @@ async def upload_document(
         pass
 
     return document
+
+
+@router.get("/documents/by-full-id/{full_doc_id:path}")
+async def get_document_by_full_id(full_doc_id: str, db: Session = Depends(get_db)):
+    """DOC-YYYYMMDD-NNNNNN 형식의 전체 Document ID로 문서 조회.
+
+    [2026-07-13] Wiki Document ID 클릭 시 정확한 문서 조회를 위해 추가.
+    manifest JSONL에서 먼저 조회하고, 없으면 숫자 ID로 fallback.
+    """
+    import re
+
+    # DOC-YYYYMMDD-NNNNNN 형식에서 숫자 ID 추출
+    match = re.match(r"DOC-\d{8}-(\d{6})", full_doc_id)
+    if not match:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid document ID format: {full_doc_id}. Expected: DOC-YYYYMMDD-NNNNNN"
+        )
+
+    numeric_id = int(match.group(1))
+
+    # manifest에서 정확히 매칭하는 문서 검색
+    manifest_doc = _load_document_from_manifest(numeric_id, full_doc_id=full_doc_id)
+    if manifest_doc:
+        return _document_detail_payload(numeric_id, manifest_doc, None)
+
+    # fallback: 기존 로직
+    record, orm_doc = _resolve_document(numeric_id, db)
+    return _document_detail_payload(numeric_id, record, orm_doc)
 
 
 @router.get("/documents/{document_id}")
