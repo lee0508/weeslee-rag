@@ -12858,6 +12858,56 @@ LIMIT 10`;
     el.scrollTop = el.scrollHeight;
   }
 
+  // 단계별 "N / 전체 파일" 진행 카운터 + 진행바 (stage의 [N/전체] 파일명 파싱)
+  function _wizardSetFileProgress(step, data) {
+    const log = document.getElementById('wlog-' + step);
+    if (!log || !log.parentNode) return;
+
+    const stage = String((data && data.stage) || '');
+    const total = Number((data && data.total_documents) || 0);
+    const processed = Number((data && data.processed) || 0);
+    const failed = Number((data && data.failed) || 0);
+    const skipped = Number((data && data.skipped) || 0);
+
+    // stage 예: "[2/250] RFP_AI 기반 ... 청킹 중"
+    const m = stage.match(/\[(\d+)\s*\/\s*(\d+)\]\s*(.+)$/);
+    let current = processed + failed + skipped;
+    let curTotal = total;
+    let fileLabel = '';
+    if (m) {
+      current = Number(m[1]);
+      curTotal = Number(m[2]) || total;
+      fileLabel = (m[3] || '').trim();
+    }
+    if (!curTotal) return; // 표시할 총계 없음
+
+    const pct = Number(
+      (data && data.progress != null) ? data.progress : Math.round((current / curTotal) * 100)
+    ) || 0;
+
+    let box = document.getElementById('wfileprog-' + step);
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'wfileprog-' + step;
+      box.style.cssText = 'margin:8px 0;padding:10px 12px;border:1px solid #dbe2ec;border-radius:8px;background:#f7f9fc;font-size:13px;';
+      log.parentNode.insertBefore(box, log);
+    }
+
+    const doneInfo = (processed || failed || skipped)
+      ? ` · 완료 ${processed} / 실패 ${failed} / 건너뜀 ${skipped}`
+      : '';
+    box.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+        + '<span style="color:#1B3A6B;font-weight:600;">파일 진행</span>'
+        + '<span style="color:#1B3A6B;"><b style="font-size:15px;">' + current + '</b> <span style="color:#8a96a8;">/ ' + curTotal + '</span></span>'
+      + '</div>'
+      + '<div style="height:8px;background:#e3e9f2;border-radius:5px;overflow:hidden;">'
+        + '<div style="height:100%;width:' + Math.max(0, Math.min(100, pct)) + '%;background:#E8971F;transition:width .3s;"></div>'
+      + '</div>'
+      + '<div style="margin-top:6px;color:#4a5568;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'
+        + fileLabel.replace(/"/g, '&quot;') + '">' + (fileLabel || '준비 중...') + doneInfo + '</div>';
+  }
+
   function _wizardFormatStructuredJobLog(rawLine) {
     if (!rawLine || typeof rawLine !== 'string') return '';
     const line = rawLine.trim();
@@ -13269,6 +13319,7 @@ LIMIT 10`;
             lastStage = ev.stage;
             _wizardAppendLog(step, `[${ev.progress || 0}%] ${ev.stage}`);
           }
+          if (ev.stage) _wizardSetFileProgress(step, ev);
           if (ev.done) {
             if (ev.error) finishReject(new Error(ev.error));
             else finishResolve();
@@ -13356,6 +13407,7 @@ LIMIT 10`;
             lastStage = ev.stage;
             _wizardAppendLog(step, `[${ev.progress || 0}%] ${ev.stage}`);
           }
+          if (ev.stage) _wizardSetFileProgress(step, ev);
           if (ev.result) lastResult = ev.result;
           if (ev.done) {
             if (ev.error) finishReject(new Error(ev.error));
@@ -13445,6 +13497,7 @@ LIMIT 10`;
         if (step) _wizardAppendLog(step, `[poll ${progress}%] ${stage}`);
       }
 
+      if (step) _wizardSetFileProgress(step, data);
       if (onProgress) onProgress(data);
 
       if (data.status === 'completed') {
@@ -13477,6 +13530,7 @@ LIMIT 10`;
         if (step) _wizardAppendLog(step, `[poll ${progress}%] ${stage}`);
       }
 
+      if (step) _wizardSetFileProgress(step, data);
       if (onProgress) onProgress(data);
 
       if (data.status === 'completed') {
