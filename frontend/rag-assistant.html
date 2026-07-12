@@ -2238,10 +2238,18 @@
               <input id="filterYear" type="text" placeholder="" data-i18n-placeholder="filter_year_placeholder" maxlength="4" pattern="\d{4}">
             </div>
             <div>
-              <label for="answerModel" data-i18n="model">Model</label>
+              <label for="answerModel" data-i18n="model">LLM 모델</label>
               <select id="answerModel">
                 <option value="gemma4:latest">gemma4:latest</option>
               </select>
+              <small style="color:var(--gray-400);font-size:10px;display:block;margin-top:2px">답변 생성 및 Wiki 요약에 사용</small>
+            </div>
+            <div>
+              <label for="embeddingModel">임베딩 모델</label>
+              <select id="embeddingModel">
+                <option value="nomic-embed-text">nomic-embed-text</option>
+              </select>
+              <small style="color:var(--gray-400);font-size:10px;display:block;margin-top:2px">벡터 검색에 사용 (읽기 전용)</small>
             </div>
             <div class="sidebar-section-sep"></div>
             <div>
@@ -3142,7 +3150,11 @@
     }
 
     // ── Model dropdown ────────────────────────────────────────────────────
-    function populateModelSelect(models) {
+    // 시스템 설정에서 로드된 기본 모델값 저장
+    let _systemDefaultLlmModel = '';
+    let _systemDefaultEmbeddingModel = '';
+
+    function populateModelSelect(models, defaultModel = '') {
       // 임베딩 전용 모델 제외 (embed 포함 또는 bge-m3)
       const genModels = models.filter(m => !/embed/i.test(m) && !/^bge-/i.test(m));
       if (!genModels.length) return;
@@ -3152,19 +3164,71 @@
         if (!sel) continue;
         const current = sel.value;
         sel.innerHTML = optHtml;
-        if (genModels.includes(current)) sel.value = current;
+        // 시스템 설정 기본값 우선 적용, 없으면 기존값 유지
+        if (defaultModel && genModels.includes(defaultModel)) {
+          sel.value = defaultModel;
+        } else if (genModels.includes(current)) {
+          sel.value = current;
+        }
+      }
+    }
+
+    function populateEmbeddingModelSelect(models, defaultModel = '') {
+      // 임베딩 모델만 필터 (embed 포함 또는 bge-)
+      const embedModels = models.filter(m => /embed/i.test(m) || /^bge-/i.test(m) || /^nomic/i.test(m));
+      if (!embedModels.length) return;
+      const sel = document.getElementById('embeddingModel');
+      if (!sel) return;
+      const current = sel.value;
+      sel.innerHTML = embedModels.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+      // 시스템 설정 기본값 우선 적용
+      if (defaultModel && embedModels.includes(defaultModel)) {
+        sel.value = defaultModel;
+      } else if (embedModels.includes(current)) {
+        sel.value = current;
+      }
+      // 임베딩 모델은 읽기 전용으로 설정 (검색 시점에 변경 불가)
+      sel.disabled = true;
+    }
+
+    async function loadSystemSettings() {
+      // 시스템 설정 API에서 기본 모델값 로드
+      try {
+        const r = await fetch(`${API_BASE}/admin/system-settings/model`);
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data.success && data.settings) {
+          _systemDefaultLlmModel = data.settings.default_llm_model || data.settings.llm_model || '';
+          _systemDefaultEmbeddingModel = data.settings.embedding_model || '';
+          console.log('[SystemSettings] 기본 LLM:', _systemDefaultLlmModel, '임베딩:', _systemDefaultEmbeddingModel);
+        }
+      } catch (e) {
+        console.warn('[SystemSettings] 로드 실패:', e.message);
       }
     }
 
     async function loadOllamaModels() {
+      // 먼저 시스템 설정에서 기본값 로드
+      await loadSystemSettings();
+
       try {
         const r = await fetch(`${API_BASE}/health/ollama/models`);
         if (!r.ok) return;
         const data = await r.json();
+
+        // LLM 모델 목록
         const llmModels = Array.isArray(data.llm_models)
           ? data.llm_models.map(model => model?.name).filter(Boolean)
           : [];
-        populateModelSelect(llmModels);
+        populateModelSelect(llmModels, _systemDefaultLlmModel);
+
+        // 임베딩 모델 목록
+        const embedModels = Array.isArray(data.embed_models)
+          ? data.embed_models.map(model => model?.name).filter(Boolean)
+          : [];
+        // 임베딩 모델 목록에 추가로 llmModels에서 embed 키워드 포함된 것 추가
+        const allModels = [...new Set([...llmModels, ...embedModels])];
+        populateEmbeddingModelSelect(allModels, _systemDefaultEmbeddingModel);
       } catch (_) {}
     }
 
