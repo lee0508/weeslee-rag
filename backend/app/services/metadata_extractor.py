@@ -493,6 +493,27 @@ class RuleBasedMetadataExtractor:
     # 너무 짧거나 숫자로만 구성된 사업명 필터링
     _PROJECT_NAME_MIN_LENGTH = 8  # 최소 8자 이상 (의미 있는 사업명)
 
+    # [2026-07-12] 사업명 오탐 거부 패턴 - OCR 본문에서 목차/담당자/기간/라벨 파편이
+    # 사업명으로 잘못 추출되는 문제(RFP 72% 오염) 해결.
+    # 아래 중 하나라도 매칭되면 사업명으로 채택하지 않는다(→ ocr_project_name=None).
+    _PROJECT_NAME_REJECT_PATTERNS = (
+        # 라벨 접두: "주관기관 한국직업능력연구원", "발주기관 우주항공청"
+        re.compile(r'^\s*(?:주관기관|발주기관|수요기관|전담기관|제안기관|주관부서|담당부서|'
+                   r'발주처|수요처|제출처|문의처|담당|주관|발주|수요|계약업체|사업자)\b'),
+        # 연락처/담당자: 전화번호, Tel, 사무관/연구위원 직함
+        re.compile(r'\d{2,4}\s*[-–]\s*\d{3,4}\s*[-–]\s*\d{3,4}'),
+        re.compile(r'(?:Tel|TEL|전화|연락처|사무관|주무관|선임연구위원|책임연구원|담당자)'),
+        # 기간/계약 표현
+        re.compile(r'^\s*기간\b|계약체결일|계약일로부터|착수일로부터|로부터\s*\d+\s*일'),
+        # 목차/서식: 로마숫자 2개 이상, "N. ... N" 반복, 별첨/서식/평가항목/배점
+        re.compile(r'[ⅠⅡⅢⅣⅤ].*[ⅠⅡⅢⅣⅤ]'),
+        re.compile(r'(?:별\s*지|별첨|서식|제안서\s*평가|평가항목|배점\s*기준|작성양식)'),
+        re.compile(r'\d+\..*?\d+\..*?\d+\.'),  # "1. ... 2. ... 3." 목차 나열(흩어져도 매칭)
+        # 점선 목차(dot leader) 및 HTML 엔티티
+        re.compile(r'[·‧⋯]{2,}|\.{4,}|…'),
+        re.compile(r'&#?\w+;'),
+    )
+
     _ORG_NAME_PATTERN = re.compile(
         r"("
         r"[가-힣A-Za-z0-9·&-]{2,20}"
@@ -590,6 +611,11 @@ class RuleBasedMetadataExtractor:
         # 목차/섹션명 패턴 검사
         if self._PROJECT_NAME_BLOCKLIST_PATTERNS.match(stripped):
             return False
+
+        # [2026-07-12] 라벨/연락처/기간/목차/HTML 파편 거부
+        for pattern in self._PROJECT_NAME_REJECT_PATTERNS:
+            if pattern.search(stripped):
+                return False
 
         # 숫자 + 공백 + 한글 1~2자 패턴 ("4 개요", "1 범위" 등) 제외
         if re.match(r'^\d+\s+[가-힣]{1,4}$', stripped):
