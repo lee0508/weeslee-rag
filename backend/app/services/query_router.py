@@ -252,8 +252,11 @@ class QueryRouter:
         return filters
 
     def _extract_keywords(self, query: str) -> List[str]:
-        """키워드 추출."""
-        # 불용어 제거
+        """키워드 추출 - Kiwi 형태소 분석 우선, 실패 시 규칙 기반 폴백.
+
+        [2026-07-13] Kiwi 형태소 분석 도입 - 의미 있는 명사/고유명사/영문만 추출.
+        """
+        # 불용어 (형태소 분석 결과에서도 필터링)
         stopwords = {
             "의", "를", "을", "이", "가", "에", "에서", "로", "으로",
             "와", "과", "또는", "및", "그리고", "하는", "있는", "된",
@@ -261,9 +264,23 @@ class QueryRouter:
             "관련", "관련된", "내용", "부분", "문서", "파일", "사업", "장표",
             "폴더", "안", "안에서", "중", "중에서", "대한", "기준", "원하는",
             "있는지", "찾기", "찾아", "조회", "검색", "알려", "보여",
+            "것", "수", "등", "때", "곳", "점", "경우", "방법", "방안",
         }
 
-        # 토큰화
+        # 1. Kiwi 형태소 분석 시도
+        try:
+            from app.services import korean_tokenizer
+            if korean_tokenizer.is_available():
+                kiwi_keywords = korean_tokenizer.extract_keywords(query, min_len=2, max_tokens=20)
+                if kiwi_keywords:
+                    # 불용어 필터링 후 반환
+                    filtered = [kw for kw in kiwi_keywords if kw not in stopwords]
+                    if filtered:
+                        return filtered[:10]
+        except Exception:
+            pass
+
+        # 2. 폴백: 규칙 기반 토큰화
         tokens = re.findall(r"[가-힣A-Za-z0-9]+", query)
         keywords = [t for t in tokens if t not in stopwords and len(t) >= 2]
 
