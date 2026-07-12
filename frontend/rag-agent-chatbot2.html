@@ -158,8 +158,14 @@ button{font-family:inherit; cursor:pointer}
 .msg.user{display:flex; justify-content:flex-end}
 .msg.user .bubble{
   background:var(--ink); color:#fff; padding:12px 16px;
-  border-radius:16px 16px 4px 16px; max-width:78%;
+  border-radius:16px 16px 0 16px; max-width:78%;
   font-size:15px; line-height:1.55; white-space:pre-wrap;
+  position:relative;
+}
+.msg.user .bubble::after{
+  content:''; position:absolute; right:-8px; bottom:0;
+  border-width:0 0 12px 8px; border-style:solid;
+  border-color:transparent transparent var(--ink) transparent;
 }
 .msg.agent .bubble{max-width:100%}
 
