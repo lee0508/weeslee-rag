@@ -627,30 +627,104 @@ class RuleBasedMetadataExtractor:
 
         return True
 
-    def extract_project_name(self, text: str) -> tuple[Optional[str], float]:
-        """레이블 기반 → 키워드 패턴 순으로 사업명을 추출한다."""
+    # [2026-07-12] 파일명 기반 프로젝트명 추출용 접두사 제거 패턴
+    # "전략및방법론_", "기술및기능_", "RFP_" 등 접두사를 제거하고 실제 프로젝트명 추출
+    _FILENAME_PREFIX_PATTERN = re.compile(
+        r'^(?:RFP_|전략및방법론_|기술및기능_|프로젝트관리_|프로젝트지원_|'
+        r'연구과제_|환경분석_|현황분석_|목표모델_|이행계획_|'
+        r'착수보고서_|중간보고서_|최종보고서_|완료보고서_)'
+    )
+
+    # [2026-07-12] 제안서/산출물 PPTX 슬라이드에서 자주 오탐되는 본문 패턴
+    # 이 패턴이 추출된 project_name에 매칭되면 파일명 기반 추출로 대체
+    _PPTX_CONTENT_REJECT_PATTERNS = (
+        re.compile(r'^(?:의\s+)?(?:방향성을?\s+도출|목적을?\s+달성|배경\s+및\s+목적)'),
+        re.compile(r'(?:요구사항을?\s+(?:충족|반영)|소통을?\s+통해)'),
+        re.compile(r'(?:사업이해도|추진\s*조직|품질관리|품질보증)'),
+        re.compile(r'(?:전\s+단계에\s+걸쳐|전담인력이\s+수행)'),
+        re.compile(r'(?:슬라이드\s+\d+|슬라이드\d+)'),
+        re.compile(r'^(?:기술\s*및\s*기능|프로젝트\s*관리|프로젝트\s*지원)\s+'),
+        re.compile(r'(?:컨설팅\s+요구사항|안정적인\s+운영)$'),
+        re.compile(r'^(?:을|의|에)\s'),  # 조사로 시작하는 문장 파편
+    )
+
+    def _extract_project_name_from_filename(self, filename: str) -> Optional[str]:
+        """
+        [2026-07-12] 파일명에서 프로젝트명을 추출한다.
+        접두사(RFP_, 전략및방법론_ 등)를 제거하고 확장자를 제외한 부분을 반환.
+        """
+        if not filename:
+            return None
+
+        # 확장자 제거
+        name = filename.rsplit(".", 1)[0] if "." in filename else filename
+
+        # 접두사 제거
+        name = self._FILENAME_PREFIX_PATTERN.sub("", name)
+
+        # 정리
+        name = name.strip()
+
+        # ISP, ISMP, BPRISP 등 키워드가 포함되어 있으면 유효한 프로젝트명으로 간주
+        if len(name) >= 10 and any(kw in name for kw in ("ISP", "ISMP", "BPRISP", "사업", "구축", "수립", "용역", "연구", "컨설팅")):
+            return name
+
+        return None
+
+    def _is_pptx_content_false_positive(self, name: Optional[str]) -> bool:
+        """
+        [2026-07-12] PPTX 슬라이드 본문에서 잘못 추출된 프로젝트명인지 검사.
+        """
+        if not name:
+            return False
+
+        for pattern in self._PPTX_CONTENT_REJECT_PATTERNS:
+            if pattern.search(name):
+                return True
+        return False
+
+    def extract_project_name(self, text: str, filename: Optional[str] = None) -> tuple[Optional[str], float]:
+        """
+        [2026-07-12 개선] 파일명 우선 → 레이블 기반 → 키워드 패턴 순으로 사업명을 추출한다.
+        PPTX 제안서/산출물은 파일명 기반 추출을 우선 적용하여 오탐을 방지한다.
+        """
         head = text[:_ANALYSIS_LIMIT]
 
+        # 1단계: 레이블 기반 추출 시도
         labeled_name = self._extract_labeled_value(
             head,
             ["사업명", "용역사업명", "용역명", "과업명", "프로젝트명", "사업", "과업"],
             min_len=5,
             max_len=100,
         )
+
         # [2026-07-10] 목차명 필터링 적용
         if labeled_name and self._is_valid_project_name(labeled_name):
-            return labeled_name, 0.88
+            # [2026-07-12] PPTX 본문 오탐 검사 - 오탐이면 파일명으로 대체
+            if not self._is_pptx_content_false_positive(labeled_name):
+                return labeled_name, 0.88
 
+        # 2단계: 키워드 패턴 매칭
         keyword_match = re.search(
             r'([가-힣A-Za-z0-9\s]{5,60}(?:정보화|시스템|플랫폼|인프라|데이터|서비스)?'
             r'(?:사업|구축|고도화|개발|운영|도입|혁신|전환))',
             head
         )
+        keyword_name = None
         if keyword_match:
             name = self._clean_line_value(keyword_match.group(1))
-            # [2026-07-10] 목차명 필터링 적용
-            if name and self._is_valid_project_name(name):
-                return name[:200], 0.60
+            if name and self._is_valid_project_name(name) and not self._is_pptx_content_false_positive(name):
+                keyword_name = name
+
+        # 3단계: 파일명 기반 추출 (fallback 또는 PPTX 오탐 시)
+        filename_name = self._extract_project_name_from_filename(filename) if filename else None
+
+        # 우선순위: 유효한 레이블/키워드 추출 → 파일명 기반
+        if keyword_name:
+            return keyword_name[:200], 0.60
+
+        if filename_name:
+            return filename_name[:200], 0.75  # 파일명 기반은 신뢰도 0.75
 
         return None, 0.0
 
@@ -874,8 +948,21 @@ class RuleBasedMetadataExtractor:
         confidence = min(0.5 + year_counts[best_year] * 0.1, 0.90)
         return best_year, confidence
 
-    def extract_document_type(self, text: str) -> tuple[Optional[str], float]:
-        """RFP / 제안서 / 산출물 3가지로 문서 유형을 분류한다."""
+    def extract_document_type(self, text: str, relative_path: Optional[str] = None) -> tuple[Optional[str], float]:
+        """
+        [2026-07-12 개선] RFP / 제안서 / 산출물 3가지로 문서 유형을 분류한다.
+        relative_path가 있으면 폴더 구조 기반으로 우선 분류한다.
+        """
+        # 1단계: relative_path 기반 분류 (가장 신뢰도 높음)
+        if relative_path:
+            if relative_path.startswith("01. RFP") or "/01. RFP/" in relative_path:
+                return "RFP", 0.95
+            if relative_path.startswith("02. 제안서") or "/02. 제안서/" in relative_path:
+                return "제안서", 0.95
+            if relative_path.startswith("03. 산출물") or "/03. 산출물/" in relative_path:
+                return "산출물", 0.95
+
+        # 2단계: 텍스트 내용 기반 분류
         head = text[:_ANALYSIS_LIMIT]
 
         patterns = [
@@ -898,15 +985,27 @@ class RuleBasedMetadataExtractor:
 
         return None, 0.0
 
-    def extract_all(self, text: str) -> dict:
+    def extract_all(
+        self,
+        text: str,
+        filename: Optional[str] = None,
+        relative_path: Optional[str] = None,
+    ) -> dict:
         """
-        모든 필드를 추출하여 ocr_* 형식의 dict로 반환한다.
-        ocr_confidence는 추출된 필드의 신뢰도 평균.
+        [2026-07-12 개선] 모든 필드를 추출하여 ocr_* 형식의 dict로 반환한다.
+
+        Args:
+            text: OCR 추출 텍스트
+            filename: 파일명 (프로젝트명 추출에 사용)
+            relative_path: 상대 경로 (문서 유형 분류에 사용)
+
+        Returns:
+            ocr_* 필드를 포함하는 dict. ocr_confidence는 추출된 필드의 신뢰도 평균.
         """
-        project_name, pn_conf = self.extract_project_name(text)
+        project_name, pn_conf = self.extract_project_name(text, filename)
         organization, org_conf = self.extract_organization(text)
         year, yr_conf = self.extract_year(text)
-        document_type, dt_conf = self.extract_document_type(text)
+        document_type, dt_conf = self.extract_document_type(text, relative_path)
 
         confs = [c for c in [pn_conf, org_conf, yr_conf, dt_conf] if c > 0]
         avg_confidence = round(sum(confs) / len(confs), 3) if confs else None

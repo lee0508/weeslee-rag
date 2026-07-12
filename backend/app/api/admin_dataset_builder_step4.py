@@ -534,7 +534,12 @@ def _save_ocr_metadata(
             db.flush()
             return
 
-        ocr_meta = rule_based_extractor.extract_all(full_text)
+        # [2026-07-12] 파일명/경로 기반 메타데이터 추출 개선
+        ocr_meta = rule_based_extractor.extract_all(
+            full_text,
+            filename=doc.file_name,
+            relative_path=doc.relative_path,
+        )
 
         raw_year = ocr_meta.get("ocr_year")
         doc.ocr_project_name = ocr_meta.get("ocr_project_name")
