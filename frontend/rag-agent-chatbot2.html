@@ -3683,7 +3683,7 @@ async function fetchGraphStatus(sourceId) {
   const normalized = String(sourceId || '').trim();
   if (!normalized) return null;
   try {
-    const response = await fetch(`${CONFIG.apiBase}/graph/status?source_id=${encodeURIComponent(normalized)}`, {
+    const response = await fetch(`${CONFIG.base}/graph/status?source_id=${encodeURIComponent(normalized)}`, {
       headers: { 'Content-Type': 'application/json' },
     });
     if (!response.ok) return null;
@@ -3743,7 +3743,7 @@ async function loadGraphFromQuery(query, documents = []) {
     container.innerHTML = `<div class="graph-empty"><div class="graph-empty-icon">⏳</div><div>그래프 로딩 중...</div></div>`;
 
     const docIds = documents.map(d => d.document_id || d.id || '').filter(Boolean);
-    const response = await fetch(`${CONFIG.apiBase}/graph/cytoscape/documents`, {
+    const response = await fetch(`${CONFIG.base}/graph/cytoscape/documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ document_ids: docIds, depth: 2 }),
@@ -3783,7 +3783,7 @@ async function loadGraphFromQuery(query, documents = []) {
 
 function openGraphPopup() {
   const sourceId = resolveGraphSourceId(_lastSearchDocuments || []);
-  const url = `${CONFIG.apiBase.replace('/api', '')}/frontend/graph-viewer.html?source_id=${encodeURIComponent(sourceId)}`;
+  const url = `${CONFIG.base.replace('/api', '')}/frontend/graph-viewer.html?source_id=${encodeURIComponent(sourceId)}`;
   window.open(url, 'graphPopup', 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no');
 }
 
@@ -3825,8 +3825,8 @@ async function loadWikiProjects() {
   try {
     const sourceId = resolveWikiSourceId();
     const url = sourceId
-      ? `${CONFIG.apiBase}/wiki/projects?source_id=${encodeURIComponent(sourceId)}`
-      : `${CONFIG.apiBase}/wiki/projects`;
+      ? `${CONFIG.base}/wiki/projects?source_id=${encodeURIComponent(sourceId)}`
+      : `${CONFIG.base}/wiki/projects`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Wiki API 오류');
     const data = await response.json();
@@ -3904,8 +3904,8 @@ async function loadWikiDetail(slug) {
   try {
     const sourceId = resolveWikiSourceId();
     const url = sourceId
-      ? `${CONFIG.apiBase}/wiki/projects/${encodeURIComponent(slug)}?source_id=${encodeURIComponent(sourceId)}`
-      : `${CONFIG.apiBase}/wiki/projects/${encodeURIComponent(slug)}`;
+      ? `${CONFIG.base}/wiki/projects/${encodeURIComponent(slug)}?source_id=${encodeURIComponent(sourceId)}`
+      : `${CONFIG.base}/wiki/projects/${encodeURIComponent(slug)}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Wiki 상세 조회 실패');
     const data = await response.json();
