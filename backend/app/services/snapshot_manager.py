@@ -28,6 +28,44 @@ ACTIVE_INDEX_PATH = DATA_DIR / "active_index.json"
 SNAPSHOT_DIR = DATA_DIR / "snapshots"
 
 
+def get_operational_faiss_dir() -> Path:
+    """운영 FAISS 인덱스 디렉토리 반환 (data/indexes/faiss/)."""
+    return FAISS_DIR
+
+
+def copy_index_to_operational_path(
+    source_index_path: Path,
+    source_metadata_path: Path,
+    snapshot_id: str,
+) -> tuple[Path, Path]:
+    """
+    step7_index에서 생성된 인덱스 파일을 운영 경로(data/indexes/faiss/)로 복사.
+
+    Args:
+        source_index_path: step7_index 내 인덱스 파일 경로
+        source_metadata_path: step7_index 내 메타데이터 파일 경로
+        snapshot_id: 스냅샷 ID
+
+    Returns:
+        (운영 인덱스 경로, 운영 메타데이터 경로) 튜플
+    """
+    import shutil
+
+    FAISS_DIR.mkdir(parents=True, exist_ok=True)
+
+    dest_index = FAISS_DIR / f"{snapshot_id}_ollama.index"
+    dest_metadata = FAISS_DIR / f"{snapshot_id}_ollama_metadata.jsonl"
+
+    # 파일 복사
+    if source_index_path.exists():
+        shutil.copy2(source_index_path, dest_index)
+
+    if source_metadata_path.exists():
+        shutil.copy2(source_metadata_path, dest_metadata)
+
+    return dest_index, dest_metadata
+
+
 def generate_snapshot_id(
     source_id: str = "rag_source",
     version: Optional[int] = None,

@@ -21,7 +21,7 @@ from app.services.processed_text_store import ProcessedTextStore
 from app.services.runtime_model_settings import get_runtime_embedding_model
 from app.services.runtime_compute_settings import is_stage_gpu_enabled
 from app.services.snapshot_registry_service import mark_snapshot_queryable, upsert_snapshot_manifest
-from app.services.snapshot_manager import create_snapshot_manifest, generate_snapshot_id
+from app.services.snapshot_manager import create_snapshot_manifest, generate_snapshot_id, copy_index_to_operational_path
 from app.services.source_artifact_index import sync_source_index
 
 router = APIRouter(prefix="/admin/dataset-builder/step7")
@@ -426,6 +426,13 @@ def _write_snapshot_outputs(
         for row in metadata_rows:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
+    # 운영 경로(data/indexes/faiss/)로 인덱스 파일 복사
+    operational_index_path, operational_metadata_path = copy_index_to_operational_path(
+        source_index_path=snapshot_index_path,
+        source_metadata_path=snapshot_metadata_path,
+        snapshot_id=snapshot_id,
+    )
+
     create_snapshot_manifest(
         snapshot_id=snapshot_id,
         source_id=source_id,
@@ -461,13 +468,13 @@ def _write_snapshot_outputs(
         embedding_model=f"ollama/{model_name}",
         chunk_count=len(metadata_rows),
         vector_count=len(metadata_rows),
-        index_file=str(snapshot_index_path),
-        metadata_file=str(snapshot_metadata_path),
+        index_file=str(operational_index_path),
+        metadata_file=str(operational_metadata_path),
     )
     snapshot.status = SnapshotStatus.DRAFT if not snapshot.is_active else snapshot.status
     _save_snapshot(snapshot)
 
-    return str(snapshot_index_path)
+    return str(operational_index_path)
 
 
 def _load_collection_metadata(metadata_path: Path) -> Dict[str, Any]:
