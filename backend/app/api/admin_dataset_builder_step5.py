@@ -62,10 +62,14 @@ def _load_from_unified_path(source_id: str, document_id: int) -> dict:
         if full_text_path.exists():
             result["extracted_text"] = full_text_path.read_text(encoding="utf-8")
 
-        # structured.json 로드
-        structured_path = doc_dir / "structured.json"
-        if structured_path.exists():
-            result["structured_data"] = json.loads(structured_path.read_text(encoding="utf-8"))
+        # structured 데이터 로드
+        # [2026-07-12] save_result는 structured_data.json 으로 저장하므로 그 이름을 우선하고,
+        # 레거시 structured.json 도 함께 시도한다. (파일명 불일치로 semantic_tags 누락되던 문제 수정)
+        for structured_name in ("structured_data.json", "structured.json"):
+            structured_path = doc_dir / structured_name
+            if structured_path.exists():
+                result["structured_data"] = json.loads(structured_path.read_text(encoding="utf-8"))
+                break
 
         # ocr_report.json 로드
         ocr_report_path = doc_dir / "ocr_report.json"
