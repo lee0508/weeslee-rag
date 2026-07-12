@@ -3671,12 +3671,16 @@ function renderGraphEmptyState(message, icon = '🔍') {
 }
 
 function resolveGraphSourceId(documents = []) {
+  // 1. 문서에서 source_id 추출 시도
   const fromDocument = documents
     .map(d => d.source_id || d.sourceId || '')
     .find(Boolean);
   if (fromDocument) return fromDocument;
+  // 2. _activeSnapshot에서 추출 시도
   const match = (_activeSnapshot || '').match(/^snapshot_\d{8}_(src_[^_]+_[^_]+_[^_]+)(?:_V\d+)?$/i);
-  return match ? match[1] : '';
+  if (match) return match[1];
+  // 3. [2026-07-13] 선택된 데이터셋의 source_id를 fallback으로 사용
+  return srcId() || '';
 }
 
 async function fetchGraphStatus(sourceId) {
@@ -3732,7 +3736,9 @@ async function loadGraphFromQuery(query, documents = []) {
 
     const graphSourceId = resolveGraphSourceId(documents);
     const graphStatus = await fetchGraphStatus(graphSourceId);
-    if (!graphStatus || !graphStatus.available) {
+    // [2026-07-13] API는 has_data 또는 available 필드를 반환할 수 있음
+    const hasGraphData = graphStatus && (graphStatus.has_data || graphStatus.available);
+    if (!hasGraphData) {
       renderGraphEmptyState(
         `선택한 Source의 Knowledge Graph 데이터가 아직 생성되지 않았습니다.<br>Dataset Builder에서 "Knowledge Graph 실행" 후 다시 확인하세요.`,
         '⚠️'
