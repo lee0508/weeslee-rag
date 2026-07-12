@@ -233,6 +233,11 @@ class LPGNodeBuilder:
         - chunk_count, chunk_ids, total_chars, section_headings
         - content_length, page_count, extraction_method, is_scanned
         - embedding_status, ocr_completed_at
+
+        [2026-07-12] 문서 체인 속성 추가:
+        - chain_project_name: 정규화된 프로젝트명 (파일명 기반)
+        - chain_document_role: rfp, proposal, deliverable
+        - chain_section_name: 전략및방법론, 환경분석 등
         """
         count = 0
         for doc in docs:
@@ -245,6 +250,15 @@ class LPGNodeBuilder:
             filename = Path(source_path).name if source_path else ""
             category = doc.get("category", "")
             project_name = doc.get("project_name") or "미분류"
+
+            # [2026-07-12] 문서 체인 정보 추출
+            chain_project_name = doc.get("chain_project_name", "")
+            chain_document_role = doc.get("chain_document_role", "")
+            chain_section_name = doc.get("chain_section_name", "")
+
+            # chain_project_name이 있으면 project_name으로도 사용
+            if chain_project_name and project_name == "미분류":
+                project_name = chain_project_name
 
             # 카테고리 색상
             cat_info = self.category_codes.get(category, {})
@@ -283,6 +297,10 @@ class LPGNodeBuilder:
                 is_scanned=doc.get("is_scanned", False),
                 embedding_status="indexed" if chunk_count > 0 else "pending",
                 ocr_completed_at=doc.get("ocr_completed_at", ""),
+                # [2026-07-12] 문서 체인 속성 추가
+                chain_project_name=chain_project_name,
+                chain_document_role=chain_document_role,
+                chain_section_name=chain_section_name,
             ):
                 count += 1
 

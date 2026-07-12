@@ -49,10 +49,18 @@ def _load_from_unified_path(source_id: str, document_id: int) -> dict:
             "extracted_text": str or None,
             "structured_data": dict or None,
             "ocr_report": dict or None,
+            "metadata_ocr": dict or None,
             "loaded_from": "unified_path" or None
         }
     """
-    result = {"extracted_text": None, "structured_data": None, "ocr_report": None, "pages": None, "loaded_from": None}
+    result = {
+        "extracted_text": None,
+        "structured_data": None,
+        "ocr_report": None,
+        "metadata_ocr": None,
+        "pages": None,
+        "loaded_from": None,
+    }
     try:
         paths = get_source_paths(source_id)
         doc_dir = paths.document_dir(str(document_id))
@@ -75,6 +83,11 @@ def _load_from_unified_path(source_id: str, document_id: int) -> dict:
         ocr_report_path = doc_dir / "ocr_report.json"
         if ocr_report_path.exists():
             result["ocr_report"] = json.loads(ocr_report_path.read_text(encoding="utf-8"))
+
+        # [2026-07-12] metadata_ocr.json 로드 (문서 체인 정보 포함)
+        metadata_ocr_path = doc_dir / "metadata_ocr.json"
+        if metadata_ocr_path.exists():
+            result["metadata_ocr"] = json.loads(metadata_ocr_path.read_text(encoding="utf-8"))
 
         # [2026-07-12] pages.jsonl 로드 (Step4가 저장한 페이지 단위 원문)
         pages_path = doc_dir / "pages.jsonl"
@@ -349,21 +362,45 @@ def strip_order_prefix(name: str) -> str:
     return _ORDER_PREFIX_RE.sub("", str(name or "")).strip()
 
 
-def build_chunk_meta(doc, file_name: str, structured_data: dict, snapshot_id: str = "") -> dict:
-    """Step 5 청크 메타데이터를 정규화해 생성한다."""
-    # [2026-07-10] 우선순위 수정: scan(파일명 기반)이 ocr보다 신뢰도 높음
-    # ocr_project_name은 목차명("개요 4", "범위 1")이 잘못 추출되는 문제가 있음
+def build_chunk_meta(
+    doc,
+    file_name: str,
+    structured_data: dict,
+    snapshot_id: str = "",
+    metadata_ocr: Optional[dict] = None,
+) -> dict:
+    """Step 5 청크 메타데이터를 정규화해 생성한다.
+
+    Args:
+        doc: DocumentMetadata 객체
+        file_name: 파일명
+        structured_data: 구조화 데이터 (semantic_tags 포함)
+        snapshot_id: FAISS 스냅샷 ID
+        metadata_ocr: Step 4에서 생성한 metadata_ocr.json 데이터 (문서 체인 정보 포함)
+    """
+    metadata_ocr = metadata_ocr or {}
+
+    # [2026-07-12] 문서 체인 정보에서 프로젝트명 우선 사용
+    # chain_project_name은 파일명에서 정규화된 프로젝트명으로 가장 신뢰도가 높음
+    chain_project_name = metadata_ocr.get("chain_project_name")
+
+    # [2026-07-10] 우선순위 수정: chain > scan(파일명 기반) > ocr
     organization = (
         getattr(doc, "final_organization", None)
         or getattr(doc, "organization", None)
         or getattr(doc, "scan_organization", None)
+        or metadata_ocr.get("ocr_organization")
         or getattr(doc, "ocr_organization", None)
         or ""
     )
+
+    # [2026-07-12] chain_project_name이 있으면 최우선 사용
     project_name = (
-        getattr(doc, "final_project_name", None)
+        chain_project_name
+        or getattr(doc, "final_project_name", None)
         or getattr(doc, "project_name", None)
         or getattr(doc, "scan_project_name", None)
+        or metadata_ocr.get("ocr_project_name")
         or getattr(doc, "ocr_project_name", None)
         or ""
     )
@@ -423,6 +460,14 @@ def build_chunk_meta(doc, file_name: str, structured_data: dict, snapshot_id: st
             "domain": semantic_tags.get("domain", ""),
             "technology": semantic_tags.get("technology", ""),
         })
+
+    # [2026-07-12] 문서 체인 정보 추가 (RFP 기반 문서 연결)
+    if metadata_ocr:
+        chain_role = metadata_ocr.get("chain_document_role")
+        if chain_role:
+            chunk_meta["chain_project_name"] = metadata_ocr.get("chain_project_name", "")
+            chunk_meta["chain_document_role"] = chain_role
+            chunk_meta["chain_section_name"] = metadata_ocr.get("chain_section_name", "")
 
     return chunk_meta
 
@@ -650,6 +695,8 @@ def execute_chunk_build(
                 structured_data = unified_data.get("structured_data") or {}
                 report = unified_data.get("ocr_report") or {}
                 unified_pages = unified_data.get("pages") or []
+                # [2026-07-12] metadata_ocr.json 로드 (문서 체인 정보 포함)
+                metadata_ocr = unified_data.get("metadata_ocr") or {}
                 extraction_result = None
 
                 # 통합 경로에 없으면 메모리 캐시(processed_text_store)에서 로드
@@ -747,7 +794,9 @@ def execute_chunk_build(
                         "content": content,
                     })
 
-                chunk_meta = build_chunk_meta(doc, file_name, structured_data, req.snapshot_id or "")
+                chunk_meta = build_chunk_meta(
+                    doc, file_name, structured_data, req.snapshot_id or "", metadata_ocr
+                )
 
                 # 청킹 실행
                 # [2026-07-12] 우선순위 변경: 실제 페이지 원문(page_rows)이 있으면

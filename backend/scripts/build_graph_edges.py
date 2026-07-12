@@ -296,18 +296,66 @@ class LPGEdgeBuilder:
         return count
 
     def build_document_sequence_edges(self) -> int:
-        """문서 순서 엣지 (RELATED_SEQUENCE) - 동일 프로젝트 내 RFP→제안서→산출물."""
+        """문서 순서 엣지 (RELATED_SEQUENCE) - 동일 프로젝트 내 RFP→제안서→산출물.
+
+        [2026-07-12] chain_project_name 기반 그룹화 추가.
+        chain_document_role 기반 순서: rfp → proposal → deliverable
+        """
         count = 0
+        # [2026-07-12] chain_document_role 기반 순서 (새 시스템)
+        role_order = ["rfp", "proposal", "deliverable"]
+        # 기존 category 기반 순서 (호환)
         category_order = ["rfp", "proposal", "kickoff", "presentation", "final_report", "output"]
 
-        # 프로젝트별 문서 그룹화
+        # [2026-07-12] chain_project_name 기반 그룹화 우선
+        by_chain_project: dict[str, list[dict]] = defaultdict(list)
         by_project: dict[str, list[dict]] = defaultdict(list)
+
         for node in self.get_nodes_by_type("Document"):
             props = node.get("properties", {})
+            chain_project_name = props.get("chain_project_name", "")
             project_id = props.get("project_id", "")
-            if project_id:
+
+            # chain_project_name이 있으면 새 시스템 사용
+            if chain_project_name:
+                by_chain_project[chain_project_name].append(node)
+            elif project_id:
                 by_project[project_id].append(node)
 
+        # [2026-07-12] chain_project_name 기반 엣지 생성
+        for project_name, docs in by_chain_project.items():
+            # chain_document_role 기반 정렬
+            def chain_sort_key(n):
+                role = n.get("properties", {}).get("chain_document_role", "")
+                return role_order.index(role) if role in role_order else 999
+
+            sorted_docs = sorted(docs, key=chain_sort_key)
+
+            # RFP를 마스터로, 다른 문서들과 연결
+            rfp_docs = [d for d in sorted_docs if d.get("properties", {}).get("chain_document_role") == "rfp"]
+            other_docs = [d for d in sorted_docs if d.get("properties", {}).get("chain_document_role") != "rfp"]
+
+            # RFP → 제안서/산출물 직접 연결 (HAS_CHILD 대신 RELATED_SEQUENCE 사용)
+            for rfp in rfp_docs:
+                for other in other_docs:
+                    other_role = other.get("properties", {}).get("chain_document_role", "")
+                    section_name = other.get("properties", {}).get("chain_section_name", "")
+                    label = f"rfp → {other_role}"
+                    if section_name:
+                        label = f"rfp → {other_role}/{section_name}"
+
+                    if self.add_edge(
+                        rfp["node_id"],
+                        other["node_id"],
+                        "RELATED_SEQUENCE",
+                        label=label,
+                        chain_project_name=project_name,
+                        chain_document_role=other_role,
+                        chain_section_name=section_name,
+                    ):
+                        count += 1
+
+        # 기존 project_id 기반 엣지 생성 (호환)
         for project_id, docs in by_project.items():
             # 카테고리 순서대로 정렬
             def sort_key(n):

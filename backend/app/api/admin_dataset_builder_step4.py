@@ -46,6 +46,7 @@ from app.services.runtime_compute_settings import (
 from app.services.source_artifact_index import sync_source_index
 from app.services.source_data_paths import get_source_paths
 from app.services.page_source_loader import load_csv_page_units
+from app.services.document_chain_service import get_document_chain_service
 
 
 logger = logging.getLogger(__name__)
@@ -578,6 +579,13 @@ def _save_metadata_to_unified_path(
         doc_dir = paths.document_dir(str(document_id))
         doc_dir.mkdir(parents=True, exist_ok=True)
 
+        # [2026-07-12] 문서 체인 정보 추출
+        chain_service = get_document_chain_service()
+        chain_info = chain_service.analyze_document(
+            filename=doc.file_name or "",
+            relative_path=doc.relative_path or "",
+        )
+
         metadata_file = doc_dir / "metadata_ocr.json"
         metadata_content = {
             "document_id": document_id,
@@ -595,6 +603,13 @@ def _save_metadata_to_unified_path(
             "ocr_page_count": report.get("page_count"),
             "extracted_at": datetime.utcnow().isoformat(),
         }
+
+        # [2026-07-12] 문서 체인 정보 추가
+        if chain_info:
+            metadata_content["chain_project_name"] = chain_info.project_name
+            metadata_content["chain_document_role"] = chain_info.document_role
+            metadata_content["chain_section_name"] = chain_info.section_name
+            metadata_content["chain_confidence"] = chain_info.confidence
 
         metadata_file.write_text(
             json.dumps(metadata_content, ensure_ascii=False, indent=2),
