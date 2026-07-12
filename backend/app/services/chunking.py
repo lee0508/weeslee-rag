@@ -70,7 +70,8 @@ class ChunkingService:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.min_chunk_size = min_chunk_size
-        self.use_korean_sentence_split = use_korean_sentence_split and KSS_AVAILABLE
+        # [2026-07-12] Kiwi 또는 kss 중 하나라도 있으면 문장 분리 사용 (Kiwi 우선, kss보다 빠름)
+        self.use_korean_sentence_split = use_korean_sentence_split
         self.max_embedding_tokens = max_embedding_tokens
         self.separators = separators or [
             "\n\n\n",      # Multiple newlines (section breaks)
@@ -112,17 +113,31 @@ class ChunkingService:
 
     def _split_korean_sentences(self, text: str) -> List[str]:
         """
-        한국어 문장 단위 분리 (kss 라이브러리 사용)
-        kss가 없으면 기본 구분자 기반 분리로 fallback
+        한국어 문장 단위 분리.
+        [2026-07-12] Kiwi 우선 사용(kss보다 수십 배 빠름) → kss → 원문 순으로 폴백.
         """
         if not self.use_korean_sentence_split:
             return [text]
+
+        # 1) Kiwi (빠름)
         try:
-            sentences = kss.split_sentences(text)
-            return sentences if sentences else [text]
+            from app.services import korean_tokenizer
+            kiwi_sents = korean_tokenizer.split_sentences(text)
+            if kiwi_sents:
+                return kiwi_sents
         except Exception as e:
-            logger.warning("kss 문장 분리 실패, fallback 사용: %s", e)
-            return [text]
+            logger.debug("Kiwi 문장 분리 실패, kss로 폴백: %s", e)
+
+        # 2) kss (느림, Kiwi 미설치 시)
+        if KSS_AVAILABLE:
+            try:
+                sentences = kss.split_sentences(text)
+                return sentences if sentences else [text]
+            except Exception as e:
+                logger.warning("kss 문장 분리 실패, fallback 사용: %s", e)
+
+        # 3) 원문 그대로
+        return [text]
 
     def _validate_chunk_tokens(self, chunk: str, chunk_index: int) -> str:
         """

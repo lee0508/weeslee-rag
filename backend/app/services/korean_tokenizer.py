@@ -51,6 +51,23 @@ def is_available() -> bool:
     return _get_kiwi() is not None
 
 
+def split_sentences(text: str) -> List[str]:
+    """
+    Kiwi로 문장을 분리한다. kss보다 수십 배 빠르다.
+
+    Kiwi 미설치/실패 시 빈 리스트 반환 → 호출부가 kss 또는 원문으로 폴백.
+    """
+    kiwi = _get_kiwi()
+    if kiwi is None or not text or not text.strip():
+        return []
+    try:
+        sents = kiwi.split_into_sents(text)
+        return [s.text for s in sents if getattr(s, "text", "") and s.text.strip()]
+    except Exception as e:  # noqa: BLE001
+        logger.debug("Kiwi split_into_sents 실패: %s", e)
+        return []
+
+
 def extract_keywords(text: str, min_len: int = 2, max_tokens: int = 200) -> List[str]:
     """
     Kiwi로 의미 있는 명사/복합명사/영문 키워드를 추출한다.
