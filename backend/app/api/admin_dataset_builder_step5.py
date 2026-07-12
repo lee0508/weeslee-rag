@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, get_db
 from app.services.dataset_context import update_source_dataset_status
 from app.services.chunking import ChunkingService
-from app.services.processed_text_store import ProcessedTextStore
+from app.services.processed_text_store import ProcessedTextStore, processed_text_store
 from app.services.source_artifact_index import sync_source_index
 from app.services.source_data_paths import get_source_paths
 
@@ -654,7 +654,6 @@ def execute_chunk_build(
 
                 # 통합 경로에 없으면 메모리 캐시(processed_text_store)에서 로드
                 if not extracted_text:
-                    from app.services.processed_text_store import processed_text_store
                     extracted_text = processed_text_store.get_text(str(document_id), format="txt")
                     extraction_result = processed_text_store.get_result(str(document_id))
                     if not report:
@@ -680,7 +679,9 @@ def execute_chunk_build(
                         pass  # fallback 실패 시 무시하고 기존 로직 진행
 
                 # Step 4 품질 게이트 통과 문서만 청킹한다.
-                quality_ok, quality_error = validate_step4_quality(document_id, processed_text_store)
+                # [2026-07-12] 소스 인식 text_store 사용 (리포트가 통합 소스 경로에 저장되므로
+                # 글로벌 레거시 스토어로는 못 찾아 전부 skip되던 문제 수정)
+                quality_ok, quality_error = validate_step4_quality(document_id, text_store)
                 if not quality_ok:
                     fallback_ok, fallback_reason = allow_parser_text_fallback(
                         report,
