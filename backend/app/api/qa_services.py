@@ -200,12 +200,6 @@ async def list_providers():
                 "requires": "Ollama 서버 실행 중",
             },
             {
-                "name": "claude",
-                "description": "Anthropic Claude API",
-                "default_model": "claude-sonnet-4-20250514",
-                "requires": "ANTHROPIC_API_KEY 환경변수",
-            },
-            {
                 "name": "openai",
                 "description": "OpenAI API",
                 "default_model": "gpt-4o",

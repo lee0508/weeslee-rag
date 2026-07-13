@@ -176,7 +176,7 @@ def get_llm(provider: Optional[str] = None, model: Optional[str] = None,
     설정에 따라 LLM 인스턴스 반환
 
     Args:
-        provider: ollama | claude | openai | gemini | fake
+        provider: ollama | openai | gemini | fake  (claude는 정책상 비활성화)
         model: 모델 이름 (기본값은 provider별로 다름)
         temperature: 생성 온도 (0.0 = 결정론적)
     """
@@ -189,9 +189,11 @@ def get_llm(provider: Optional[str] = None, model: Optional[str] = None,
             **kwargs
         )
     elif provider == "claude":
-        return ClaudeLLM(
-            model=model or "claude-sonnet-4-20250514",
-            temperature=temperature
+        # Claude(Anthropic) API 기반 초안 생성은 온프레미스 정책에 따라 비활성화됨.
+        # 로컬 LLM(ollama)만 사용한다.
+        raise ValueError(
+            "Claude(Anthropic) provider는 비활성화되었습니다. "
+            "온프레미스 로컬 LLM(provider='ollama')을 사용하세요."
         )
     elif provider == "openai":
         return OpenAILLM(
