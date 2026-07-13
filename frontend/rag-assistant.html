@@ -6645,6 +6645,24 @@
 
     let _currentDocDetailViewMode = 'original';
 
+    // 검색 응답의 LLM 추출 키워드를 우선 사용하고, 없을 때만 질문에서 기본 키워드를 만든다.
+    function getSlideSearchKeywords(query) {
+      const stopWords = new Set(['검색', '질문', '슬라이드', '장표', 'ppt', 'pptx', '파워포인트', '자료', '내용', '관련', '대한', '있는', '찾아', '찾기', '보여', '알려', '주세요']);
+      const candidates = Array.isArray(_extractedKeywords) && _extractedKeywords.length > 0
+        ? _extractedKeywords
+        : String(query || '').split(/[\s,./·!?()[\]{}]+/);
+      const seen = new Set();
+
+      return candidates.reduce((keywords, value) => {
+        const keyword = String(value || '').trim();
+        const normalized = keyword.toLowerCase();
+        if (keyword.length < 2 || stopWords.has(normalized) || seen.has(normalized)) return keywords;
+        seen.add(normalized);
+        keywords.push(keyword);
+        return keywords;
+      }, []).slice(0, 8);
+    }
+
     function openDocDetail(doc, viewMode = 'original') {
       _currentDocDetail = doc;
       _currentDocDetailViewMode = viewMode;
@@ -6781,19 +6799,19 @@
           }
         } else if (viewMode === 'slides') {
           // PPTX 슬라이드 검색 UI
-          const safeDocId = String(doc.document_id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const slideKeywords = getSlideSearchKeywords(_currentSearchQuery || document.getElementById('query')?.value || '');
           content = `
             <div style="margin-bottom:16px;">
               <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--navy)">📊 PPTX 슬라이드 키워드 검색</div>
               <div style="display:flex;gap:8px;margin-bottom:12px;">
                 <input type="text" id="ragSlideKeywordsInput" placeholder="검색 키워드 (쉼표로 구분)"
                        style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;"
-                       value="${escapeHtml(_currentSearchQuery || document.getElementById('query')?.value || '')}">
-                <button class="btn btn-primary btn-sm" onclick="searchPptxSlidesInDoc('${safeDocId}')">검색</button>
+                       value="${escapeHtml(slideKeywords.join(', '))}">
+                <button class="btn btn-primary btn-sm" onclick="searchPptxSlidesInDoc()">재검색</button>
               </div>
               <div id="ragSlideSearchResults" style="min-height:60px;">
                 <div style="text-align:center;color:var(--text-s);padding:20px;font-size:12px;">
-                  키워드를 입력하고 검색 버튼을 클릭하세요.
+                  검색 질문에서 추출한 키워드로 슬라이드를 찾는 중입니다.
                 </div>
               </div>
             </div>
@@ -6801,6 +6819,10 @@
         }
 
         docDetailChunks.innerHTML = tabs + content;
+        if (viewMode === 'slides') {
+          // 탭을 연 즉시 현재 검색 질문의 추출 키워드로 해당 PPTX를 조회한다.
+          setTimeout(() => searchPptxSlidesInDoc(), 0);
+        }
       }
 
       if (panel) panel.classList.add('open');
@@ -6968,7 +6990,7 @@
     }
 
     // PPTX 슬라이드 키워드 검색 함수
-    async function searchPptxSlidesInDoc(documentId) {
+    async function searchPptxSlidesInDoc() {
       const input = document.getElementById('ragSlideKeywordsInput');
       const resultsEl = document.getElementById('ragSlideSearchResults');
 
@@ -6988,6 +7010,11 @@
         // _currentDocDetail에서 source_path와 source_id 가져오기
         const sourcePath = _currentDocDetail?.source_path || _currentDocDetail?.original_source_path || '';
         const sourceId = _currentDocDetail?.source_id || '';
+        const documentId = _currentDocDetail?.document_id || sourcePath;
+
+        if (!documentId) {
+          throw new Error('문서 식별 정보를 찾을 수 없습니다.');
+        }
 
         const response = await fetch(`${API_BASE}/pptx/slides/search`, {
           method: 'POST',
