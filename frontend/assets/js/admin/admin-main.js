@@ -3814,8 +3814,10 @@
     el.innerHTML = results.map((r, i) => {
       const fileName = r.file_name || r.filename || '';
       const isPptx = fileName.toLowerCase().endsWith('.pptx') || fileName.toLowerCase().endsWith('.ppt');
+      // 파일명의 작은따옴표와 백슬래시 escape
+      const safeFileName = fileName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const slideSearchBtn = isPptx
-        ? `<button onclick="showPptxSlideSearchModal(${r.document_id || 0}, '${esc(fileName)}', [])" class="chip" style="font-size:10px;cursor:pointer;background:var(--primary);color:white;border:none;">🔍 슬라이드 검색</button>`
+        ? `<button onclick="showPptxSlideSearchModal(${r.document_id || 0}, '${safeFileName}', [])" class="chip" style="font-size:10px;cursor:pointer;background:var(--primary);color:white;border:none;">🔍 슬라이드 검색</button>`
         : '';
 
       return `
