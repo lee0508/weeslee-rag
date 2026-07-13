@@ -57,6 +57,7 @@ from app.api.qa_services import router as qa_services_router
 from app.api.system_runtime import router as system_runtime_router
 from app.api.user_auth import router as user_auth_router, init_user_auth_tables
 from app.api.chat_sessions import router as chat_sessions_router, init_chat_tables
+from app.api.pptx_slide_search import router as pptx_slide_search_router
 try:
     from app.api.vectorization import router as vectorization_router
     _vectorization_available = True
@@ -176,6 +177,7 @@ app.include_router(qa_services_router, prefix="/api", tags=["QA Services"])
 app.include_router(system_runtime_router, prefix="/api", tags=["System Runtime"])
 app.include_router(user_auth_router, prefix="/api", tags=["User Auth"])
 app.include_router(chat_sessions_router, prefix="/api", tags=["Chat Sessions"])
+app.include_router(pptx_slide_search_router, tags=["PPTX Slide Search"])
 if _ocr_results_available and ocr_results_router is not None:
     app.include_router(ocr_results_router, prefix="/api", tags=["OCR Results"])
 if _collections_available and collections_router is not None:
@@ -230,6 +232,7 @@ app.include_router(qa_services_router, prefix="/weeslee-rag/api", tags=["QA Serv
 app.include_router(system_runtime_router, prefix="/weeslee-rag/api", tags=["System Runtime"])
 app.include_router(user_auth_router, prefix="/weeslee-rag/api", tags=["User Auth"])
 app.include_router(chat_sessions_router, prefix="/weeslee-rag/api", tags=["Chat Sessions"])
+app.include_router(pptx_slide_search_router, prefix="/weeslee-rag", tags=["PPTX Slide Search"])
 if _ocr_results_available and ocr_results_router is not None:
     app.include_router(ocr_results_router, prefix="/weeslee-rag/api", tags=["OCR Results"])
 if _collections_available and collections_router is not None:

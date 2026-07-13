@@ -3811,22 +3811,31 @@
       el.innerHTML = '<div class="empty">검색 결과 없음</div>';
       return;
     }
-    el.innerHTML = results.map((r, i) => `
+    el.innerHTML = results.map((r, i) => {
+      const fileName = r.file_name || r.filename || '';
+      const isPptx = fileName.toLowerCase().endsWith('.pptx') || fileName.toLowerCase().endsWith('.ppt');
+      const slideSearchBtn = isPptx
+        ? `<button onclick="showPptxSlideSearchModal(${r.document_id || 0}, '${esc(fileName)}', [])" class="chip" style="font-size:10px;cursor:pointer;background:var(--primary);color:white;border:none;">🔍 슬라이드 검색</button>`
+        : '';
+
+      return `
       <div style="background:var(--surface2);padding:10px 12px;border-radius:8px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span style="font-weight:600;font-size:12px">#${i + 1} ${esc(r.project_name || r.document_id || r.file_name || '-')}</span>
+          <span style="font-weight:600;font-size:12px">#${i + 1} ${esc(r.project_name || r.document_id || fileName || '-')}</span>
           <span class="chip">${esc(r.category || '-')}</span>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
           ${r.collection_key ? `<span class="chip" style="font-size:10px">${esc(r.collection_key)}</span>` : ''}
           ${r.document_category ? `<span class="chip" style="font-size:10px">${esc(r.document_category)}</span>` : ''}
           ${r.relative_path ? `<span class="chip" style="font-size:10px">${esc(r.relative_path)}</span>` : ''}
+          ${slideSearchBtn}
         </div>
         <div style="font-size:11px;color:var(--muted);max-height:60px;overflow:hidden">${esc((r.content || r.text || '').slice(0, 200))}...</div>
         <div style="font-size:10px;color:var(--muted);margin-top:6px;word-break:break-all">${esc(r.original_source_path || r.source_path || r.source || '-')}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px">유사도 ${(r.score ?? r.similarity ?? 0).toFixed(3)}</div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function runBenchmarkFromTab() {
@@ -15464,5 +15473,193 @@ LIMIT 10`;
       console.error('refreshSelectedStep4OcrMetadata error:', e);
     }
   }
+
+  // ── PPTX 슬라이드 키워드 검색 기능 ────────────────────────────────────────
+  // 시연회 요구사항: PPTX 파일 선택 시 키워드가 있는 슬라이드 번호까지 찾아주기
+
+  /**
+   * PPTX 슬라이드 검색 모달 표시
+   * @param {number} documentId - 문서 ID
+   * @param {string} fileName - 파일명
+   * @param {string[]} keywords - 검색할 키워드 목록
+   */
+  async function showPptxSlideSearchModal(documentId, fileName, keywords = []) {
+    // 기존 모달 제거
+    const existingModal = document.getElementById('pptxSlideSearchModal');
+    if (existingModal) existingModal.remove();
+
+    // 모달 생성
+    const modal = document.createElement('div');
+    modal.id = 'pptxSlideSearchModal';
+    modal.className = 'wr-modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+    const keywordsStr = keywords.join(', ');
+
+    modal.innerHTML = `
+      <div class="wr-modal" style="background:var(--surface);border-radius:12px;padding:24px;width:90%;max-width:700px;max-height:80vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 style="margin:0;font-size:18px;font-weight:600;">🔍 PPTX 슬라이드 키워드 검색</h3>
+          <button onclick="closePptxSlideSearchModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+        </div>
+
+        <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">파일명</div>
+          <div style="font-weight:500;">${esc(fileName)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Document ID: ${documentId}</div>
+        </div>
+
+        <div class="wr-field" style="margin-bottom:16px;">
+          <label style="font-size:12px;font-weight:500;margin-bottom:6px;display:block;">검색 키워드 (쉼표로 구분)</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="pptxSlideKeywordsInput" value="${esc(keywordsStr)}"
+                   style="flex:1;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;"
+                   placeholder="예: AI Agent, 목표모델설계, 행정망">
+            <button onclick="searchPptxSlides(${documentId})" class="wr-btn wr-btn-primary" style="white-space:nowrap;">
+              검색
+            </button>
+          </div>
+        </div>
+
+        <div id="pptxSlideSearchResults" style="min-height:100px;">
+          <div style="text-align:center;color:var(--muted);padding:40px;">
+            키워드를 입력하고 검색 버튼을 클릭하세요.
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // 배경 클릭 시 닫기
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closePptxSlideSearchModal();
+    });
+
+    // 키워드가 있으면 자동 검색
+    if (keywords.length > 0) {
+      searchPptxSlides(documentId);
+    }
+  }
+
+  /**
+   * 슬라이드 검색 모달 닫기
+   */
+  function closePptxSlideSearchModal() {
+    const modal = document.getElementById('pptxSlideSearchModal');
+    if (modal) modal.remove();
+  }
+
+  /**
+   * PPTX 슬라이드에서 키워드 검색 실행
+   * @param {number} documentId - 문서 ID
+   */
+  async function searchPptxSlides(documentId) {
+    const input = document.getElementById('pptxSlideKeywordsInput');
+    const resultsEl = document.getElementById('pptxSlideSearchResults');
+
+    if (!input || !resultsEl) return;
+
+    const keywordsStr = input.value.trim();
+    if (!keywordsStr) {
+      resultsEl.innerHTML = '<div style="text-align:center;color:var(--orange);padding:20px;">키워드를 입력해주세요.</div>';
+      return;
+    }
+
+    const keywords = keywordsStr.split(',').map(k => k.trim()).filter(k => k);
+
+    resultsEl.innerHTML = '<div style="text-align:center;padding:40px;"><span class="spinner"></span> 슬라이드 검색 중...</div>';
+
+    try {
+      const response = await api('/pptx/slides/search', {
+        method: 'POST',
+        body: JSON.stringify({
+          document_id: documentId,
+          keywords: keywords,
+        }),
+      });
+
+      renderPptxSlideSearchResults(response, resultsEl);
+    } catch (e) {
+      resultsEl.innerHTML = `<div style="text-align:center;color:var(--red);padding:20px;">검색 실패: ${esc(e.message)}</div>`;
+    }
+  }
+
+  /**
+   * PPTX 슬라이드 검색 결과 렌더링
+   * @param {object} response - API 응답
+   * @param {HTMLElement} container - 결과를 표시할 컨테이너
+   */
+  function renderPptxSlideSearchResults(response, container) {
+    if (!response.success) {
+      container.innerHTML = `<div style="text-align:center;color:var(--red);padding:20px;">${esc(response.error || '검색 실패')}</div>`;
+      return;
+    }
+
+    const { matched_slides, total_slides, keywords_used, file_name } = response;
+
+    if (!matched_slides || matched_slides.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:30px;">
+          <div style="font-size:40px;margin-bottom:12px;">📭</div>
+          <div style="color:var(--muted);">
+            "${keywords_used.join(', ')}" 키워드가 포함된 슬라이드를 찾지 못했습니다.<br>
+            <span style="font-size:12px;">전체 ${total_slides}개 슬라이드 검색 완료</span>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const summaryHtml = `
+      <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:600;color:var(--green);">✓ ${matched_slides.length}개 슬라이드에서 키워드 발견</span>
+          <span style="font-size:12px;color:var(--muted);">전체 ${total_slides}개 중</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+          검색 키워드: ${keywords_used.map(k => `<span class="chip" style="font-size:10px;">${esc(k)}</span>`).join(' ')}
+        </div>
+      </div>
+    `;
+
+    const slidesHtml = matched_slides.map((slide, idx) => `
+      <div style="background:var(--surface2);padding:14px;border-radius:8px;margin-bottom:10px;border-left:4px solid var(--primary);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-weight:600;font-size:14px;">
+            📄 슬라이드 ${slide.slide_no}
+          </span>
+          <span style="font-size:11px;color:var(--green);font-weight:500;">
+            ${slide.match_count}개 키워드 매칭
+          </span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+          ${slide.matched_keywords.map(k => `<span class="chip" style="background:var(--green);color:white;font-size:10px;">${esc(k)}</span>`).join('')}
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;background:var(--surface);padding:10px;border-radius:6px;max-height:80px;overflow:hidden;">
+          ${esc(slide.preview)}
+        </div>
+      </div>
+    `).join('');
+
+    container.innerHTML = summaryHtml + slidesHtml;
+  }
+
+  /**
+   * 검색 결과에서 PPTX 파일 클릭 시 슬라이드 검색 모달 열기
+   * @param {object} result - 검색 결과 항목
+   * @param {string[]} keywords - 현재 질문에서 추출된 키워드
+   */
+  function openPptxSlideSearch(result, keywords = []) {
+    const documentId = result.document_id || result.id;
+    const fileName = result.file_name || result.filename || `document_${documentId}.pptx`;
+    showPptxSlideSearchModal(documentId, fileName, keywords);
+  }
+
+  // 전역 함수로 노출
+  window.showPptxSlideSearchModal = showPptxSlideSearchModal;
+  window.closePptxSlideSearchModal = closePptxSlideSearchModal;
+  window.searchPptxSlides = searchPptxSlides;
+  window.openPptxSlideSearch = openPptxSlideSearch;
 
 
