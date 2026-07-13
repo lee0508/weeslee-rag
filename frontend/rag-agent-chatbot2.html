@@ -2124,6 +2124,7 @@ function addAgentMessage(){
         const d = document.createElement('div');
         d.className = 'step-detail'; d.innerHTML = html;
         step.appendChild(d); scrollToBottom();
+        return d;                    // 이후 내용 교체가 가능하도록 노드 반환
       },
       done(){ step.classList.remove('active'); step.classList.add('done'); },
     };
@@ -2166,7 +2167,7 @@ async function runAgent(question){
                              || analysis.projectType;
   }
   let terms = analysis.keywords;              // 하이라이트 용어 (LLM 추출 우선)
-  s1.detail(renderHintChips(analysis));
+  const s1Detail = s1.detail(renderHintChips(analysis));
   s1.done();
 
   // ── 단계 2: 검색 전략 ──
@@ -2198,6 +2199,10 @@ async function runAgent(question){
     //  (rag-assistant transformHybridResponse → highlightQueryTerms 와 동일 순서)
     if(Array.isArray(resp.extracted_keywords) && resp.extracted_keywords.length){
       terms = resp.extracted_keywords;
+      // 질문분석 칩의 키워드를 형태소 추출 키워드로 교체 — rag-assistant renderKeywordTags 와 동일 소스
+      //  (analyze-prompt 단계에서는 로컬 단순분리 토큰이므로, 검색 응답의 Kiwi 키워드로 갱신)
+      analysis.keywords = resp.extracted_keywords;
+      if(s1Detail) s1Detail.innerHTML = renderHintChips(analysis);
     }
     // 형태소 추출 키워드를 전역에 저장 (파일 미리보기 하이라이트 등에서 사용)
     _extractedKeywords = Array.isArray(resp.extracted_keywords) ? resp.extracted_keywords : [];
