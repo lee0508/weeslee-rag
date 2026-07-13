@@ -2199,6 +2199,8 @@ async function runAgent(question){
     if(Array.isArray(resp.extracted_keywords) && resp.extracted_keywords.length){
       terms = resp.extracted_keywords;
     }
+    // 형태소 추출 키워드를 전역에 저장 (파일 미리보기 하이라이트 등에서 사용)
+    _extractedKeywords = Array.isArray(resp.extracted_keywords) ? resp.extracted_keywords : [];
     // 턴별 하이라이트 용어를 각 doc 에 실어 모달 렌더러가 사용 (해결안 1)
     docs.forEach(d => { d._terms = terms; });
 
@@ -3279,6 +3281,8 @@ runAgent = runAgentWithSession;
    ============================================================ */
 // 현재 검색 쿼리 (하이라이트용)
 let _currentSearchQuery = '';
+// Kiwi 형태소 분석으로 서버가 추출한 검색 키워드 (하이라이트용) — rag-assistant _extractedKeywords 와 동일 역할
+let _extractedKeywords = [];
 
 function _fileExt(sourcePath) {
   if (!sourcePath) return '';
@@ -3364,18 +3368,39 @@ function _renderPreviewTabs(formats, active) {
   `).join('');
 }
 
-// 검색어 하이라이트 함수
+// 검색어 하이라이트 함수 — Kiwi 형태소 추출 키워드 우선 (rag-assistant highlightQueryTerms 와 동일 순서)
 function highlightQueryTerms(text, query) {
-  if (!text || !query) return escapeHtml(text || '');
-  const terms = query.split(/\s+/).filter(t => t.length >= 2);
-  if (!terms.length) return escapeHtml(text);
-  let result = escapeHtml(text);
-  terms.forEach(term => {
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(${escaped})`, 'gi');
-    result = result.replace(regex, '<span class="query-highlight">$1</span>');
-  });
-  return result;
+  if (!text) return '';
+
+  // 1. 형태소(Kiwi) 추출 키워드가 있으면 우선 사용
+  let terms = [];
+  if (Array.isArray(_extractedKeywords) && _extractedKeywords.length > 0) {
+    terms = _extractedKeywords
+      .filter(k => k && k.length >= 2)
+      .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  }
+
+  // 2. 키워드가 없으면 규칙 기반 폴백 (한국어 조사/불용어 제거)
+  if (terms.length === 0 && query) {
+    const stopWords = new Set([
+      '은', '는', '이', '가', '을', '를', '에', '의', '와', '과', '로', '으로', '에서', '부터', '까지',
+      '대한', '대해', '위한', '위해', '관한', '관해', '통한', '통해',
+      '하는', '있는', '되는', '한', '할', '등', '및', '또는', '그리고',
+      '안에서', '밖에서', '속에서', '폴더', '내용', '파일', '문서',
+      '찾아줘', '찾아', '알려줘', '보여줘', '해줘', '줘'
+    ]);
+    terms = query
+      .split(/[\s,.:;!?]+/)
+      .filter(t => t.length >= 2 && !stopWords.has(t))
+      .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  }
+
+  if (terms.length === 0) return escapeHtml(text);
+
+  // 텍스트를 먼저 이스케이프한 뒤 각 키워드를 <span>으로 감싸기
+  const result = escapeHtml(text);
+  const pattern = new RegExp(`(${terms.join('|')})`, 'gi');
+  return result.replace(pattern, '<span class="query-highlight">$1</span>');
 }
 
 async function openFilePreview(sourcePath, inputPath, docId, preferOriginal = false) {
