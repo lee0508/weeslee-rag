@@ -3814,10 +3814,11 @@
     el.innerHTML = results.map((r, i) => {
       const fileName = r.file_name || r.filename || '';
       const isPptx = fileName.toLowerCase().endsWith('.pptx') || fileName.toLowerCase().endsWith('.ppt');
-      // 파일명의 작은따옴표와 백슬래시 escape
+      // 파일명과 document_id의 특수문자 escape (작은따옴표, 백슬래시)
       const safeFileName = fileName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safeDocId = String(r.document_id || r.id || '0').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       const slideSearchBtn = isPptx
-        ? `<button onclick="showPptxSlideSearchModal(${r.document_id || 0}, '${safeFileName}', [])" class="chip" style="font-size:10px;cursor:pointer;background:var(--primary);color:white;border:none;">🔍 슬라이드 검색</button>`
+        ? `<button onclick="showPptxSlideSearchModal('${safeDocId}', '${safeFileName}', [])" class="chip" style="font-size:10px;cursor:pointer;background:var(--primary);color:white;border:none;">🔍 슬라이드 검색</button>`
         : '';
 
       return `
@@ -15517,7 +15518,7 @@ LIMIT 10`;
             <input type="text" id="pptxSlideKeywordsInput" value="${esc(keywordsStr)}"
                    style="flex:1;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:14px;"
                    placeholder="예: AI Agent, 목표모델설계, 행정망">
-            <button onclick="searchPptxSlides(${documentId})" class="wr-btn wr-btn-primary" style="white-space:nowrap;">
+            <button onclick="searchPptxSlides('${String(documentId).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" class="wr-btn wr-btn-primary" style="white-space:nowrap;">
               검색
             </button>
           </div>

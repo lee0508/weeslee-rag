@@ -22,11 +22,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 
 
+from typing import Union
+
 class SlideSearchRequest(BaseModel):
     """슬라이드 검색 요청"""
-    document_id: int
+    document_id: Optional[Union[int, str]] = None  # 정수 ID 또는 문자열 경로
     keywords: list[str]
     source_id: Optional[str] = None
+    source_path: Optional[str] = None  # 파일 경로로 검색
 
 
 class SlideMatch(BaseModel):
@@ -40,7 +43,7 @@ class SlideMatch(BaseModel):
 class SlideSearchResponse(BaseModel):
     """슬라이드 검색 응답"""
     success: bool
-    document_id: int
+    document_id: Optional[Union[int, str]] = None  # 정수 ID 또는 문자열 경로
     file_name: str
     total_slides: int
     matched_slides: list[SlideMatch]
@@ -48,8 +51,67 @@ class SlideSearchResponse(BaseModel):
     error: Optional[str] = None
 
 
-def _find_document_text(document_id: int, source_id: str = "") -> tuple[Optional[str], str]:
+def _find_document_text_by_path(source_path: str, source_id: str = "") -> tuple[Optional[str], str]:
+    """소스 경로에서 문서 텍스트 파일 찾기. (텍스트, 파일명) 반환."""
+    # source_path에서 파일명 추출
+    path_obj = Path(source_path)
+    file_name = path_obj.name
+    file_stem = path_obj.stem  # 확장자 제외
+
+    # FAISS 메타데이터에서 source_path 매칭 검색
+    indexes_dir = DATA_DIR / "indexes" / "faiss"
+    if indexes_dir.exists():
+        for metadata_path in indexes_dir.glob("*_metadata.jsonl"):
+            try:
+                with open(metadata_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if not line.strip():
+                            continue
+                        meta = json.loads(line)
+                        meta_path = meta.get("source_path", "") or meta.get("original_source_path", "")
+                        meta_file = meta.get("file_name", "") or meta.get("filename", "")
+                        # 경로 또는 파일명 매칭
+                        if source_path in meta_path or file_name == meta_file:
+                            doc_id = meta.get("document_id")
+                            if doc_id:
+                                text, _ = _find_document_text(doc_id, source_id)
+                                if text:
+                                    return text, file_name
+            except Exception:
+                continue
+
+    # Source별 step2_extract에서 파일명으로 검색
+    for source_dir in (DATA_DIR / "source").glob("*"):
+        if not source_dir.is_dir():
+            continue
+        step2_dir = source_dir / "step2_extract" / "documents"
+        if step2_dir.exists():
+            for doc_dir in step2_dir.glob("*"):
+                full_text_path = doc_dir / "full_text.txt"
+                if full_text_path.exists():
+                    # 메타데이터 파일에서 원본 파일명 확인
+                    meta_path = doc_dir / "metadata.json"
+                    if meta_path.exists():
+                        try:
+                            with open(meta_path, "r", encoding="utf-8") as f:
+                                meta = json.load(f)
+                            orig_name = meta.get("file_name", "") or meta.get("filename", "")
+                            if file_name == orig_name or file_stem in orig_name:
+                                text = full_text_path.read_text(encoding="utf-8-sig")
+                                return text, file_name
+                        except Exception:
+                            continue
+
+    return None, ""
+
+
+def _find_document_text(document_id: Union[int, str], source_id: str = "") -> tuple[Optional[str], str]:
     """문서 텍스트 파일 찾기. (텍스트, 파일명) 반환."""
+    # document_id가 경로 문자열인 경우
+    str_id = str(document_id)
+    if "/" in str_id or "\\" in str_id or str_id.endswith((".pptx", ".ppt", ".pdf", ".docx")):
+        return _find_document_text_by_path(str_id, source_id)
+
     # 여러 경로에서 텍스트 파일 탐색
     candidates = []
 
@@ -86,24 +148,33 @@ def _find_document_text(document_id: int, source_id: str = "") -> tuple[Optional
     return None, ""
 
 
-def _find_file_name(document_id: int, source_id: str = "") -> str:
+def _find_file_name(document_id: Union[int, str], source_id: str = "") -> str:
     """문서 파일명 찾기."""
+    # document_id가 경로 문자열인 경우 파일명 직접 추출
+    str_id = str(document_id)
+    if "/" in str_id or "\\" in str_id or str_id.endswith((".pptx", ".ppt", ".pdf", ".docx")):
+        return Path(str_id).name
     # manifest에서 조회
     manifest_dir = DATA_DIR / "staged" / "manifest"
     if manifest_dir.exists():
-        for manifest_file in sorted(manifest_dir.glob("*.jsonl"), reverse=True):
-            try:
-                with open(manifest_file, "r", encoding="utf-8") as f:
-                    for line in f:
-                        if not line.strip():
-                            continue
-                        meta = json.loads(line)
-                        doc_id = meta.get("document_id", "")
-                        # DOC-YYYYMMDD-NNNNNN 형식에서 숫자 ID 매칭
-                        if doc_id.endswith(f"-{document_id:06d}"):
-                            return Path(meta.get("source_path", "")).name
-            except Exception:
-                continue
+        # 정수인 경우에만 포맷 매칭
+        try:
+            int_id = int(document_id)
+            for manifest_file in sorted(manifest_dir.glob("*.jsonl"), reverse=True):
+                try:
+                    with open(manifest_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if not line.strip():
+                                continue
+                            meta = json.loads(line)
+                            doc_id = meta.get("document_id", "")
+                            # DOC-YYYYMMDD-NNNNNN 형식에서 숫자 ID 매칭
+                            if doc_id.endswith(f"-{int_id:06d}"):
+                                return Path(meta.get("source_path", "")).name
+                except Exception:
+                    continue
+        except (ValueError, TypeError):
+            pass
 
     # FAISS 메타데이터에서 조회
     indexes_dir = DATA_DIR / "indexes" / "faiss"
@@ -220,32 +291,38 @@ async def search_slides_by_keywords(request: SlideSearchRequest):
     """
     PPTX 문서에서 키워드가 포함된 슬라이드를 검색합니다.
 
-    - document_id: 문서 ID
+    - document_id: 문서 ID (정수 또는 경로 문자열)
     - keywords: 검색할 키워드 목록 (예: ["AI Agent", "목표모델설계", "행정망"])
     - source_id: (선택) 소스 ID
+    - source_path: (선택) 파일 경로로 검색
 
     응답: 키워드가 매칭된 슬라이드 번호, 매칭된 키워드, 미리보기 텍스트
     """
     if not request.keywords:
         raise HTTPException(status_code=400, detail="키워드를 1개 이상 입력해주세요.")
 
+    # document_id 또는 source_path 중 하나는 필수
+    doc_identifier = request.document_id or request.source_path
+    if not doc_identifier:
+        raise HTTPException(status_code=400, detail="document_id 또는 source_path를 입력해주세요.")
+
     # 문서 텍스트 찾기
-    text, _ = _find_document_text(request.document_id, request.source_id or "")
+    text, _ = _find_document_text(doc_identifier, request.source_id or "")
     if not text:
         raise HTTPException(
             status_code=404,
-            detail=f"문서 ID {request.document_id}의 텍스트를 찾을 수 없습니다."
+            detail=f"문서 '{doc_identifier}'의 텍스트를 찾을 수 없습니다."
         )
 
     # 파일명 찾기
-    file_name = _find_file_name(request.document_id, request.source_id or "")
+    file_name = _find_file_name(doc_identifier, request.source_id or "")
 
     # 슬라이드 파싱
     slides = _parse_slides(text)
     if not slides:
         return SlideSearchResponse(
             success=True,
-            document_id=request.document_id,
+            document_id=doc_identifier,
             file_name=file_name,
             total_slides=0,
             matched_slides=[],
@@ -258,7 +335,7 @@ async def search_slides_by_keywords(request: SlideSearchRequest):
 
     return SlideSearchResponse(
         success=True,
-        document_id=request.document_id,
+        document_id=doc_identifier,
         file_name=file_name,
         total_slides=len(slides),
         matched_slides=matched_slides,
@@ -268,50 +345,68 @@ async def search_slides_by_keywords(request: SlideSearchRequest):
 
 @router.get("/slides/search")
 async def search_slides_get(
-    document_id: int = Query(..., description="문서 ID"),
+    document_id: Optional[str] = Query(None, description="문서 ID 또는 경로"),
     keywords: str = Query(..., description="쉼표로 구분된 키워드 목록"),
     source_id: Optional[str] = Query(None, description="소스 ID (선택)"),
+    source_path: Optional[str] = Query(None, description="파일 경로 (선택)"),
 ):
     """
     PPTX 문서에서 키워드가 포함된 슬라이드를 검색합니다. (GET 방식)
 
-    - document_id: 문서 ID
+    - document_id: 문서 ID 또는 경로 문자열
     - keywords: 쉼표로 구분된 키워드 목록 (예: "AI Agent,목표모델설계,행정망")
     - source_id: (선택) 소스 ID
+    - source_path: (선택) 파일 경로
     """
     keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
     if not keyword_list:
         raise HTTPException(status_code=400, detail="키워드를 1개 이상 입력해주세요.")
 
+    # document_id를 정수로 변환 시도, 실패하면 문자열 그대로 사용
+    doc_id: Optional[Union[int, str]] = None
+    if document_id:
+        try:
+            doc_id = int(document_id)
+        except ValueError:
+            doc_id = document_id
+
     request = SlideSearchRequest(
-        document_id=document_id,
+        document_id=doc_id,
         keywords=keyword_list,
         source_id=source_id,
+        source_path=source_path,
     )
     return await search_slides_by_keywords(request)
 
 
 @router.get("/documents/{document_id}/slides")
 async def get_document_slides(
-    document_id: int,
+    document_id: str,
     source_id: Optional[str] = Query(None, description="소스 ID (선택)"),
 ):
     """
     PPTX 문서의 전체 슬라이드 목록을 반환합니다.
 
-    - document_id: 문서 ID
+    - document_id: 문서 ID (정수 또는 경로 문자열)
     - source_id: (선택) 소스 ID
     """
+    # document_id를 정수로 변환 시도, 실패하면 문자열 그대로 사용
+    doc_id: Union[int, str]
+    try:
+        doc_id = int(document_id)
+    except ValueError:
+        doc_id = document_id
+
     # 문서 텍스트 찾기
-    text, _ = _find_document_text(document_id, source_id or "")
+    text, _ = _find_document_text(doc_id, source_id or "")
     if not text:
         raise HTTPException(
             status_code=404,
-            detail=f"문서 ID {document_id}의 텍스트를 찾을 수 없습니다."
+            detail=f"문서 '{doc_id}'의 텍스트를 찾을 수 없습니다."
         )
 
     # 파일명 찾기
-    file_name = _find_file_name(document_id, source_id or "")
+    file_name = _find_file_name(doc_id, source_id or "")
 
     # 슬라이드 파싱
     slides = _parse_slides(text)
@@ -333,7 +428,7 @@ async def get_document_slides(
 
     return {
         "success": True,
-        "document_id": document_id,
+        "document_id": doc_id,
         "file_name": file_name,
         "total_slides": len(slides),
         "slides": slides_info,
