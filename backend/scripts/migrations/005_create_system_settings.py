@@ -143,8 +143,8 @@ INITIAL_DATA = [
      "기본 목록 조회 제한", False, "all", False, True, 30),
 
     # ===== 카테고리: ocr (OCR 설정) =====
-    ("ocr", "ocr_engine", "olmocr", "string",
-     "OCR 엔진 (olmocr, easyocr, tesseract)", False, "all", False, True, 10),
+    ("ocr", "ocr_engine", "easyocr", "string",
+     "OCR 엔진 (easyocr, tesseract, olmocr)", False, "all", False, True, 10),
     ("ocr", "ocr_dpi", "400", "int",
      "OCR 이미지 DPI", False, "all", False, True, 20),
     ("ocr", "ocr_language", "kor+eng", "string",
