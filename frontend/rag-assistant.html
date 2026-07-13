@@ -6985,12 +6985,18 @@
       resultsEl.innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto 10px"></div>슬라이드 검색 중...</div>';
 
       try {
+        // _currentDocDetail에서 source_path와 source_id 가져오기
+        const sourcePath = _currentDocDetail?.source_path || _currentDocDetail?.original_source_path || '';
+        const sourceId = _currentDocDetail?.source_id || '';
+
         const response = await fetch(`${API_BASE}/pptx/slides/search`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             document_id: documentId,
             keywords: keywords,
+            source_path: sourcePath,
+            source_id: sourceId,
           }),
         });
 
