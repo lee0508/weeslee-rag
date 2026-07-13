@@ -6695,13 +6695,18 @@
       // 탭 메뉴 생성
       const docDetailChunks = document.getElementById('docDetailChunks');
       if (docDetailChunks) {
+        // PPTX 파일 여부 확인
+        const docFileName = doc.file_name || doc.source_path || '';
+        const isPptxFile = /\.pptx?$/i.test(docFileName);
+
         const tabs = `
-          <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px">
+          <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px;flex-wrap:wrap">
             <button class="btn btn-sm ${viewMode === 'original' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('original'); openDocOriginalPreview();">📄 원문</button>
             ${doc.summary_available || doc.summary ? `<button class="btn btn-sm ${viewMode === 'summary' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('summary')">📝 요약</button>` : ''}
             ${doc.chunks && doc.chunks.length > 0 ? `<button class="btn btn-sm ${viewMode === 'chunks' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('chunks')">🔍 청크</button>` : ''}
             ${doc.evidence_snippets && doc.evidence_snippets.length > 0 ? `<button class="btn btn-sm ${viewMode === 'evidence' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('evidence')">💡 근거</button>` : ''}
             ${doc.graph_available || doc.graph_context?.length > 0 || doc.relations?.length > 0 || doc.graph_relations?.length > 0 ? `<button class="btn btn-sm ${viewMode === 'graph' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('graph')">🔗 Graph</button>` : ''}
+            ${isPptxFile ? `<button class="btn btn-sm ${viewMode === 'slides' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocDetailTab('slides')">📊 슬라이드</button>` : ''}
           </div>
         `;
 
@@ -6774,6 +6779,25 @@
           } else {
             content = '<div style="color:var(--gray-400);font-size:12px">Graph 정보 없음</div>';
           }
+        } else if (viewMode === 'slides') {
+          // PPTX 슬라이드 검색 UI
+          const safeDocId = String(doc.document_id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          content = `
+            <div style="margin-bottom:16px;">
+              <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--navy)">📊 PPTX 슬라이드 키워드 검색</div>
+              <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <input type="text" id="ragSlideKeywordsInput" placeholder="검색 키워드 (쉼표로 구분)"
+                       style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;"
+                       value="${escapeHtml(_currentSearchQuery || document.getElementById('query')?.value || '')}">
+                <button class="btn btn-primary btn-sm" onclick="searchPptxSlidesInDoc('${safeDocId}')">검색</button>
+              </div>
+              <div id="ragSlideSearchResults" style="min-height:60px;">
+                <div style="text-align:center;color:var(--text-s);padding:20px;font-size:12px;">
+                  키워드를 입력하고 검색 버튼을 클릭하세요.
+                </div>
+              </div>
+            </div>
+          `;
         }
 
         docDetailChunks.innerHTML = tabs + content;
@@ -6941,6 +6965,94 @@
 
         return summary;
       }).join('');
+    }
+
+    // PPTX 슬라이드 키워드 검색 함수
+    async function searchPptxSlidesInDoc(documentId) {
+      const input = document.getElementById('ragSlideKeywordsInput');
+      const resultsEl = document.getElementById('ragSlideSearchResults');
+
+      if (!input || !resultsEl) return;
+
+      const keywordsStr = input.value.trim();
+      if (!keywordsStr) {
+        resultsEl.innerHTML = '<div style="text-align:center;color:var(--amber);padding:20px;font-size:12px;">키워드를 입력해주세요.</div>';
+        return;
+      }
+
+      const keywords = keywordsStr.split(',').map(k => k.trim()).filter(k => k);
+
+      resultsEl.innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto 10px"></div>슬라이드 검색 중...</div>';
+
+      try {
+        const response = await fetch(`${API_BASE}/pptx/slides/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            document_id: documentId,
+            keywords: keywords,
+          }),
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        renderPptxSlideResults(data, resultsEl);
+      } catch (e) {
+        resultsEl.innerHTML = `<div style="text-align:center;color:var(--red);padding:20px;font-size:12px;">검색 실패: ${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    // PPTX 슬라이드 검색 결과 렌더링
+    function renderPptxSlideResults(response, container) {
+      if (!response.success) {
+        container.innerHTML = `<div style="text-align:center;color:var(--red);padding:20px;font-size:12px;">${escapeHtml(response.error || '검색 실패')}</div>`;
+        return;
+      }
+
+      const { matched_slides, total_slides, keywords_used } = response;
+
+      if (!matched_slides || matched_slides.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:30px;">
+            <div style="font-size:32px;margin-bottom:12px;">📭</div>
+            <div style="color:var(--text-s);font-size:12px;">
+              "${keywords_used.join(', ')}" 키워드가 포함된 슬라이드를 찾지 못했습니다.<br>
+              <span style="font-size:11px;">전체 ${total_slides}개 슬라이드 검색 완료</span>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const summaryHtml = `
+        <div style="margin-bottom:12px;padding:10px;background:var(--surface);border-radius:6px;border-left:3px solid var(--green);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:var(--green);font-size:12px;">✓ ${matched_slides.length}개 슬라이드에서 키워드 발견</span>
+            <span style="font-size:11px;color:var(--text-s);">전체 ${total_slides}개 중</span>
+          </div>
+          <div style="font-size:10px;color:var(--text-s);margin-top:6px;">
+            검색 키워드: ${keywords_used.map(k => `<span style="display:inline-block;padding:2px 6px;background:var(--surface2);border-radius:3px;font-size:10px;margin-right:4px">${escapeHtml(k)}</span>`).join('')}
+          </div>
+        </div>
+      `;
+
+      const slidesHtml = matched_slides.map((slide) => `
+        <div style="background:var(--surface);padding:12px;border-radius:6px;margin-bottom:8px;border-left:3px solid var(--navy);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:600;font-size:12px;">📄 슬라이드 ${slide.slide_no}</span>
+            <span style="font-size:10px;color:var(--green);font-weight:500;">${slide.match_count}개 키워드 매칭</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+            ${slide.matched_keywords.map(k => `<span style="display:inline-block;padding:2px 6px;background:var(--green);color:white;border-radius:3px;font-size:10px;">${escapeHtml(k)}</span>`).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--text-s);line-height:1.5;background:var(--gray-50);padding:8px;border-radius:4px;max-height:60px;overflow:hidden;">
+            ${escapeHtml(slide.preview || '')}
+          </div>
+        </div>
+      `).join('');
+
+      container.innerHTML = summaryHtml + slidesHtml;
     }
 
     function closeDocDetail() {

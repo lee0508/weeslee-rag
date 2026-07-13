@@ -508,19 +508,35 @@ def _docs_from_faiss_meta(path: Path) -> list[dict]:
             meta = row.get("metadata") or {}
             source_path = row.get("source_path") or meta.get("source_path", "")
             # 작성일: 2026-05-12 | 기능: metadata.project_name 없으면 source_path 경로에서 추출
-            project_name = meta.get("project_name") or _project_name_from_path(source_path)
+            project_name = row.get("project_name") or meta.get("project_name") or _project_name_from_path(source_path)
+            organization = row.get("organization") or meta.get("organization", "")
+            tags_flat = _normalize_tag_values(row.get("tags") or meta.get("tags"))
+            keywords_flat = _normalize_keyword_values(row.get("keywords") or meta.get("keywords"))
             base_doc = {
                 "document_id": doc_id,
                 "category":    row.get("category") or meta.get("category", ""),
                 "source_path": source_path,
-                "extension":   meta.get("extension", ""),
-                "document_group":         meta.get("document_group", ""),
-                "document_category":      meta.get("document_category", ""),
-                "section_type":           meta.get("section_type", ""),
+                "file_name": row.get("file_name") or meta.get("file_name", ""),
+                "extension":   row.get("extension") or meta.get("extension", ""),
+                "document_group":         row.get("document_group") or meta.get("document_group", ""),
+                "document_category":      row.get("document_category") or meta.get("document_category", ""),
+                "section_type":           row.get("section_type") or meta.get("section_type", ""),
                 "project_name":             project_name,
-                "organization":             meta.get("organization", ""),
-                "organization_confidence":  meta.get("organization_confidence", 0.0),
-                "project_confidence":       meta.get("project_confidence", 0.0),
+                "organization":             organization,
+                "organization_type":        row.get("organization_type") or meta.get("organization_type", ""),
+                "client_type":              row.get("client_type") or meta.get("client_type", ""),
+                "project_type":             row.get("project_type") or meta.get("project_type", ""),
+                "year":                     row.get("year") or meta.get("year", ""),
+                "tags_flat":                tags_flat,
+                "keywords_flat":            keywords_flat,
+                "tag_count":                len(tags_flat),
+                "keyword_count":            len(keywords_flat),
+                "meta_status":              row.get("meta_status") or meta.get("meta_status", ""),
+                "include_in_graph":         row.get("include_in_graph", meta.get("include_in_graph", True)),
+                "include_in_rag":           row.get("include_in_rag", meta.get("include_in_rag", True)),
+                "updated_at":               row.get("updated_at") or meta.get("updated_at", ""),
+                "organization_confidence":  row.get("organization_confidence") or meta.get("organization_confidence", 0.0),
+                "project_confidence":       row.get("project_confidence") or meta.get("project_confidence", 0.0),
                 # ID 필드 추가 (2026-06-30)
                 "source_id":     row.get("source_id") or meta.get("source_id", ""),
                 "dataset_id":    row.get("dataset_id") or meta.get("dataset_id", ""),

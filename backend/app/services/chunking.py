@@ -7,6 +7,10 @@ Splits documents into optimal chunks for embedding and retrieval
 - 한국어 문장 단위 청킹 (kss 라이브러리) 지원
 - 임베딩 모델 최대 토큰 제한 검증
 - 토큰 초과 시 경고 로깅
+
+개선사항 (2026-07-13):
+- RFP 요구사항 단위 청킹 지원
+- RFP 문서 자동 감지 및 요구사항 테이블 파싱
 """
 import logging
 import re
@@ -539,3 +543,85 @@ chunking_service = ChunkingService(
 def get_chunking_service() -> ChunkingService:
     """Dependency to get chunking service"""
     return chunking_service
+
+
+# ── RFP 요구사항 단위 청킹 지원 ──────────────────────────────────────────────
+
+def chunk_rfp_requirements(
+    text: str,
+    document_id: int,
+    file_name: str = "",
+    fallback_to_standard: bool = True
+) -> List[TextChunk]:
+    """
+    RFP 문서에서 요구사항 단위 청킹 수행.
+
+    RFP 문서가 아니거나 요구사항이 없으면 표준 청킹으로 폴백.
+
+    Args:
+        text: 문서 텍스트
+        document_id: 문서 ID
+        file_name: 파일명
+        fallback_to_standard: RFP 아닐 경우 표준 청킹 사용 여부
+
+    Returns:
+        TextChunk 목록
+    """
+    try:
+        from app.services.rfp_requirement_parser import (
+            RfpRequirementParser,
+            is_rfp_document,
+        )
+
+        # RFP 문서 여부 확인
+        if not is_rfp_document(file_name, text):
+            if fallback_to_standard:
+                return chunking_service.chunk_document(text, document_id, file_name)
+            return []
+
+        # RFP 파싱
+        parser = RfpRequirementParser()
+        result = parser.parse_text(text, file_name)
+
+        if not result.requirements:
+            # 요구사항 추출 실패 시 표준 청킹
+            if fallback_to_standard:
+                logger.info(f"RFP 요구사항 없음, 표준 청킹 사용: {file_name}")
+                return chunking_service.chunk_document(text, document_id, file_name)
+            return []
+
+        # 요구사항을 TextChunk로 변환
+        chunks = []
+        for i, req in enumerate(result.requirements):
+            chunk_text = req.to_chunk_text()
+            metadata = req.to_metadata()
+            metadata['document_id'] = document_id
+            metadata['document_name'] = file_name
+
+            chunk = TextChunk(
+                content=chunk_text,
+                index=i,
+                start_char=req.char_start,
+                end_char=req.char_end,
+                token_count=chunking_service.estimate_tokens(chunk_text),
+                page_number=None,
+                metadata=metadata,
+            )
+            chunks.append(chunk)
+
+        logger.info(
+            f"RFP 요구사항 청킹 완료: {file_name}, "
+            f"{len(chunks)}개 요구사항 청크 생성"
+        )
+        return chunks
+
+    except ImportError:
+        logger.warning("rfp_requirement_parser 모듈 없음, 표준 청킹 사용")
+        if fallback_to_standard:
+            return chunking_service.chunk_document(text, document_id, file_name)
+        return []
+    except Exception as e:
+        logger.error(f"RFP 청킹 실패: {e}")
+        if fallback_to_standard:
+            return chunking_service.chunk_document(text, document_id, file_name)
+        return []
