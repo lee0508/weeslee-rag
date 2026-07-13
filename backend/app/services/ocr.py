@@ -3,11 +3,26 @@ OCR Service using olmOCR
 Converts scanned PDFs and images to markdown/text
 """
 import os
+import sys
 import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from app.core.config import settings
+
+
+def _resolve_olmocr_bin() -> str:
+    """olmocr CLI 경로 해석.
+
+    systemd 서비스는 venv 활성화 없이 .venv/bin/python 으로 실행되어
+    PATH 에 .venv/bin 이 없다. 이름('olmocr')으로 호출하면 FileNotFoundError 로
+    실패해 조용히 tesseract 로 degrade 되므로, 실행 중인 파이썬과 같은
+    디렉토리(=venv bin)의 olmocr 를 우선 사용하고, 없으면 PATH 폴백한다.
+    """
+    candidate = os.path.join(os.path.dirname(sys.executable), "olmocr")
+    if os.path.exists(candidate):
+        return candidate
+    return "olmocr"
 
 
 class OCRService:
@@ -49,9 +64,9 @@ class OCRService:
         os.makedirs(work_dir, exist_ok=True)
 
         try:
-            # Run olmocr command
+            # Run olmocr command (venv 절대경로 우선 — PATH 미포함 대비)
             cmd = [
-                "olmocr",
+                _resolve_olmocr_bin(),
                 work_dir,
                 "--markdown" if output_format == "markdown" else "--text",
                 "--pdfs", pdf_path
@@ -121,7 +136,7 @@ class OCRService:
         try:
             # For images, we need to specify the input differently
             cmd = [
-                "olmocr",
+                _resolve_olmocr_bin(),
                 work_dir,
                 "--markdown" if output_format == "markdown" else "--text",
                 "--images", image_path

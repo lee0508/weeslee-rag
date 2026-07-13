@@ -194,7 +194,7 @@ class PDFExtractor(BaseExtractor):
         self.ocr_threshold = ocr_threshold
         self.ocr_use_gpu = ocr_use_gpu
         # DB 설정 우선, 없으면 하드코딩 fallback
-        self.ocr_dpi = max(72, int(ocr_dpi or _get_db_ocr_setting("ocr_dpi", 200)))
+        self.ocr_dpi = max(72, int(ocr_dpi or _get_db_ocr_setting("ocr_dpi", 300)))
         self.ocr_language = str(ocr_language or _get_db_ocr_setting("ocr_language", "kor+eng"))
         self.extract_tables = extract_tables
         self.table_as_markdown = table_as_markdown
