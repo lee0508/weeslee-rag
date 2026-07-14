@@ -257,8 +257,10 @@ class OCRConfig:
                 return default
 
         return {
-            "max_file_size_mb": int(get_setting("ocr_max_file_size_mb", 50)),
-            "max_pages": int(get_setting("ocr_max_pages", 200)),
-            "large_file_dpi": int(get_setting("ocr_large_file_dpi", 200)),
+            "max_file_size_mb": int(get_setting("ocr_max_file_size_mb", 100)),  # 100MB까지 허용
+            "max_pages": int(get_setting("ocr_max_pages", 300)),  # 300페이지까지 허용
+            "large_file_dpi": int(get_setting("ocr_large_file_dpi", 200)),  # 10MB+ 파일
             "large_file_threshold_mb": int(get_setting("ocr_large_file_threshold_mb", 10)),
+            "very_large_file_dpi": int(get_setting("ocr_very_large_file_dpi", 150)),  # 30MB+ 파일
+            "very_large_file_threshold_mb": int(get_setting("ocr_very_large_file_threshold_mb", 30)),
         }

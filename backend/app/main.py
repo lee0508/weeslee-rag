@@ -105,6 +105,15 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"Database initialization skipped: {exc}")
 
+    # 서버 재시작 시 중단된 Job 상태 정리
+    try:
+        from app.services.dataset_builder_lock import mark_stale_jobs_interrupted
+        updated_count = mark_stale_jobs_interrupted()
+        if updated_count > 0:
+            print(f"Interrupted jobs marked: {updated_count}")
+    except Exception as exc:
+        print(f"Interrupted job cleanup skipped: {exc}")
+
     yield
 
     # Shutdown

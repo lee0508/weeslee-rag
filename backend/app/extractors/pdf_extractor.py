@@ -250,8 +250,19 @@ class PDFExtractor(BaseExtractor):
             large_settings = OCRConfig.get_large_file_settings()
             try:
                 file_size_mb = Path(file_path).stat().st_size / (1024 * 1024)
-                if file_size_mb > large_settings["large_file_threshold_mb"]:
-                    original_dpi = cfg.render.dpi
+                original_dpi = cfg.render.dpi
+
+                # 초대용량 파일 (30MB+): DPI 150
+                very_large_threshold = large_settings.get("very_large_file_threshold_mb", 30)
+                very_large_dpi = large_settings.get("very_large_file_dpi", 150)
+
+                if file_size_mb > very_large_threshold:
+                    cfg.render.dpi = very_large_dpi
+                    logger.info(
+                        f"[PDF] 초대용량 파일 감지 ({file_size_mb:.1f}MB > {very_large_threshold}MB), "
+                        f"DPI 조정: {original_dpi} -> {cfg.render.dpi}"
+                    )
+                elif file_size_mb > large_settings["large_file_threshold_mb"]:
                     cfg.render.dpi = large_settings["large_file_dpi"]
                     logger.info(
                         f"[PDF] 대용량 파일 감지 ({file_size_mb:.1f}MB), "
