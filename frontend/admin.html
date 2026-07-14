@@ -536,6 +536,37 @@ POST /api/admin/wiki/build</code>
           </div>
         </div>
 
+        <!-- 스캔 폴더 선택 영역 -->
+        <div class="wr-card" style="margin-bottom:20px;border-left:4px solid var(--amber)">
+          <h3 class="wr-card-title" style="display:flex;align-items:center;gap:8px">
+            <span>📂</span> 스캔 폴더 선택 (선택사항)
+          </h3>
+          <p style="color:var(--wr-muted);margin-bottom:12px;font-size:13px">
+            특정 하위 폴더만 스캔하려면 아래에서 선택하세요. 선택하지 않으면 전체 Source Root를 스캔합니다.
+          </p>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:11px;color:var(--wr-muted);display:block;margin-bottom:4px">스캔 경로 (상대 경로 또는 절대 경로)</label>
+              <input type="text" id="step1ScanPath" class="wr-input" style="width:100%" placeholder="예: 01. RFP 또는 /mnt/custom/path">
+            </div>
+            <button class="wr-btn" type="button" onclick="loadStep1FolderList()" style="margin-top:16px">
+              📁 폴더 목록 조회
+            </button>
+            <button class="wr-btn" type="button" onclick="clearStep1ScanPath()" style="margin-top:16px">
+              ✕ 경로 초기화
+            </button>
+          </div>
+          <div id="step1FolderListContainer" style="margin-top:12px;display:none">
+            <div style="font-size:11px;color:var(--wr-muted);margin-bottom:8px">
+              현재 경로: <code id="step1CurrentPath">-</code>
+              <button class="wr-btn" type="button" onclick="navigateStep1FolderUp()" style="font-size:10px;padding:2px 8px;margin-left:8px">
+                ↑ 상위 폴더
+              </button>
+            </div>
+            <div id="step1FolderList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+
         <div class="wr-card">
           <h3 class="wr-card-title">Source / 문서 분류 기준</h3>
           <div class="wr-callout wr-callout-info">
@@ -6118,7 +6149,7 @@ POST /api/admin/faiss/activate</code>
 </div>
 
 <script src="config.js?v=20260624a"></script>
-  <script src="assets/js/admin/admin-main.js?v=20260712a"></script>
+  <script src="assets/js/admin/admin-main.js?v=20260714a"></script>
 <script src="assets/js/admin/admin-docs-layout.js?v=20260622b"></script>
 
 <!-- Confirm modal -->

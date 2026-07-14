@@ -11370,6 +11370,97 @@ LIMIT 10`;
     }
   }
 
+  // Step 1 폴더 선택 관련 함수들
+  let _step1CurrentParentPath = '';  // 현재 탐색 중인 상위 경로
+
+  async function loadStep1FolderList(parentPath = '') {
+    const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
+    if (!sourceId) {
+      showToast('Document Source를 먼저 선택하세요.', 'warning');
+      return;
+    }
+
+    const container = document.getElementById('step1FolderListContainer');
+    const listEl = document.getElementById('step1FolderList');
+    const currentPathEl = document.getElementById('step1CurrentPath');
+
+    if (!container || !listEl) return;
+
+    _step1CurrentParentPath = parentPath;
+    container.style.display = 'block';
+    listEl.innerHTML = '<div style="color:#888;padding:12px">폴더 목록 조회 중...</div>';
+
+    try {
+      const params = new URLSearchParams({ source_id: sourceId });
+      if (parentPath) params.append('parent_path', parentPath);
+
+      const r = await fetch(apiUrl(`/api/admin/dataset-builder/step1/folders?${params}`), {
+        headers: authHeaders(),
+      });
+      const d = await r.json().catch(() => ({}));
+
+      if (!r.ok || d.success === false) {
+        throw new Error(d.message || `HTTP ${r.status}`);
+      }
+
+      currentPathEl.textContent = d.base_path || '(루트)';
+
+      if (!d.folders || d.folders.length === 0) {
+        listEl.innerHTML = '<div style="color:#888;padding:12px">하위 폴더가 없습니다.</div>';
+        return;
+      }
+
+      listEl.innerHTML = d.folders.map(folder => `
+        <div class="wr-folder-item" style="background:#2a2a3a;border-radius:6px;padding:10px 12px;cursor:pointer;border:1px solid #333;transition:border-color 0.2s"
+             onclick="selectStep1Folder('${escapeHtml(folder.path)}')"
+             onmouseover="this.style.borderColor='var(--amber)'"
+             onmouseout="this.style.borderColor='#333'">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">${folder.subdir_count > 0 ? '📂' : '📁'}</span>
+            <div style="flex:1;overflow:hidden">
+              <div style="font-weight:600;color:#f2f2f2;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(folder.name)}</div>
+              <div style="font-size:11px;color:var(--wr-muted)">파일 ${folder.file_count}개 ${folder.subdir_count > 0 ? `| 하위 폴더 ${folder.subdir_count}개` : ''}</div>
+            </div>
+            ${folder.subdir_count > 0 ? `<button class="wr-btn" type="button" onclick="event.stopPropagation();loadStep1FolderList('${escapeHtml(folder.path)}')" style="font-size:10px;padding:2px 6px">→</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      listEl.innerHTML = `<div style="color:#ff7777;padding:12px">폴더 목록 조회 실패: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  function selectStep1Folder(path) {
+    const input = document.getElementById('step1ScanPath');
+    if (input) {
+      input.value = path;
+      showToast(`스캔 경로 설정: ${path}`, 'success', 2000);
+    }
+  }
+
+  function clearStep1ScanPath() {
+    const input = document.getElementById('step1ScanPath');
+    if (input) {
+      input.value = '';
+      showToast('스캔 경로 초기화 (전체 Source Root 스캔)', 'info', 2000);
+    }
+    _step1CurrentParentPath = '';
+    const container = document.getElementById('step1FolderListContainer');
+    if (container) container.style.display = 'none';
+  }
+
+  function navigateStep1FolderUp() {
+    if (!_step1CurrentParentPath) {
+      showToast('이미 최상위 폴더입니다.', 'info');
+      return;
+    }
+    // 경로에서 마지막 세그먼트 제거
+    const parts = _step1CurrentParentPath.split('/').filter(p => p);
+    parts.pop();
+    const newPath = parts.join('/');
+    loadStep1FolderList(newPath);
+  }
+
   function clearStep1Console() {
     const panel = document.getElementById('step1ConsolePanel');
     if (!panel) return;
@@ -11837,11 +11928,17 @@ LIMIT 10`;
     showToast('Source Scan 실행 중...', 'info');
     try {
       const sourceId = document.getElementById('ctxSource')?.value?.trim() || '';
-      appendStep1Log('info', `POST /api/admin/dataset-builder/step1/scan source_id=${sourceId}`);
+      const scanPath = document.getElementById('step1ScanPath')?.value?.trim() || '';
+      const scanMsg = scanPath ? `source_id=${sourceId}, scan_path=${scanPath}` : `source_id=${sourceId}`;
+      appendStep1Log('info', `POST /api/admin/dataset-builder/step1/scan ${scanMsg}`);
+      const requestBody = { source_id: sourceId, overwrite: _wizardForceRebuild || false };
+      if (scanPath) {
+        requestBody.scan_path = scanPath;
+      }
       const r = await fetch(apiUrl('/api/admin/dataset-builder/step1/scan'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_id: sourceId, overwrite: _wizardForceRebuild || false }),
+        body: JSON.stringify(requestBody),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.success === false) {

@@ -208,13 +208,14 @@ def get_document_source(source_id: str) -> Optional[Dict[str, Any]]:
     return get_record("document_sources", "source_id", source_id)
 
 
-def get_scan_root(source: Dict[str, Any]) -> Path:
+def get_scan_root(source: Dict[str, Any], scan_path: str = "") -> Path:
     """Document Source에서 실제 스캔 루트 경로를 계산한다."""
-    return resolve_scan_root(source)
+    return resolve_scan_root(source, scan_path)
 
 
 class ScanRequest(BaseModel):
     source_id: Optional[str] = None
+    scan_path: Optional[str] = None  # 스캔할 하위 경로 또는 절대 경로 (예: "01. RFP" 또는 "/mnt/custom/path")
     overwrite: bool = False
     compute_checksum: bool = False  # 전체 파일 checksum 계산 여부
 
@@ -222,6 +223,7 @@ class ScanRequest(BaseModel):
 class ScanResponse(BaseModel):
     success: bool
     source_id: str
+    scan_path: Optional[str] = None  # 요청된 스캔 경로 (하위 경로 또는 절대 경로)
     scan_root: str
     total_files: int
     supported_files: int
@@ -595,6 +597,91 @@ def _build_metadata_source_text(
     return "\n".join(part for part in parts if part).strip()
 
 
+class FolderListResponse(BaseModel):
+    """폴더 목록 응답"""
+    success: bool
+    source_id: str
+    base_path: str
+    folders: List[Dict[str, Any]]  # {"name": "01. RFP", "path": "01. RFP", "file_count": 123}
+    message: str
+
+
+@router.get("/step1/folders")
+async def step1_list_folders(
+    source_id: str = Query(..., description="Document Source ID"),
+    parent_path: str = Query("", description="부모 폴더 경로 (빈 문자열이면 루트)"),
+):
+    """
+    Step 1: 스캔 가능한 폴더 목록 조회
+
+    source_id의 mount_path/root_subpath 하위 폴더들을 반환합니다.
+    parent_path를 지정하면 해당 경로의 하위 폴더만 반환합니다.
+    """
+    source = get_document_source(source_id)
+    if not source:
+        return FolderListResponse(
+            success=False,
+            source_id=source_id,
+            base_path="",
+            folders=[],
+            message=f"Document Source '{source_id}'를 찾을 수 없습니다."
+        )
+
+    # 기본 스캔 루트 계산
+    base_root = resolve_scan_root(source, parent_path)
+    base_path_str = str(base_root)
+
+    if not base_root.exists():
+        return FolderListResponse(
+            success=False,
+            source_id=source_id,
+            base_path=base_path_str,
+            folders=[],
+            message=f"경로를 찾을 수 없습니다: {base_path_str}"
+        )
+
+    folders = []
+    try:
+        for entry in sorted(base_root.iterdir()):
+            if entry.is_dir() and not entry.name.startswith("."):
+                # 하위 파일 수 간략 카운트 (1단계만)
+                try:
+                    file_count = sum(1 for f in entry.iterdir() if f.is_file())
+                    subdir_count = sum(1 for f in entry.iterdir() if f.is_dir())
+                except PermissionError:
+                    file_count = 0
+                    subdir_count = 0
+
+                # parent_path 기준 상대 경로 계산
+                if parent_path:
+                    folder_path = f"{parent_path}/{entry.name}"
+                else:
+                    folder_path = entry.name
+
+                folders.append({
+                    "name": entry.name,
+                    "path": folder_path,
+                    "file_count": file_count,
+                    "subdir_count": subdir_count,
+                })
+    except Exception as e:
+        return FolderListResponse(
+            success=False,
+            source_id=source_id,
+            base_path=base_path_str,
+            folders=[],
+            message=f"폴더 목록 조회 실패: {str(e)}"
+        )
+
+    return FolderListResponse(
+        success=True,
+        source_id=source_id,
+        base_path=base_path_str,
+        folders=folders,
+        message=f"{len(folders)}개 폴더 조회 완료"
+    )
+
+
 @router.post("/step1/scan", response_model=ScanResponse)
 async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db)):
     """
@@ -643,14 +730,16 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
             message=f"Document Source '{source_id}'를 찾을 수 없습니다."
         )
 
-    # 2. 스캔 루트 경로 계산
-    scan_root = get_scan_root(source)
+    # 2. 스캔 루트 경로 계산 (scan_path가 있으면 해당 경로 사용)
+    scan_path = (request.scan_path or "").strip()
+    scan_root = get_scan_root(source, scan_path)
     scan_root_str = str(scan_root)
 
     if not scan_root.exists():
         return ScanResponse(
             success=False,
             source_id=source_id,
+            scan_path=scan_path or None,
             scan_root=scan_root_str,
             total_files=0, supported_files=0, excluded_files=0,
             new_files=0, changed_files=0, removed_files=0, unchanged_files=0, restored_files=0,
@@ -923,6 +1012,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
         return ScanResponse(
             success=True,
             source_id=source_id,
+            scan_path=scan_path or None,
             scan_root=scan_root_str,
             total_files=total_files,
             supported_files=supported_files,
@@ -948,6 +1038,7 @@ async def step1_source_scan(request: ScanRequest, db: Session = Depends(get_db))
         return ScanResponse(
             success=False,
             source_id=source_id,
+            scan_path=scan_path or None,
             scan_root=scan_root_str,
             total_files=0, supported_files=0, excluded_files=0,
             new_files=0, changed_files=0, removed_files=0, unchanged_files=0, restored_files=0,
