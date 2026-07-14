@@ -1,11 +1,13 @@
 # PDF 문서 추출기 - OCR 지원 (pytesseract + easyocr fallback)
 # 작업일: 2026-07-08 - DB 시스템 설정 연동 추가, structured_txt 우선 참조 추가
 # 작업일: 2026-07-14 - PyMuPDF 기반 페이지별 렌더링으로 대형 PDF 처리 안정화
+# 작업일: 2026-07-14 - 대용량 PDF 분할 처리 (100+ 페이지 청크 단위 OCR)
 """
 PDF Extractor with OCR support (pytesseract + easyocr fallback)
 표 추출 개선: Camelot/Tabula 병행 사용으로 구조화된 표 추출 지원
 [2026-07-08] structured_txt 우선 사용 지원 - 수동 추출 파일이 있으면 먼저 사용
 [2026-07-14] PyMuPDF 기반 페이지별 렌더링 - 대형 PDF 메모리/타임아웃 문제 해결
+[2026-07-14] 대용량 PDF 분할 처리 - 200+ 페이지 PDF를 청크 단위로 처리, 체크포인트 지원
 """
 import os
 import shutil
@@ -644,6 +646,123 @@ class PDFExtractor(BaseExtractor):
             method="ocr_all_failed",
         )
 
+    def _should_use_batch_processing(self, file_path: str) -> bool:
+        """대용량 PDF 분할 처리가 필요한지 확인."""
+        try:
+            batch_settings = OCRConfig.get_batch_processing_settings()
+            if not batch_settings.get("batch_enabled", True):
+                return False
+
+            total_pages = self._get_pdf_page_count(file_path)
+            threshold = batch_settings.get("batch_threshold_pages", 200)
+
+            if total_pages > threshold:
+                logger.info(f"[PDF] 분할 처리 대상: {total_pages}p > {threshold}p")
+                return True
+            return False
+        except Exception as e:
+            logger.debug(f"[PDF] 분할 처리 판단 실패: {e}")
+            return False
+
+    def _get_pdf_page_count(self, file_path: str) -> int:
+        """PDF 페이지 수 조회."""
+        try:
+            if HAS_PYMUPDF and fitz:
+                with fitz.open(file_path) as doc:
+                    return doc.page_count
+        except Exception:
+            pass
+
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                return len(pdf.pages)
+        except Exception:
+            return 0
+
+    async def _extract_with_batch_processing(self, file_path: str) -> Dict[str, Any]:
+        """대용량 PDF 분할 처리."""
+        try:
+            from app.services.pdf_batch_processor import PDFBatchProcessor, ChunkConfig
+
+            batch_settings = OCRConfig.get_batch_processing_settings()
+            total_pages = self._get_pdf_page_count(file_path)
+
+            # 초대용량 PDF는 더 작은 청크 사용
+            if total_pages > batch_settings.get("very_large_threshold_pages", 500):
+                pages_per_chunk = batch_settings.get("small_chunk_pages", 50)
+            else:
+                pages_per_chunk = batch_settings.get("pages_per_chunk", 100)
+
+            config = ChunkConfig(
+                pages_per_chunk=pages_per_chunk,
+                max_concurrent_chunks=batch_settings.get("max_concurrent_chunks", 2),
+                checkpoint_interval=batch_settings.get("checkpoint_interval", 1),
+                retry_failed_chunks=batch_settings.get("retry_failed_chunks", 2),
+            )
+
+            processor = PDFBatchProcessor(
+                pdf_path=file_path,
+                config=config,
+                ocr_engine=self.ocr_engine,
+                ocr_use_gpu=bool(self.ocr_use_gpu),
+                ocr_dpi=self.ocr_dpi,
+                ocr_language=self.ocr_language,
+            )
+
+            logger.info(
+                f"[PDF] 분할 처리 시작: {Path(file_path).name}, "
+                f"총 {total_pages}p, {pages_per_chunk}p/청크"
+            )
+
+            result = await processor.process_all()
+
+            # 결과 정리
+            processor.cleanup(keep_checkpoint=True)
+
+            return result
+
+        except ImportError as e:
+            logger.warning(f"[PDF] 분할 처리 모듈 로드 실패, 일반 처리로 폴백: {e}")
+            return await self._extract_without_batch(file_path)
+        except Exception as e:
+            logger.exception(f"[PDF] 분할 처리 실패, 일반 처리로 폴백: {e}")
+            return await self._extract_without_batch(file_path)
+
+    async def _extract_without_batch(self, file_path: str) -> Dict[str, Any]:
+        """분할 없이 일반 OCR 처리."""
+        import time
+        start_time = time.time()
+
+        is_scanned = self._is_scanned_pdf(file_path)
+
+        # 1단계: pdfplumber로 텍스트 추출 시도 (텍스트 기반 PDF)
+        if not is_scanned:
+            result = self._extract_with_pdfplumber(file_path)
+            if result.success and result.content.strip():
+                result.metadata["is_scanned"] = False
+                result.metadata["processing_time_sec"] = round(time.time() - start_time, 2)
+                return result.to_dict()
+
+        # OCR 비활성화된 경우
+        if not self.use_ocr:
+            return ExtractionResult(
+                success=False,
+                error="PDF is scanned but OCR is disabled",
+                method="scanned_ocr_disabled",
+                metadata={"is_scanned": True},
+            ).to_dict()
+
+        ocr_start = time.time()
+        result = await self._extract_with_preferred_ocr(file_path)
+        ocr_time = round(time.time() - ocr_start, 2)
+        result.metadata["is_scanned"] = True
+        result.metadata["ocr_time_sec"] = ocr_time
+        result.metadata["processing_time_sec"] = round(time.time() - start_time, 2)
+        result.metadata.setdefault("initial_method", "pdfplumber")
+        result.metadata.setdefault("preferred_ocr_engine", self.ocr_engine)
+
+        return result.to_dict()
+
     async def extract(self, file_path: str) -> Dict[str, Any]:
         import time
         start_time = time.time()
@@ -659,6 +778,13 @@ class PDFExtractor(BaseExtractor):
             structured_result["metadata"] = structured_result.get("metadata", {})
             structured_result["metadata"]["processing_time_sec"] = round(time.time() - start_time, 2)
             return structured_result
+
+        # [2026-07-14] 대용량 PDF 분할 처리
+        if self._should_use_batch_processing(file_path):
+            batch_result = await self._extract_with_batch_processing(file_path)
+            batch_result["metadata"] = batch_result.get("metadata", {})
+            batch_result["metadata"]["processing_time_sec"] = round(time.time() - start_time, 2)
+            return batch_result
 
         is_scanned = self._is_scanned_pdf(file_path)
 

@@ -264,3 +264,33 @@ class OCRConfig:
             "very_large_file_dpi": int(get_setting("ocr_very_large_file_dpi", 150)),  # 30MB+ 파일
             "very_large_file_threshold_mb": int(get_setting("ocr_very_large_file_threshold_mb", 30)),
         }
+
+    @classmethod
+    def get_batch_processing_settings(cls) -> Dict[str, Any]:
+        """대용량 PDF 분할 처리 설정을 DB에서 읽어옴."""
+        def get_setting(key: str, default: Any) -> Any:
+            try:
+                from app.services.system_settings_service import get_system_setting
+                return get_system_setting("ocr", key, default)
+            except Exception:
+                return default
+
+        return {
+            # 분할 처리 기준
+            "batch_enabled": bool(get_setting("ocr_batch_enabled", True)),
+            "batch_threshold_pages": int(get_setting("ocr_batch_threshold_pages", 200)),  # 이 페이지 이상이면 분할
+            "very_large_threshold_pages": int(get_setting("ocr_very_large_threshold_pages", 500)),
+
+            # 청크 설정
+            "pages_per_chunk": int(get_setting("ocr_pages_per_chunk", 100)),
+            "small_chunk_pages": int(get_setting("ocr_small_chunk_pages", 50)),  # 초대용량용
+            "max_concurrent_chunks": int(get_setting("ocr_concurrent_chunks", 2)),
+
+            # 체크포인트/복구
+            "checkpoint_enabled": bool(get_setting("ocr_checkpoint_enabled", True)),
+            "checkpoint_interval": int(get_setting("ocr_checkpoint_interval", 1)),  # N개 청크마다 저장
+            "retry_failed_chunks": int(get_setting("ocr_retry_failed_chunks", 2)),
+
+            # 타임아웃
+            "chunk_timeout_sec": int(get_setting("ocr_chunk_timeout_sec", 600)),  # 청크당 최대 10분
+        }
