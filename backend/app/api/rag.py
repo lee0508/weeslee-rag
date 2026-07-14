@@ -1810,3 +1810,142 @@ async def get_proposal_sections():
             {"key": "effect", "title": "기대 효과", "description": "기대 효과, 성과지표"},
         ],
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tool Calling API - LLM이 도구를 호출하여 데이터 분석/진단을 수행
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ToolCallingRequest(BaseModel):
+    """Tool Calling 요청 스키마."""
+    query: str = Field(..., description="사용자 질문")
+    enable_tools: bool = Field(True, description="도구 사용 여부")
+    max_tool_calls: int = Field(5, ge=1, le=10, description="최대 도구 호출 횟수")
+    model: Optional[str] = Field(None, description="사용할 LLM 모델")
+    system_prompt: Optional[str] = Field(None, description="시스템 프롬프트")
+
+
+@router.post("/query-with-tools")
+async def query_with_tools(request: ToolCallingRequest):
+    """
+    Tool Calling을 사용하여 쿼리를 처리합니다.
+
+    LLM이 필요에 따라 다음 도구를 호출할 수 있습니다:
+    - analyze_data_structure: 데이터 구조 분석
+    - diagnose_data_quality: 데이터 품질 진단
+    - analyze_data_linkage: 데이터 연계 가능성 분석
+    - search_documents: RAG 문서 검색
+    - query_graph_relations: GraphRAG 관계 조회
+    - calculate_statistics: 통계 계산
+    - aggregate_by_field: 필드별 집계
+    """
+    try:
+        from app.services.tool_executor import ToolExecutor
+
+        executor = ToolExecutor(model=request.model)
+
+        system_prompt = request.system_prompt or (
+            "당신은 데이터 분석 전문가입니다. "
+            "사용자의 질문에 답하기 위해 필요한 도구를 호출하고, "
+            "결과를 바탕으로 전문적인 분석과 권장사항을 제공하세요. "
+            "한국어로 답변하세요."
+        )
+
+        if not request.enable_tools:
+            result = executor._generate_without_tools(request.query, system_prompt)
+        else:
+            result = executor.execute_with_tools(
+                query=request.query,
+                system_prompt=system_prompt,
+                max_tool_calls=request.max_tool_calls,
+            )
+
+        return {
+            "success": True,
+            "query": request.query,
+            "answer": result.get("answer", ""),
+            "tool_calls_count": result.get("tool_calls_count", 0),
+            "tool_results": result.get("tool_results", []),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "query": request.query,
+            "error": str(e),
+            "answer": "",
+            "tool_calls_count": 0,
+            "tool_results": [],
+        }
+
+
+@router.get("/tools")
+async def list_available_tools():
+    """사용 가능한 도구 목록을 반환합니다."""
+    try:
+        from app.services.tool_registry import get_registry
+
+        registry = get_registry()
+
+        # 도구 모듈 로드
+        try:
+            import app.services.tools  # noqa: F401
+        except Exception:
+            pass
+
+        tools = []
+        for tool_name in registry.list_tools():
+            tool = registry.get(tool_name)
+            if tool:
+                tools.append({
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.parameters,
+                    "required": tool.required,
+                })
+
+        return {
+            "success": True,
+            "tools": tools,
+            "total": len(tools),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "tools": [],
+            "total": 0,
+        }
+
+
+@router.post("/tool/{tool_name}")
+async def execute_single_tool(tool_name: str, request: Request):
+    """단일 도구를 직접 실행합니다."""
+    try:
+        from app.services.tool_registry import get_registry
+
+        registry = get_registry()
+
+        # 도구 모듈 로드
+        try:
+            import app.services.tools  # noqa: F401
+        except Exception:
+            pass
+
+        body = await request.json()
+        result = registry.execute(tool_name, body)
+
+        return {
+            "success": result.get("success", False),
+            "tool": tool_name,
+            "result": result.get("result"),
+            "error": result.get("error"),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "tool": tool_name,
+            "error": str(e),
+        }

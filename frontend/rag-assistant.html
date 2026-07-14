@@ -2155,6 +2155,7 @@
               <option value="rfp_analysis" data-i18n="mode_rfp">RFP 분석</option>
               <option value="graph_rag" data-i18n="mode_graph">관계 기반</option>
               <option value="hybrid_rag" data-i18n="mode_hybrid">Hybrid RAG</option>
+              <option value="tool_calling" data-i18n="mode_tool">데이터 분석</option>
               <option value="proposal_draft" data-i18n="mode_proposal">제안서 초안</option>
             </select>
           <div id="bidHint" style="display:none;font-size:11px;color:var(--amber);background:rgba(232,151,31,.1);padding:7px 8px;border-radius:6px;line-height:1.6;"></div>
@@ -2791,6 +2792,9 @@
       mode_hybrid:'Hybrid RAG',
       hint_hybrid:'FAISS 벡터 검색 + GraphRAG 관계 검색을 통합합니다.<br>두 검색 결과를 병합하고 재순위화하여 정확도를 높입니다.',
       query_example_hybrid:'행정안전부 차세대 업무시스템 관련 모든 문서와 프로젝트 연관 관계를 찾아줘',
+      mode_tool:'데이터 분석',
+      hint_tool:'LLM이 데이터 분석 도구를 선택하여 실행합니다.<br>데이터 구조 분석, 품질 진단, 통계 계산, 연계 가능성 분석 등을 수행합니다.',
+      query_example_tool:'지속가능발전포털 데이터가 단순 게시형인지 구조화 데이터인지 진단해줘',
       mode_proposal:'제안서 초안',
       hint_proposal:'GraphRAG + FAISS + Wiki를 통합하여 제안서 섹션별 초안을 생성합니다.<br>사업명과 발주기관을 입력하면 관련 실적과 문서를 기반으로 초안을 작성합니다.',
       query_example_proposal:'차세대 행정업무시스템 ISMP 제안서 초안을 작성해줘 (발주기관: 행정안전부)',
@@ -2999,6 +3003,9 @@
         mode_hybrid:'Hybrid RAG',
         hint_hybrid:'Combines FAISS vector search + GraphRAG relationship search.<br>Merges and re-ranks results for higher accuracy.',
         query_example_hybrid:'Find all documents and project relationships for MOIS next-gen business system',
+        mode_tool:'Data Analysis',
+        hint_tool:'LLM selects and executes data analysis tools.<br>Performs data structure analysis, quality diagnosis, statistics, and linkage analysis.',
+        query_example_tool:'Diagnose whether sustainable development portal data is simple posting or structured data',
         mode_proposal:'Proposal Draft',
         hint_proposal:'Integrates GraphRAG + FAISS + Wiki to generate proposal section drafts.<br>Enter project name and organization to create drafts based on related records.',
         query_example_proposal:'Create a proposal draft for Next-gen Admin System ISMP (Organization: MOIS)',
@@ -3092,6 +3099,7 @@
         rfp_analysis: 'RFP 분석',
         graph_rag: '관계기반',
         hybrid_rag: 'Hybrid RAG',
+        tool_calling: '데이터 분석',
         proposal_draft: '제안서 초안',
       };
       return labels[mode] || getSearchModeLabel(mode);
@@ -4248,7 +4256,7 @@
     function onSearchModeChange() {
       const mode = document.getElementById('searchMode').value;
       const hint = document.getElementById('bidHint');
-      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph'), hybrid_rag: t('hint_hybrid'), proposal_draft: t('hint_proposal') };
+      const hints = { bid_project: t('hint_bid'), rfp_analysis: t('hint_rfp'), graph_rag: t('hint_graph'), hybrid_rag: t('hint_hybrid'), tool_calling: t('hint_tool'), proposal_draft: t('hint_proposal') };
       hint.innerHTML = hints[mode] || '';
       hint.style.display = hints[mode] ? '' : 'none';
 
@@ -4264,6 +4272,7 @@
         rfp_analysis: t('query_example_rfp'),
         graph_rag:    t('query_example_graph'),
         hybrid_rag:   t('query_example_hybrid'),
+        tool_calling: t('query_example_tool'),
         proposal_draft: t('query_example_proposal'),
       };
       const example = examples[mode] || '';
@@ -4706,6 +4715,24 @@
           const hybridData = await response.json();
           // Hybrid API 응답을 기존 형식으로 변환
           data = transformHybridResponse(hybridData);
+        } else if (effectiveMode === 'tool_calling') {
+          // Tool Calling 모드: LLM이 도구를 선택하여 실행
+          const toolPayload = {
+            query: effectiveQuery,
+            enable_tools: true,
+            max_tool_calls: 5,
+            model: answerModel,
+            system_prompt: '당신은 데이터 분석 전문가입니다. 사용자의 질문에 답하기 위해 적절한 도구를 선택하여 실행하세요.'
+          };
+          const response = await fetch(`${API_BASE}/rag/query-with-tools`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(toolPayload)
+          });
+          if (!response.ok) throw new Error(await readApiError(response));
+          const toolData = await response.json();
+          // Tool Calling 응답을 기존 형식으로 변환
+          data = transformToolCallingResponse(toolData, effectiveQuery);
         } else {
           const response = await fetch(`${API_BASE}/rag/query`, {
             method: 'POST',
@@ -5765,6 +5792,53 @@
         },
         evidence: hybridData.evidence || [],
         draft_answer: hybridData.answer || ''
+      };
+    }
+
+    // Tool Calling API 응답을 기존 RAG API 응답 형식으로 변환
+    function transformToolCallingResponse(toolData, query) {
+      if (!toolData) return { success: false, error: 'No tool data' };
+
+      const toolResults = toolData.tool_results || [];
+      const toolCallsCount = toolData.tool_calls_count || 0;
+
+      // 도구 실행 결과를 문서 형태로 변환 (시각화 용도)
+      const documents = toolResults.map((result, idx) => ({
+        document_id: `tool_result_${idx}`,
+        file_name: `${result.tool || 'unknown_tool'}_결과`,
+        project_name: result.tool || 'Tool 실행 결과',
+        chunk_text: JSON.stringify(result.result, null, 2),
+        source: 'tool_calling',
+        score: 1.0 - (idx * 0.1),
+        category: 'tool_result',
+        tool_name: result.tool,
+        tool_arguments: result.arguments,
+        tool_result: result.result
+      }));
+
+      // 도구 실행 요약 생성
+      const toolSummary = toolResults.map(r => {
+        const toolName = r.tool || 'unknown';
+        const args = r.arguments ? JSON.stringify(r.arguments) : '{}';
+        return `${toolName}(${args})`;
+      }).join(', ');
+
+      return {
+        success: true,
+        documents,
+        total_chunks: documents.length,
+        expanded_query: query,
+        tool_calling_metadata: {
+          tool_calls_count: toolCallsCount,
+          tools_executed: toolResults.map(r => r.tool),
+          tool_summary: toolSummary
+        },
+        retrieval_summary: {
+          resolved_snapshot_count: 0,
+          skipped_snapshot_count: 0,
+          no_result_reason: documents.length ? '' : 'no_tools_executed',
+        },
+        draft_answer: toolData.answer || ''
       };
     }
 
