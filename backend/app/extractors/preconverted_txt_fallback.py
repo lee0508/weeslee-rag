@@ -1,200 +1,101 @@
-import csv
-import re
-from html import unescape
-from io import StringIO
+# 한글 2018 추출 파일 (txt/csv) 우선 참조 모듈
+# 작업일: 2026-07-14 - 단순화된 구조로 재작성
+"""
+OCR 전에 한글 2018에서 미리 추출한 txt/csv 파일을 찾아 사용합니다.
+
+경로 매핑:
+- Document Source: /mnt/w2_project/00. RAG 소스/01. RFP/문서.hwp
+- 전처리 파일:     /data/weeslee/weeslee-mnt/00. RAG 소스/01. RFP/문서.txt
+
+사용법:
+1. 로컬에서 한글 2018으로 hwp/pdf → txt/csv 변환
+2. C:\xampp\htdocs\weeslee-mnt\ 파일을 서버 /data/weeslee/weeslee-mnt/로 복사
+3. Dataset Builder에서 OCR 작업 시 자동으로 txt/csv 우선 사용
+"""
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
+# 경로 매핑 설정
+SOURCE_ROOT = "/mnt/w2_project/"
+PRECONVERTED_ROOT = "/data/weeslee/weeslee-mnt/"
 
-SOURCE_TO_COPY_ROOTS = (
-    ("/mnt/w2_project/", "/data/weeslee/weeslee-mnt/"),
-)
-
-COPIED_TREE_ROOTS = (
-    "/data/weeslee/weeslee-mnt/",
-    "C:/xampp/htdocs/weeslee-mnt/",
-)
-
-TEXT_ENCODINGS = ("utf-8", "utf-8-sig", "cp949", "euc-kr")
-ARTIFACT_EXTENSIONS = (".txt", ".html", ".csv")
-RELATIVE_PREFIXES = (
-    "00. RAG 소스/",
-    "01. RFP/",
-    "02. 제안서/",
-    "03. 산출물/",
-)
+# 지원 확장자 및 인코딩
+ARTIFACT_EXTENSIONS = (".txt", ".csv")
+TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "cp949", "euc-kr")
 
 
-def _normalize_path(file_path: str) -> str:
-    return str(file_path or "").replace("\\", "/").strip()
-
-
-def _candidate_base_paths(file_path: str) -> list[Path]:
-    normalized = _normalize_path(file_path)
-    if not normalized:
-        return []
-
-    candidates: list[Path] = []
-
-    for source_root, copy_root in SOURCE_TO_COPY_ROOTS:
-        if normalized.startswith(source_root):
-            relative_path = normalized[len(source_root):]
-            candidates.append(Path(copy_root + relative_path))
-            break
-
-    if any(normalized.startswith(root) for root in COPIED_TREE_ROOTS):
-        candidates.append(Path(normalized))
-
-    if any(normalized.startswith(prefix) for prefix in RELATIVE_PREFIXES):
-        for root in COPIED_TREE_ROOTS:
-            candidates.append(Path(root) / normalized)
-
-    if not candidates and "/" not in normalized and "\\" not in normalized:
-        candidates.append(Path(normalized))
-
-    unique_candidates: list[Path] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        candidate_key = str(candidate)
-        if candidate_key in seen:
-            continue
-        seen.add(candidate_key)
-        unique_candidates.append(candidate)
-    return unique_candidates
-
-
-def _candidate_txt_paths(file_path: str) -> list[Path]:
-    return _candidate_artifact_paths(file_path, ".txt")
-
-
-def _candidate_artifact_paths(file_path: str, extension: str) -> list[Path]:
-    normalized = str(file_path).replace("\\", "/")
-    candidates: list[Path] = []
-
-    for base_path in _candidate_base_paths(normalized):
-        candidates.append(base_path.with_suffix(extension))
-
-    unique_candidates: list[Path] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        candidate_key = str(candidate)
-        if candidate_key in seen:
-            continue
-        seen.add(candidate_key)
-        unique_candidates.append(candidate)
-    return unique_candidates
-
-
-def _read_text(candidate: Path) -> str:
+def _read_text_file(file_path: Path) -> str:
+    """다중 인코딩으로 텍스트 파일 읽기."""
     for encoding in TEXT_ENCODINGS:
         try:
-            return candidate.read_text(encoding=encoding)
-        except UnicodeDecodeError:
+            return file_path.read_text(encoding=encoding)
+        except (UnicodeDecodeError, LookupError):
             continue
         except OSError:
-            break
+            return ""
     return ""
 
 
-def _normalize_compare_text(text: str) -> str:
-    return re.sub(r"\s+", "", str(text or "")).strip().lower()
+def _find_preconverted_path(source_path: str) -> Optional[Path]:
+    """
+    원본 파일 경로에서 전처리 파일 경로를 찾습니다.
 
+    예시:
+    - 입력: /mnt/w2_project/00. RAG 소스/01. RFP/문서.hwp
+    - 출력: /data/weeslee/weeslee-mnt/00. RAG 소스/01. RFP/문서.txt
+    """
+    normalized = source_path.replace("\\", "/")
 
-def _html_to_text(raw_text: str) -> str:
-    text = str(raw_text or "")
-    if not text.strip():
-        return ""
+    # /mnt/w2_project/ → /data/weeslee/weeslee-mnt/ 매핑
+    if normalized.startswith(SOURCE_ROOT):
+        relative = normalized[len(SOURCE_ROOT):]
+        base_path = Path(PRECONVERTED_ROOT + relative)
 
-    text = re.sub(r"(?is)<(script|style)\b.*?>.*?</\1>", " ", text)
-    text = re.sub(r"(?i)</(td|th)>\s*<(td|th)\b[^>]*>", " | ", text)
-    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
-    text = re.sub(r"(?i)</(tr|p|div|li|h[1-6])\s*>", "\n", text)
-    text = re.sub(r"(?i)<t[dh]\b[^>]*>", "", text)
-    text = re.sub(r"(?i)<tr\b[^>]*>", "", text)
-    text = re.sub(r"(?s)<[^>]+>", " ", text)
-    text = unescape(text)
-    text = re.sub(r"[ \t]+\n", "\n", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r"[ \t]{2,}", " ", text)
-    return text.strip()
+        for ext in ARTIFACT_EXTENSIONS:
+            candidate = base_path.with_suffix(ext)
+            if candidate.is_file():
+                return candidate
 
+    # 이미 /data/weeslee/weeslee-mnt/ 경로인 경우
+    if normalized.startswith(PRECONVERTED_ROOT):
+        base_path = Path(normalized)
 
-def _csv_to_text(raw_text: str) -> str:
-    text = str(raw_text or "")
-    if not text.strip():
-        return ""
+        for ext in ARTIFACT_EXTENSIONS:
+            candidate = base_path.with_suffix(ext)
+            if candidate.is_file():
+                return candidate
 
-    rows: list[str] = []
-    try:
-        reader = csv.reader(StringIO(text))
-        for row in reader:
-            cells = [str(cell or "").strip() for cell in row if str(cell or "").strip()]
-            if not cells:
-                continue
-            rows.append(" | ".join(cells))
-    except Exception:
-        rows = [line.strip() for line in text.splitlines() if line.strip()]
-
-    return "\n".join(rows).strip()
-
-
-def _transform_artifact_text(extension: str, raw_text: str) -> str:
-    if extension == ".html":
-        return _html_to_text(raw_text)
-    if extension == ".csv":
-        return _csv_to_text(raw_text)
-    return str(raw_text or "").strip()
+    return None
 
 
 def load_preconverted_artifacts(file_path: str) -> Optional[dict[str, Any]]:
-    parts: list[str] = []
-    compare_texts: list[str] = []
-    used_paths: list[str] = []
-    artifact_types: list[str] = []
+    """
+    전처리된 txt/csv 파일이 있으면 내용을 반환합니다.
 
-    for extension in ARTIFACT_EXTENSIONS:
-        for candidate in _candidate_artifact_paths(file_path, extension):
-            if not candidate.is_file():
-                continue
-
-            raw_text = _read_text(candidate)
-            transformed = _transform_artifact_text(extension, raw_text)
-            normalized = _normalize_compare_text(transformed)
-            if len(normalized) < 20:
-                continue
-
-            if any(
-                normalized in existing or existing in normalized
-                for existing in compare_texts
-                if len(existing) >= 50
-            ):
-                used_paths.append(str(candidate))
-                artifact_types.append(extension.lstrip("."))
-                continue
-
-            parts.append(transformed.strip())
-            compare_texts.append(normalized)
-            used_paths.append(str(candidate))
-            artifact_types.append(extension.lstrip("."))
-            break
-
-    if not parts:
+    Returns:
+        {"text": 내용, "paths": [파일경로], "types": ["txt" or "csv"]}
+        또는 None (파일 없음)
+    """
+    preconverted = _find_preconverted_path(file_path)
+    if not preconverted:
         return None
 
+    text = _read_text_file(preconverted)
+    if not text or len(text.strip()) < 50:
+        return None
+
+    ext_type = preconverted.suffix.lstrip(".")
+
     return {
-        "text": "\n\n".join(part for part in parts if part).strip(),
-        "paths": used_paths,
-        "types": artifact_types,
+        "text": text.strip(),
+        "paths": [str(preconverted)],
+        "types": [ext_type],
     }
 
 
 def load_preconverted_txt(file_path: str) -> Optional[Tuple[str, str]]:
-    for candidate in _candidate_txt_paths(file_path):
-        if not candidate.is_file():
-            continue
-
-        text = _read_text(candidate)
-        if text.strip():
-            return text.strip(), str(candidate)
-
+    """간단한 인터페이스: (텍스트, 파일경로) 반환."""
+    result = load_preconverted_artifacts(file_path)
+    if result:
+        return result["text"], result["paths"][0]
     return None
