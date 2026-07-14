@@ -1127,15 +1127,18 @@ async def query_with_rfp(
     query_text = extracted_text[:2000].strip()
 
     try:
+        # RFP 업로드는 기본적으로 전체 스냅샷에서 검색 (더 넓은 범위)
+        effective_search_scope = search_scope or "all_snapshots"
+
         rag_request = RagQueryRequest(
             query=query_text,
             top_k=top_k,
             top_docs=top_docs,
             answer_provider=answer_provider,
             answer_model=answer_model,
-            search_scope=search_scope,
+            search_scope=effective_search_scope,
             snapshot_ids=_parse_snapshot_ids_form(snapshot_ids),
-            category=category,
+            category=None,  # RFP 업로드 시 카테고리 필터 비활성화 (더 넓은 검색)
             max_chunks_per_doc=max_chunks_per_doc,
             mode=mode,
         )
