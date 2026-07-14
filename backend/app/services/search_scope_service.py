@@ -30,6 +30,24 @@ def _is_after_min_date(created_at: Any) -> bool:
     return created_str >= _MIN_CREATED_DATE
 
 
+def _is_source_after_min_date(source_name: str) -> bool:
+    """source_name에서 날짜를 추출하여 _MIN_CREATED_DATE 이후인지 확인.
+
+    source_name 예시:
+    - "01. RFP_20260714_V1" -> 2026-07-14
+    - "00. RAG 소스_20260713_V1" -> 2026-07-13
+    - "00. RAG 소스_20260701" -> 2026-07-01
+    """
+    import re
+    # YYYYMMDD 형식의 날짜 추출
+    match = re.search(r'(\d{4})(\d{2})(\d{2})', source_name or "")
+    if not match:
+        return False
+    year, month, day = match.groups()
+    date_str = f"{year}-{month}-{day}"  # "20260714" -> "2026-07-14"
+    return date_str >= _MIN_CREATED_DATE
+
+
 def _now_iso() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
@@ -130,8 +148,9 @@ def _source_record_map() -> dict[str, dict[str, Any]]:
             source_id = str(row.get("source_id") or "").strip()
             if not source_id:
                 continue
-            # 2026-07-10 이전 생성된 source는 제외
-            if not _is_after_min_date(row.get("created_at")):
+            # source_name에서 날짜 추출하여 2026-07-10 이전이면 제외
+            source_name = str(row.get("source_name") or "").strip()
+            if not _is_source_after_min_date(source_name):
                 continue
             records[source_id] = row
     except Exception:
