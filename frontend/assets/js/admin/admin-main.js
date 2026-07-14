@@ -13362,8 +13362,8 @@ LIMIT 10`;
       let lastResult = null;
       let lastMeaningfulEventAt = Date.now();
       let warnedStale = false;
-      const staleWarningMs = 3 * 60 * 1000;
-      const staleTimeoutMs = 8 * 60 * 1000;
+      const staleWarningMs = 5 * 60 * 1000;
+      const staleTimeoutMs = 15 * 60 * 1000;
 
       const clearWatchdog = () => {
         if (watchdogTimer) clearInterval(watchdogTimer);
@@ -13561,8 +13561,8 @@ LIMIT 10`;
   async function _wizardPollStep4JobUntilDone(step, jobId, options = {}) {
     const intervalMs = Number(options.intervalMs || 3000);
     const timeoutMs = Number(options.timeoutMs || 60 * 60 * 1000);
-    const staleWarningMs = Number(options.staleWarningMs || 3 * 60 * 1000);
-    const staleTimeoutMs = Number(options.staleTimeoutMs || 8 * 60 * 1000);
+    const staleWarningMs = Number(options.staleWarningMs || 5 * 60 * 1000);
+    const staleTimeoutMs = Number(options.staleTimeoutMs || 15 * 60 * 1000);
     const startedAt = Date.now();
     let lastStage = '';
     let seenDoneMessage = false;
