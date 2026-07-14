@@ -1032,9 +1032,39 @@ def _extract_text_from_upload(file_content: bytes, filename: str) -> str:
     """업로드된 파일에서 텍스트를 추출한다."""
     suffix = Path(filename).suffix.lower()
     if suffix == ".pdf":
-        import pdfplumber
-        with pdfplumber.open(io.BytesIO(file_content)) as pdf:
-            return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        # 1차 시도: pdfplumber
+        try:
+            import pdfplumber
+            with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+                if text.strip():
+                    return text
+        except Exception:
+            pass
+
+        # 2차 시도: PyMuPDF (fitz) - 더 견고한 PDF 파서
+        try:
+            import fitz  # PyMuPDF
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            text = "\n".join(page.get_text() for page in doc)
+            doc.close()
+            if text.strip():
+                return text
+        except Exception:
+            pass
+
+        # 3차 시도: pypdf
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(file_content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+            if text.strip():
+                return text
+        except Exception:
+            pass
+
+        raise ValueError("PDF 텍스트 추출 실패: 손상되었거나 이미지만 포함된 PDF일 수 있습니다.")
+
     if suffix == ".docx":
         import docx as _docx
         doc = _docx.Document(io.BytesIO(file_content))
