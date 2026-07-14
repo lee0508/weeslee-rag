@@ -223,16 +223,44 @@ class PDFExtractor(BaseExtractor):
         except Exception:
             return True
 
-    def _build_ocr_config(self) -> OCRConfig:
-        return OCRConfig.from_step4_config(
-            {
-                "ocr_engine": self.ocr_engine,
-                "ocr_dpi": self.ocr_dpi,
-                "ocr_language": self.ocr_language,
-                "ocr_min_text_length": self.ocr_threshold,
-            },
-            use_gpu=bool(self.ocr_use_gpu) if self.ocr_use_gpu is not None else True,
-        )
+    def _build_ocr_config(self, file_path: Optional[str] = None) -> OCRConfig:
+        """
+        OCR 설정 빌드. DB 설정을 우선 사용하고, 대용량 파일인 경우 DPI를 낮춤.
+
+        Args:
+            file_path: PDF 파일 경로 (대용량 파일 여부 판단용)
+        """
+        # DB에서 OCR 설정 로드
+        use_gpu = bool(self.ocr_use_gpu) if self.ocr_use_gpu is not None else None
+        cfg = OCRConfig.from_db(use_gpu=use_gpu)
+
+        # 인스턴스 설정 오버라이드 (명시적으로 지정된 경우)
+        if self.ocr_engine:
+            cfg.primary_engine = self.ocr_engine
+        if self.ocr_dpi:
+            cfg.render.dpi = self.ocr_dpi
+        if self.ocr_language:
+            cfg.tesseract.lang = self.ocr_language
+            cfg.easyocr.lang_list = OCRConfig._map_lang_to_easyocr(self.ocr_language)
+        if self.ocr_threshold:
+            cfg.detection.scanned_min_chars = self.ocr_threshold
+
+        # 대용량 파일 처리: DPI 낮춤
+        if file_path:
+            large_settings = OCRConfig.get_large_file_settings()
+            try:
+                file_size_mb = Path(file_path).stat().st_size / (1024 * 1024)
+                if file_size_mb > large_settings["large_file_threshold_mb"]:
+                    original_dpi = cfg.render.dpi
+                    cfg.render.dpi = large_settings["large_file_dpi"]
+                    logger.info(
+                        f"[PDF] 대용량 파일 감지 ({file_size_mb:.1f}MB), "
+                        f"DPI 조정: {original_dpi} -> {cfg.render.dpi}"
+                    )
+            except Exception as e:
+                logger.debug(f"[PDF] 파일 크기 확인 실패: {e}")
+
+        return cfg
 
     def _render_pdf_images_pymupdf(self, pdf_path: str, dpi: int = 300) -> List[Any]:
         """
@@ -419,7 +447,7 @@ class PDFExtractor(BaseExtractor):
         try:
             import pytesseract
 
-            ocr_cfg = self._build_ocr_config()
+            ocr_cfg = self._build_ocr_config(pdf_path)
             images = self._render_pdf_images(pdf_path, ocr_cfg)
             tess_cfg = ocr_cfg.tesseract
             parts = []
@@ -463,7 +491,7 @@ class PDFExtractor(BaseExtractor):
         try:
             import numpy as np
 
-            ocr_cfg = self._build_ocr_config()
+            ocr_cfg = self._build_ocr_config(pdf_path)
             easy_cfg = ocr_cfg.easyocr
             reader = _get_easyocr_reader(self.ocr_use_gpu, easy_cfg.lang_list)
             images = self._render_pdf_images(pdf_path, ocr_cfg)
