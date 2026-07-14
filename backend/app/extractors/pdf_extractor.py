@@ -1,9 +1,11 @@
 # PDF 문서 추출기 - OCR 지원 (pytesseract + easyocr fallback)
 # 작업일: 2026-07-08 - DB 시스템 설정 연동 추가, structured_txt 우선 참조 추가
+# 작업일: 2026-07-14 - PyMuPDF 기반 페이지별 렌더링으로 대형 PDF 처리 안정화
 """
 PDF Extractor with OCR support (pytesseract + easyocr fallback)
 표 추출 개선: Camelot/Tabula 병행 사용으로 구조화된 표 추출 지원
 [2026-07-08] structured_txt 우선 사용 지원 - 수동 추출 파일이 있으면 먼저 사용
+[2026-07-14] PyMuPDF 기반 페이지별 렌더링 - 대형 PDF 메모리/타임아웃 문제 해결
 """
 import os
 import shutil
@@ -11,6 +13,14 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 import pdfplumber
 import logging
+
+# PyMuPDF for efficient page-by-page rendering
+try:
+    import fitz  # PyMuPDF
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+    fitz = None
 
 from app.extractors.base import BaseExtractor, ExtractionResult
 from app.services.ocr_config import OCRConfig
@@ -224,10 +234,71 @@ class PDFExtractor(BaseExtractor):
             use_gpu=bool(self.ocr_use_gpu) if self.ocr_use_gpu is not None else True,
         )
 
+    def _render_pdf_images_pymupdf(self, pdf_path: str, dpi: int = 300) -> List[Any]:
+        """
+        [2026-07-14] PyMuPDF 기반 페이지별 렌더링 - pdf-ocr 프로젝트 방식 적용.
+
+        장점:
+        - 페이지별 개별 렌더링으로 메모리 효율적
+        - pix.samples 직접 사용으로 변환 단계 최소화
+        - 대형 PDF에서도 타임아웃 없이 안정적 처리
+        """
+        from PIL import Image
+        import numpy as np
+
+        if not HAS_PYMUPDF or fitz is None:
+            raise ImportError("PyMuPDF(fitz) is not installed")
+
+        images = []
+        pdf_doc = fitz.open(pdf_path)
+        scale = dpi / 72.0
+
+        try:
+            for page_num in range(pdf_doc.page_count):
+                page = pdf_doc[page_num]
+                mat = fitz.Matrix(scale, scale)
+                pix = page.get_pixmap(matrix=mat)
+
+                # pix.samples 직접 사용 (메모리 최적화, pdf-ocr 방식)
+                samples = pix.samples
+                img_array = np.frombuffer(samples, dtype=np.uint8)
+                img_array = img_array.reshape(pix.height, pix.width, pix.n if pix.n > 0 else 3)
+
+                # PIL Image로 변환
+                if pix.n == 4:
+                    # RGBA -> RGB
+                    pil_img = Image.fromarray(img_array, mode='RGBA').convert('RGB')
+                elif pix.n == 1:
+                    # Grayscale -> RGB
+                    pil_img = Image.fromarray(img_array, mode='L').convert('RGB')
+                else:
+                    pil_img = Image.fromarray(img_array, mode='RGB')
+
+                images.append(pil_img)
+
+                # 메모리 해제
+                pix = None
+        finally:
+            pdf_doc.close()
+
+        return images
+
     def _render_pdf_images(self, pdf_path: str, ocr_cfg: OCRConfig) -> List[Any]:
+        """PDF를 이미지로 렌더링. PyMuPDF 우선 사용, 실패 시 pdf2image fallback."""
+        render_cfg = ocr_cfg.render
+        dpi = render_cfg.dpi
+
+        # [2026-07-14] PyMuPDF 우선 사용 (대형 PDF 안정성)
+        if HAS_PYMUPDF:
+            try:
+                logger.info(f"[PDF] PyMuPDF 렌더링 시작: {Path(pdf_path).name}, DPI={dpi}")
+                return self._render_pdf_images_pymupdf(pdf_path, dpi)
+            except Exception as e:
+                logger.warning(f"[PDF] PyMuPDF 렌더링 실패, pdf2image 폴백: {e}")
+
+        # pdf2image fallback
         from pdf2image import convert_from_path, pdfinfo_from_path
 
-        render_cfg = ocr_cfg.render
         batch_size = render_cfg.page_batch_size
         if not batch_size or batch_size <= 0:
             return convert_from_path(pdf_path, **render_cfg.to_convert_kwargs())
