@@ -130,6 +130,9 @@ def _source_record_map() -> dict[str, dict[str, Any]]:
             source_id = str(row.get("source_id") or "").strip()
             if not source_id:
                 continue
+            # 2026-07-10 이전 생성된 source는 제외
+            if not _is_after_min_date(row.get("created_at")):
+                continue
             records[source_id] = row
     except Exception:
         return records
@@ -176,6 +179,9 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
         source_id = str(snap.get("source_id") or "").strip()
         if not source_id:
             continue
+        # source_records에 없으면 (날짜 필터로 제외된 경우) 스킵
+        if source_id not in source_records:
+            continue
         # 2026-07-10 이전 생성된 snapshot은 제외
         if not _is_after_min_date(snap.get("created_at")):
             continue
@@ -220,6 +226,9 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
         source_id = _parse_source_id_from_snapshot(snapshot_id)
         if not source_id:
             continue
+        # source_records에 없으면 (날짜 필터로 제외된 경우) 스킵
+        if source_id not in source_records:
+            continue
         if source_id not in source_names and not (
             source_id.startswith("src_") or source_id.startswith("rag_source")
         ):
@@ -238,6 +247,8 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
         )
         if any(str(item.get("snapshot_id") or "") == snapshot_id for item in info["snapshots"]):
             continue
+        # FAISS 인덱스 기반 snapshot은 source의 created_at 사용
+        source_created_at = source_records.get(source_id, {}).get("created_at")
         info["snapshots"].append(
             {
                 "snapshot_id": snapshot_id,
@@ -247,7 +258,7 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
                 "vector_count": 0,
                 "chunk_count": 0,
                 "document_count": 0,
-                "created_at": None,
+                "created_at": source_created_at,
                 "activated_at": None,
                 "queryable": True,
             }
