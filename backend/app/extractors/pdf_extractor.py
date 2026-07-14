@@ -1,11 +1,12 @@
 # PDF 문서 추출기 - OCR 지원 (pytesseract + easyocr fallback)
-# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가, structured_txt 우선 참조 추가
+# 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
 # 작업일: 2026-07-14 - PyMuPDF 기반 페이지별 렌더링으로 대형 PDF 처리 안정화
 # 작업일: 2026-07-14 - 대용량 PDF 분할 처리 (100+ 페이지 청크 단위 OCR)
+# 작업일: 2026-07-14 - preconverted_txt_fallback으로 txt/csv 우선 참조 통일
 """
 PDF Extractor with OCR support (pytesseract + easyocr fallback)
 표 추출 개선: Camelot/Tabula 병행 사용으로 구조화된 표 추출 지원
-[2026-07-08] structured_txt 우선 사용 지원 - 수동 추출 파일이 있으면 먼저 사용
+[2026-07-14] preconverted_txt_fallback 사용 - /mnt/w2_project/ → /data/weeslee/weeslee-mnt/ 매핑
 [2026-07-14] PyMuPDF 기반 페이지별 렌더링 - 대형 PDF 메모리/타임아웃 문제 해결
 [2026-07-14] 대용량 PDF 분할 처리 - 200+ 페이지 PDF를 청크 단위로 처리, 체크포인트 지원
 """
@@ -26,14 +27,7 @@ except ImportError:
 
 from app.extractors.base import BaseExtractor, ExtractionResult
 from app.services.ocr_config import OCRConfig
-
-# [2026-07-08] structured 파일 우선 사용 지원
-try:
-    from app.services.structured_content_resolver import StructuredContentResolver
-    HAS_STRUCTURED_RESOLVER = True
-except ImportError:
-    HAS_STRUCTURED_RESOLVER = False
-    StructuredContentResolver = None
+from app.extractors.preconverted_txt_fallback import load_preconverted_artifacts
 
 
 def _get_db_ocr_setting(key: str, default):
@@ -111,97 +105,29 @@ class PDFExtractor(BaseExtractor):
     def supported_extensions(self) -> List[str]:
         return [".pdf"]
 
-    def _read_text_file(self, file_path: Path) -> str:
+    def _try_preconverted_txt(self, file_path: str) -> Optional[Dict[str, Any]]:
         """
-        텍스트 파일 읽기 (UTF-8 BOM, UTF-8, CP949 순서로 시도).
-        한글 2018에서 추출한 txt/csv 파일 지원.
+        [2026-07-14] 한글 2018에서 추출한 txt/csv/html 파일 우선 사용.
+        preconverted_txt_fallback 모듈 사용:
+        - /mnt/w2_project/ → /data/weeslee/weeslee-mnt/ 경로 매핑
+        - .txt, .csv, .html 파일 자동 검색
         """
-        encodings = ["utf-8-sig", "utf-8", "cp949", "euc-kr"]
-        for encoding in encodings:
-            try:
-                return file_path.read_text(encoding=encoding)
-            except (UnicodeDecodeError, LookupError):
-                continue
-        # 모든 인코딩 실패 시 바이너리 읽기 후 에러 무시
-        return file_path.read_bytes().decode("utf-8", errors="ignore")
-
-    def _try_structured_txt(self, file_path: str) -> Optional[Dict[str, Any]]:
-        """
-        [2026-07-08] structured_txt 우선 사용.
-        [2026-07-14] csv 파일 지원 추가 (한글 2018에서 추출한 파일)
-        1) 같은 폴더에 동일 이름의 .txt 또는 .csv 파일이 있으면 사용
-        2) 없으면 StructuredContentResolver로 structured_txt 폴더 확인
-        """
-        file_path_obj = Path(file_path)
-        file_name = file_path_obj.name
-
-        # 1단계: 같은 폴더에 .txt 또는 .csv 파일 확인
-        for ext in [".txt", ".csv"]:
-            alt_path = file_path_obj.with_suffix(ext)
-            if alt_path.exists():
-                try:
-                    content = self._read_text_file(alt_path)
-                    if content and len(content.strip()) > 100:
-                        logger.info(f"[PDF] 같은 폴더 {ext} 사용: {alt_path.name}")
-                        return ExtractionResult(
-                            success=True,
-                            content=content,
-                            metadata={
-                                "source": file_path,
-                                "filename": file_name,
-                                "used_paths": [str(alt_path)],
-                                "preconverted_type": ext.lstrip("."),
-                            },
-                            method=f"same_folder_{ext.lstrip('.')}"
-                        ).to_dict()
-                except Exception as e:
-                    logger.debug(f"[PDF] 같은 폴더 {ext} 읽기 실패: {e}")
-
-        # 2단계: StructuredContentResolver로 structured_txt 폴더 확인
-        if not HAS_STRUCTURED_RESOLVER or not StructuredContentResolver:
-            return None
-        try:
-            path_str = str(file_path).replace("\\", "/")
-
-            # relative_path 추론
-            relative_path = file_name
-            for marker in ["00. RAG 소스/", "01. RFP/", "02. 제안서/", "03. 산출물/"]:
-                if marker in path_str:
-                    idx = path_str.find(marker)
-                    relative_path = path_str[idx:]
-                    break
-
-            class _FakeDoc:
-                def __init__(self, rp, fn):
-                    self.relative_path = rp
-                    self.file_name = fn
-
-            resolver = StructuredContentResolver({
-                "use_structured_txt": True,
-                "use_structured_json": True,
-                "prefer_structured_content": True,
-                "max_text_chars": 50000,
-            })
-
-            content = resolver.resolve_document_content(_FakeDoc(relative_path, file_name))
-            combined_text = content.get("combined_text") or ""
-
-            if combined_text and len(combined_text.strip()) > 100:
-                logger.info(f"[PDF] structured_txt 우선 사용: {file_name}")
-                return ExtractionResult(
-                    success=True,
-                    content=combined_text,
-                    metadata={
-                        "source": file_path,
-                        "filename": file_name,
-                        "used_paths": content.get("used_paths", []),
-                    },
-                    method="structured_txt_priority"
-                ).to_dict()
-            return None
-        except Exception as e:
-            logger.debug(f"[PDF] structured_txt 조회 실패: {e}")
-            return None
+        result = load_preconverted_artifacts(file_path)
+        if result and result.get("text"):
+            file_name = Path(file_path).name
+            logger.info(f"[PDF] preconverted 파일 사용: {result.get('paths')}")
+            return ExtractionResult(
+                success=True,
+                content=result["text"],
+                metadata={
+                    "source": file_path,
+                    "filename": file_name,
+                    "used_paths": result.get("paths", []),
+                    "preconverted_types": result.get("types", []),
+                },
+                method="preconverted_txt"
+            ).to_dict()
+        return None
 
     def __init__(
         self,
@@ -784,12 +710,12 @@ class PDFExtractor(BaseExtractor):
                 success=False, error=f"File not found: {file_path}"
             ).to_dict()
 
-        # [2026-07-08] structured_txt 우선 사용 - 수동 추출 파일이 있으면 먼저 사용
-        structured_result = self._try_structured_txt(file_path)
-        if structured_result:
-            structured_result["metadata"] = structured_result.get("metadata", {})
-            structured_result["metadata"]["processing_time_sec"] = round(time.time() - start_time, 2)
-            return structured_result
+        # [2026-07-14] preconverted txt/csv 우선 사용 - 한글 2018 추출 파일 우선
+        preconverted_result = self._try_preconverted_txt(file_path)
+        if preconverted_result:
+            preconverted_result["metadata"] = preconverted_result.get("metadata", {})
+            preconverted_result["metadata"]["processing_time_sec"] = round(time.time() - start_time, 2)
+            return preconverted_result
 
         # [2026-07-14] 대용량 PDF 분할 처리
         if self._should_use_batch_processing(file_path):

@@ -1,5 +1,6 @@
 # HWP 문서 추출기 - 구조화된 표 및 BinData OCR 보충
 # 작업일: 2026-07-08 - DB 시스템 설정 연동 추가
+# 작업일: 2026-07-14 - preconverted_txt_fallback으로 txt/csv 우선 참조 통일
 """
 HWP extractor with unconditional structured-table and BinData OCR supplements.
 """
@@ -28,14 +29,6 @@ def _get_db_ocr_setting(key: str, default):
         return default
 
 logger = logging.getLogger(__name__)
-
-# [2026-07-08] structured 파일 fallback 지원
-try:
-    from app.services.structured_content_resolver import StructuredContentResolver
-    HAS_STRUCTURED_RESOLVER = True
-except ImportError:
-    HAS_STRUCTURED_RESOLVER = False
-    StructuredContentResolver = None
 
 try:
     from app.services.text_quality_checker import text_quality_checker
@@ -115,10 +108,6 @@ class HwpExtractor(BaseExtractor):
         ocr_engine: str = None,
         ocr_use_gpu: Optional[bool] = None,
         ocr_image_min_bytes: int = 3000,
-        # [2026-07-08] structured 파일 fallback 설정
-        use_structured_fallback: bool = True,
-        structured_txt_root: Optional[str] = None,
-        structured_json_root: Optional[str] = None,
     ):
         self.use_pdf_fallback = use_pdf_fallback
         self.use_ocr_fallback = use_ocr_fallback
@@ -133,10 +122,6 @@ class HwpExtractor(BaseExtractor):
         self.ocr_image_min_bytes = int(ocr_image_min_bytes or 3000)
         self._pdf_cache: dict[str, str] = {}
         self._pdf_tmpdirs: dict[str, str] = {}
-        # [2026-07-08] structured 파일 fallback 설정
-        self.use_structured_fallback = use_structured_fallback
-        self.structured_txt_root = structured_txt_root
-        self.structured_json_root = structured_json_root
 
     @property
     def supported_extensions(self) -> List[str]:
@@ -218,17 +203,6 @@ class HwpExtractor(BaseExtractor):
             metadata["copied_artifact_paths"] = copied_artifact_result["paths"]
             metadata["copied_artifact_types"] = copied_artifact_result["types"]
             return copied_artifact_result["text"], "copied_artifact_priority"
-
-        # [2026-07-08] structured_txt 우선 사용 - 수동 추출 파일이 있으면 먼저 사용
-        if self.use_structured_fallback and HAS_STRUCTURED_RESOLVER:
-            structured_result = self._extract_from_structured_files(file_path)
-            metadata["extraction_attempts"].append({
-                "method": "structured_txt_priority",
-                "success": structured_result is not None,
-                "text_length": len(structured_result) if structured_result else 0,
-            })
-            if structured_result:
-                return structured_result, "structured_txt_priority"
 
         direct_result = self._extract_with_hwp5txt(file_path)
         metadata["extraction_attempts"].append({
@@ -619,68 +593,6 @@ class HwpExtractor(BaseExtractor):
             }
 
         return text_quality_checker.check(text).to_dict()
-
-    # [2026-07-08] structured 파일에서 텍스트 추출
-    def _extract_from_structured_files(self, file_path: str) -> Optional[str]:
-        """
-        hwp 추출 실패 시 structured_txt/structured_json 파일에서 텍스트를 가져옵니다.
-        수동 작성된 구조화 파일이 있으면 그 내용을 사용합니다.
-        """
-        if not HAS_STRUCTURED_RESOLVER or not StructuredContentResolver:
-            return None
-
-        try:
-            # 파일 경로에서 relative_path와 file_name 추출
-            file_name = Path(file_path).name
-
-            # document 객체를 흉내내는 간단한 클래스 생성
-            class _FakeDocument:
-                def __init__(self, fp: str, fn: str):
-                    self.file_path = fp
-                    self.file_name = fn
-                    # relative_path를 추론: weeslee-mnt 기준 또는 RAG 소스 기준
-                    self.relative_path = self._infer_relative_path(fp)
-
-                def _infer_relative_path(self, fp: str) -> str:
-                    # 경로에서 "00. RAG 소스" 이후 부분 추출
-                    path_str = str(fp).replace("\\", "/")
-                    markers = ["00. RAG 소스/", "00. RAG 소스\\"]
-                    for marker in markers:
-                        if marker in path_str:
-                            idx = path_str.find(marker)
-                            return path_str[idx:]
-                    # 또는 01. RFP, 02. 제안서 등으로 시작하는 부분
-                    for prefix in ["01. RFP", "02. 제안서", "03. 산출물"]:
-                        if prefix in path_str:
-                            idx = path_str.find(prefix)
-                            return path_str[idx:]
-                    return Path(fp).name
-
-            fake_doc = _FakeDocument(file_path, file_name)
-
-            config = {
-                "use_structured_txt": True,
-                "use_structured_json": True,
-                "prefer_structured_content": True,
-                "max_text_chars": 50000,
-            }
-            if self.structured_txt_root:
-                config["structured_txt_root"] = self.structured_txt_root
-            if self.structured_json_root:
-                config["structured_json_root"] = self.structured_json_root
-
-            resolver = StructuredContentResolver(config)
-            content = resolver.resolve_document_content(fake_doc)
-
-            combined_text = content.get("combined_text") or ""
-            if combined_text and len(combined_text.strip()) > 100:
-                logger.info(f"[structured_fallback] {file_name}: {len(combined_text)} chars from {content.get('used_paths')}")
-                return combined_text
-
-            return None
-        except Exception as e:
-            logger.warning(f"[structured_fallback] Failed for {file_path}: {e}")
-            return None
 
 
 hwp_extractor = HwpExtractor()
