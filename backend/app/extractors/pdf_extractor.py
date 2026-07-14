@@ -111,39 +111,51 @@ class PDFExtractor(BaseExtractor):
     def supported_extensions(self) -> List[str]:
         return [".pdf"]
 
+    def _read_text_file(self, file_path: Path) -> str:
+        """
+        텍스트 파일 읽기 (UTF-8 BOM, UTF-8, CP949 순서로 시도).
+        한글 2018에서 추출한 txt/csv 파일 지원.
+        """
+        encodings = ["utf-8-sig", "utf-8", "cp949", "euc-kr"]
+        for encoding in encodings:
+            try:
+                return file_path.read_text(encoding=encoding)
+            except (UnicodeDecodeError, LookupError):
+                continue
+        # 모든 인코딩 실패 시 바이너리 읽기 후 에러 무시
+        return file_path.read_bytes().decode("utf-8", errors="ignore")
+
     def _try_structured_txt(self, file_path: str) -> Optional[Dict[str, Any]]:
         """
         [2026-07-08] structured_txt 우선 사용.
-        1) 같은 폴더에 동일 이름의 .txt 파일이 있으면 사용
+        [2026-07-14] csv 파일 지원 추가 (한글 2018에서 추출한 파일)
+        1) 같은 폴더에 동일 이름의 .txt 또는 .csv 파일이 있으면 사용
         2) 없으면 StructuredContentResolver로 structured_txt 폴더 확인
         """
         file_path_obj = Path(file_path)
         file_name = file_path_obj.name
 
-        # 1단계: 같은 폴더에 .txt 파일 확인
-        txt_path = file_path_obj.with_suffix(".txt")
-        if txt_path.exists():
-            try:
-                # UTF-8 BOM 또는 UTF-8로 읽기
+        # 1단계: 같은 폴더에 .txt 또는 .csv 파일 확인
+        for ext in [".txt", ".csv"]:
+            alt_path = file_path_obj.with_suffix(ext)
+            if alt_path.exists():
                 try:
-                    content = txt_path.read_text(encoding="utf-8-sig")
-                except UnicodeDecodeError:
-                    content = txt_path.read_text(encoding="utf-8")
-
-                if content and len(content.strip()) > 100:
-                    logger.info(f"[PDF] 같은 폴더 txt 사용: {txt_path.name}")
-                    return ExtractionResult(
-                        success=True,
-                        content=content,
-                        metadata={
-                            "source": file_path,
-                            "filename": file_name,
-                            "used_paths": [str(txt_path)],
-                        },
-                        method="same_folder_txt"
-                    ).to_dict()
-            except Exception as e:
-                logger.debug(f"[PDF] 같은 폴더 txt 읽기 실패: {e}")
+                    content = self._read_text_file(alt_path)
+                    if content and len(content.strip()) > 100:
+                        logger.info(f"[PDF] 같은 폴더 {ext} 사용: {alt_path.name}")
+                        return ExtractionResult(
+                            success=True,
+                            content=content,
+                            metadata={
+                                "source": file_path,
+                                "filename": file_name,
+                                "used_paths": [str(alt_path)],
+                                "preconverted_type": ext.lstrip("."),
+                            },
+                            method=f"same_folder_{ext.lstrip('.')}"
+                        ).to_dict()
+                except Exception as e:
+                    logger.debug(f"[PDF] 같은 폴더 {ext} 읽기 실패: {e}")
 
         # 2단계: StructuredContentResolver로 structured_txt 폴더 확인
         if not HAS_STRUCTURED_RESOLVER or not StructuredContentResolver:
