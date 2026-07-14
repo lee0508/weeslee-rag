@@ -1,18 +1,28 @@
 # PDF 문서 추출기 - OCR 지원 (pytesseract + easyocr fallback)
 # 작업일: 2026-07-08 - DB 시스템 설정 연동 추가, structured_txt 우선 참조 추가
 # 작업일: 2026-07-14 - PyMuPDF 기반 페이지별 렌더링으로 대형 PDF 처리 안정화
+# 작업일: 2026-07-14 - pdf-ocr 프로젝트 품질 향상 기법 적용 (이미지 전처리, 품질 분석)
 """
 PDF Extractor with OCR support (pytesseract + easyocr fallback)
 표 추출 개선: Camelot/Tabula 병행 사용으로 구조화된 표 추출 지원
 [2026-07-08] structured_txt 우선 사용 지원 - 수동 추출 파일이 있으면 먼저 사용
 [2026-07-14] PyMuPDF 기반 페이지별 렌더링 - 대형 PDF 메모리/타임아웃 문제 해결
+[2026-07-14] pdf-ocr 프로젝트 기법 적용: 이미지 전처리, 품질 분석, 적응형 OCR
 """
 import os
 import shutil
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import pdfplumber
 import logging
+
+# OpenCV for image preprocessing (optional)
+try:
+    import cv2
+    HAS_OPENCV = True
+except ImportError:
+    HAS_OPENCV = False
+    cv2 = None
 
 # PyMuPDF for efficient page-by-page rendering
 try:
@@ -43,6 +53,155 @@ def _get_db_ocr_setting(key: str, default):
         return default
 
 logger = logging.getLogger(__name__)
+
+
+# ================================================
+# [2026-07-14] pdf-ocr 프로젝트 이미지 전처리 기법 이식
+# ================================================
+
+# 품질 분석 상수 (pdf-ocr에서 이식)
+QUALITY_SHARPNESS_HIGH = 800
+QUALITY_SHARPNESS_MEDIUM = 400
+QUALITY_SHARPNESS_LOW = 200
+QUALITY_CONTRAST_HIGH = 0.35
+QUALITY_CONTRAST_MEDIUM = 0.20
+
+
+def _analyze_image_quality(image) -> Dict[str, Any]:
+    """
+    [2026-07-14] 이미지 품질 분석 (pdf-ocr 프로젝트 방식).
+    선명도, 대비 측정 후 전처리 전략 결정.
+    """
+    import numpy as np
+
+    if not HAS_OPENCV or cv2 is None:
+        return {
+            "type": "unknown",
+            "sharpness": 0,
+            "contrast": 0,
+            "preprocessing": {},
+            "suggest_enhancement": False,
+        }
+
+    # PIL Image -> numpy array
+    if hasattr(image, "convert"):
+        img_array = np.array(image.convert("L"))
+    else:
+        img_array = image
+
+    # Grayscale 변환
+    if len(img_array.shape) == 3:
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = img_array
+
+    # 1. 선명도 측정 (Laplacian 분산)
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+    sharpness = float(laplacian.var())
+
+    # 2. 대비 측정 (히스토그램 표준편차)
+    contrast = float(gray.std() / 255.0)
+
+    # 품질 판정
+    if sharpness > QUALITY_SHARPNESS_HIGH and contrast > QUALITY_CONTRAST_HIGH:
+        quality_type = "high"
+        suggest_enhancement = False
+    elif sharpness > QUALITY_SHARPNESS_MEDIUM:
+        quality_type = "medium"
+        suggest_enhancement = True
+    elif sharpness > QUALITY_SHARPNESS_LOW:
+        quality_type = "low"
+        suggest_enhancement = True
+    else:
+        quality_type = "very_low"
+        suggest_enhancement = True
+
+    return {
+        "type": quality_type,
+        "sharpness": sharpness,
+        "contrast": contrast,
+        "suggest_enhancement": suggest_enhancement,
+    }
+
+
+def _enhance_image_for_ocr(image) -> Tuple[Any, Dict[str, Any]]:
+    """
+    [2026-07-14] OCR을 위한 이미지 전처리 (pdf-ocr 프로젝트 auto_enhance_for_ocr 이식).
+
+    처리 순서:
+    1. Grayscale 변환
+    2. CLAHE 대비 강화
+    3. Otsu 이진화
+    4. 모폴로지 노이즈 제거
+    """
+    import numpy as np
+    from PIL import Image
+
+    enhancement_info = {"steps_applied": [], "original_mode": None}
+
+    if not HAS_OPENCV or cv2 is None:
+        logger.debug("[OCR] OpenCV 미설치 - 전처리 건너뜀")
+        return image, enhancement_info
+
+    # PIL Image -> numpy array
+    if hasattr(image, "mode"):
+        enhancement_info["original_mode"] = image.mode
+        img_array = np.array(image)
+    else:
+        img_array = image
+
+    # 1. Grayscale 변환
+    if len(img_array.shape) == 3:
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = img_array
+    enhancement_info["steps_applied"].append("grayscale")
+
+    # 2. 배경 밝기 분석
+    avg_brightness = float(np.mean(gray))
+    is_dark_bg = avg_brightness < 128
+    is_very_light = avg_brightness > 240
+
+    enhancement_info["avg_brightness"] = avg_brightness
+    enhancement_info["background_type"] = (
+        "dark" if is_dark_bg else ("very_light" if is_very_light else "normal")
+    )
+
+    enhanced = gray.copy()
+
+    # 3. 어두운 배경 반전
+    if is_dark_bg:
+        enhanced = cv2.bitwise_not(enhanced)
+        enhancement_info["steps_applied"].append("invert_dark_bg")
+
+    # 4. CLAHE 대비 강화 (밝은/어두운 배경 모두에 적용)
+    if is_very_light or is_dark_bg:
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(enhanced)
+        enhancement_info["steps_applied"].append("clahe")
+
+    # 5. Otsu 이진화
+    threshold_value, binary = cv2.threshold(
+        enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+    enhancement_info["steps_applied"].append(f"otsu_threshold={threshold_value:.0f}")
+    enhancement_info["otsu_threshold"] = float(threshold_value)
+
+    # 6. 모폴로지 노이즈 제거
+    kernel = np.ones((2, 2), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    enhancement_info["steps_applied"].append("denoise_morphology")
+
+    # numpy array -> PIL Image
+    enhanced_pil = Image.fromarray(binary)
+
+    logger.debug(
+        f"[OCR] 이미지 전처리 완료: {len(enhancement_info['steps_applied'])}단계 "
+        f"({', '.join(enhancement_info['steps_applied'])})"
+    )
+
+    return enhanced_pil, enhancement_info
 
 
 def _is_tesseract_available() -> bool:
@@ -415,7 +574,7 @@ class PDFExtractor(BaseExtractor):
             return ExtractionResult(success=False, error=str(e), method="pdfplumber")
 
     def _extract_with_tesseract(self, pdf_path: str) -> ExtractionResult:
-        """Convert pages to images and run tesseract OCR (kor+eng)."""
+        """Convert pages to images and run tesseract OCR (kor+eng) with image preprocessing."""
         try:
             import pytesseract
 
@@ -423,9 +582,27 @@ class PDFExtractor(BaseExtractor):
             images = self._render_pdf_images(pdf_path, ocr_cfg)
             tess_cfg = ocr_cfg.tesseract
             parts = []
+            enhancement_stats = []
+
             for i, img in enumerate(images, start=1):
+                # [2026-07-14] pdf-ocr 기법: 품질 분석 후 전처리 적용
+                quality_info = _analyze_image_quality(img)
+                processed_img = img
+
+                if quality_info.get("suggest_enhancement") and HAS_OPENCV:
+                    processed_img, enhance_info = _enhance_image_for_ocr(img)
+                    enhancement_stats.append({
+                        "page": i,
+                        "quality": quality_info.get("type"),
+                        "steps": enhance_info.get("steps_applied", []),
+                    })
+                    logger.debug(
+                        f"[OCR] 페이지 {i}: 품질={quality_info.get('type')}, "
+                        f"전처리={','.join(enhance_info.get('steps_applied', []))}"
+                    )
+
                 text = pytesseract.image_to_string(
-                    img,
+                    processed_img,
                     lang=tess_cfg.lang,
                     config=tess_cfg.to_config_string(),
                     timeout=tess_cfg.timeout,
@@ -452,6 +629,8 @@ class PDFExtractor(BaseExtractor):
                     "render_grayscale": ocr_cfg.render.grayscale,
                     "render_batch_size": ocr_cfg.render.page_batch_size,
                     "tesseract_config": tess_cfg.to_config_string(),
+                    "image_preprocessing": True if enhancement_stats else False,
+                    "preprocessing_stats": enhancement_stats[:5] if enhancement_stats else [],
                 },
                 method="tesseract",
             )
@@ -459,7 +638,7 @@ class PDFExtractor(BaseExtractor):
             return ExtractionResult(success=False, error=str(e), method="tesseract")
 
     def _extract_with_easyocr(self, pdf_path: str) -> ExtractionResult:
-        """Convert pages to images and run EasyOCR (Korean + English)."""
+        """Convert pages to images and run EasyOCR (Korean + English) with image preprocessing."""
         try:
             import numpy as np
 
@@ -468,9 +647,22 @@ class PDFExtractor(BaseExtractor):
             reader = _get_easyocr_reader(self.ocr_use_gpu, easy_cfg.lang_list)
             images = self._render_pdf_images(pdf_path, ocr_cfg)
             parts = []
+            enhancement_stats = []
 
             for i, img in enumerate(images, start=1):
-                img_np = np.array(img)
+                # [2026-07-14] pdf-ocr 기법: 품질 분석 후 전처리 적용
+                quality_info = _analyze_image_quality(img)
+                processed_img = img
+
+                if quality_info.get("suggest_enhancement") and HAS_OPENCV:
+                    processed_img, enhance_info = _enhance_image_for_ocr(img)
+                    enhancement_stats.append({
+                        "page": i,
+                        "quality": quality_info.get("type"),
+                        "steps": enhance_info.get("steps_applied", []),
+                    })
+
+                img_np = np.array(processed_img)
                 results = reader.readtext(img_np, **easy_cfg.readtext_kwargs())
                 # 결과에서 텍스트만 추출하고 줄바꿈으로 연결
                 page_text = "\n".join(
@@ -500,6 +692,8 @@ class PDFExtractor(BaseExtractor):
                     "render_grayscale": ocr_cfg.render.grayscale,
                     "render_batch_size": ocr_cfg.render.page_batch_size,
                     "easyocr_options": easy_cfg.readtext_kwargs(),
+                    "image_preprocessing": True if enhancement_stats else False,
+                    "preprocessing_stats": enhancement_stats[:5] if enhancement_stats else [],
                 },
                 method="easyocr",
             )
