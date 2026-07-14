@@ -18,6 +18,17 @@ CONFIG_DIR = DATA_DIR / "config"
 CONFIG_FILE = CONFIG_DIR / "search_profiles.json"
 _CATEGORY_SUFFIXES = {"rfp", "proposal", "deliverable"}
 
+# 2026-07-10 이후 생성된 데이터만 표시 (이전 테스트 데이터 제외)
+_MIN_CREATED_DATE = "2026-07-10"
+
+
+def _is_after_min_date(created_at: Any) -> bool:
+    """created_at이 _MIN_CREATED_DATE 이후인지 확인."""
+    if not created_at:
+        return False
+    created_str = str(created_at)[:10]  # "2026-07-14T03:47:33" -> "2026-07-14"
+    return created_str >= _MIN_CREATED_DATE
+
 
 def _now_iso() -> str:
     return datetime.utcnow().isoformat() + "Z"
@@ -164,6 +175,9 @@ def _build_snapshot_registry() -> tuple[dict[str, dict[str, Any]], dict[str, str
     for snap in sorted(snapshot_rows, key=_snapshot_sort_key, reverse=True):
         source_id = str(snap.get("source_id") or "").strip()
         if not source_id:
+            continue
+        # 2026-07-10 이전 생성된 snapshot은 제외
+        if not _is_after_min_date(snap.get("created_at")):
             continue
         known_snapshot_ids.add(str(snap.get("snapshot_id") or ""))
         info = registry.setdefault(
