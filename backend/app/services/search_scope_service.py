@@ -87,6 +87,31 @@ def _snapshot_sort_key(snapshot: dict[str, Any]) -> tuple:
     )
 
 
+def _source_sort_key(source_info: dict[str, Any]) -> tuple:
+    """Source를 최근 순으로 정렬하기 위한 키 함수.
+
+    정렬 우선순위:
+    1. active snapshot이 있는 source 우선
+    2. 최신 snapshot의 created_at 기준 (최근 순)
+    3. source_name 알파벳 순 (동일 시간일 경우)
+    """
+    snapshots = source_info.get("snapshots") or []
+    has_active = any(snap.get("is_active") for snap in snapshots)
+
+    # 가장 최근 snapshot의 created_at 찾기
+    latest_created = ""
+    for snap in snapshots:
+        created = snap.get("created_at") or ""
+        if created > latest_created:
+            latest_created = created
+
+    return (
+        1 if has_active else 0,
+        latest_created,
+        source_info.get("source_name") or source_info.get("source_id") or "",
+    )
+
+
 def _source_record_map() -> dict[str, dict[str, Any]]:
     records: dict[str, dict[str, Any]] = {}
     try:
@@ -352,11 +377,18 @@ def get_search_scope_catalog() -> dict[str, Any]:
     for scope in scopes:
         scope["is_default"] = scope["scope_id"] == default_scope_id
 
+    # sources를 최근 순으로 정렬 (active 우선, 최신 snapshot 기준)
+    sorted_sources = sorted(
+        registry.values(),
+        key=_source_sort_key,
+        reverse=True,
+    )
+
     return {
         "default_scope_id": default_scope_id,
         "active_snapshot": active_snapshot,
         "scopes": scopes,
-        "sources": list(registry.values()),
+        "sources": sorted_sources,
         "datasets": [
             {
                 "source_id": info.get("source_id") or "",
@@ -368,7 +400,7 @@ def get_search_scope_catalog() -> dict[str, Any]:
                 "snapshot_count": len(info.get("snapshots", [])),
                 "scope_id": f"source:{info.get('source_id')}",
             }
-            for info in registry.values()
+            for info in sorted_sources
         ],
         "updated_at": config.get("updated_at"),
     }
