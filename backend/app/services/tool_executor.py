@@ -15,6 +15,32 @@ from app.services.tool_registry import get_registry
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_error_message(error_str: str) -> str:
+    """기술적 오류 메시지를 사용자 친화적 메시지로 변환합니다."""
+    error_lower = error_str.lower()
+
+    # 연결 오류
+    if any(kw in error_lower for kw in ["connection", "urlopen", "timeout", "refused"]):
+        return "LLM 서버 연결 실패"
+
+    # JSON 파싱 오류
+    if "json" in error_lower or "decode" in error_lower:
+        return "응답 파싱 실패"
+
+    # 파일/경로 오류
+    if any(kw in error_lower for kw in ["file", "path", "directory", "no such"]):
+        return "데이터 파일 접근 실패"
+
+    # 메모리/리소스 오류
+    if any(kw in error_lower for kw in ["memory", "resource", "oom"]):
+        return "리소스 부족"
+
+    # 기타: 첫 50자만 표시
+    if len(error_str) > 50:
+        return error_str[:47] + "..."
+    return error_str
+
+
 class ToolExecutor:
     """Tool Calling을 실행하고 LLM과 통합합니다."""
 
@@ -185,8 +211,10 @@ class ToolExecutor:
 
         except Exception as e:
             logger.exception("[ToolExecutor] 생성 실패")
+            # 기술적 오류 메시지를 사용자 친화적 메시지로 변환
+            error_msg = _sanitize_error_message(str(e))
             return {
-                "answer": f"오류: {str(e)}",
+                "answer": f"죄송합니다. 일시적인 오류가 발생했습니다. ({error_msg})",
                 "tool_results": [],
                 "tool_calls_count": 0,
             }
@@ -219,7 +247,8 @@ class ToolExecutor:
 
         except Exception as e:
             logger.exception("[ToolExecutor] 최종 답변 생성 실패")
-            return f"도구 실행은 완료되었으나 답변 생성에 실패했습니다: {str(e)}"
+            error_msg = _sanitize_error_message(str(e))
+            return f"도구 실행은 완료되었으나 답변 생성에 실패했습니다. ({error_msg})"
 
 
 # 전역 인스턴스
