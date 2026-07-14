@@ -3,21 +3,22 @@
 """
 OCR 전에 한글 2018에서 미리 추출한 txt/csv 파일을 찾아 사용합니다.
 
-경로 매핑:
-- Document Source: /mnt/w2_project/00. RAG 소스/01. RFP/문서.hwp
-- 전처리 파일:     /data/weeslee/weeslee-mnt/00. RAG 소스/01. RFP/문서.txt
+경로 매핑 (환경변수로 설정 가능):
+- DOCUMENT_SOURCE_ROOT: 원본 문서 루트 경로
+- PRECONVERTED_ROOT: 전처리 파일 루트 경로
 
 사용법:
-1. 로컬에서 한글 2018으로 hwp/pdf → txt/csv 변환
-2. C:\xampp\htdocs\weeslee-mnt\ 파일을 서버 /data/weeslee/weeslee-mnt/로 복사
+1. 로컬에서 한글 2018으로 hwp/pdf -> txt/csv 변환
+2. 변환된 파일을 서버 PRECONVERTED_ROOT 경로로 복사
 3. Dataset Builder에서 OCR 작업 시 자동으로 txt/csv 우선 사용
 """
+import os
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
-# 경로 매핑 설정
-SOURCE_ROOT = "/mnt/w2_project/"
-PRECONVERTED_ROOT = "/data/weeslee/weeslee-mnt/"
+# 환경변수에서 경로 설정 읽기 (기본값 제공)
+SOURCE_ROOT = os.environ.get("DOCUMENT_SOURCE_ROOT", "/mnt/w2_project/")
+PRECONVERTED_ROOT = os.environ.get("PRECONVERTED_ROOT", "/data/weeslee/weeslee-mnt/")
 
 # 지원 확장자 및 인코딩
 ARTIFACT_EXTENSIONS = (".txt", ".csv")
@@ -40,13 +41,11 @@ def _find_preconverted_path(source_path: str) -> Optional[Path]:
     """
     원본 파일 경로에서 전처리 파일 경로를 찾습니다.
 
-    예시:
-    - 입력: /mnt/w2_project/00. RAG 소스/01. RFP/문서.hwp
-    - 출력: /data/weeslee/weeslee-mnt/00. RAG 소스/01. RFP/문서.txt
+    SOURCE_ROOT 경로를 PRECONVERTED_ROOT로 매핑하여 txt/csv 파일을 찾습니다.
     """
     normalized = source_path.replace("\\", "/")
 
-    # /mnt/w2_project/ → /data/weeslee/weeslee-mnt/ 매핑
+    # SOURCE_ROOT → PRECONVERTED_ROOT 매핑
     if normalized.startswith(SOURCE_ROOT):
         relative = normalized[len(SOURCE_ROOT):]
         base_path = Path(PRECONVERTED_ROOT + relative)
@@ -56,7 +55,7 @@ def _find_preconverted_path(source_path: str) -> Optional[Path]:
             if candidate.is_file():
                 return candidate
 
-    # 이미 /data/weeslee/weeslee-mnt/ 경로인 경우
+    # 이미 PRECONVERTED_ROOT 경로인 경우
     if normalized.startswith(PRECONVERTED_ROOT):
         base_path = Path(normalized)
 
