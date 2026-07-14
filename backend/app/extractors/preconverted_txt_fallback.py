@@ -98,3 +98,26 @@ def load_preconverted_txt(file_path: str) -> Optional[Tuple[str, str]]:
     if result:
         return result["text"], result["paths"][0]
     return None
+
+
+# page_source_loader.py 호환용 함수들
+def _candidate_artifact_paths(source_path: str, ext: str) -> list[Path]:
+    """특정 확장자에 대해 후보 경로 목록을 반환합니다."""
+    normalized = source_path.replace("\\", "/")
+    candidates = []
+
+    if normalized.startswith(SOURCE_ROOT):
+        relative = normalized[len(SOURCE_ROOT):]
+        base_path = Path(PRECONVERTED_ROOT + relative)
+        candidates.append(base_path.with_suffix(ext))
+
+    if normalized.startswith(PRECONVERTED_ROOT):
+        base_path = Path(normalized)
+        candidates.append(base_path.with_suffix(ext))
+
+    return candidates
+
+
+def _read_text(file_path: Path) -> str:
+    """_read_text_file의 별칭."""
+    return _read_text_file(file_path)
