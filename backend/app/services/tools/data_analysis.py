@@ -239,7 +239,11 @@ def _analyze_chunks_structure(dataset_name: str) -> dict[str, Any]:
         "is_structured": False,
         "has_hierarchy": False,
         "linkable_fields": [],
+        "linkable_field_quality": {},  # 필드별 품질 정보
     }
+
+    # 필드별 값 수집 (유일값 비율 계산용)
+    field_values: dict[str, list] = {}
 
     # 청크 파일 탐색
     for chunk_file in CHUNKS_DIR.glob("*.jsonl"):
@@ -261,18 +265,40 @@ def _analyze_chunks_structure(dataset_name: str) -> dict[str, Any]:
                     if any(marker in text for marker in ["목표:", "지표:", "과제:", "평가:"]):
                         result["is_structured"] = True
 
-                    # 연계 가능 필드 탐지
+                    # 연계 가능 필드 탐지 및 값 수집
                     metadata = chunk.get("metadata", {})
                     for key, value in metadata.items():
                         if any(id_hint in key.lower() for id_hint in ["code", "id", "코드", "번호"]):
                             if key not in result["linkable_fields"]:
                                 result["linkable_fields"].append(key)
+                                field_values[key] = []
+                            # 값 수집 (최대 200개)
+                            if key in field_values and len(field_values[key]) < 200:
+                                if value is not None and str(value).strip():
+                                    field_values[key].append(str(value).strip())
 
                     # 샘플링 (처음 1000개만)
                     if result["total_chunks"] >= 1000:
                         break
         except Exception:
             continue
+
+    # 필드별 품질 계산
+    for field, values in field_values.items():
+        if not values:
+            result["linkable_field_quality"][field] = {
+                "has_values": False,
+                "uniqueness_ratio": 0.0,
+                "sample_values": [],
+            }
+        else:
+            unique_count = len(set(values))
+            total_count = len(values)
+            result["linkable_field_quality"][field] = {
+                "has_values": True,
+                "uniqueness_ratio": round(unique_count / total_count, 2) if total_count > 0 else 0.0,
+                "sample_values": list(set(values))[:5],
+            }
 
     return result
 
@@ -383,17 +409,79 @@ def _evaluate_structure_level(chunks_info: dict, doc_info: dict) -> dict[str, An
 
 
 def _evaluate_linkability(chunks_info: dict, doc_info: dict) -> dict[str, Any]:
-    """연계 가능성을 평가합니다."""
+    """연계 가능성을 평가합니다. 실제 연계 키로 사용 가능한지 검증합니다."""
     linkable_fields = chunks_info.get("linkable_fields", [])
+    field_quality = chunks_info.get("linkable_field_quality", {})
+    is_structured = chunks_info.get("is_structured", False)
 
-    score = min(1.0, len(linkable_fields) / 5)  # 5개 이상이면 만점
+    # 기본 점수: 후보 필드 개수 (최대 0.3점)
+    field_count_score = min(0.3, len(linkable_fields) * 0.05)
+
+    # 품질 점수: 실제 값이 있고 유일값 비율이 높은 필드 (최대 0.4점)
+    quality_score = 0.0
+    verified_fields = []
+    for field, quality in field_quality.items():
+        if quality.get("has_values", False) and quality.get("uniqueness_ratio", 0) > 0.5:
+            quality_score += 0.1
+            verified_fields.append({
+                "field": field,
+                "uniqueness_ratio": quality.get("uniqueness_ratio", 0),
+                "sample_values": quality.get("sample_values", [])[:3],
+            })
+    quality_score = min(0.4, quality_score)
+
+    # 구조화 보정: 단순 게시형이면 연계 가능성 페널티 (최대 0.3점)
+    structure_bonus = 0.3 if is_structured else 0.0
+
+    score = field_count_score + quality_score + structure_bonus
+
+    # 단순 게시형 + 검증된 필드 없음 → 낮은 점수 강제
+    if not is_structured and not verified_fields:
+        score = min(score, 0.2)
 
     return {
-        "score": score,
+        "score": round(score, 2),
         "linkable_field_count": len(linkable_fields),
+        "verified_field_count": len(verified_fields),
         "linkable_fields": linkable_fields,
-        "can_link_external": len(linkable_fields) >= 2,
+        "verified_fields": verified_fields,
+        "can_link_external": len(verified_fields) >= 1,
+        "evidence": {
+            "field_count_score": round(field_count_score, 2),
+            "quality_score": round(quality_score, 2),
+            "structure_bonus": round(structure_bonus, 2),
+            "reasoning": _generate_linkability_reasoning(
+                linkable_fields, verified_fields, is_structured
+            ),
+        },
     }
+
+
+def _generate_linkability_reasoning(
+    linkable_fields: list,
+    verified_fields: list,
+    is_structured: bool,
+) -> str:
+    """linkability 점수에 대한 근거 설명을 생성합니다."""
+    reasons = []
+
+    if not linkable_fields:
+        reasons.append("연계 가능 필드 후보가 없습니다.")
+    else:
+        reasons.append(f"연계 가능 필드 후보 {len(linkable_fields)}개 탐지: {linkable_fields[:5]}")
+
+    if not verified_fields:
+        reasons.append("실제 유일값이 50% 이상인 검증된 필드가 없습니다.")
+    else:
+        verified_names = [f["field"] for f in verified_fields]
+        reasons.append(f"검증된 연계 키 {len(verified_fields)}개: {verified_names}")
+
+    if not is_structured:
+        reasons.append("단순 게시형 데이터로, 구조화된 연계 관계가 부족합니다.")
+    else:
+        reasons.append("구조화된 데이터로, 연계 관계 수립 가능성이 높습니다.")
+
+    return " ".join(reasons)
 
 
 def _infer_identifier_type(field: str) -> str:
